@@ -1,0 +1,14 @@
+<% if (!rows.length) { %>
+  <p class="empty">No data recorded yet.</p>
+<% } else { %>
+  <div class="table-scroll">
+    <table class="data-table compact-table">
+      <thead><tr><th><%= label %></th><th>Events</th></tr></thead>
+      <tbody>
+        <% rows.forEach((row) => { %>
+          <tr><td><%= row._id || '(not set)' %></td><td><%= fmt.format(row.count) %></td></tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% } %>

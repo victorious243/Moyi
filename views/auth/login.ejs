@@ -1,0 +1,20 @@
+<%- include('../partials/header') %>
+
+<section class="auth-panel">
+  <h1>Sign in</h1>
+  <% if (errorMessage) { %>
+    <section class="panel notice-panel auth-notice">
+      <h2>Sign-in issue</h2>
+      <p class="empty"><%= errorMessage %></p>
+    </section>
+  <% } %>
+  <a class="button google-auth-button" href="/auth/google">Continue with Google</a>
+  <div class="auth-divider"><span>or sign in with email</span></div>
+  <form class="form" action="/login" method="post">
+    <label>Email <input type="email" name="email" autocomplete="email" required></label>
+    <label>Password <input type="password" name="password" autocomplete="current-password" required></label>
+    <button class="button button-primary" type="submit">Sign in</button>
+  </form>
+</section>
+
+<%- include('../partials/footer') %>

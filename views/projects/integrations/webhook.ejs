@@ -1,0 +1,75 @@
+<%- include('../../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/projects/<%= project._id %>">Project Overview</a>
+    <a href="/projects/<%= project._id %>/integrations/wordpress">WordPress</a>
+    <a href="/projects/<%= project._id %>/integrations/webflow">Webflow</a>
+    <a href="/projects/<%= project._id %>/integrations/shopify">Shopify</a>
+    <a href="/projects/<%= project._id %>/integrations/webhook">Webhook</a>
+    <a href="/projects/<%= project._id %>/content">Approval Queue</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow"><%= project.name %></p>
+        <h1>Outgoing Webhook</h1>
+      </div>
+    </div>
+
+    <% if (errorMessage) { %>
+      <section class="panel notice-panel">
+        <h2>Webhook issue</h2>
+        <p class="empty"><%= errorMessage %></p>
+      </section>
+    <% } %>
+
+    <% if (successMessage) { %>
+      <section class="panel">
+        <h2>Webhook updated</h2>
+        <p class="empty"><%= successMessage %></p>
+      </section>
+    <% } %>
+
+    <section class="metrics">
+      <article><span>Status</span><strong><%= project.webhookUrl ? 'enabled' : 'not set' %></strong></article>
+      <article><span>Event</span><strong>content approved</strong></article>
+      <article><span>Header</span><strong>X-Moyi-Signature</strong></article>
+      <article><span>Method</span><strong>POST JSON</strong></article>
+    </section>
+
+    <section class="panel">
+      <h2>Webhook Settings</h2>
+      <form class="form grid-form" action="/projects/<%= project._id %>/integrations/webhook" method="post">
+        <label class="full">
+          Webhook URL
+          <input type="url" name="webhookUrl" value="<%= project.webhookUrl || '' %>" placeholder="https://example.com/api/moyi/content-approved">
+        </label>
+        <button class="button button-primary" type="submit">Save Webhook</button>
+      </form>
+      <p class="empty">Moyi sends approved content drafts to this URL. Leave blank to disable delivery.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Signature Verification</h2>
+      <p class="empty">Verify the exact request body with HMAC-SHA256 and compare it to the <strong>X-Moyi-Signature</strong> header.</p>
+      <p class="empty">Signing secret: <code><%= project.webhookSigningSecret ? `${project.webhookSigningSecret.slice(0, 8)}...${project.webhookSigningSecret.slice(-6)}` : 'generated after save' %></code></p>
+    </section>
+
+    <section class="panel">
+      <h2>Payload Includes</h2>
+      <ul class="clean-list">
+        <li>Draft title, type, status, target URL, keyword, and approval timestamp.</li>
+        <li>Plain body and HTML body for custom CMS ingestion.</li>
+        <li>Meta tag suggestions when the draft is a title or description draft.</li>
+        <li>JSON body for schema drafts.</li>
+      </ul>
+    </section>
+  </section>
+</div>
+
+<%- include('../../partials/footer') %>

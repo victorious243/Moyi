@@ -1,0 +1,244 @@
+<%- include('../partials/header') %>
+<% const postDraftTypes = ['blog_article', 'vs_comparison_article', 'alternatives_list', 'product_led_guide']; %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects/<%= project._id %>">Project Overview</a>
+    <a href="/projects/<%= project._id %>/content">Approval Queue</a>
+    <a href="/projects/<%= project._id %>/recommendations">Recommendations</a>
+    <a href="/projects/<%= project._id %>/integrations/wordpress">WordPress</a>
+    <a href="/projects/<%= project._id %>/integrations/webflow">Webflow</a>
+    <a href="/projects/<%= project._id %>/integrations/shopify">Shopify</a>
+    <a href="/projects/<%= project._id %>/calendar">Calendar</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow"><%= draft.type.replace(/_/g, ' ') %></p>
+        <h1><%= draft.title || 'Content draft' %></h1>
+      </div>
+      <span class="status"><%= draft.status.replace(/_/g, ' ') %></span>
+    </div>
+
+    <% if (['meta_title', 'meta_description', 'h1'].includes(draft.type)) { %>
+      <section class="before-after-grid">
+        <article class="panel">
+          <p class="eyebrow">Before</p>
+          <h2>Current value</h2>
+          <p><%= draft.currentValue || 'No current value captured.' %></p>
+        </article>
+        <article class="panel">
+          <p class="eyebrow">After</p>
+          <h2>Generated draft</h2>
+          <p><%= draft.body %></p>
+          <% if (draft.improvementReason) { %><small><%= draft.improvementReason %></small><% } %>
+        </article>
+      </section>
+    <% } %>
+
+    <form class="form" action="/content/<%= draft._id %>/update" method="post">
+      <section class="panel">
+        <div class="panel-title">
+          <h2>Editor</h2>
+          <button class="button copy-button" type="button" data-copy-target="draft-body">Copy</button>
+        </div>
+        <label>Keyword <input name="keyword" value="<%= draft.keyword || '' %>"></label>
+        <label>Title <input name="title" value="<%= draft.title || '' %>"></label>
+        <label>Body <textarea id="draft-body" name="body" rows="14"><%= draft.body || '' %></textarea></label>
+        <% if (draft.type === 'schema_jsonld') { %>
+          <label>JSON-LD <textarea name="jsonBody" rows="12"><%= draft.jsonBody ? JSON.stringify(draft.jsonBody, null, 2) : '' %></textarea></label>
+        <% } %>
+        <button class="button button-primary" type="submit">Save Draft</button>
+      </section>
+    </form>
+
+    <% if (publishError) { %>
+      <section class="panel notice-panel">
+        <h2>Publish failed</h2>
+        <p class="empty"><%= publishError %></p>
+      </section>
+    <% } %>
+
+    <% if (publishSuccess) { %>
+      <section class="panel">
+        <h2>Publish action complete</h2>
+        <p class="empty"><%= publishSuccess %></p>
+      </section>
+    <% } %>
+
+    <% if (webhookStatus === 'sent') { %>
+      <section class="panel">
+        <h2>Webhook delivered</h2>
+        <p class="empty">The approved draft was sent to the project webhook endpoint.</p>
+      </section>
+    <% } %>
+
+    <% if (webhookStatus === 'failed') { %>
+      <section class="panel notice-panel">
+        <h2>Webhook delivery failed</h2>
+        <p class="empty">The draft was approved, but the external webhook endpoint did not accept the payload. Check the endpoint logs and signature verification.</p>
+      </section>
+    <% } %>
+
+    <section class="panel">
+      <div class="panel-title">
+        <div>
+          <h2>CMS Publishing</h2>
+          <p class="empty">Approved article drafts can be created as CMS drafts. Other content types are export-only in this MVP.</p>
+        </div>
+        <span class="status">CMS</span>
+      </div>
+
+      <div class="status-actions">
+        <% if (draft.status === 'approved' && postDraftTypes.includes(draft.type) && wordpressIntegration) { %>
+          <form action="/content/<%= draft._id %>/publish/wordpress-draft" method="post">
+            <button class="button button-primary" type="submit">Create WordPress Draft</button>
+          </form>
+        <% } %>
+        <% if (draft.status === 'approved' && postDraftTypes.includes(draft.type) && webflowIntegration) { %>
+          <form action="/content/<%= draft._id %>/publish/webflow-draft" method="post">
+            <button class="button button-primary" type="submit">Create Webflow Draft</button>
+          </form>
+        <% } %>
+        <% if (draft.status === 'approved' && postDraftTypes.includes(draft.type) && shopifyIntegration) { %>
+          <form action="/content/<%= draft._id %>/publish/shopify-draft" method="post">
+            <button class="button button-primary" type="submit">Create Shopify Draft</button>
+          </form>
+        <% } %>
+        <% if (draft.status === 'approved' && !postDraftTypes.includes(draft.type)) { %>
+          <form action="/content/<%= draft._id %>/publish/wordpress-draft" method="post">
+            <button class="button" type="submit">Record Export Only</button>
+          </form>
+        <% } %>
+        <button class="button copy-button" type="button" data-copy-target="draft-body">Copy Content</button>
+        <button class="button export-button" type="button" data-export-target="draft-body" data-export-title="<%= (draft.title || draft.type).replace(/"/g, '&quot;') %>">Export</button>
+        <% if (!wordpressIntegration) { %>
+          <a class="button" href="/projects/<%= project._id %>/integrations/wordpress">Connect WordPress</a>
+        <% } %>
+        <% if (!webflowIntegration) { %>
+          <a class="button" href="/projects/<%= project._id %>/integrations/webflow">Connect Webflow</a>
+        <% } %>
+        <% if (!shopifyIntegration) { %>
+          <a class="button" href="/projects/<%= project._id %>/integrations/shopify">Connect Shopify</a>
+        <% } %>
+      </div>
+
+      <% if (draft.status !== 'approved') { %>
+        <p class="empty">Approve this draft before sending it to WordPress.</p>
+      <% } %>
+      <% if (draft.status === 'approved' && !postDraftTypes.includes(draft.type)) { %>
+        <p class="empty">This draft type should be copied or exported manually. It will not overwrite WordPress pages.</p>
+      <% } %>
+      <% if (draft.status === 'approved' && postDraftTypes.includes(draft.type)) { %>
+        <p class="empty">Connected CMS platforms receive this as a draft or unpublished article only. It is not published live.</p>
+      <% } %>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <div>
+          <h2>Campaign Planning</h2>
+          <p class="empty">Create ethical social/email drafts from approved content. Nothing auto-posts.</p>
+        </div>
+        <a href="/projects/<%= project._id %>/calendar">Open Calendar</a>
+      </div>
+      <div class="status-actions">
+        <% if (draft.status === 'approved') { %>
+          <form action="/content/<%= draft._id %>/create-social-drafts" method="post">
+            <button class="button button-primary" type="submit">Create Social Drafts</button>
+          </form>
+        <% } %>
+        <a class="button" href="/projects/<%= project._id %>/campaigns">Plan Campaign</a>
+      </div>
+      <% if (draft.status !== 'approved') { %>
+        <p class="empty">Approve this content draft before creating campaign posts.</p>
+      <% } %>
+    </section>
+
+    <section class="panel">
+      <h2>Review Actions</h2>
+      <div class="status-actions">
+        <form action="/content/<%= draft._id %>/approve" method="post">
+          <button class="button button-primary" type="submit">Approve</button>
+        </form>
+        <form action="/content/<%= draft._id %>/reject" method="post">
+          <button class="button" type="submit">Reject</button>
+        </form>
+        <form action="/content/<%= draft._id %>/mark-published" method="post">
+          <button class="button" type="submit">Mark as Published</button>
+        </form>
+      </div>
+      <p class="empty">Drafts are never auto-published. Mark as Published only after manual implementation.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Publish History</h2>
+      <% if (!publishActions.length) { %>
+        <p class="empty">No publish or export actions recorded yet.</p>
+      <% } else { %>
+        <div class="table-scroll">
+          <table class="data-table compact-table">
+            <thead><tr><th>Integration</th><th>Action</th><th>Status</th><th>External ID</th><th>Error</th><th>Date</th></tr></thead>
+            <tbody>
+              <% publishActions.forEach((action) => { %>
+                <tr>
+                  <td><%= action.integrationType %></td>
+                  <td><%= action.actionType.replace(/_/g, ' ') %></td>
+                  <td><span class="status"><%= action.status %></span></td>
+                  <td><%= action.externalId || '-' %></td>
+                  <td><%= action.errorMessage || '-' %></td>
+                  <td><%= action.createdAt.toLocaleString() %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="panel">
+      <h2>Source Recommendation</h2>
+      <% if (recommendation) { %>
+        <p><strong><%= recommendation.title %></strong></p>
+        <p><%= recommendation.reason %></p>
+        <p class="empty"><%= recommendation.actionType.replace(/_/g, ' ') %> · Priority <%= recommendation.priority %></p>
+      <% } else { %>
+        <p class="empty">The source recommendation is no longer available.</p>
+      <% } %>
+    </section>
+  </section>
+</div>
+
+<script>
+  document.querySelectorAll('.copy-button').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const target = document.getElementById(button.dataset.copyTarget);
+      if (!target) return;
+      await navigator.clipboard.writeText(target.value || target.textContent || '');
+      button.textContent = 'Copied';
+      setTimeout(() => { button.textContent = 'Copy'; }, 1200);
+    });
+  });
+
+  document.querySelectorAll('.export-button').forEach((button) => {
+    button.addEventListener('click', () => {
+      const target = document.getElementById(button.dataset.exportTarget);
+      if (!target) return;
+      const filename = `${button.dataset.exportTitle || 'content-draft'}.txt`
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+      const blob = new Blob([target.value || target.textContent || ''], { type: 'text/plain' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${filename || 'content-draft'}.txt`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    });
+  });
+</script>
+
+<%- include('../partials/footer') %>

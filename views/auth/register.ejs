@@ -1,0 +1,21 @@
+<%- include('../partials/header') %>
+
+<section class="auth-panel">
+  <h1>Create account</h1>
+  <% if (errorMessage) { %>
+    <section class="panel notice-panel auth-notice">
+      <h2>Account setup issue</h2>
+      <p class="empty"><%= errorMessage %></p>
+    </section>
+  <% } %>
+  <a class="button google-auth-button" href="/auth/google">Continue with Google</a>
+  <div class="auth-divider"><span>or create an account with email</span></div>
+  <form class="form" action="/register" method="post">
+    <label>Name <input name="name" autocomplete="name" required></label>
+    <label>Email <input type="email" name="email" autocomplete="email" required></label>
+    <label>Password <input type="password" name="password" autocomplete="new-password" minlength="8" required></label>
+    <button class="button button-primary" type="submit">Create workspace</button>
+  </form>
+</section>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,48 @@
+<div class="cursor-glow" aria-hidden="true"></div>
+<header class="topbar">
+  <a class="brand" href="/" aria-label="Moyi home">
+    <img class="brand-logo" src="/images/moyi-logo-dark.png" alt="" aria-hidden="true">
+  </a>
+  <button class="mobile-menu-button" type="button" aria-label="Open navigation menu" aria-controls="mobile-menu" aria-expanded="false">
+    <span></span>
+    <span></span>
+    <span></span>
+  </button>
+  <nav class="nav desktop-nav">
+    <% if (typeof currentUser !== 'undefined' && currentUser) { %>
+      <a href="/dashboard">Dashboard</a>
+      <a href="/projects">Projects</a>
+      <a href="/account">Account</a>
+      <form action="/logout" method="post">
+        <button class="icon-button" title="Sign out" aria-label="Sign out">Logout</button>
+      </form>
+    <% } else { %>
+      <a href="/#features">Features</a>
+      <a href="/#how-it-works">How it Works</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/#contact">Contact</a>
+      <a href="/login">Sign in</a>
+      <a class="button button-primary" href="/register">Get Started</a>
+    <% } %>
+  </nav>
+  <nav class="mobile-menu" id="mobile-menu" aria-hidden="true">
+    <% if (typeof currentUser !== 'undefined' && currentUser) { %>
+      <a href="/dashboard">Dashboard</a>
+      <a href="/projects">Projects</a>
+      <a href="/projects/new">Add Project</a>
+      <a href="/integrations">Integrations</a>
+      <a href="/billing">Billing</a>
+      <a href="/account">Account</a>
+      <form action="/logout" method="post">
+        <button class="button" type="submit">Logout</button>
+      </form>
+    <% } else { %>
+      <a href="/#features">Features</a>
+      <a href="/#how-it-works">How it Works</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/#contact">Contact</a>
+      <a href="/login">Sign in</a>
+      <a class="button button-primary" href="/register">Get Started</a>
+    <% } %>
+  </nav>
+</header>

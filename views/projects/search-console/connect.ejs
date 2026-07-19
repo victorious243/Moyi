@@ -1,0 +1,88 @@
+<%- include('../../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/projects/<%= project._id %>">Project Overview</a>
+    <a href="/projects/<%= project._id %>/search-console/connect">Search Console</a>
+    <a href="/projects/<%= project._id %>/search-console/performance">Performance</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow"><%= project.name %></p>
+        <h1>Connect Search Console</h1>
+      </div>
+      <a class="button" href="/integrations">Integration settings</a>
+    </div>
+
+    <% if (errorMessage) { %>
+      <section class="panel notice-panel">
+        <h2>Search Console unavailable</h2>
+        <p class="empty"><%= errorMessage %></p>
+      </section>
+    <% } %>
+
+    <% if (successMessage) { %>
+      <section class="panel">
+        <h2>Property connected</h2>
+        <p class="empty"><%= successMessage %></p>
+      </section>
+    <% } %>
+
+    <section class="panel">
+      <div class="panel-title">
+        <div>
+          <h2>Google Account</h2>
+          <p class="empty">Moyi requests Search Console readonly access only.</p>
+        </div>
+        <a class="button button-primary" href="/integrations/google/connect?projectId=<%= project._id %>">
+          <%= integration ? 'Reconnect Google' : 'Connect Google' %>
+        </a>
+      </div>
+      <p><span class="status"><%= integration ? 'connected' : 'not connected' %></span></p>
+    </section>
+
+    <% if (connectedProperty) { %>
+      <section class="panel">
+        <div class="panel-title">
+          <h2>Current Property</h2>
+          <a href="/projects/<%= project._id %>/search-console/performance">Open performance</a>
+        </div>
+        <dl class="detail-list">
+          <div><dt>Site URL</dt><dd><%= connectedProperty.siteUrl %></dd></div>
+          <div><dt>Permission</dt><dd><%= connectedProperty.permissionLevel || 'Unknown' %></dd></div>
+          <div><dt>Last synced</dt><dd><%= connectedProperty.lastSyncedAt ? connectedProperty.lastSyncedAt.toLocaleString() : 'Never' %></dd></div>
+        </dl>
+      </section>
+    <% } %>
+
+    <section class="panel">
+      <h2>Verified Properties</h2>
+      <% if (!integration) { %>
+        <p class="empty">Connect Google before selecting a project property.</p>
+      <% } else if (!properties.length) { %>
+        <p class="empty">No Search Console properties were found for this Google account.</p>
+      <% } else { %>
+        <form class="form" action="/projects/<%= project._id %>/search-console/property" method="post">
+          <label>
+            Search Console property
+            <select name="property" required>
+              <% properties.forEach((property) => { %>
+                <option value="<%= property.siteUrl %>||<%= property.permissionLevel %>" <%= connectedProperty && connectedProperty.siteUrl === property.siteUrl ? 'selected' : '' %>>
+                  <%= property.siteUrl %> (<%= property.permissionLevel %>)
+                </option>
+              <% }) %>
+            </select>
+          </label>
+          <button class="button button-primary" type="submit">Connect Property</button>
+        </form>
+      <% } %>
+    </section>
+  </section>
+</div>
+
+<%- include('../../partials/footer') %>

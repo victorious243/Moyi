@@ -1,0 +1,44 @@
+<%- include('../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/projects/<%= project._id %>">Project Overview</a>
+    <a href="/projects/<%= project._id %>/analytics">Analytics</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow"><%= project.name %></p>
+        <h1>Revenue attribution</h1>
+      </div>
+    </div>
+
+    <section class="metrics project-info-grid">
+      <article class="project-info-card"><span>Revenue</span><strong>$<%= dashboard.revenue.toFixed(2) %></strong></article>
+      <article class="project-info-card"><span>Conversions</span><strong><%= dashboard.conversions %></strong></article>
+      <article class="project-info-card"><span>ACS</span><strong><%= dashboard.confidenceScore %>%</strong></article>
+    </section>
+
+    <section class="panel">
+      <h2>Attribution models</h2>
+      <% ['firstTouch', 'lastTouch', 'linear', 'wShaped'].forEach((model) => { %>
+        <h3><%= model.replace(/([A-Z])/g, ' $1') %></h3>
+        <% const rows = Object.entries(dashboard.totals[model] || {}); %>
+        <% if (!rows.length) { %>
+          <p class="empty">No revenue-linked payments available for this model yet.</p>
+        <% } %>
+        <ul class="clean-list">
+          <% rows.forEach(([key, value]) => { %>
+            <li><strong><%= key %></strong> $<%= value.toFixed(2) %></li>
+          <% }) %>
+        </ul>
+      <% }) %>
+    </section>
+  </section>
+</div>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,111 @@
+<%- include('../../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/projects/<%= project._id %>">Project Overview</a>
+    <a href="/projects/<%= project._id %>/integrations/wordpress">WordPress</a>
+    <a href="/projects/<%= project._id %>/integrations/webflow">Webflow</a>
+    <a href="/projects/<%= project._id %>/integrations/shopify">Shopify</a>
+    <a href="/projects/<%= project._id %>/integrations/webhook">Webhook</a>
+    <a href="/projects/<%= project._id %>/content">Approval Queue</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow"><%= project.name %></p>
+        <h1>Shopify Integration</h1>
+      </div>
+      <div class="row-actions">
+        <% if (integration) { %>
+          <form action="/projects/<%= project._id %>/integrations/shopify/test" method="post">
+            <button class="button button-primary" type="submit">Test Connection</button>
+          </form>
+        <% } %>
+      </div>
+    </div>
+
+    <% if (errorMessage) { %>
+      <section class="panel notice-panel">
+        <h2>Shopify issue</h2>
+        <p class="empty"><%= errorMessage %></p>
+      </section>
+    <% } %>
+
+    <% if (successMessage) { %>
+      <section class="panel">
+        <h2>Shopify updated</h2>
+        <p class="empty"><%= successMessage %></p>
+      </section>
+    <% } %>
+
+    <section class="metrics">
+      <article><span>Status</span><strong><%= integration ? integration.status : 'not set' %></strong></article>
+      <article><span>Shop</span><strong><%= integration ? integration.shopDomain : 'none' %></strong></article>
+      <article><span>Blog ID</span><strong><%= integration ? integration.blogId : 'none' %></strong></article>
+      <article><span>Last tested</span><strong><%= integration && integration.lastTestedAt ? integration.lastTestedAt.toLocaleDateString() : 'never' %></strong></article>
+    </section>
+
+    <section class="panel">
+      <h2>Connection Settings</h2>
+      <form class="form grid-form" action="/projects/<%= project._id %>/integrations/shopify/connect" method="post">
+        <label>
+          Shop domain
+          <input type="text" name="shopDomain" value="<%= integration ? integration.shopDomain : '' %>" placeholder="example.myshopify.com" required>
+        </label>
+        <label>
+          Blog ID
+          <input type="text" name="blogId" value="<%= integration ? integration.blogId : '' %>" required>
+        </label>
+        <label>
+          API version
+          <input type="text" name="apiVersion" value="<%= integration ? integration.apiVersion : '2025-01' %>" placeholder="2025-01">
+        </label>
+        <label class="full">
+          Admin API access token
+          <input type="password" name="accessToken" placeholder="<%= integration ? 'Enter a new token to replace saved credentials' : 'Shopify Admin API access token' %>" required>
+        </label>
+        <button class="button button-primary" type="submit">Save Shopify Credentials</button>
+      </form>
+      <p class="empty">Access tokens are encrypted before storage and are never shown after saving.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Publishing Rules</h2>
+      <ul class="clean-list">
+        <li>Only approved content drafts can be sent to Shopify.</li>
+        <li>Moyi creates unpublished blog articles.</li>
+        <li>No live article is overwritten automatically.</li>
+      </ul>
+    </section>
+
+    <section class="panel">
+      <h2>Recent Publish Actions</h2>
+      <% if (!recentActions.length) { %>
+        <p class="empty">No Shopify publish actions yet.</p>
+      <% } else { %>
+        <div class="table-scroll">
+          <table class="data-table compact-table">
+            <thead><tr><th>Action</th><th>Status</th><th>External ID</th><th>Error</th><th>Date</th></tr></thead>
+            <tbody>
+              <% recentActions.forEach((action) => { %>
+                <tr>
+                  <td><%= action.actionType.replace(/_/g, ' ') %></td>
+                  <td><span class="status"><%= action.status %></span></td>
+                  <td><%= action.externalId || '-' %></td>
+                  <td><%= action.errorMessage || '-' %></td>
+                  <td><%= action.createdAt.toLocaleString() %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+  </section>
+</div>
+
+<%- include('../../partials/footer') %>

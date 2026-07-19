@@ -1,0 +1,42 @@
+<%- include('../partials/header') %>
+
+<div class="page-heading">
+  <div>
+    <p class="eyebrow"><%= project.name %></p>
+    <h1>AI CMO Report</h1>
+  </div>
+  <a class="button" href="/projects/<%= project._id %>">Back to project</a>
+</div>
+
+<section class="report">
+  <h2>Executive Summary</h2>
+  <p><%= report.executiveSummary %></p>
+
+  <h2>Diagnosis</h2>
+  <ul><% report.diagnosis.forEach((item) => { %><li><%= item %></li><% }) %></ul>
+
+  <h2>Plan</h2>
+  <ol><% report.plan.forEach((item) => { %><li><%= item %></li><% }) %></ol>
+
+  <h2>Next Actions</h2>
+  <ul><% report.nextActions.forEach((item) => { %><li><%= item %></li><% }) %></ul>
+
+  <h2>Evidence Boundary</h2>
+  <ul><% report.assumptions.forEach((item) => { %><li><%= item %></li><% }) %></ul>
+</section>
+
+<section class="panel">
+  <h2>Issue Evidence</h2>
+  <div class="issue-list">
+    <% issues.forEach((issue) => { %>
+      <article class="issue <%= issue.severity %>">
+        <span><%= issue.severity %></span>
+        <h3><%= issue.title %></h3>
+        <p><%= issue.url %></p>
+        <code><%= JSON.stringify(issue.evidence) %></code>
+      </article>
+    <% }) %>
+  </div>
+</section>
+
+<%- include('../partials/footer') %>

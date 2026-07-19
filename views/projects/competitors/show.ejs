@@ -1,0 +1,99 @@
+<%- include('../../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/projects/<%= project._id %>">Project Overview</a>
+    <a href="/projects/<%= project._id %>/competitors">Competitors</a>
+    <a href="/projects/<%= project._id %>/competitors/insights">Opportunities</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow"><%= competitor.websiteUrl %></p>
+        <h1><%= competitor.name %></h1>
+      </div>
+      <div class="row-actions">
+        <form action="/projects/<%= project._id %>/competitors/<%= competitor._id %>/scan" method="post">
+          <button class="button button-primary" type="submit">Scan Competitor</button>
+        </form>
+        <a class="button" href="/projects/<%= project._id %>/competitors">All competitors</a>
+      </div>
+    </div>
+
+    <% if (successMessage) { %>
+      <section class="panel">
+        <h2>Scan updated</h2>
+        <p class="empty"><%= successMessage %></p>
+      </section>
+    <% } %>
+
+    <section class="metrics">
+      <article><span>Pages stored</span><strong><%= pages.length %></strong></article>
+      <article><span>Insights</span><strong><%= insights.length %></strong></article>
+      <article><span>Website</span><strong><%= competitor.websiteUrl.replace(/^https?:\/\//, '') %></strong></article>
+      <article><span>Last scan</span><strong><%= pages[0] ? pages[0].lastCrawledAt.toLocaleDateString() : 'Never' %></strong></article>
+    </section>
+
+    <section class="panel">
+      <h2>Notes</h2>
+      <p class="empty"><%= competitor.notes || 'No notes added.' %></p>
+    </section>
+
+    <section class="panel">
+      <h2>Competitor Pages</h2>
+      <% if (!pages.length) { %>
+        <p class="empty">No pages stored yet. Run a competitor scan to collect public SEO facts.</p>
+      <% } else { %>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Page</th>
+                <th>Title</th>
+                <th>Meta description</th>
+                <th>H1</th>
+                <th>Words</th>
+                <th>Schema</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% pages.forEach((page) => { %>
+                <tr>
+                  <td><a href="<%= page.url %>" target="_blank" rel="noreferrer"><%= page.url %></a></td>
+                  <td><%= page.title || 'Missing' %></td>
+                  <td><%= page.metaDescription || 'Missing' %></td>
+                  <td><%= (page.h1 || []).join(' | ') || 'Missing' %></td>
+                  <td><%= page.wordCount %></td>
+                  <td><%= (page.schemaTypes || []).join(', ') || 'None detected' %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="panel">
+      <h2>Opportunities for this competitor</h2>
+      <% if (!insights.length) { %>
+        <p class="empty">No opportunities generated yet.</p>
+      <% } %>
+      <div class="recommendation-grid">
+        <% insights.forEach((insight) => { %>
+          <article class="recommendation-card">
+            <span class="status"><%= insight.category.replace(/_/g, ' ') %> / P<%= insight.priority %></span>
+            <h2><%= insight.title %></h2>
+            <p><%= insight.insight %></p>
+            <p><strong>Opportunity:</strong> <%= insight.opportunity %></p>
+          </article>
+        <% }) %>
+      </div>
+    </section>
+  </section>
+</div>
+
+<%- include('../../partials/footer') %>

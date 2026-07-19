@@ -1,0 +1,198 @@
+<%- include('../../partials/header') %>
+
+<% const fmt = new Intl.NumberFormat('en'); %>
+<% const pct = (value) => `${((value || 0) * 100).toFixed(2)}%`; %>
+<% const pos = (value) => value ? value.toFixed(1) : '0.0'; %>
+<% const opportunityCount = opportunities ? opportunities.total : 0; %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/projects/<%= project._id %>">Project Overview</a>
+    <a href="/projects/<%= project._id %>/search-console/connect">Search Console</a>
+    <a href="/projects/<%= project._id %>/search-console/performance">Performance</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow"><%= project.name %></p>
+        <h1>Search Performance</h1>
+      </div>
+      <div class="row-actions">
+        <a class="button" href="/projects/<%= project._id %>/search-console/connect">Connect property</a>
+        <% if (connectedProperty) { %>
+          <form action="/projects/<%= project._id %>/search-console/sync" method="post">
+            <input type="hidden" name="days" value="<%= days %>">
+            <button class="button button-primary" type="submit">Sync <%= days %> Days</button>
+          </form>
+        <% } %>
+      </div>
+    </div>
+
+    <% if (errorMessage) { %>
+      <section class="panel notice-panel">
+        <h2>Sync issue</h2>
+        <p class="empty"><%= errorMessage %></p>
+      </section>
+    <% } %>
+
+    <% if (successMessage) { %>
+      <section class="panel">
+        <h2>Search Console updated</h2>
+        <p class="empty"><%= successMessage %></p>
+      </section>
+    <% } %>
+
+    <% if (!connectedProperty) { %>
+      <section class="panel">
+        <h2>No Search Console property connected</h2>
+        <p class="empty">Connect a verified property before syncing search performance data.</p>
+        <a class="button button-primary" href="/projects/<%= project._id %>/search-console/connect">Connect Search Console</a>
+      </section>
+    <% } else { %>
+      <section class="panel">
+        <div class="panel-title">
+          <div>
+            <h2><%= connectedProperty.siteUrl %></h2>
+            <p class="empty">Last synced: <%= connectedProperty.lastSyncedAt ? connectedProperty.lastSyncedAt.toLocaleString() : 'Never' %></p>
+          </div>
+          <div class="segmented-links">
+            <a class="<%= days === 7 ? 'active' : '' %>" href="/projects/<%= project._id %>/search-console/performance?days=7">7d</a>
+            <a class="<%= days === 28 ? 'active' : '' %>" href="/projects/<%= project._id %>/search-console/performance?days=28">28d</a>
+            <a class="<%= days === 90 ? 'active' : '' %>" href="/projects/<%= project._id %>/search-console/performance?days=90">90d</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="metrics">
+        <article><span>Total clicks</span><strong><%= fmt.format(dashboard.summary.totalClicks) %></strong></article>
+        <article><span>Total impressions</span><strong><%= fmt.format(dashboard.summary.totalImpressions) %></strong></article>
+        <article><span>Average CTR</span><strong><%= pct(dashboard.summary.averageCtr) %></strong></article>
+        <article><span>Average position</span><strong><%= pos(dashboard.summary.averagePosition) %></strong></article>
+      </section>
+
+      <section class="panel opportunity-command">
+        <div class="panel-title">
+          <div>
+            <p class="eyebrow">Automated growth opportunities</p>
+            <h2><%= opportunityCount %> prioritized search opportunities</h2>
+            <p class="empty">Benchmark CTR: <%= pct(opportunities.averageCtr) %>. These recommendations are calculated from synced query and page performance.</p>
+          </div>
+        </div>
+
+        <% if (!opportunityCount) { %>
+          <p class="empty">No high-signal opportunities yet. Sync more Search Console data or expand the date range.</p>
+        <% } else { %>
+          <div class="opportunity-grid">
+            <div class="opportunity-column">
+              <div class="opportunity-column-heading">
+                <span>Boost CTR</span>
+                <strong><%= opportunities.boostCtr.length %></strong>
+              </div>
+              <% if (!opportunities.boostCtr.length) { %>
+                <p class="empty">No page-one CTR gaps detected.</p>
+              <% } %>
+              <% opportunities.boostCtr.slice(0, 5).forEach((item) => { %>
+                <article class="opportunity-card">
+                  <div class="opportunity-card-heading">
+                    <span class="status">Page 1</span>
+                    <strong><%= item.query %></strong>
+                  </div>
+                  <p><%= item.recommendation %></p>
+                  <dl class="opportunity-stats">
+                    <div><dt>CTR</dt><dd><%= pct(item.ctr) %></dd></div>
+                    <div><dt>Avg</dt><dd><%= pct(item.benchmarkCtr) %></dd></div>
+                    <div><dt>Pos</dt><dd><%= pos(item.position) %></dd></div>
+                    <div><dt>Impr.</dt><dd><%= fmt.format(item.impressions) %></dd></div>
+                  </dl>
+                  <a class="opportunity-page" href="<%= item.page %>" target="_blank" rel="noopener"><%= item.page %></a>
+                  <div class="row-actions opportunity-actions">
+                    <form action="/projects/<%= project._id %>/search-console/opportunities/draft" method="post">
+                      <input type="hidden" name="opportunityType" value="<%= item.type %>">
+                      <input type="hidden" name="query" value="<%= item.query %>">
+                      <input type="hidden" name="page" value="<%= item.page %>">
+                      <button class="button button-primary" type="submit">Create Optimization Draft</button>
+                    </form>
+                    <a class="button" href="<%= item.page %>" target="_blank" rel="noopener">Review Page</a>
+                  </div>
+                </article>
+              <% }) %>
+            </div>
+
+            <div class="opportunity-column">
+              <div class="opportunity-column-heading">
+                <span>Push to Page 1</span>
+                <strong><%= opportunities.pushToPageOne.length %></strong>
+              </div>
+              <% if (!opportunities.pushToPageOne.length) { %>
+                <p class="empty">No high-impression page-two queries detected.</p>
+              <% } %>
+              <% opportunities.pushToPageOne.slice(0, 5).forEach((item) => { %>
+                <article class="opportunity-card">
+                  <div class="opportunity-card-heading">
+                    <span class="status">Page 2</span>
+                    <strong><%= item.query %></strong>
+                  </div>
+                  <p><%= item.recommendation %></p>
+                  <dl class="opportunity-stats">
+                    <div><dt>Clicks</dt><dd><%= fmt.format(item.clicks) %></dd></div>
+                    <div><dt>CTR</dt><dd><%= pct(item.ctr) %></dd></div>
+                    <div><dt>Pos</dt><dd><%= pos(item.position) %></dd></div>
+                    <div><dt>Impr.</dt><dd><%= fmt.format(item.impressions) %></dd></div>
+                  </dl>
+                  <a class="opportunity-page" href="<%= item.page %>" target="_blank" rel="noopener"><%= item.page %></a>
+                  <div class="row-actions opportunity-actions">
+                    <form action="/projects/<%= project._id %>/search-console/opportunities/draft" method="post">
+                      <input type="hidden" name="opportunityType" value="<%= item.type %>">
+                      <input type="hidden" name="query" value="<%= item.query %>">
+                      <input type="hidden" name="page" value="<%= item.page %>">
+                      <button class="button button-primary" type="submit">Create Optimization Draft</button>
+                    </form>
+                    <a class="button" href="<%= item.page %>" target="_blank" rel="noopener">Review Page</a>
+                  </div>
+                </article>
+              <% }) %>
+            </div>
+          </div>
+        <% } %>
+      </section>
+
+      <div class="dashboard-grid">
+        <section class="panel">
+          <h2>Top Queries</h2>
+          <%- include('./table', { rows: dashboard.topQueries, label: 'Query', fmt, pct, pos }) %>
+        </section>
+        <section class="panel">
+          <h2>Top Pages</h2>
+          <%- include('./table', { rows: dashboard.topPages, label: 'Page', fmt, pct, pos }) %>
+        </section>
+      </div>
+
+      <section class="panel">
+        <h2>High Impressions, Low CTR</h2>
+        <%- include('./table', { rows: dashboard.highImpressionsLowCtr, label: 'Page', fmt, pct, pos }) %>
+      </section>
+
+      <section class="panel">
+        <h2>Queries Close to Page 1</h2>
+        <%- include('./table', { rows: dashboard.queriesCloseToPageOne, label: 'Query', fmt, pct, pos }) %>
+      </section>
+
+      <div class="dashboard-grid">
+        <section class="panel">
+          <h2>Pages Losing Visibility</h2>
+          <%- include('./visibility-table', { rows: dashboard.pagesLosingVisibility, fmt }) %>
+        </section>
+        <section class="panel">
+          <h2>Pages Gaining Visibility</h2>
+          <%- include('./visibility-table', { rows: dashboard.pagesGainingVisibility, fmt }) %>
+        </section>
+      </div>
+    <% } %>
+  </section>
+</div>
+
+<%- include('../../partials/footer') %>

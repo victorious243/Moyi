@@ -1,0 +1,85 @@
+<%- include('../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/projects/<%= project._id %>">Project Overview</a>
+    <a href="/projects/<%= project._id %>/calendar">Calendar</a>
+    <a href="/projects/<%= project._id %>/campaigns">Campaigns</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow"><%= project.name %></p>
+        <h1>Campaigns</h1>
+      </div>
+      <a class="button" href="/projects/<%= project._id %>/calendar">Calendar</a>
+    </div>
+
+    <% if (successMessage) { %>
+      <section class="panel">
+        <h2>Campaign updated</h2>
+        <p class="empty"><%= successMessage %></p>
+      </section>
+    <% } %>
+
+    <section class="panel">
+      <h2>Create Campaign</h2>
+      <form class="form grid-form" action="/projects/<%= project._id %>/campaigns" method="post">
+        <label>Name <input name="name" placeholder="Weekly SEO content plan" required></label>
+        <label>Channel
+          <select name="channel" required>
+            <option value="multi">Multi-channel</option>
+            <option value="linkedin">LinkedIn</option>
+            <option value="facebook">Facebook</option>
+            <option value="x">X</option>
+            <option value="instagram">Instagram</option>
+            <option value="email">Email</option>
+          </select>
+        </label>
+        <label>Start date <input type="date" name="startDate" required></label>
+        <label>End date <input type="date" name="endDate" required></label>
+        <label>Status
+          <select name="status">
+            <option value="planned">Planned</option>
+            <option value="active">Active</option>
+            <option value="paused">Paused</option>
+            <option value="completed">Completed</option>
+          </select>
+        </label>
+        <label>Daily spend limit <input type="number" min="0" step="0.01" name="dailySpendLimit" placeholder="0.00"></label>
+        <label>Monthly spend limit <input type="number" min="0" step="0.01" name="monthlySpendLimit" placeholder="0.00"></label>
+        <label class="full">Goal <textarea name="goal" rows="3" placeholder="Support next week’s SEO content push with useful, non-spammy posts."></textarea></label>
+        <button class="button button-primary" type="submit">Create Campaign</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>Campaign View</h2>
+      <% if (!campaigns.length) { %>
+        <p class="empty">No campaigns yet.</p>
+      <% } %>
+      <div class="scan-list">
+        <% campaigns.forEach((campaign) => { %>
+          <% const draftCount = socialDrafts.filter((draft) => draft.campaignId.toString() === campaign._id.toString()).length; %>
+          <div class="scan-row">
+            <strong><%= campaign.name %></strong>
+            <span><%= campaign.channel %></span>
+            <span><%= campaign.status %></span>
+            <span><%= campaign.startDate.toLocaleDateString() %> - <%= campaign.endDate.toLocaleDateString() %> / <%= draftCount %> drafts</span>
+          </div>
+        <% }) %>
+      </div>
+    </section>
+
+    <section class="panel notice-panel">
+      <h2>Ethical Campaign Rules</h2>
+      <p class="empty">Use campaigns for planning, review, copy, and manual export. No fake engagement, fake reviews, spam DMs, or misleading claims.</p>
+    </section>
+  </section>
+</div>
+
+<%- include('../partials/footer') %>

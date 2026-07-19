@@ -1,0 +1,28 @@
+<% if (!rows.length) { %>
+  <p class="empty">No data yet.</p>
+<% } else { %>
+  <div class="table-scroll">
+    <table class="data-table compact-table">
+      <thead>
+        <tr>
+          <th><%= label %></th>
+          <th>Clicks</th>
+          <th>Impressions</th>
+          <th>CTR</th>
+          <th>Position</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% rows.forEach((row) => { %>
+          <tr>
+            <td><%= row.value %></td>
+            <td><%= fmt.format(row.clicks) %></td>
+            <td><%= fmt.format(row.impressions) %></td>
+            <td><%= pct(row.ctr) %></td>
+            <td><%= pos(row.position) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% } %>

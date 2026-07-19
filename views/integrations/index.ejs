@@ -1,0 +1,66 @@
+<%- include('../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/integrations">Integrations</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">Settings</p>
+        <h1>Integrations</h1>
+      </div>
+    </div>
+
+    <% if (errorMessage) { %>
+      <section class="panel notice-panel">
+        <h2>Connection issue</h2>
+        <p class="empty"><%= errorMessage %></p>
+      </section>
+    <% } %>
+
+    <% if (successMessage) { %>
+      <section class="panel">
+        <h2>Connected</h2>
+        <p class="empty"><%= successMessage %></p>
+      </section>
+    <% } %>
+
+    <section class="panel">
+      <div class="panel-title">
+        <div>
+          <h2>Google Search Console</h2>
+          <p class="empty">Connect a Google account to select verified Search Console properties for your projects.</p>
+        </div>
+        <a class="button button-primary" href="/integrations/google/connect">Connect Google</a>
+      </div>
+
+      <dl class="detail-list">
+        <div>
+          <dt>Status</dt>
+          <dd><span class="status"><%= integration ? 'connected' : 'not connected' %></span></dd>
+        </div>
+        <% if (integration) { %>
+          <div>
+            <dt>Connected</dt>
+            <dd><%= integration.connectedAt ? integration.connectedAt.toLocaleString() : 'Unknown' %></dd>
+          </div>
+          <div>
+            <dt>Token expires</dt>
+            <dd><%= integration.expiresAt ? integration.expiresAt.toLocaleString() : 'Unknown' %></dd>
+          </div>
+          <div>
+            <dt>Scopes</dt>
+            <dd><%= (integration.scopes || []).join(', ') || 'Search Console readonly' %></dd>
+          </div>
+        <% } %>
+      </dl>
+    </section>
+  </section>
+</div>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,12 @@
+<%- include('partials/header') %>
+
+<section class="report">
+  <p class="eyebrow">Launch Readiness</p>
+  <h1><%= heading %></h1>
+  <div class="legal-content">
+    <%- body %>
+  </div>
+  <p class="empty" style="margin-top: 2rem;">Last updated: <%= new Date().toLocaleDateString() %></p>
+</section>
+
+<%- include('partials/footer') %>

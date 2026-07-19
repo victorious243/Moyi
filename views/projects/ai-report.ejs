@@ -1,0 +1,126 @@
+<%- include('../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/projects/<%= project._id %>">Project Overview</a>
+    <a href="/projects/<%= project._id %>/recommendations">Recommendations</a>
+    <a href="/projects/<%= project._id %>/scans">Scan History</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow"><%= project.name %></p>
+        <h1>AI CMO Plan</h1>
+      </div>
+      <form action="/projects/<%= project._id %>/ai-report" method="post">
+        <button class="button button-primary" type="submit">Generate AI CMO Plan</button>
+      </form>
+    </div>
+
+    <% if (aiError) { %>
+      <section class="panel notice-panel">
+        <h2>AI CMO Plan unavailable</h2>
+        <p class="empty"><%= aiError %></p>
+      </section>
+    <% } %>
+
+    <% if (!report) { %>
+      <section class="panel">
+        <p class="empty">No AI CMO report yet. Run a completed scan, then generate a plan.</p>
+      </section>
+    <% } else if (report.status === 'failed') { %>
+      <section class="panel notice-panel">
+        <h2>Report generation failed</h2>
+        <p class="empty"><%= report.errorMessage || 'No report is available.' %></p>
+      </section>
+    <% } else { %>
+      <section class="panel report-section">
+        <h2>Executive Summary</h2>
+        <p><%= report.executiveSummary %></p>
+      </section>
+
+      <div class="dashboard-grid">
+        <section class="panel report-section">
+          <h2>Current SEO Health</h2>
+          <p><%= report.currentSeoHealth %></p>
+        </section>
+        <section class="panel report-section">
+          <h2>Main Business Risk</h2>
+          <p><%= report.mainBusinessRisk %></p>
+        </section>
+      </div>
+
+      <section class="panel report-section">
+        <h2>Main Growth Opportunity</h2>
+        <p><%= report.mainGrowthOpportunity %></p>
+      </section>
+
+      <div class="dashboard-grid">
+        <section class="panel report-section">
+          <h2>Top 5 Priorities</h2>
+          <ol>
+            <% report.topPriorities.forEach((item) => { %><li><%= item %></li><% }) %>
+          </ol>
+        </section>
+        <section class="panel report-section">
+          <h2>Quick Wins</h2>
+          <ul>
+            <% report.quickWins.forEach((item) => { %><li><%= item %></li><% }) %>
+          </ul>
+        </section>
+      </div>
+
+      <section class="panel report-section">
+        <h2>30-Day SEO Plan</h2>
+        <ol>
+          <% report.thirtyDayPlan.forEach((item) => { %><li><%= item %></li><% }) %>
+        </ol>
+      </section>
+
+      <div class="dashboard-grid">
+        <section class="panel report-section">
+          <h2>Suggested Content Strategy</h2>
+          <p><%= report.suggestedContentStrategy %></p>
+        </section>
+        <section class="panel report-section">
+          <h2>Internal Linking Strategy</h2>
+          <p><%= report.internalLinkingStrategy %></p>
+        </section>
+      </div>
+
+      <section class="panel report-section">
+        <h2>Page Improvement Priorities</h2>
+        <ul>
+          <% report.pageImprovementPriorities.forEach((item) => { %><li><%= item %></li><% }) %>
+        </ul>
+      </section>
+
+      <div class="dashboard-grid">
+        <section class="panel report-section">
+          <h2>Measurement Plan</h2>
+          <p><%= report.measurementPlan %></p>
+        </section>
+        <section class="panel report-section">
+          <h2>Warnings and Limitations</h2>
+          <ul>
+            <% report.warningsLimitations.forEach((item) => { %><li><%= item %></li><% }) %>
+          </ul>
+        </section>
+      </div>
+
+      <section class="panel">
+        <div class="panel-title">
+          <h2>Recommendations</h2>
+          <a href="/projects/<%= project._id %>/recommendations">Manage all</a>
+        </div>
+        <p class="empty"><%= recommendations.length %> recommendations stored separately from this report.</p>
+      </section>
+    <% } %>
+  </section>
+</div>
+
+<%- include('../partials/footer') %>

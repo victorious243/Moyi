@@ -1,0 +1,129 @@
+<%- include('../../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/projects/<%= project._id %>">Project Overview</a>
+    <a href="/projects/<%= project._id %>/competitors">Competitors</a>
+    <a href="/projects/<%= project._id %>/competitors/insights">Opportunities</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow"><%= project.name %></p>
+        <h1>Competitors</h1>
+      </div>
+      <form action="/projects/<%= project._id %>/competitors/report" method="post" data-loading-state="Generating competitor intelligence">
+        <button class="button button-primary" type="submit">Generate Competitor Report</button>
+      </form>
+    </div>
+
+    <% if (errorMessage) { %>
+      <section class="panel notice-panel">
+        <h2>Competitor issue</h2>
+        <p class="empty"><%= errorMessage %></p>
+      </section>
+    <% } %>
+
+    <% if (successMessage) { %>
+      <section class="panel">
+        <h2>Updated</h2>
+        <p class="empty"><%= successMessage %></p>
+      </section>
+    <% } %>
+
+    <section class="panel">
+      <h2>Auto-discovered Competitors (from your site scan)</h2>
+      <p class="empty" style="margin-bottom: 12px;">
+        The app did the heavy research based on your website scan. Review and confirm the ones you actually compete with.
+        Confirmed ones will be crawled for insights.
+      </p>
+      <!-- The list below (from server) will show auto-created ones first. Use the manual form only for missed ones. -->
+    </section>
+
+    <section class="panel">
+      <h2>Add / Correct Competitor</h2>
+      <p class="empty" style="font-size: 0.9em;">Only use this if the auto-discovery missed a real competitor.</p>
+      <form class="form grid-form" action="/projects/<%= project._id %>/competitors" method="post">
+        <label>
+          Name
+          <input type="text" name="name" placeholder="Competitor name" required>
+        </label>
+        <label>
+          Website URL
+          <input type="url" name="websiteUrl" placeholder="https://competitor.com" required>
+        </label>
+        <label class="full">
+          Notes
+          <textarea name="notes" rows="3" placeholder="Why this competitor matters (or why you added it)"></textarea>
+        </label>
+        <button class="button button-primary" type="submit">Add Competitor</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <h2>Tracked Competitors</h2>
+        <span class="status"><%= competitors.length %> tracked</span>
+      </div>
+      <% if (!competitors.length) { %>
+        <p class="empty">No competitors tracked yet. The scan should have auto-populated some — refresh or add the important ones.</p>
+      <% } else { %>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Competitor</th>
+                <th>Website</th>
+                <th>Pages</th>
+                <th>Last crawled</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% competitors.forEach((competitor) => { %>
+                <% const competitorPages = pages.filter((page) => page.competitorId.toString() === competitor._id.toString()); %>
+                <% const lastPage = competitorPages.sort((a, b) => b.lastCrawledAt - a.lastCrawledAt)[0]; %>
+                <tr>
+                  <td><a href="/projects/<%= project._id %>/competitors/<%= competitor._id %>"><%= competitor.name %></a></td>
+                  <td><a href="<%= competitor.websiteUrl %>" target="_blank" rel="noreferrer"><%= competitor.websiteUrl %></a></td>
+                  <td><%= competitorPages.length %></td>
+                  <td><%= lastPage ? lastPage.lastCrawledAt.toLocaleString() : 'Never' %></td>
+                  <td>
+                    <form action="/projects/<%= project._id %>/competitors/<%= competitor._id %>/scan" method="post" data-loading-state="Scanning competitor pages">
+                      <button class="button" type="submit">Scan</button>
+                    </form>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <h2>Latest Opportunities</h2>
+        <a href="/projects/<%= project._id %>/competitors/insights">Open report</a>
+      </div>
+      <% if (!latestInsights.length) { %>
+        <p class="empty">No competitor opportunities generated yet.</p>
+      <% } %>
+      <div class="recommendation-grid">
+        <% latestInsights.forEach((insight) => { %>
+          <article class="recommendation-card">
+            <span class="status">Priority <%= insight.priority %></span>
+            <h2><%= insight.title %></h2>
+            <p><%= insight.opportunity %></p>
+          </article>
+        <% }) %>
+      </div>
+    </section>
+  </section>
+</div>
+
+<%- include('../../partials/footer') %>

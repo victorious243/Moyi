@@ -1,0 +1,69 @@
+<%- include('../../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/projects/<%= project._id %>">Project Overview</a>
+    <a href="/projects/<%= project._id %>/integrations/wordpress">WordPress</a>
+    <a href="/projects/<%= project._id %>/content">Approval Queue</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow"><%= integration.siteUrl %></p>
+        <h1>WordPress Posts & Pages</h1>
+      </div>
+      <a class="button" href="/projects/<%= project._id %>/integrations/wordpress">Back to WordPress</a>
+    </div>
+
+    <% if (errorMessage) { %>
+      <section class="panel notice-panel">
+        <h2>Could not fetch WordPress content</h2>
+        <p class="empty"><%= errorMessage %></p>
+      </section>
+    <% } %>
+
+    <div class="dashboard-grid">
+      <section class="panel">
+        <h2>Pages</h2>
+        <% if (!wordpressContent.pages.length) { %>
+          <p class="empty">No WordPress pages returned.</p>
+        <% } else { %>
+          <div class="table-scroll">
+            <table class="data-table compact-table">
+              <thead><tr><th>Title</th><th>Status</th><th>ID</th></tr></thead>
+              <tbody>
+                <% wordpressContent.pages.forEach((page) => { %>
+                  <tr><td><%= page.title && page.title.rendered ? page.title.rendered.replace(/<[^>]+>/g, '') : 'Untitled' %></td><td><%= page.status %></td><td><%= page.id %></td></tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </section>
+
+      <section class="panel">
+        <h2>Posts</h2>
+        <% if (!wordpressContent.posts.length) { %>
+          <p class="empty">No WordPress posts returned.</p>
+        <% } else { %>
+          <div class="table-scroll">
+            <table class="data-table compact-table">
+              <thead><tr><th>Title</th><th>Status</th><th>ID</th></tr></thead>
+              <tbody>
+                <% wordpressContent.posts.forEach((post) => { %>
+                  <tr><td><%= post.title && post.title.rendered ? post.title.rendered.replace(/<[^>]+>/g, '') : 'Untitled' %></td><td><%= post.status %></td><td><%= post.id %></td></tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </section>
+    </div>
+  </section>
+</div>
+
+<%- include('../../partials/footer') %>

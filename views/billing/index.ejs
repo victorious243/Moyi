@@ -1,0 +1,71 @@
+<%- include('../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/billing">Billing</a>
+    <a href="/account">Account</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">Subscription</p>
+        <h1>Billing</h1>
+      </div>
+      <form action="/billing/create-portal-session" method="post">
+        <button class="button" type="submit">Customer Portal</button>
+      </form>
+    </div>
+
+    <% if (errorMessage) { %>
+      <section class="panel notice-panel">
+        <h2>Billing issue</h2>
+        <p class="empty"><%= errorMessage %></p>
+      </section>
+    <% } %>
+
+    <% if (successMessage) { %>
+      <section class="panel">
+        <h2>Billing updated</h2>
+        <p class="empty"><%= successMessage %></p>
+      </section>
+    <% } %>
+
+    <section class="metrics">
+      <article><span>Current plan</span><strong><%= plan.name %></strong></article>
+      <article><span>Status</span><strong><%= currentUser.subscriptionStatus || 'inactive' %></strong></article>
+      <article><span>Projects</span><strong><%= plan.projectLimit %></strong></article>
+      <article><span>Renews</span><strong><%= currentUser.currentPeriodEnd ? currentUser.currentPeriodEnd.toLocaleDateString() : 'n/a' %></strong></article>
+    </section>
+
+    <section class="panel">
+      <h2>Usage This Month</h2>
+      <div class="metrics">
+        <article><span>Scans</span><strong><%= usage.scansUsed %>/<%= plan.scansPerMonth %></strong></article>
+        <article><span>AI reports</span><strong><%= usage.aiReportsUsed %>/<%= plan.aiReportsPerMonth %></strong></article>
+        <article><span>Content drafts</span><strong><%= usage.contentDraftsUsed %>/<%= plan.contentDraftsPerMonth %></strong></article>
+        <article><span>GSC syncs</span><strong><%= usage.searchConsoleSyncsUsed %></strong></article>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <h2>Upgrade</h2>
+        <a href="/pricing">Compare plans</a>
+      </div>
+      <div class="status-actions">
+        <% ['starter', 'pro', 'agency'].forEach((targetPlan) => { %>
+          <form action="/billing/create-checkout-session" method="post">
+            <input type="hidden" name="plan" value="<%= targetPlan %>">
+            <button class="button button-primary" type="submit">Upgrade to <%= targetPlan %></button>
+          </form>
+        <% }) %>
+      </div>
+    </section>
+  </section>
+</div>
+
+<%- include('../partials/footer') %>

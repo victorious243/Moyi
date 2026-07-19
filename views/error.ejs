@@ -1,0 +1,10 @@
+<%- include('partials/header') %>
+
+<section class="auth-panel">
+  <h1><%= message %></h1>
+  <% if (error && error.status) { %><p>Status <%= error.status %></p><% } %>
+  <% if (error && error.stack) { %><pre><%= error.stack %></pre><% } %>
+  <a class="button" href="/">Return home</a>
+</section>
+
+<%- include('partials/footer') %>

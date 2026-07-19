@@ -1,0 +1,70 @@
+<%- include('../../partials/header') %>
+
+<% const fmt = new Intl.NumberFormat('en'); %>
+<% const pct = (value) => `${((value || 0) * 100).toFixed(2)}%`; %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/projects/<%= project._id %>">Project Overview</a>
+    <a href="/projects/<%= project._id %>/tracking/setup">Tracking Setup</a>
+    <a href="/projects/<%= project._id %>/analytics">Analytics</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow"><%= project.name %></p>
+        <h1>Analytics</h1>
+      </div>
+      <div class="row-actions">
+        <a class="button" href="/projects/<%= project._id %>/tracking/setup">Setup</a>
+        <div class="segmented-links">
+          <a class="<%= dashboard.days === 7 ? 'active' : '' %>" href="/projects/<%= project._id %>/analytics?days=7">7d</a>
+          <a class="<%= dashboard.days === 30 ? 'active' : '' %>" href="/projects/<%= project._id %>/analytics?days=30">30d</a>
+          <a class="<%= dashboard.days === 90 ? 'active' : '' %>" href="/projects/<%= project._id %>/analytics?days=90">90d</a>
+        </div>
+      </div>
+    </div>
+
+    <section class="metrics">
+      <article><span>Visitors</span><strong><%= fmt.format(dashboard.visitors) %></strong></article>
+      <article><span>Sessions</span><strong><%= fmt.format(dashboard.sessions) %></strong></article>
+      <article><span>Page views</span><strong><%= fmt.format(dashboard.pageViews) %></strong></article>
+      <article><span>Conversions</span><strong><%= fmt.format(dashboard.conversions) %></strong></article>
+      <article><span>Conversion rate</span><strong><%= pct(dashboard.conversionRate) %></strong></article>
+    </section>
+
+    <div class="dashboard-grid">
+      <section class="panel">
+        <h2>Top Pages</h2>
+        <%- include('./table', { rows: dashboard.topPages, label: 'Page', fmt }) %>
+      </section>
+      <section class="panel">
+        <h2>Top Referrers</h2>
+        <%- include('./table', { rows: dashboard.topReferrers, label: 'Referrer', fmt }) %>
+      </section>
+    </div>
+
+    <section class="panel">
+      <h2>UTM Campaigns</h2>
+      <%- include('./table', { rows: dashboard.utmCampaigns, label: 'Campaign', fmt }) %>
+    </section>
+
+    <section class="panel">
+      <h2>Conversion Goals</h2>
+      <% if (!dashboard.goals.length) { %>
+        <p class="empty">No conversion goals configured yet.</p>
+      <% } %>
+      <ul class="clean-list">
+        <% dashboard.goals.forEach((goal) => { %>
+          <li><strong><%= goal.name %></strong> / <%= goal.eventName %> / <%= goal.urlPattern || 'any URL' %></li>
+        <% }) %>
+      </ul>
+    </section>
+  </section>
+</div>
+
+<%- include('../../partials/footer') %>

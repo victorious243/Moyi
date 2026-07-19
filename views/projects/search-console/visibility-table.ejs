@@ -1,0 +1,26 @@
+<% if (!rows.length) { %>
+  <p class="empty">No movement detected yet.</p>
+<% } else { %>
+  <div class="table-scroll">
+    <table class="data-table compact-table">
+      <thead>
+        <tr>
+          <th>Page</th>
+          <th>Previous</th>
+          <th>Recent</th>
+          <th>Change</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% rows.forEach((row) => { %>
+          <tr>
+            <td><%= row.page %></td>
+            <td><%= fmt.format(row.oldImpressions) %></td>
+            <td><%= fmt.format(row.newImpressions) %></td>
+            <td><%= fmt.format(row.change) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% } %>

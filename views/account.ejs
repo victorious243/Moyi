@@ -1,0 +1,38 @@
+<%- include('partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/billing">Billing</a>
+    <a href="/account">Account</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">Settings</p>
+        <h1>Account</h1>
+      </div>
+    </div>
+
+    <section class="panel">
+      <h2>Profile</h2>
+      <dl class="detail-list">
+        <div><dt>Name</dt><dd><%= currentUser.name %></dd></div>
+        <div><dt>Email</dt><dd><%= currentUser.email %></dd></div>
+        <div><dt>Plan</dt><dd><%= plan.name %></dd></div>
+        <div><dt>Subscription</dt><dd><%= currentUser.subscriptionStatus || 'inactive' %></dd></div>
+      </dl>
+    </section>
+
+    <section class="panel notice-panel">
+      <h2>Delete Account & Data</h2>
+      <p class="empty">Placeholder for a production-safe delete flow. Add confirmation, cancellation checks, data export, and irreversible deletion audit logging before enabling.</p>
+      <button class="button danger-button" type="button" disabled>Delete Account Placeholder</button>
+    </section>
+  </section>
+</div>
+
+<%- include('partials/footer') %>

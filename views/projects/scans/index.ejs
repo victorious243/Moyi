@@ -1,0 +1,41 @@
+<%- include('../../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/projects/<%= project._id %>">Project Overview</a>
+    <a href="/projects/<%= project._id %>/pages">Scanned Pages</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow"><%= project.name %></p>
+        <h1>Scan History</h1>
+      </div>
+      <form action="/projects/<%= project._id %>/scans" method="post" data-loading-state="Running a factual website scan">
+        <button class="button button-primary" type="submit">Run Website Scan</button>
+      </form>
+    </div>
+
+    <section class="panel">
+      <% if (!scans.length) { %>
+        <p class="empty">No scans yet.</p>
+      <% } %>
+      <div class="scan-list">
+        <% scans.forEach((scan) => { %>
+          <a class="scan-row" href="/projects/<%= project._id %>/scans/<%= scan._id %>">
+            <strong><%= scan.status %></strong>
+            <span><%= scan.pagesScanned %> scanned</span>
+            <span><%= scan.pagesFound %> found</span>
+            <span><%= scan.completedAt ? scan.completedAt.toLocaleString() : scan.createdAt.toLocaleString() %></span>
+          </a>
+        <% }) %>
+      </div>
+    </section>
+  </section>
+</div>
+
+<%- include('../../partials/footer') %>

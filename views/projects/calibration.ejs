@@ -1,0 +1,213 @@
+<%- include('../partials/header') %>
+
+<%
+  const brand = project.brand_profile || {};
+  const toneAdjectives = brand.toneAdjectives || [];
+  const valueProps = brand.valueProps || [];
+  const targetPersonas = brand.targetPersonas || [];
+  const competitors = (project.competitors || []).map((competitor) => ({
+    name: typeof competitor === 'string' ? competitor : (competitor.name || competitor.websiteUrl || ''),
+    websiteUrl: typeof competitor === 'string' ? '' : (competitor.websiteUrl || ''),
+    confidence: typeof competitor === 'string' ? '' : (competitor.confidence || ''),
+    rationale: typeof competitor === 'string' ? '' : (competitor.rationale || '')
+  })).filter((competitor) => competitor.name || competitor.websiteUrl);
+%>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/projects/<%= project._id %>">Project Overview</a>
+  </aside>
+
+  <section class="app-main">
+    <section class="panel calibration-hero">
+      <p class="eyebrow">Approve and go</p>
+      <h1><%= brand.brandName || project.name %></h1>
+      <p><%= brand.positioningStatement || brand.metaDescription || 'Review the generated positioning profile, then activate your workspace.' %></p>
+      <div class="calibration-meta">
+        <span class="status"><%= toneAdjectives.length %> tone signals</span>
+        <span class="status"><%= valueProps.length %> value props</span>
+        <span class="status"><%= targetPersonas.length %> personas</span>
+        <span class="status"><%= competitors.length %> competitors</span>
+      </div>
+    </section>
+
+    <form class="form" action="/projects/<%= project._id %>/approve" method="post" data-loading-state="Activating your AI CMO workspace" data-calibration-form>
+      <input type="hidden" name="toneAdjectivesJson" value="<%= JSON.stringify(toneAdjectives) %>" data-calibration-tone>
+      <input type="hidden" name="valuePropsJson" value="<%= JSON.stringify(valueProps) %>" data-calibration-value-props>
+      <input type="hidden" name="targetPersonasJson" value="<%= JSON.stringify(targetPersonas) %>" data-calibration-personas>
+      <input type="hidden" name="competitorsJson" value="<%= JSON.stringify(competitors) %>" data-calibration-competitors>
+
+      <section class="calibration-grid">
+        <article class="panel calibration-card">
+          <div class="panel-title">
+            <h2>Voice profile</h2>
+            <button class="button" type="button" data-dialog-open="tone-dialog">Edit</button>
+          </div>
+          <div class="pill-cloud" data-tone-list>
+            <% toneAdjectives.forEach((item) => { %>
+              <span class="status"><%= item %></span>
+            <% }) %>
+          </div>
+          <label class="approve-line">
+            <input type="checkbox" checked required>
+            <span>Voice feels right for this brand</span>
+          </label>
+        </article>
+
+        <article class="panel calibration-card">
+          <div class="panel-title">
+            <h2>Value props</h2>
+            <button class="button" type="button" data-dialog-open="value-props-dialog">Edit</button>
+          </div>
+          <ul class="clean-list calibration-list" data-value-prop-list>
+            <% valueProps.forEach((item) => { %>
+              <li><%= item %></li>
+            <% }) %>
+          </ul>
+          <label class="approve-line">
+            <input type="checkbox" checked required>
+            <span>Offer and positioning are clear enough to activate</span>
+          </label>
+        </article>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">
+          <h2>Target customers</h2>
+          <button class="button" type="button" data-dialog-open="personas-dialog">Edit</button>
+        </div>
+        <div class="persona-grid" data-persona-grid>
+          <% targetPersonas.forEach((persona) => { %>
+            <article class="persona-card">
+              <h3><%= persona.name %></h3>
+              <p class="persona-role"><%= persona.role %></p>
+              <p><%= persona.summary %></p>
+              <p class="small-label">Who they are</p>
+              <p><%= persona.demographics %></p>
+              <p class="small-label">Core objections</p>
+              <ul class="clean-list">
+                <% (persona.objections || []).forEach((item) => { %>
+                  <li><%= item %></li>
+                <% }) %>
+              </ul>
+              <p class="small-label">Copy hooks</p>
+              <ul class="clean-list">
+                <% (persona.copyHooks || []).forEach((item) => { %>
+                  <li><%= item %></li>
+                <% }) %>
+              </ul>
+            </article>
+          <% }) %>
+        </div>
+        <label class="approve-line">
+          <input type="checkbox" checked required>
+          <span>These customer profiles are strong enough to guide recommendations</span>
+        </label>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">
+          <h2>Discovered competitors</h2>
+          <button class="button" type="button" data-dialog-open="competitors-dialog">Edit</button>
+        </div>
+        <div class="recommendation-grid" data-competitor-grid>
+          <% competitors.forEach((competitor) => { %>
+            <article class="recommendation-card">
+              <div class="panel-title">
+                <span class="status"><%= competitor.confidence ? `${competitor.confidence}% confidence` : 'Approved' %></span>
+              </div>
+              <h3><%= competitor.name || competitor.websiteUrl %></h3>
+              <% if (competitor.websiteUrl) { %>
+                <p><a href="<%= competitor.websiteUrl %>" target="_blank" rel="noreferrer"><%= competitor.websiteUrl %></a></p>
+              <% } %>
+              <p><%= competitor.rationale || 'Competitive context discovered during onboarding.' %></p>
+            </article>
+          <% }) %>
+        </div>
+        <label class="approve-line">
+          <input type="checkbox" checked required>
+          <span>Competitive context is good enough to start benchmarking</span>
+        </label>
+      </section>
+
+      <section class="calibration-actions">
+        <button class="button button-primary" type="submit">Verify and activate</button>
+      </section>
+    </form>
+
+    <dialog class="edit-dialog" id="tone-dialog">
+      <form method="dialog" class="edit-dialog-form">
+        <div class="panel-title">
+          <h2>Edit voice profile</h2>
+        </div>
+        <label>Tone adjectives
+          <textarea rows="6" data-tone-editor><%= toneAdjectives.join('\n') %></textarea>
+        </label>
+        <div class="row-actions">
+          <button class="button" value="cancel" type="submit">Cancel</button>
+          <button class="button button-primary" value="default" type="button" data-save-dialog="tone-dialog">Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="edit-dialog" id="value-props-dialog">
+      <form method="dialog" class="edit-dialog-form">
+        <div class="panel-title">
+          <h2>Edit value props</h2>
+        </div>
+        <label>One value prop per line
+          <textarea rows="8" data-value-props-editor><%= valueProps.join('\n') %></textarea>
+        </label>
+        <div class="row-actions">
+          <button class="button" value="cancel" type="submit">Cancel</button>
+          <button class="button button-primary" value="default" type="button" data-save-dialog="value-props-dialog">Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="edit-dialog" id="personas-dialog">
+      <form method="dialog" class="edit-dialog-form">
+        <div class="panel-title">
+          <h2>Edit personas</h2>
+        </div>
+        <label>JSON personas
+          <textarea rows="18" data-personas-editor><%= JSON.stringify(targetPersonas, null, 2) %></textarea>
+        </label>
+        <div class="row-actions">
+          <button class="button" value="cancel" type="submit">Cancel</button>
+          <button class="button button-primary" value="default" type="button" data-save-dialog="personas-dialog">Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="edit-dialog" id="competitors-dialog">
+      <form method="dialog" class="edit-dialog-form">
+        <div class="panel-title">
+          <h2>Edit competitors</h2>
+        </div>
+        <label>JSON competitors
+          <textarea rows="14" data-competitors-editor><%= JSON.stringify(competitors, null, 2) %></textarea>
+        </label>
+        <div class="row-actions">
+          <button class="button" value="cancel" type="submit">Cancel</button>
+          <button class="button button-primary" value="default" type="button" data-save-dialog="competitors-dialog">Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <section class="panel">
+      <h2>Discovery evidence</h2>
+      <dl class="detail-list">
+        <div><dt>Title</dt><dd><%= brand.title || 'Not found' %></dd></div>
+        <div><dt>H1</dt><dd><%= ((brand.evidence && brand.evidence.h1) || []).join(', ') || 'Not found' %></dd></div>
+        <div><dt>Schema</dt><dd><%= (brand.schemaTypes || []).join(', ') || 'None detected' %></dd></div>
+      </dl>
+    </section>
+  </section>
+</div>
+
+<script src="/js/calibration.js" defer></script>
+<%- include('../partials/footer') %>

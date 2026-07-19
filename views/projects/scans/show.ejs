@@ -1,0 +1,154 @@
+<%- include('../../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/projects/<%= project._id %>">Project Overview</a>
+    <a href="/projects/<%= project._id %>/scans">Scan History</a>
+    <a href="/projects/<%= project._id %>/pages">Scanned Pages</a>
+  </aside>
+
+  <section
+    class="app-main"
+    data-live-scan
+    data-live-scan-endpoint="/projects/<%= project._id %>/scans/<%= scan._id %>/live"
+    data-initial-scan-status="<%= scan.status %>"
+  >
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow"><%= project.name %></p>
+        <h1>Website Scan</h1>
+      </div>
+      <form action="/projects/<%= project._id %>/scans" method="post" data-loading-state="Running a factual website scan">
+        <button class="button button-primary" type="submit">Run Again</button>
+      </form>
+    </div>
+
+    <% const scanIsActive = scan.status === 'pending' || scan.status === 'running'; %>
+    <% if (scanIsActive) { %>
+      <section class="panel notice-panel scan-live-panel">
+        <h2>Scan in progress</h2>
+        <p class="empty"><span class="scan-live-status" data-scan-status><%= scan.status %></span> is updating live while pages, issues, and competitor comparison signals come in.</p>
+        <p class="empty"><span data-scan-step><%= scan.currentStep || 'Working through the scan' %></span></p>
+        <p class="empty" data-scan-current-url-row <%= scan.currentUrl ? '' : 'hidden' %>>Current page: <span data-scan-current-url><%= scan.currentUrl || '' %></span></p>
+        <p class="empty">Last checked at <span data-scan-last-checked>just now</span>.</p>
+      </section>
+    <% } %>
+
+    <section class="metrics">
+      <article><span>Status</span><strong data-scan-status><%= scan.status %></strong></article>
+      <article><span>Pages scanned</span><strong data-scan-metric="pagesScanned"><%= scan.pagesScanned %></strong></article>
+      <article><span>Pages found</span><strong data-scan-metric="pagesFound"><%= scan.pagesFound %></strong></article>
+      <article><span>Failed pages</span><strong data-scan-metric="failedPagesCount"><%= failedPages.length %></strong></article>
+      <article><span>Critical issues</span><strong data-scan-metric="criticalCount"><%= issueSummary.criticalCount %></strong></article>
+      <article><span>Warnings</span><strong data-scan-metric="warningCount"><%= issueSummary.warningCount %></strong></article>
+      <article><span>Opportunities</span><strong data-scan-metric="opportunityCount"><%= issueSummary.opportunityCount %></strong></article>
+    </section>
+
+    <% if (scan.errorMessage) { %>
+      <section class="panel">
+        <h2>Scan Error</h2>
+        <p class="empty"><%= scan.errorMessage %></p>
+      </section>
+    <% } %>
+
+    <section class="panel">
+      <div class="panel-title">
+        <h2>Issue snapshot</h2>
+        <span class="status" data-issue-state><%= issueSummary.issueCount %> issues</span>
+      </div>
+      <p class="empty" data-scan-issues-empty <%= issues.length ? 'hidden' : '' %>>No issues recorded yet. If this scan is still running, findings will appear here as soon as the audit stage finishes.</p>
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Severity</th>
+              <th>Issue</th>
+              <th>Page</th>
+              <th>Recommendation</th>
+            </tr>
+          </thead>
+          <tbody data-scan-issues-body>
+            <% issues.forEach((issue) => { %>
+              <tr>
+                <td><span class="status"><%= issue.severity %></span></td>
+                <td><%= issue.title %></td>
+                <td><a href="<%= issue.url %>" target="_blank" rel="noreferrer"><%= issue.url %></a></td>
+                <td><%= issue.recommendation %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <h2>Competitor comparison</h2>
+        <div class="row-actions">
+          <a href="/projects/<%= project._id %>/competitors">Competitors</a>
+          <a href="/projects/<%= project._id %>/competitors/insights">Open full report</a>
+        </div>
+      </div>
+      <p class="empty" data-competitor-state <%= competitorInsights.length && !scanIsActive ? 'hidden' : '' %>>
+        <% if (scanIsActive) { %>
+          Competitor identification and comparison opportunities are still being prepared for this scan.
+        <% } else if (!competitors.length) { %>
+          No competitors were identified from this project yet. The scan pipeline now retries discovery automatically when none are tracked.
+        <% } else if (!competitorInsights.length) { %>
+          Competitors are tracked, but no comparison opportunities are available yet.
+        <% } %>
+      </p>
+      <div class="recommendation-grid" data-scan-competitor-body>
+        <% if (!scanIsActive && competitorInsights.length) { %>
+          <% competitorInsights.forEach((insight) => { %>
+            <article class="recommendation-card">
+              <span class="status"><%= insight.category.replace(/_/g, ' ') %> / Priority <%= insight.priority %></span>
+              <h2><%= insight.title %></h2>
+              <p><strong>What they do better:</strong> <%= insight.insight %></p>
+              <p><strong>What to improve:</strong> <%= insight.opportunity %></p>
+            </article>
+          <% }) %>
+        <% } %>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <h2>Scanned pages</h2>
+        <a href="/projects/<%= project._id %>/pages">Open page list</a>
+      </div>
+      <p class="empty" data-scan-pages-empty <%= pages.length ? 'hidden' : '' %>>Pages will appear here while the scan works through the site.</p>
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Title</th>
+              <th>Meta description</th>
+              <th>H1</th>
+              <th>Words</th>
+              <th>Missing alt</th>
+            </tr>
+          </thead>
+          <tbody data-scan-pages-body>
+            <% pages.forEach((page) => { %>
+              <tr>
+                <td><%= page.statusCode %></td>
+                <td><a href="<%= page.url %>" target="_blank" rel="noreferrer"><%= page.title || page.url %></a></td>
+                <td><%= page.metaDescription || 'Missing' %></td>
+                <td><%= (page.h1 || []).join(' | ') || 'Missing' %></td>
+                <td><%= page.wordCount %></td>
+                <td><%= page.imagesMissingAlt %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+</div>
+
+<%- include('../../partials/footer') %>

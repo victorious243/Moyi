@@ -1,0 +1,28 @@
+<% if (!rows.length) { %>
+  <p class="empty">No movement detected yet.</p>
+<% } else { %>
+  <div class="table-scroll">
+    <table class="data-table compact-table">
+      <thead>
+        <tr>
+          <th><%= label %></th>
+          <th>Clicks</th>
+          <th>Click Change</th>
+          <th>Impressions</th>
+          <th>Impression Change</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% rows.forEach((row) => { %>
+          <tr>
+            <td><%= row[keyName] %></td>
+            <td><%= fmt.format(row.clicks || 0) %></td>
+            <td><%= row.clicksChange > 0 ? '+' : '' %><%= fmt.format(row.clicksChange || 0) %></td>
+            <td><%= fmt.format(row.impressions || 0) %></td>
+            <td><%= row.impressionsChange > 0 ? '+' : '' %><%= fmt.format(row.impressionsChange || 0) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% } %>

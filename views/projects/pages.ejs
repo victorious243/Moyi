@@ -1,0 +1,66 @@
+<%- include('../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/projects/<%= project._id %>">Project Overview</a>
+    <a href="/projects/<%= project._id %>/scans">Scan History</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow"><%= project.name %></p>
+        <h1>Scanned Pages</h1>
+      </div>
+      <form action="/projects/<%= project._id %>/scans" method="post">
+        <button class="button button-primary" type="submit">Run Website Scan</button>
+      </form>
+    </div>
+
+    <section class="panel">
+      <% if (!latestScan) { %>
+        <p class="empty">No scan data yet.</p>
+      <% } else { %>
+        <p class="empty">Showing pages from the latest scan: <strong><%= latestScan.status %></strong>, <%= latestScan.pagesScanned %> pages scanned.</p>
+      <% } %>
+
+      <% if (pages.length) { %>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>URL</th>
+                <th>Title</th>
+                <th>H1</th>
+                <th>Words</th>
+                <th>Internal</th>
+                <th>External</th>
+                <th>Missing alt</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% pages.forEach((page) => { %>
+                <tr>
+                  <td><%= page.statusCode %></td>
+                  <td><a href="<%= page.url %>" target="_blank" rel="noreferrer"><%= page.url %></a></td>
+                  <td><%= page.title || 'Missing' %></td>
+                  <td><%= (page.h1 || []).join(' | ') || 'Missing' %></td>
+                  <td><%= page.wordCount %></td>
+                  <td><%= (page.internalLinks || []).length %></td>
+                  <td><%= (page.externalLinks || []).length %></td>
+                  <td><%= page.imagesMissingAlt %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+  </section>
+</div>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,47 @@
+<%- include('../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/projects/new">Add Project</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">Project Portfolio</p>
+        <h1>Projects</h1>
+      </div>
+      <a class="button button-primary" href="/projects/new">Add Project</a>
+    </div>
+
+    <% if (typeof limitMessage !== 'undefined' && limitMessage) { %>
+      <section class="panel notice-panel">
+        <h2>Plan limit reached</h2>
+        <p class="empty"><%= limitMessage %></p>
+        <a class="button button-primary" href="/pricing">Upgrade</a>
+      </section>
+    <% } %>
+
+    <% if (!projects.length) { %>
+      <section class="panel">
+        <p class="empty">No projects yet. Create a business profile to start your AI CMO workspace.</p>
+      </section>
+    <% } %>
+
+    <section class="project-card-grid">
+      <% projects.forEach((project) => { %>
+        <a class="project-card" href="/projects/<%= project._id %>">
+          <span><%= project.industry || 'Business profile' %></span>
+          <strong><%= project.name %></strong>
+          <small><%= project.websiteUrl %></small>
+          <p><%= project.targetAudience || 'Audience not set yet.' %></p>
+        </a>
+      <% }) %>
+    </section>
+  </section>
+</div>
+
+<%- include('../partials/footer') %>

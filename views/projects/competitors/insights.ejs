@@ -1,0 +1,84 @@
+<%- include('../../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/projects/<%= project._id %>">Project Overview</a>
+    <a href="/projects/<%= project._id %>/competitors">Competitors</a>
+    <a href="/projects/<%= project._id %>/competitors/insights">Opportunities</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow"><%= project.name %></p>
+        <h1>Competitor Opportunities</h1>
+      </div>
+      <div class="row-actions">
+        <form action="/projects/<%= project._id %>/competitors/report" method="post">
+          <button class="button button-primary" type="submit">Generate Competitor Report</button>
+        </form>
+        <a class="button" href="/projects/<%= project._id %>/competitors">Manage competitors</a>
+      </div>
+    </div>
+
+    <% if (successMessage) { %>
+      <section class="panel">
+        <h2>Report updated</h2>
+        <p class="empty"><%= successMessage %></p>
+      </section>
+    <% } %>
+
+    <section class="panel">
+      <div class="panel-title">
+        <h2>Comparison Report</h2>
+        <span class="status"><%= insights.length %> opportunities</span>
+      </div>
+      <p class="empty">This report compares your crawled project pages against manually added competitor websites. It does not use private competitor data, rankings, traffic estimates, or search result scraping.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Your Site</h2>
+      <dl class="detail-list">
+        <div><dt>Website</dt><dd><%= project.websiteUrl %></dd></div>
+        <div><dt>Goal</dt><dd><%= project.mainGoal || 'Not set' %></dd></div>
+        <div><dt>Audience</dt><dd><%= project.targetAudience || 'Not set' %></dd></div>
+      </dl>
+    </section>
+
+    <section class="panel">
+      <h2>Competitor Sites</h2>
+      <% if (!competitors.length) { %>
+        <p class="empty">No competitors added yet.</p>
+      <% } %>
+      <ul class="clean-list">
+        <% competitors.forEach((competitor) => { %>
+          <li><a href="/projects/<%= project._id %>/competitors/<%= competitor._id %>"><%= competitor.name %></a> / <%= competitor.websiteUrl %></li>
+        <% }) %>
+      </ul>
+    </section>
+
+    <section class="panel">
+      <h2>Suggested Opportunities</h2>
+      <% if (!insights.length) { %>
+        <p class="empty">No opportunities generated yet. Add competitors, scan them, then generate the competitor report.</p>
+      <% } %>
+      <div class="recommendation-grid">
+        <% insights.forEach((insight) => { %>
+          <% const competitor = competitors.find((item) => item._id.toString() === insight.competitorId.toString()); %>
+          <article class="recommendation-card">
+            <span class="status"><%= insight.category.replace(/_/g, ' ') %> / Priority <%= insight.priority %></span>
+            <h2><%= insight.title %></h2>
+            <small><%= competitor ? competitor.name : 'Competitor' %></small>
+            <p><strong>Insight:</strong> <%= insight.insight %></p>
+            <p><strong>Opportunity:</strong> <%= insight.opportunity %></p>
+          </article>
+        <% }) %>
+      </div>
+    </section>
+  </section>
+</div>
+
+<%- include('../../partials/footer') %>

@@ -1,0 +1,42 @@
+<%- include('../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/projects/new">Add Project</a>
+  </aside>
+
+  <section class="app-main">
+    <section class="wide-form">
+      <p class="eyebrow">Edit Project</p>
+      <h1><%= project.name %></h1>
+      <form class="form grid-form" action="/projects/<%= project._id %>" method="post">
+        <label>Project name <input name="name" value="<%= project.name %>" required></label>
+        <label>Website URL <input name="websiteUrl" value="<%= project.websiteUrl %>" required></label>
+        <label>Industry <input name="industry" value="<%= project.industry || '' %>"></label>
+        <label>Target audience <input name="targetAudience" value="<%= project.targetAudience || '' %>"></label>
+        <label>Target country <input name="targetCountry" value="<%= project.targetCountry || '' %>"></label>
+        <label>Main offer <input name="mainOffer" value="<%= project.mainOffer || '' %>"></label>
+        <label>Brand tone <input name="brandTone" value="<%= project.brandTone || '' %>"></label>
+        <label class="full">Main goal <textarea name="mainGoal" rows="4"><%= project.mainGoal || '' %></textarea></label>
+        <label class="full">Competitors <textarea name="competitors" rows="4"><%= (project.competitors || []).join('\n') %></textarea></label>
+        <label class="full">
+          Approved content webhook URL
+          <input name="webhookUrl" type="url" value="<%= project.webhookUrl || '' %>" placeholder="https://example.com/api/moyi/content-approved">
+        </label>
+        <div class="full integration-hint">
+          <p class="empty">Moyi sends approved content drafts to this URL with <strong>X-Moyi-Signature</strong>. Verify the HMAC-SHA256 signature with this project signing secret.</p>
+          <p class="empty">Signing secret: <code><%= project.webhookSigningSecret ? `${project.webhookSigningSecret.slice(0, 8)}...${project.webhookSigningSecret.slice(-6)}` : 'generated after save' %></code></p>
+        </div>
+        <div class="row-actions">
+          <button class="button button-primary" type="submit">Save Changes</button>
+          <a class="button" href="/projects/<%= project._id %>">Cancel</a>
+        </div>
+      </form>
+    </section>
+  </section>
+</div>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,85 @@
+<%- include('../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/projects/<%= project._id %>">Project Overview</a>
+    <a href="/projects/<%= project._id %>/calendar">Calendar</a>
+    <a href="/projects/<%= project._id %>/campaigns">Campaigns</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow"><%= project.name %></p>
+        <h1>Content Calendar</h1>
+      </div>
+      <a class="button button-primary" href="/projects/<%= project._id %>/campaigns">Plan Campaign</a>
+    </div>
+
+    <% if (typeof successMessage !== 'undefined' && successMessage) { %>
+      <section class="panel">
+        <h2>Calendar updated</h2>
+        <p class="empty"><%= successMessage %></p>
+      </section>
+    <% } %>
+
+    <section class="metrics">
+      <article><span>Campaigns</span><strong><%= campaigns.length %></strong></article>
+      <article><span>Draft posts</span><strong><%= socialDrafts.filter((draft) => draft.status === 'draft').length %></strong></article>
+      <article><span>Approved</span><strong><%= socialDrafts.filter((draft) => draft.status === 'approved').length %></strong></article>
+      <article><span>Manual published</span><strong><%= socialDrafts.filter((draft) => draft.status === 'published_manually').length %></strong></article>
+    </section>
+
+    <section class="panel">
+      <h2>Scheduled Drafts</h2>
+      <% if (!socialDrafts.length) { %>
+        <p class="empty">No social drafts scheduled yet. Create a campaign, then generate social drafts from an approved content draft.</p>
+      <% } %>
+      <div class="content-card-grid">
+        <% socialDrafts.forEach((draft) => { %>
+          <article class="content-card">
+            <span class="status"><%= draft.channel %> / <%= draft.status.replace(/_/g, ' ') %></span>
+            <strong><%= draft.title || 'Untitled social draft' %></strong>
+            <small><%= draft.scheduledFor.toLocaleString() %></small>
+            <p id="social-draft-<%= draft._id %>"><%= draft.body %></p>
+            <div class="status-actions">
+              <button class="button copy-button" type="button" data-copy-target="social-draft-<%= draft._id %>">Copy</button>
+              <% if (draft.status === 'draft') { %>
+                <form action="/social-drafts/<%= draft._id %>/approve" method="post">
+                  <button class="button button-primary" type="submit">Approve</button>
+                </form>
+              <% } %>
+              <% if (draft.status !== 'published_manually') { %>
+                <form action="/social-drafts/<%= draft._id %>/mark-published" method="post">
+                  <button class="button" type="submit">Mark Manually Published</button>
+                </form>
+              <% } %>
+            </div>
+          </article>
+        <% }) %>
+      </div>
+    </section>
+
+    <section class="panel notice-panel">
+      <h2>Manual Publishing Only</h2>
+      <p class="empty">This calendar stores drafts and plans only. It does not auto-post, send DMs, fake engagement, or publish to social channels.</p>
+    </section>
+  </section>
+</div>
+
+<script>
+  document.querySelectorAll('.copy-button').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const target = document.getElementById(button.dataset.copyTarget);
+      if (!target) return;
+      await navigator.clipboard.writeText(target.textContent || '');
+      button.textContent = 'Copied';
+      setTimeout(() => { button.textContent = 'Copy'; }, 1200);
+    });
+  });
+</script>
+
+<%- include('../partials/footer') %>

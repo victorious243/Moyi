@@ -1,0 +1,41 @@
+<%- include('../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/projects/new">Add Project</a>
+  </aside>
+
+  <section class="app-main">
+    <section class="wide-form">
+      <p class="eyebrow">New Project</p>
+      <h1>Start with auto-discovery</h1>
+      <form class="form grid-form" action="/projects/scan" method="post" data-loading-state="Scanning your market">
+        <label>Project name <input name="name" placeholder="Kununga"></label>
+        <label>Website URL <input name="websiteUrl" placeholder="https://example.com" required></label>
+        <button class="button button-primary" type="submit">Scan and prefill</button>
+      </form>
+    </section>
+
+    <section class="wide-form">
+      <p class="eyebrow">Manual fallback</p>
+      <h1>Add a business profile</h1>
+      <form class="form grid-form" action="/projects" method="post">
+        <label>Project name <input name="name" placeholder="Kununga" required></label>
+        <label>Website URL <input name="websiteUrl" placeholder="https://example.com" required></label>
+        <label>Industry <input name="industry" placeholder="Hospitality, AI, ecommerce"></label>
+        <label>Target audience <input name="targetAudience" placeholder="Who this business serves"></label>
+        <label>Target country <input name="targetCountry" placeholder="Ireland, United States, Global"></label>
+        <label>Main offer <input name="mainOffer" placeholder="What you sell or promote"></label>
+        <label>Brand tone <input name="brandTone" placeholder="Premium, friendly, technical"></label>
+        <label class="full">Main goal <textarea name="mainGoal" rows="4" placeholder="What should the AI CMO help this business achieve?"></textarea></label>
+        <label class="full">Competitors <textarea name="competitors" rows="4" placeholder="One competitor per line"></textarea></label>
+        <button class="button button-primary" type="submit">Create Project</button>
+      </form>
+    </section>
+  </section>
+</div>
+
+<%- include('../partials/footer') %>

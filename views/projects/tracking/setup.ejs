@@ -1,0 +1,100 @@
+<%- include('../../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/projects/<%= project._id %>">Project Overview</a>
+    <a href="/projects/<%= project._id %>/tracking/setup">Tracking Setup</a>
+    <a href="/projects/<%= project._id %>/analytics">Analytics</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow"><%= project.name %></p>
+        <h1>Tracking Setup</h1>
+      </div>
+      <a class="button" href="/projects/<%= project._id %>/analytics">Open Analytics</a>
+    </div>
+
+    <% if (successMessage) { %>
+      <section class="panel">
+        <h2>Updated</h2>
+        <p class="empty"><%= successMessage %></p>
+      </section>
+    <% } %>
+
+    <section class="panel">
+      <div class="panel-title">
+        <h2>Install Script</h2>
+        <button class="button copy-button" type="button" data-copy-target="tracking-snippet">Copy Script</button>
+      </div>
+      <textarea id="tracking-snippet" rows="3" readonly><%= snippet %></textarea>
+      <p class="empty">Install this before the closing <code>&lt;/head&gt;</code> tag or through your tag manager. The script respects Do Not Track and does not collect form contents.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Conversion Events</h2>
+      <p class="empty">Trigger a conversion after a thank-you page, lead submission, booking, or other meaningful action.</p>
+      <pre><code>window.moyiTrack('conversion', 'lead_form_submit');</code></pre>
+      <pre><code>window.moyiTrack('custom', 'pricing_cta_click');</code></pre>
+    </section>
+
+    <section class="panel">
+      <h2>Add Conversion Goal</h2>
+      <form class="form grid-form" action="/projects/<%= project._id %>/conversion-goals" method="post">
+        <label>
+          Goal name
+          <input name="name" placeholder="Lead form submission" required>
+        </label>
+        <label>
+          Event name
+          <input name="eventName" placeholder="lead_form_submit" required>
+        </label>
+        <label class="full">
+          URL pattern
+          <input name="urlPattern" placeholder="/thank-you">
+        </label>
+        <button class="button button-primary" type="submit">Add Goal</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>Conversion Goals</h2>
+      <% if (!goals.length) { %>
+        <p class="empty">No goals added yet.</p>
+      <% } %>
+      <div class="scan-list">
+        <% goals.forEach((goal) => { %>
+          <div class="scan-row">
+            <strong><%= goal.name %></strong>
+            <span><%= goal.eventName %></span>
+            <span><%= goal.urlPattern || 'any URL' %></span>
+            <span><%= goal.createdAt.toLocaleString() %></span>
+          </div>
+        <% }) %>
+      </div>
+    </section>
+
+    <section class="panel notice-panel">
+      <h2>Privacy Notice Guidance</h2>
+      <p class="empty">Tell visitors that you use first-party analytics to measure page views, referrers, campaigns, and conversion events. Do not send personal data, form contents, payment details, or sensitive health/financial information through custom events.</p>
+    </section>
+  </section>
+</div>
+
+<script>
+  document.querySelectorAll('.copy-button').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const target = document.getElementById(button.dataset.copyTarget);
+      if (!target) return;
+      await navigator.clipboard.writeText(target.value || target.textContent || '');
+      button.textContent = 'Copied';
+      setTimeout(() => { button.textContent = 'Copy Script'; }, 1200);
+    });
+  });
+</script>
+
+<%- include('../../partials/footer') %>

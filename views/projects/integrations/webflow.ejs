@@ -1,0 +1,119 @@
+<%- include('../../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/projects/<%= project._id %>">Project Overview</a>
+    <a href="/projects/<%= project._id %>/integrations/wordpress">WordPress</a>
+    <a href="/projects/<%= project._id %>/integrations/webflow">Webflow</a>
+    <a href="/projects/<%= project._id %>/integrations/shopify">Shopify</a>
+    <a href="/projects/<%= project._id %>/integrations/webhook">Webhook</a>
+    <a href="/projects/<%= project._id %>/content">Approval Queue</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow"><%= project.name %></p>
+        <h1>Webflow Integration</h1>
+      </div>
+      <div class="row-actions">
+        <% if (integration) { %>
+          <form action="/projects/<%= project._id %>/integrations/webflow/test" method="post">
+            <button class="button button-primary" type="submit">Test Connection</button>
+          </form>
+        <% } %>
+      </div>
+    </div>
+
+    <% if (errorMessage) { %>
+      <section class="panel notice-panel">
+        <h2>Webflow issue</h2>
+        <p class="empty"><%= errorMessage %></p>
+      </section>
+    <% } %>
+
+    <% if (successMessage) { %>
+      <section class="panel">
+        <h2>Webflow updated</h2>
+        <p class="empty"><%= successMessage %></p>
+      </section>
+    <% } %>
+
+    <section class="metrics">
+      <article><span>Status</span><strong><%= integration ? integration.status : 'not set' %></strong></article>
+      <article><span>Collection</span><strong><%= integration ? integration.collectionId : 'none' %></strong></article>
+      <article><span>Body field</span><strong><%= integration ? integration.bodyField : 'post-body' %></strong></article>
+      <article><span>Last tested</span><strong><%= integration && integration.lastTestedAt ? integration.lastTestedAt.toLocaleDateString() : 'never' %></strong></article>
+    </section>
+
+    <section class="panel">
+      <h2>Connection Settings</h2>
+      <form class="form grid-form" action="/projects/<%= project._id %>/integrations/webflow/connect" method="post">
+        <label>
+          Site ID
+          <input type="text" name="siteId" value="<%= integration ? integration.siteId : '' %>" placeholder="Optional">
+        </label>
+        <label>
+          Collection ID
+          <input type="text" name="collectionId" value="<%= integration ? integration.collectionId : '' %>" required>
+        </label>
+        <label>
+          Title field
+          <input type="text" name="titleField" value="<%= integration ? integration.titleField : 'name' %>">
+        </label>
+        <label>
+          Slug field
+          <input type="text" name="slugField" value="<%= integration ? integration.slugField : 'slug' %>">
+        </label>
+        <label>
+          Body field
+          <input type="text" name="bodyField" value="<%= integration ? integration.bodyField : 'post-body' %>">
+        </label>
+        <label class="full">
+          API token
+          <input type="password" name="apiToken" placeholder="<%= integration ? 'Enter a new token to replace saved credentials' : 'Webflow API token' %>" required>
+        </label>
+        <button class="button button-primary" type="submit">Save Webflow Credentials</button>
+      </form>
+      <p class="empty">API tokens are encrypted before storage. Field names must match the API names in your Webflow collection.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Publishing Rules</h2>
+      <ul class="clean-list">
+        <li>Only approved content drafts can be sent to Webflow.</li>
+        <li>Moyi creates draft CMS items and does not publish the site.</li>
+        <li>The title, slug, and body field mappings control where draft content is saved.</li>
+      </ul>
+    </section>
+
+    <section class="panel">
+      <h2>Recent Publish Actions</h2>
+      <% if (!recentActions.length) { %>
+        <p class="empty">No Webflow publish actions yet.</p>
+      <% } else { %>
+        <div class="table-scroll">
+          <table class="data-table compact-table">
+            <thead><tr><th>Action</th><th>Status</th><th>External ID</th><th>Error</th><th>Date</th></tr></thead>
+            <tbody>
+              <% recentActions.forEach((action) => { %>
+                <tr>
+                  <td><%= action.actionType.replace(/_/g, ' ') %></td>
+                  <td><span class="status"><%= action.status %></span></td>
+                  <td><%= action.externalId || '-' %></td>
+                  <td><%= action.errorMessage || '-' %></td>
+                  <td><%= action.createdAt.toLocaleString() %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+  </section>
+</div>
+
+<%- include('../../partials/footer') %>
