@@ -7,36 +7,78 @@
     <a href="/projects">Projects</a>
     <a href="/projects/<%= project._id %>">Project Overview</a>
     <a href="/projects/<%= project._id %>/analytics">Analytics</a>
+    <a href="/projects/<%= project._id %>/reports">Reports</a>
   </aside>
 
   <section class="app-main">
     <div class="page-heading">
       <div>
         <p class="eyebrow"><%= project.name %></p>
-        <h1>Revenue attribution</h1>
+        <h1>Attribution readiness</h1>
+        <p class="form-help"><%= readiness.revenueStatus %></p>
       </div>
     </div>
 
     <section class="metrics project-info-grid">
-      <article class="project-info-card"><span>Revenue</span><strong>$<%= dashboard.revenue.toFixed(2) %></strong></article>
-      <article class="project-info-card"><span>Conversions</span><strong><%= dashboard.conversions %></strong></article>
-      <article class="project-info-card"><span>ACS</span><strong><%= dashboard.confidenceScore %>%</strong></article>
+      <article class="project-info-card"><span>Readiness score</span><strong><%= readiness.score || 0 %>%</strong></article>
+      <article class="project-info-card"><span>Tracked conversions</span><strong><%= readiness.trackedConversions || 0 %></strong></article>
+      <article class="project-info-card"><span>Identified sessions</span><strong><%= readiness.identifiedSessions || 0 %></strong></article>
+      <article class="project-info-card"><span>Attributed sessions</span><strong><%= readiness.attributedSessions || 0 %></strong></article>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <div>
+          <h2>Readiness model</h2>
+          <p class="empty">This score tells you whether Moyi should talk only about conversions and pipeline signals, or whether real revenue evidence is available.</p>
+        </div>
+        <span class="status"><%= readiness.level || 'Low' %></span>
+      </div>
+      <ul class="clean-list">
+        <li><strong>Conversion goals:</strong> <%= readiness.conversionGoalCount || 0 %></li>
+        <li><strong>Search Console connected:</strong> <%= readiness.searchConsoleConnected ? 'Yes' : 'No' %></li>
+        <li><strong>Pipeline status:</strong> <%= readiness.pipelineStatus || 'Pipeline evidence is still thin.' %></li>
+      </ul>
+      <% if (Array.isArray(readiness.rules) && readiness.rules.length) { %>
+        <ul class="clean-list">
+          <% readiness.rules.forEach((rule) => { %>
+            <li><%= rule %></li>
+          <% }) %>
+        </ul>
+      <% } %>
+    </section>
+
+    <section class="panel">
+      <h2>Revenue evidence</h2>
+      <% if (!dashboard.hasRevenueData) { %>
+        <p class="empty">No real payment or CRM revenue source is connected yet. Moyi will not fabricate attributed revenue, modeled revenue, or revenue-like estimates here.</p>
+      <% } else { %>
+        <section class="metrics project-info-grid">
+          <article class="project-info-card"><span>Real revenue</span><strong>$<%= dashboard.revenue.toFixed(2) %></strong></article>
+          <article class="project-info-card"><span>Revenue-linked conversions</span><strong><%= dashboard.conversions %></strong></article>
+          <article class="project-info-card"><span>Match quality</span><strong><%= dashboard.confidenceScore %>%</strong></article>
+        </section>
+      <% } %>
     </section>
 
     <section class="panel">
       <h2>Attribution models</h2>
-      <% ['firstTouch', 'lastTouch', 'linear', 'wShaped'].forEach((model) => { %>
-        <h3><%= model.replace(/([A-Z])/g, ' $1') %></h3>
-        <% const rows = Object.entries(dashboard.totals[model] || {}); %>
-        <% if (!rows.length) { %>
-          <p class="empty">No revenue-linked payments available for this model yet.</p>
-        <% } %>
-        <ul class="clean-list">
-          <% rows.forEach(([key, value]) => { %>
-            <li><strong><%= key %></strong> $<%= value.toFixed(2) %></li>
-          <% }) %>
-        </ul>
-      <% }) %>
+      <% if (!dashboard.hasRevenueData) { %>
+        <p class="empty">Until a real revenue source exists, use the analytics and report screens to judge conversion movement, identified sessions, and page-level traffic quality.</p>
+      <% } else { %>
+        <% ['firstTouch', 'lastTouch', 'linear', 'wShaped'].forEach((model) => { %>
+          <h3><%= model.replace(/([A-Z])/g, ' $1') %></h3>
+          <% const rows = Object.entries(dashboard.totals[model] || {}); %>
+          <% if (!rows.length) { %>
+            <p class="empty">No revenue-linked payments available for this model yet.</p>
+          <% } %>
+          <ul class="clean-list">
+            <% rows.forEach(([key, value]) => { %>
+              <li><strong><%= key %></strong> $<%= value.toFixed(2) %></li>
+            <% }) %>
+          </ul>
+        <% }) %>
+      <% } %>
     </section>
   </section>
 </div>

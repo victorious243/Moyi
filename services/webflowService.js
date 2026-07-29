@@ -42,6 +42,10 @@ function draftHtml(draft) {
     .join('\n');
 }
 
+function isPostDraftType(type) {
+  return ['blog_article', 'comparison_page_draft', 'vs_comparison_article', 'alternatives_list', 'product_led_guide'].includes(type);
+}
+
 async function upsertWebflowIntegration({ projectId, userId, siteId, collectionId, apiToken, titleField, slugField, bodyField }) {
   return WebflowIntegration.findOneAndUpdate(
     { projectId, userId },
@@ -88,6 +92,13 @@ async function createWebflowDraftItem({ integration, draft, userId }) {
   if (draft.status !== 'approved') {
     action.status = 'failed';
     action.errorMessage = 'Only approved content drafts can be sent to Webflow.';
+    await action.save();
+    throw new Error(action.errorMessage);
+  }
+
+  if (!isPostDraftType(draft.type)) {
+    action.status = 'failed';
+    action.errorMessage = 'Only approved article-style assets can be sent to Webflow.';
     await action.save();
     throw new Error(action.errorMessage);
   }

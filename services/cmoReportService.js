@@ -8,10 +8,16 @@ const Recommendation = require('../models/Recommendation');
 const Scan = require('../models/Scan');
 const SearchMetric = require('../models/SearchMetric');
 const SeoIssue = require('../models/SeoIssue');
+const { buildProjectMeasurementSnapshot } = require('./measurementService');
 const buildWeeklyPrompt = require('../src/prompts/weekly-cmo-report.prompt');
 const buildMonthlyPrompt = require('../src/prompts/monthly-cmo-report.prompt');
 
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+
+async function notifyProgress(handler, update) {
+  if (typeof handler !== 'function') return;
+  await handler(update);
+}
 
 function isoDate(date) {
   return date.toISOString().slice(0, 10);
@@ -265,14 +271,17 @@ function formatPercent(value) {
   return `${value >= 0 ? '+' : ''}${(value * 100).toFixed(1)}%`;
 }
 
-function buildSystemReport({ type, metricsSnapshot, operationalContext }) {
+function buildSystemReport({ type, metricsSnapshot, operationalContext, measurementSnapshot }) {
   const hasMetrics = metricsSnapshot.searchConsoleConnected && metricsSnapshot.current.impressions > 0;
   const openRecommendations = operationalContext.openRecommendations.slice(0, 5).map((item) => item.title);
   const completedCount = operationalContext.contentActionsCompleted.length;
+  const conversionChanges = measurementSnapshot.tracking.changes;
+  const impactSummary = measurementSnapshot.executionImpact.summary;
+  const readiness = measurementSnapshot.attributionReadiness;
 
   const summary = hasMetrics
-    ? `${type === 'monthly' ? 'Monthly' : 'Weekly'} update: organic search recorded ${formatNumber(metricsSnapshot.current.clicks)} clicks and ${formatNumber(metricsSnapshot.current.impressions)} impressions for the period.`
-    : 'Search Console performance data is missing for this period, so this report focuses on audits, recommendations, and content progress.';
+    ? `${type === 'monthly' ? 'Monthly' : 'Weekly'} update: organic search recorded ${formatNumber(metricsSnapshot.current.clicks)} clicks and ${formatNumber(metricsSnapshot.current.impressions)} impressions for the period, while conversions changed ${formatPercent(conversionChanges.conversions.percent)} against the prior window.`
+    : `Search Console performance data is missing for this period, so this report focuses on conversion signals, executed work, and content progress.`;
 
   return {
     summary,
@@ -281,15 +290,21 @@ function buildSystemReport({ type, metricsSnapshot, operationalContext }) {
       : 'No Search Console metrics are available. Connect and sync Search Console to compare clicks, impressions, CTR, and average position.',
     wins: [
       completedCount ? `${completedCount} content action${completedCount === 1 ? '' : 's'} completed in this period.` : '',
-      metricsSnapshot.topGainingPages[0] ? `Top gaining page by impressions: ${metricsSnapshot.topGainingPages[0].page}.` : ''
+      metricsSnapshot.topGainingPages[0] ? `Top gaining page by impressions: ${metricsSnapshot.topGainingPages[0].page}.` : '',
+      impactSummary.movedCount ? `${impactSummary.movedCount} executed recommendation${impactSummary.movedCount === 1 ? '' : 's'} showed positive movement.` : '',
+      conversionChanges.conversions.delta > 0 ? `Tracked conversions increased by ${formatNumber(conversionChanges.conversions.delta)} versus the previous period.` : ''
     ].filter(Boolean),
-    losses: metricsSnapshot.topLosingPages
-      .filter((item) => item.impressionsChange < 0)
-      .slice(0, 3)
-      .map((item) => `${item.page} lost ${formatNumber(Math.abs(item.impressionsChange))} impressions versus the previous period.`),
+    losses: [
+      ...metricsSnapshot.topLosingPages
+        .filter((item) => item.impressionsChange < 0)
+        .slice(0, 3)
+        .map((item) => `${item.page} lost ${formatNumber(Math.abs(item.impressionsChange))} impressions versus the previous period.`),
+      ...(impactSummary.backwardCount ? [`${impactSummary.backwardCount} executed recommendation${impactSummary.backwardCount === 1 ? '' : 's'} moved backward and need review.`] : [])
+    ],
     opportunities: [
       ...metricsSnapshot.lowCtrOpportunities.slice(0, 3).map((item) => `${item.value} has high impressions and low CTR.`),
-      ...openRecommendations.slice(0, 3).map((title) => `Open recommendation: ${title}.`)
+      ...openRecommendations.slice(0, 3).map((title) => `Open recommendation: ${title}.`),
+      ...(impactSummary.noMovementCount ? [`${impactSummary.noMovementCount} executed recommendation${impactSummary.noMovementCount === 1 ? '' : 's'} did not move yet, so the page, proof, or CTA should be revisited.`] : [])
     ],
     nextActions: openRecommendations.length ? openRecommendations : ['Review open SEO recommendations and choose the next content or metadata action.'],
     nextSevenDaysActionPlan: openRecommendations.slice(0, 4),
@@ -299,7 +314,8 @@ function buildSystemReport({ type, metricsSnapshot, operationalContext }) {
     ],
     warningsLimitations: [
       hasMetrics ? '' : 'Search Console data was unavailable or empty for this period.',
-      'This report does not include conversions, revenue, competitor monitoring, ads, or social performance.'
+      readiness.revenueStatus,
+      'Revenue is never attributed here without a real payment or CRM source.'
     ].filter(Boolean)
   };
 }
@@ -325,13 +341,32 @@ async function requestAiReport({ type, context }) {
   return sanitizeAiReport(parseJson(response.choices[0].message.content));
 }
 
-async function generateCmoReport({ project, userId, type }) {
+async function generateCmoReport({ project, userId, type, onProgress = null }) {
+  await notifyProgress(onProgress, {
+    currentStep: 'Loading Search Console performance snapshots',
+    progressPercent: 15
+  });
   const metricsSnapshot = await buildMetricsSnapshot({ projectId: project._id, userId, type });
+  await notifyProgress(onProgress, {
+    currentStep: 'Gathering audit, recommendation, and content context',
+    progressPercent: 35
+  });
   const operationalContext = await buildOperationalContext({ project, userId, period: metricsSnapshot.period });
+  await notifyProgress(onProgress, {
+    currentStep: 'Calculating before-and-after measurement impact',
+    progressPercent: 55
+  });
+  const measurementSnapshot = await buildProjectMeasurementSnapshot({
+    projectId: project._id,
+    userId,
+    period: metricsSnapshot.period,
+    websiteUrl: project.websiteUrl
+  });
   const context = {
     reportType: type,
     project: projectContext(project),
     metricsSnapshot,
+    measurementSnapshot,
     auditAndOperations: operationalContext
   };
 
@@ -340,6 +375,10 @@ async function generateCmoReport({ project, userId, type }) {
   let reportBody = null;
 
   try {
+    await notifyProgress(onProgress, {
+      currentStep: 'Generating the measurement narrative',
+      progressPercent: 78
+    });
     reportBody = await requestAiReport({ type, context });
     if (reportBody) {
       generatedBy = 'ai';
@@ -350,10 +389,18 @@ async function generateCmoReport({ project, userId, type }) {
   }
 
   if (!reportBody) {
-    reportBody = buildSystemReport({ type, metricsSnapshot, operationalContext });
+    await notifyProgress(onProgress, {
+      currentStep: 'Composing the system fallback report',
+      progressPercent: 82
+    });
+    reportBody = buildSystemReport({ type, metricsSnapshot, operationalContext, measurementSnapshot });
   }
 
-  return CmoReport.create({
+  await notifyProgress(onProgress, {
+    currentStep: 'Saving the completed measurement report',
+    progressPercent: 94
+  });
+  const report = await CmoReport.create({
     projectId: project._id,
     userId,
     type,
@@ -362,11 +409,18 @@ async function generateCmoReport({ project, userId, type }) {
     ...reportBody,
     metricsSnapshot: {
       ...metricsSnapshot,
+      measurement: measurementSnapshot,
       auditAndOperations: operationalContext
     },
     generatedBy,
     aiModel
   });
+  await notifyProgress(onProgress, {
+    currentStep: 'Measurement report is ready',
+    progressPercent: 100
+  });
+
+  return report;
 }
 
 module.exports = {

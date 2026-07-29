@@ -1,12 +1,17 @@
 <%- include('../partials/header') %>
-<% const postDraftTypes = ['blog_article', 'vs_comparison_article', 'alternatives_list', 'product_led_guide']; %>
+<%
+  const postDraftTypes = ['blog_article', 'comparison_page_draft', 'vs_comparison_article', 'alternatives_list', 'product_led_guide'];
+  const execution = draft.executionContext || {};
+  const proofPoints = Array.isArray(execution.proofPoints) ? execution.proofPoints : [];
+  const evidenceHighlights = Array.isArray(execution.evidenceHighlights) ? execution.evidenceHighlights : [];
+%>
 
 <div class="app-layout">
   <aside class="app-sidebar">
     <strong>Workspace</strong>
     <a href="/dashboard">Dashboard</a>
     <a href="/projects/<%= project._id %>">Project Overview</a>
-    <a href="/projects/<%= project._id %>/content">Approval Queue</a>
+    <a href="/projects/<%= project._id %>/content">Execution Queue</a>
     <a href="/projects/<%= project._id %>/recommendations">Recommendations</a>
     <a href="/projects/<%= project._id %>/integrations/wordpress">WordPress</a>
     <a href="/projects/<%= project._id %>/integrations/webflow">Webflow</a>
@@ -18,9 +23,9 @@
     <div class="page-heading">
       <div>
         <p class="eyebrow"><%= draft.type.replace(/_/g, ' ') %></p>
-        <h1><%= draft.title || 'Content draft' %></h1>
+        <h1><%= draft.title || 'Execution asset' %></h1>
       </div>
-      <span class="status"><%= draft.status.replace(/_/g, ' ') %></span>
+      <span class="status"><%= draftStatusLabel %></span>
     </div>
 
     <% if (['meta_title', 'meta_description', 'h1'].includes(draft.type)) { %>
@@ -39,6 +44,84 @@
       </section>
     <% } %>
 
+    <section class="before-after-grid">
+      <article class="panel">
+        <div class="panel-title">
+          <div>
+            <h2>Execution brief</h2>
+            <p class="empty">This asset should stay tied to one ranked opportunity and one clear business outcome.</p>
+          </div>
+          <% if (execution.sourceRecommendation && execution.sourceRecommendation.priority) { %>
+            <span class="status">Priority <%= execution.sourceRecommendation.priority %></span>
+          <% } %>
+        </div>
+        <p><strong>Business goal:</strong> <%= execution.businessGoal || 'Add the goal before approving this asset.' %></p>
+        <p><strong>Target persona:</strong> <%= execution.targetPersona || 'Add the target persona before approving this asset.' %></p>
+        <p><strong>Search intent:</strong> <%= execution.searchIntent || 'Add the search intent before approving this asset.' %></p>
+        <p><strong>Primary CTA:</strong> <%= execution.primaryCta || 'Add the CTA before approving this asset.' %></p>
+        <p><strong>Opportunity summary:</strong> <%= execution.opportunitySummary || (recommendation ? recommendation.reason : 'No source recommendation summary available.') %></p>
+        <div>
+          <strong>Proof points</strong>
+          <% if (!proofPoints.length) { %>
+            <p class="empty">No proof points captured yet.</p>
+          <% } else { %>
+            <ul class="clean-list">
+              <% proofPoints.forEach((point) => { %>
+                <li><%= point %></li>
+              <% }) %>
+            </ul>
+          <% } %>
+        </div>
+        <div>
+          <strong>Evidence highlights</strong>
+          <% if (!evidenceHighlights.length) { %>
+            <p class="empty">No evidence highlights captured yet.</p>
+          <% } else { %>
+            <ul class="clean-list">
+              <% evidenceHighlights.forEach((item) => { %>
+                <li><%= item %></li>
+              <% }) %>
+            </ul>
+          <% } %>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-title">
+          <div>
+            <h2>Review state</h2>
+            <p class="empty">Publishing stays manual. Review is where quality control happens.</p>
+          </div>
+          <span class="status"><%= draftStatusLabel %></span>
+        </div>
+        <% if (draft.reviewNotes) { %>
+          <p><strong>Latest review notes:</strong> <%= draft.reviewNotes %></p>
+        <% } else { %>
+          <p class="empty">No review notes have been added yet.</p>
+        <% } %>
+        <% if (draft.approvedAt) { %>
+          <p><strong>Approved:</strong> <%= draft.approvedAt.toLocaleString() %></p>
+        <% } %>
+        <% if (draft.lastReviewedAt) { %>
+          <p><strong>Last review:</strong> <%= draft.lastReviewedAt.toLocaleString() %></p>
+        <% } %>
+        <% if (draft.publishedAt) { %>
+          <p><strong>Marked published:</strong> <%= draft.publishedAt.toLocaleString() %></p>
+        <% } %>
+        <p class="empty">
+          <% if (draft.status === 'approved') { %>
+            This asset cleared review and can move to manual implementation or a safe CMS draft.
+          <% } else if (draft.status === 'needs_revision') { %>
+            This asset needs another pass before it should return to the approval queue.
+          <% } else if (draft.status === 'rejected') { %>
+            This asset was rejected and should only be revived if the opportunity still matters.
+          <% } else { %>
+            This asset is still in the human review queue.
+          <% } %>
+        </p>
+      </article>
+    </section>
+
     <form class="form" action="/content/<%= draft._id %>/update" method="post">
       <section class="panel">
         <div class="panel-title">
@@ -47,11 +130,16 @@
         </div>
         <label>Keyword <input name="keyword" value="<%= draft.keyword || '' %>"></label>
         <label>Title <input name="title" value="<%= draft.title || '' %>"></label>
-        <label>Body <textarea id="draft-body" name="body" rows="14"><%= draft.body || '' %></textarea></label>
+        <label>Business goal <input name="businessGoal" value="<%= execution.businessGoal || '' %>"></label>
+        <label>Target persona <input name="targetPersona" value="<%= execution.targetPersona || '' %>"></label>
+        <label>Search intent <input name="searchIntent" value="<%= execution.searchIntent || '' %>"></label>
+        <label>Primary CTA <input name="primaryCta" value="<%= execution.primaryCta || '' %>"></label>
+        <label>Proof points <textarea name="proofPoints" rows="6"><%= proofPoints.join('\n') %></textarea></label>
+        <label>Body <textarea id="draft-body" name="body" rows="16"><%= draft.body || '' %></textarea></label>
         <% if (draft.type === 'schema_jsonld') { %>
           <label>JSON-LD <textarea name="jsonBody" rows="12"><%= draft.jsonBody ? JSON.stringify(draft.jsonBody, null, 2) : '' %></textarea></label>
         <% } %>
-        <button class="button button-primary" type="submit">Save Draft</button>
+        <button class="button button-primary" type="submit">Save Asset</button>
       </section>
     </form>
 
@@ -86,8 +174,8 @@
     <section class="panel">
       <div class="panel-title">
         <div>
-          <h2>CMS Publishing</h2>
-          <p class="empty">Approved article drafts can be created as CMS drafts. Other content types are export-only in this MVP.</p>
+          <h2>CMS publishing</h2>
+          <p class="empty">Publishing stays minimal and safe. Only approved article-style assets can be sent as drafts.</p>
         </div>
         <span class="status">CMS</span>
       </div>
@@ -127,10 +215,10 @@
       </div>
 
       <% if (draft.status !== 'approved') { %>
-        <p class="empty">Approve this draft before sending it to WordPress.</p>
+        <p class="empty">Approve this asset before sending it to a CMS.</p>
       <% } %>
       <% if (draft.status === 'approved' && !postDraftTypes.includes(draft.type)) { %>
-        <p class="empty">This draft type should be copied or exported manually. It will not overwrite WordPress pages.</p>
+        <p class="empty">This asset is brief or implementation guidance, so it should be copied or exported manually.</p>
       <% } %>
       <% if (draft.status === 'approved' && postDraftTypes.includes(draft.type)) { %>
         <p class="empty">Connected CMS platforms receive this as a draft or unpublished article only. It is not published live.</p>
@@ -140,7 +228,7 @@
     <section class="panel">
       <div class="panel-title">
         <div>
-          <h2>Campaign Planning</h2>
+          <h2>Campaign planning</h2>
           <p class="empty">Create ethical social/email drafts from approved content. Nothing auto-posts.</p>
         </div>
         <a href="/projects/<%= project._id %>/calendar">Open Calendar</a>
@@ -159,23 +247,28 @@
     </section>
 
     <section class="panel">
-      <h2>Review Actions</h2>
-      <div class="status-actions">
-        <form action="/content/<%= draft._id %>/approve" method="post">
-          <button class="button button-primary" type="submit">Approve</button>
-        </form>
-        <form action="/content/<%= draft._id %>/reject" method="post">
-          <button class="button" type="submit">Reject</button>
-        </form>
-        <form action="/content/<%= draft._id %>/mark-published" method="post">
-          <button class="button" type="submit">Mark as Published</button>
-        </form>
-      </div>
-      <p class="empty">Drafts are never auto-published. Mark as Published only after manual implementation.</p>
+      <h2>Review actions</h2>
+      <form class="form compact-form" action="/content/<%= draft._id %>/approve" method="post">
+        <label>Review notes <textarea name="reviewNotes" rows="5"><%= draft.reviewNotes || '' %></textarea></label>
+        <div class="status-actions">
+          <% if (['needs_revision', 'rejected'].includes(draft.status)) { %>
+            <button class="button" formaction="/content/<%= draft._id %>/submit-for-review" type="submit">Submit for Review</button>
+          <% } %>
+          <% if (draft.status !== 'approved' && draft.status !== 'published_manually') { %>
+            <button class="button" formaction="/content/<%= draft._id %>/request-revision" type="submit">Needs Revision</button>
+            <button class="button button-primary" type="submit">Approve</button>
+            <button class="button" formaction="/content/<%= draft._id %>/reject" type="submit">Reject</button>
+          <% } %>
+          <% if (draft.status === 'approved') { %>
+            <button class="button" formaction="/content/<%= draft._id %>/mark-published" type="submit">Mark as Published</button>
+          <% } %>
+        </div>
+      </form>
+      <p class="empty">Drafts are never auto-published. Approval means review is complete, not that the asset goes live automatically.</p>
     </section>
 
     <section class="panel">
-      <h2>Publish History</h2>
+      <h2>Publish history</h2>
       <% if (!publishActions.length) { %>
         <p class="empty">No publish or export actions recorded yet.</p>
       <% } else { %>
@@ -200,11 +293,15 @@
     </section>
 
     <section class="panel">
-      <h2>Source Recommendation</h2>
+      <h2>Source recommendation</h2>
       <% if (recommendation) { %>
         <p><strong><%= recommendation.title %></strong></p>
         <p><%= recommendation.reason %></p>
         <p class="empty"><%= recommendation.actionType.replace(/_/g, ' ') %> · Priority <%= recommendation.priority %></p>
+      <% } else if (execution.sourceRecommendation) { %>
+        <p><strong><%= execution.sourceRecommendation.title %></strong></p>
+        <p><%= execution.sourceRecommendation.reason || 'The original recommendation snapshot is stored on this asset.' %></p>
+        <p class="empty"><%= execution.sourceRecommendation.actionType.replace(/_/g, ' ') %> · Priority <%= execution.sourceRecommendation.priority %></p>
       <% } else { %>
         <p class="empty">The source recommendation is no longer available.</p>
       <% } %>

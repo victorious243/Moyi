@@ -117,7 +117,7 @@
           <% competitors.forEach((competitor) => { %>
             <article class="recommendation-card">
               <div class="panel-title">
-                <span class="status"><%= competitor.confidence ? `${competitor.confidence}% confidence` : 'Approved' %></span>
+                <span class="status"><%= competitor.confidence ? `${competitor.confidence}% match estimate` : 'Approved for review' %></span>
               </div>
               <h3><%= competitor.name || competitor.websiteUrl %></h3>
               <% if (competitor.websiteUrl) { %>
@@ -129,7 +129,7 @@
         </div>
         <label class="approve-line">
           <input type="checkbox" checked required>
-          <span>Competitive context is good enough to start benchmarking</span>
+          <span>Competitive context is clear enough to start reviewing directional comparisons</span>
         </label>
       </section>
 

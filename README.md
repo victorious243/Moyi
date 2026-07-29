@@ -58,6 +58,9 @@ GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GOOGLE_REDIRECT_URI=http://localhost:3000/integrations/google/callback
 APP_URL=http://localhost:3000
+TRUST_PROXY_HOPS=0
+COOKIE_DOMAIN=
+RELEASE_SHA=
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 STRIPE_STARTER_PRICE_ID=
@@ -219,6 +222,13 @@ Prompt templates live in:
 
 The report engine only uses available metrics and project records. If Search Console is missing or empty, the report clearly says performance data is missing. If `OPENAI_API_KEY` is not configured, the app creates an honest system-generated report instead of crashing.
 
+## Health Endpoints
+
+- `GET /healthz` returns a liveness payload with uptime, environment, and release metadata.
+- `GET /readyz` returns a readiness payload with MongoDB state, queue state, configuration problems, and optional integration warnings.
+
+In production, treat `503 /readyz` as a failed deployment signal.
+
 ## Phase 8 Competitor Tracking
 
 Users can manually add competitor websites, run a shallow competitor crawl, store public SEO page facts, and generate ethical opportunity suggestions.
@@ -357,6 +367,9 @@ Before production launch:
 - Set strong `JWT_SECRET` and `TOKEN_ENCRYPTION_SECRET` values.
 - Use a production MongoDB database and restrict network access.
 - Configure `APP_URL` to the public HTTPS app URL.
+- Set `TRUST_PROXY_HOPS=1` or higher when running behind a load balancer or reverse proxy.
+- Set `COOKIE_DOMAIN` if auth cookies must be shared across subdomains.
+- Set `RELEASE_SHA` so health responses identify the deployed version.
 - Configure Stripe live keys and live price IDs.
 - Add the Stripe webhook endpoint: `https://your-domain.com/webhooks/stripe`.
 - Set `STRIPE_WEBHOOK_SECRET` from the Stripe webhook endpoint.
@@ -366,7 +379,8 @@ Before production launch:
 - Run `npm install` so the Stripe package from `package.json` is installed.
 - Run the app behind HTTPS with secure cookies enabled by `NODE_ENV=production`.
 - Use a process manager or platform health checks for the web app and scan worker.
-- Keep `DISABLE_QUEUE=false` with Redis/BullMQ for production scan workloads.
+- Keep `DISABLE_QUEUE=false` with Redis/BullMQ for production workloads. The app now rejects `DISABLE_QUEUE=true` in production.
+- Run both `npm start` and `npm run worker` in production, and wire platform health checks to `GET /readyz`.
 
 ## Project Fields
 

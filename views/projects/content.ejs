@@ -23,17 +23,17 @@
 
     <section class="panel">
       <div class="panel-title">
-        <h2>Drafts awaiting review</h2>
-        <span class="status"><%= drafts.filter((draft) => draft.status === 'draft').length %> drafts</span>
+        <h2>Drafts needing review</h2>
+        <span class="status"><%= drafts.filter((draft) => ['draft', 'awaiting_review', 'needs_revision'].includes(draft.status)).length %> drafts</span>
       </div>
-      <% const queueDrafts = drafts.filter((draft) => draft.status === 'draft'); %>
+      <% const queueDrafts = drafts.filter((draft) => ['draft', 'awaiting_review', 'needs_revision'].includes(draft.status)); %>
       <% if (!queueDrafts.length) { %>
         <p class="empty">No drafts are waiting for approval.</p>
       <% } %>
       <div class="content-card-grid">
         <% queueDrafts.forEach((draft) => { %>
           <a class="content-card" href="/content/<%= draft._id %>">
-            <span class="status"><%= draft.type.replace(/_/g, ' ') %></span>
+            <span class="status"><%= draft.type.replace(/_/g, ' ') %> / <%= draft.status.replace(/_/g, ' ') %></span>
             <strong><%= draft.title || 'Untitled draft' %></strong>
             <small><%= draft.targetUrl %></small>
             <p><%= draft.body.slice(0, 150) %><%= draft.body.length > 150 ? '...' : '' %></p>

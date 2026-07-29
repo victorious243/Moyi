@@ -90,7 +90,7 @@ function plainTextToHtml(text) {
 }
 
 function isPostDraftType(type) {
-  return ['blog_article', 'vs_comparison_article', 'alternatives_list', 'product_led_guide'].includes(type);
+  return ['blog_article', 'comparison_page_draft', 'vs_comparison_article', 'alternatives_list', 'product_led_guide'].includes(type);
 }
 
 async function createWordPressDraftPost({ integration, draft, userId }) {

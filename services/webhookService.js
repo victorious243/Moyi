@@ -39,6 +39,8 @@ function webhookPayload({ project, draft }) {
       keywords: draft.keyword ? [draft.keyword] : [],
       targetUrl: draft.targetUrl || '',
       improvementReason: draft.improvementReason || '',
+      executionContext: draft.executionContext || null,
+      reviewNotes: draft.reviewNotes || '',
       approvedAt: draft.approvedAt ? draft.approvedAt.toISOString() : null,
       jsonBody: draft.jsonBody || null
     }

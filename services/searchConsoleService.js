@@ -158,13 +158,18 @@ async function listSearchConsoleSites(userId) {
   }));
 }
 
+async function notifyProgress(handler, update) {
+  if (typeof handler !== 'function') return;
+  await handler(update);
+}
+
 function dateDaysAgo(days) {
   const date = new Date();
   date.setUTCDate(date.getUTCDate() - days);
   return date.toISOString().slice(0, 10);
 }
 
-async function syncSearchConsoleProject({ project, userId, days = 28 }) {
+async function syncSearchConsoleProject({ project, userId, days = 28, onProgress = null }) {
   const property = await ProjectSearchProperty.findOne({ projectId: project._id, userId });
   if (!property) {
     const error = new Error('No Search Console property is connected to this project.');
@@ -174,6 +179,10 @@ async function syncSearchConsoleProject({ project, userId, days = 28 }) {
 
   const startDate = dateDaysAgo(Number(days) || 28);
   const endDate = dateDaysAgo(1);
+  await notifyProgress(onProgress, {
+    currentStep: `Requesting ${days}-day Search Console data`,
+    progressPercent: 35
+  });
   const response = await googleRequest(userId, {
     method: 'post',
     url: `${SEARCH_CONSOLE_API}/sites/${encodeURIComponent(property.siteUrl)}/searchAnalytics/query`,
@@ -186,6 +195,12 @@ async function syncSearchConsoleProject({ project, userId, days = 28 }) {
   });
 
   const rows = response.data.rows || [];
+  await notifyProgress(onProgress, {
+    currentStep: rows.length
+      ? `Writing ${rows.length} Search Console rows into the metrics store`
+      : 'No new Search Console rows were returned for this date window',
+    progressPercent: 72
+  });
   const operations = rows.map((row) => {
     const [date, query, page, country, device] = row.keys || ['', '', '', '', ''];
     return {
@@ -219,6 +234,10 @@ async function syncSearchConsoleProject({ project, userId, days = 28 }) {
 
   property.lastSyncedAt = new Date();
   await property.save();
+  await notifyProgress(onProgress, {
+    currentStep: 'Finalizing Search Console sync',
+    progressPercent: 92
+  });
 
   return {
     rowsSynced: rows.length,
@@ -311,8 +330,8 @@ async function calculateGscOpportunities(projectId) {
       ctr: item.ctr,
       position: item.position,
       benchmarkCtr: averageCtr,
-      reason: 'This query is already on page 1, but its CTR is below the project average.',
-      recommendation: 'Update the page meta title and meta description to better match the search intent.'
+      reason: 'This rule-based pattern flags a page-one query whose CTR is below the project average.',
+      recommendation: 'Review the page meta title and meta description for a clearer match to observed search intent.'
     }));
 
   const pushToPageOne = sortedByImpressions
@@ -329,8 +348,8 @@ async function calculateGscOpportunities(projectId) {
       ctr: item.ctr,
       position: item.position,
       benchmarkCtr: averageCtr,
-      reason: 'This query has strong demand and is close enough to page 1 to be worth improving.',
-      recommendation: 'Expand the target page with intent-matched sections, subheadings, FAQs, and internal links.'
+      reason: 'This rule-based pattern flags a page-two query with meaningful impressions and room for improvement.',
+      recommendation: 'Review the target page for intent-matched sections, subheadings, FAQs, and internal links.'
     }));
 
   return {

@@ -10,11 +10,16 @@
     <a href="/projects/<%= project._id %>/search-console/performance">Search Performance</a>
   </aside>
 
-  <section class="app-main">
+  <section
+    class="app-main"
+    <%= reportJob && (reportJob.status === 'queued' || reportJob.status === 'running')
+      ? `data-live-job data-live-job-endpoint="/projects/${project._id}/jobs/${reportJob._id}" data-initial-job-status="${reportJob.status}"`
+      : '' %>
+  >
     <div class="page-heading">
       <div>
         <p class="eyebrow"><%= project.name %></p>
-        <h1>AI CMO Reports</h1>
+        <h1>Measurement Reports</h1>
       </div>
       <div class="row-actions">
         <form action="/projects/<%= project._id %>/reports/weekly" method="post">
@@ -25,6 +30,24 @@
         </form>
       </div>
     </div>
+
+    <% if (queuedMessage && reportJob && (reportJob.status === 'queued' || reportJob.status === 'running')) { %>
+      <section class="panel">
+        <h2>Report generation in progress</h2>
+        <p class="empty"><%= queuedMessage %></p>
+        <p class="empty">Status: <strong data-job-status><%= reportJob.status %></strong><% if (reportJob.startedAt) { %> / started <%= new Date(reportJob.startedAt).toLocaleString() %><% } %></p>
+        <p class="empty"><span data-job-step><%= reportJob.currentStep || 'Preparing the report' %></span></p>
+        <p class="empty">Progress: <span data-job-progress><%= typeof reportJob.progressPercent === 'number' ? `${reportJob.progressPercent}%` : '0%' %></span> / Last checked at <span data-job-last-checked>just now</span>.</p>
+        <p class="empty" data-job-error-row hidden>Error: <span data-job-error></span></p>
+      </section>
+    <% } %>
+
+    <% if (reportJob && reportJob.status === 'failed') { %>
+      <section class="panel notice-panel">
+        <h2>Latest report job failed</h2>
+        <p class="empty"><%= reportJob.errorMessage || 'The background report job failed before a report could be created.' %></p>
+      </section>
+    <% } %>
 
     <section class="panel">
       <div class="panel-title">

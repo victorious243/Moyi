@@ -1,5 +1,5 @@
-// AI-CMO SPEC COMPLIANCE: Subsystem B - telemetry audit score gates autonomous
-// posting and budget actions until measurement quality is trustworthy.
+// AI-CMO SPEC COMPLIANCE: Subsystem B - telemetry audit score tracks
+// measurement completeness before stronger workflow recommendations are trusted.
 const ProjectSearchProperty = require('../models/ProjectSearchProperty');
 const TrackingEvent = require('../models/TrackingEvent');
 
@@ -38,7 +38,7 @@ async function auditTelemetry(project, options = {}) {
     check('First-party analytics receiving events', recentEvents > 0, 25, recentEvents ? `${recentEvents} recent tracking events received.` : 'Install the Moyi tracking script and confirm page views.'),
     check('UTM capture detected', utmEvents > 0, 20, utmEvents ? `${utmEvents} recent UTM-tagged events detected.` : 'Visit a landing page with utm_source, utm_medium, and utm_campaign.'),
     check('Conversion tracking sane', conversions.length === 0 || duplicateConversions / Math.max(conversions.length, 1) < 0.2, 20, duplicateConversions ? `${duplicateConversions} possible duplicate conversion events found.` : 'No duplicate conversion anomaly detected.'),
-    check('Project approved for execution', project.status === 'approved', 15, project.status === 'approved' ? 'Brand calibration is approved.' : 'Approve the discovered brand profile before autonomous execution.')
+    check('Project approved for execution', project.status === 'approved', 15, project.status === 'approved' ? 'Brand calibration is approved.' : 'Approve the discovered brand profile before heavier workflow recommendations are trusted.')
   ];
 
   return {

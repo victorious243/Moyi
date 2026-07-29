@@ -7,13 +7,31 @@ function signToken(user) {
   return jwt.sign({ sub: user._id.toString(), role: user.role }, env.jwtSecret, { expiresIn: '7d' });
 }
 
-function setAuthCookie(res, token) {
-  res.cookie('moyi_token', token, {
+function authCookieOptions(maxAge) {
+  const options = {
     httpOnly: true,
+    path: '/',
     sameSite: 'lax',
-    secure: env.nodeEnv === 'production',
-    maxAge: 7 * 24 * 60 * 60 * 1000
-  });
+    secure: env.isProduction
+  };
+
+  if (env.cookieDomain) {
+    options.domain = env.cookieDomain;
+  }
+
+  if (maxAge) {
+    options.maxAge = maxAge;
+  }
+
+  return options;
+}
+
+function setAuthCookie(res, token) {
+  res.cookie('moyi_token', token, authCookieOptions(7 * 24 * 60 * 60 * 1000));
+}
+
+function clearAuthCookie(res) {
+  res.clearCookie('moyi_token', authCookieOptions());
 }
 
 async function attachUser(req, res, next) {
@@ -28,7 +46,7 @@ async function attachUser(req, res, next) {
     req.user = user || null;
     res.locals.currentUser = req.user;
   } catch (error) {
-    res.clearCookie('moyi_token');
+    clearAuthCookie(res);
   }
 
   next();
@@ -44,7 +62,9 @@ function requireAuth(req, res, next) {
 
 module.exports = {
   attachUser,
+  clearAuthCookie,
   requireAuth,
+  authCookieOptions,
   setAuthCookie,
   signToken
 };

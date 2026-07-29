@@ -27,6 +27,11 @@
       </section>
     <% } %>
 
+    <section class="panel">
+      <h2>Review policy</h2>
+      <p class="empty">Recommendations stay in the status you choose. Moyi does not auto-accept, auto-reject, or silently move work forward in the background.</p>
+    </section>
+
     <section class="recommendation-grid">
       <% recommendations.forEach((recommendation) => { %>
         <article class="recommendation-card">
@@ -39,6 +44,16 @@
           <p><strong>Effort:</strong> <%= recommendation.effort %></p>
           <p><strong>Action:</strong> <%= recommendation.actionType.replace('_', ' ') %></p>
           <p><strong>Reason:</strong> <%= recommendation.reason %></p>
+          <% if (recommendation.assetOptions && recommendation.assetOptions.length) { %>
+            <div>
+              <strong>Execution pipeline</strong>
+              <ul class="clean-list">
+                <% recommendation.assetOptions.forEach((option) => { %>
+                  <li><strong><%= option.label %>:</strong> <%= option.description %></li>
+                <% }) %>
+              </ul>
+            </div>
+          <% } %>
           <div>
             <strong>Affected pages</strong>
             <ul class="clean-list">
@@ -57,27 +72,16 @@
           </div>
           <% if (['accepted', 'in_progress', 'done'].includes(recommendation.status)) { %>
             <div class="content-generate-panel">
-              <strong>Generate content draft</strong>
+              <strong>Build execution assets</strong>
               <form class="form compact-form" action="/recommendations/<%= recommendation._id %>/generate-content" method="post">
                 <input name="keyword" placeholder="Optional keyword">
-                <button class="button button-primary" type="submit">Generate suggested drafts</button>
+                <button class="button button-primary" type="submit">Generate full pipeline</button>
               </form>
               <div class="status-actions">
-                <% [
-                  ['meta_title', 'Meta title'],
-                  ['meta_description', 'Meta description'],
-                  ['blog_outline', 'Blog outline'],
-                  ['blog_article', 'Blog draft'],
-                  ['vs_comparison_article', 'Vs comparison'],
-                  ['alternatives_list', 'Alternatives list'],
-                  ['product_led_guide', 'Product-led guide'],
-                  ['faq_section', 'FAQ'],
-                  ['internal_linking_plan', 'Internal links'],
-                  ['schema_jsonld', 'Schema']
-                ].forEach(([type, label]) => { %>
+                <% (recommendation.assetOptions || []).forEach((option) => { %>
                   <form action="/recommendations/<%= recommendation._id %>/generate-content" method="post">
-                    <input type="hidden" name="type" value="<%= type %>">
-                    <button class="button" type="submit"><%= label %></button>
+                    <input type="hidden" name="type" value="<%= option.type %>">
+                    <button class="button" type="submit"><%= option.label %></button>
                   </form>
                 <% }) %>
               </div>

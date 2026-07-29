@@ -77,6 +77,9 @@ function sanitizeInsights(parsed, competitors) {
     category: String(item.category || 'content_gap').slice(0, 80),
     insight: String(item.insight || ''),
     opportunity: String(item.opportunity || ''),
+    evidenceSummary: String(item.evidenceSummary || item.insight || '').slice(0, 260),
+    confidenceScore: Math.min(Math.max(Number(item.confidenceScore || item.confidence) || 62, 0), 100),
+    generatedBy: 'ai',
     priority: Math.min(Math.max(Number(item.priority) || 3, 1), 5)
   })).filter((item) => item.insight && item.opportunity);
 }
@@ -122,6 +125,9 @@ function systemInsights({ competitors, competitorPages, projectPages }) {
         category: 'content_gap',
         insight: `${competitor.name} has ${competitorServiceCount} crawled service/product-style pages versus ${projectServiceCount} found for this project.`,
         opportunity: 'Create useful, original service or product pages that answer buyer questions instead of copying competitor wording.',
+        evidenceSummary: `Public crawl found ${competitorServiceCount} competitor service/product pages and ${projectServiceCount} project service/product pages.`,
+        confidenceScore: 78,
+        generatedBy: 'system',
         priority: 1
       });
     }
@@ -133,6 +139,9 @@ function systemInsights({ competitors, competitorPages, projectPages }) {
         category: 'content_gap',
         insight: `${competitor.name} has ${competitorBlogCount} crawled blog/article-style pages versus ${projectBlogCount} found for this project.`,
         opportunity: 'Plan practical educational articles around customer questions, comparisons, and use cases.',
+        evidenceSummary: `Public crawl found ${competitorBlogCount} competitor article pages and ${projectBlogCount} project article pages.`,
+        confidenceScore: 74,
+        generatedBy: 'system',
         priority: 2
       });
     }
@@ -144,6 +153,9 @@ function systemInsights({ competitors, competitorPages, projectPages }) {
         category: 'schema_gap',
         insight: `${competitor.name} has FAQ-style structured data in the crawled pages, while this project does not.`,
         opportunity: 'Add accurate FAQ sections and JSON-LD only where the page genuinely answers those questions.',
+        evidenceSummary: `Shallow crawl detected FAQ-style schema on competitor pages and none on the project pages sampled here.`,
+        confidenceScore: 71,
+        generatedBy: 'system',
         priority: 3
       });
     }
@@ -155,6 +167,9 @@ function systemInsights({ competitors, competitorPages, projectPages }) {
         category: 'metadata_gap',
         insight: `${competitor.name}'s homepage has a stronger combination of title, meta description, and H1 structure in the crawled data.`,
         opportunity: 'Rewrite the project homepage title, meta description, and H1 so the offer, audience, and location or market are clearer.',
+        evidenceSummary: `Homepage metadata score favored the competitor in the sampled crawl.`,
+        confidenceScore: 68,
+        generatedBy: 'system',
         priority: 2
       });
     }
@@ -167,6 +182,9 @@ function systemInsights({ competitors, competitorPages, projectPages }) {
       category: 'page_structure_gap',
       insight: 'The available competitor crawl did not reveal a clear structural advantage.',
       opportunity: 'Scan the project site again, add more direct competitors, and review page titles/headings for clarity.',
+      evidenceSummary: 'Current public crawl sample was too shallow to support a stronger comparison claim.',
+      confidenceScore: 40,
+      generatedBy: 'system',
       priority: 4
     });
   }
@@ -206,5 +224,7 @@ async function generateCompetitorInsights({ projectId, userId }) {
 }
 
 module.exports = {
-  generateCompetitorInsights
+  generateCompetitorInsights,
+  systemInsights,
+  sanitizeInsights
 };

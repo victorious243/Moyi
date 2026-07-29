@@ -1,8 +1,9 @@
 const crypto = require('crypto');
+const env = require('../config/env');
 
 function csrfProtection(req, res, next) {
   // Early exit for external tracking script and events
-  if (req.path === '/api/track' || req.path === '/tracker.js') {
+  if (req.path === '/api/track' || req.path === '/tracker.js' || req.path === '/healthz' || req.path === '/readyz') {
     return next();
   }
 
@@ -10,11 +11,18 @@ function csrfProtection(req, res, next) {
   let token = req.cookies.csrf_token;
   if (!token) {
     token = crypto.randomBytes(32).toString('hex');
-    res.cookie('csrf_token', token, {
+    const cookieOptions = {
       httpOnly: true,
+      path: '/',
       sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production'
-    });
+      secure: env.isProduction
+    };
+
+    if (env.cookieDomain) {
+      cookieOptions.domain = env.cookieDomain;
+    }
+
+    res.cookie('csrf_token', token, cookieOptions);
   }
 
   // 2. Make token available to templates

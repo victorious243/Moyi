@@ -4,10 +4,15 @@
  * Module dependencies.
  */
 
-var app = require('../app');
 var connectDatabase = require('../config/db');
+var env = require('../config/env');
+var app = require('../app');
 var debug = require('debug')('moyi:server');
 var http = require('http');
+var mongoose = require('mongoose');
+var closeSharedRedis = require('../services/redisService').closeSharedRedis;
+var closeQueue = require('../queues/scanQueue').closeQueue;
+var closeProjectTaskQueue = require('../queues/projectTaskQueue').closeProjectTaskQueue;
 
 /**
  * Get port from environment and store in Express.
@@ -21,6 +26,14 @@ app.set('port', port);
  */
 
 var server = http.createServer(app);
+var shuttingDown = false;
+
+try {
+  env.assertRuntimeConfig();
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
+}
 
 /**
  * Listen on provided port, on all network interfaces.
@@ -31,6 +44,7 @@ connectDatabase()
     server.listen(port);
     server.on('error', onError);
     server.on('listening', onListening);
+    installSignalHandlers();
   })
   .catch(function(error) {
     console.error(error);
@@ -95,4 +109,42 @@ function onListening() {
     ? 'pipe ' + addr
     : 'port ' + addr.port;
   debug('Listening on ' + bind);
+}
+
+function installSignalHandlers() {
+  ['SIGINT', 'SIGTERM'].forEach(function(signal) {
+    process.on(signal, function() {
+      gracefulShutdown(signal);
+    });
+  });
+}
+
+async function gracefulShutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log('Received ' + signal + '. Shutting down gracefully...');
+
+  var forceExitTimer = setTimeout(function() {
+    console.error('Forced shutdown after timeout.');
+    process.exit(1);
+  }, 10000);
+  forceExitTimer.unref();
+
+  try {
+    await new Promise(function(resolve) {
+      if (!server.listening) return resolve();
+      server.close(function() {
+        resolve();
+      });
+    });
+    await closeQueue();
+    await closeProjectTaskQueue();
+    await closeSharedRedis();
+    await mongoose.connection.close(false);
+    clearTimeout(forceExitTimer);
+    process.exit(0);
+  } catch (error) {
+    console.error(error);
+    process.exit(1);
+  }
 }

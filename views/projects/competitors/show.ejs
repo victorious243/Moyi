@@ -79,6 +79,7 @@
 
     <section class="panel">
       <h2>Opportunities for this competitor</h2>
+      <p class="empty">These opportunities come from shallow public crawl evidence only. They are not claims about private performance, rankings, or conversions.</p>
       <% if (!insights.length) { %>
         <p class="empty">No opportunities generated yet.</p>
       <% } %>
@@ -87,7 +88,10 @@
           <article class="recommendation-card">
             <span class="status"><%= insight.category.replace(/_/g, ' ') %> / P<%= insight.priority %></span>
             <h2><%= insight.title %></h2>
+            <p><strong>Source:</strong> <%= insight.generatedBy === 'ai' ? 'AI summary of crawled-page evidence' : 'Rule-based comparison of crawled-page evidence' %></p>
+            <p><strong>Confidence estimate:</strong> <%= insight.confidenceScore %>%</p>
             <p><%= insight.insight %></p>
+            <p><strong>Evidence:</strong> <%= insight.evidenceSummary || 'Based on the shallow public crawl available for this competitor.' %></p>
             <p><strong>Opportunity:</strong> <%= insight.opportunity %></p>
           </article>
         <% }) %>

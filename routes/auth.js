@@ -3,9 +3,10 @@ const express = require('express');
 const asyncHandler = require('express-async-handler');
 const { body } = require('express-validator');
 const User = require('../models/User');
+const env = require('../config/env');
 const AppError = require('../utils/appError');
 const handleValidation = require('../utils/validate');
-const { setAuthCookie, signToken } = require('../middleware/auth');
+const { authCookieOptions, clearAuthCookie, setAuthCookie, signToken } = require('../middleware/auth');
 const createRateLimit = require('../middleware/rateLimit');
 const {
   buildGoogleLoginUrl,
@@ -22,16 +23,23 @@ const authRateLimit = createRateLimit({
 });
 
 function oauthCookieOptions() {
-  return {
+  const options = {
     httpOnly: true,
+    path: '/',
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    secure: env.isProduction,
     maxAge: 10 * 60 * 1000
   };
+
+  if (env.cookieDomain) {
+    options.domain = env.cookieDomain;
+  }
+
+  return options;
 }
 
 function clearGoogleAuthCookies(res) {
-  res.clearCookie('google_auth_state');
+  res.clearCookie('google_auth_state', authCookieOptions());
 }
 
 router.get('/register', (req, res) => {
@@ -120,7 +128,7 @@ router.post(
 );
 
 router.post('/logout', (req, res) => {
-  res.clearCookie('moyi_token');
+  clearAuthCookie(res);
   res.redirect('/');
 });
 

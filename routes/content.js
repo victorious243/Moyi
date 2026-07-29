@@ -24,6 +24,12 @@ const router = express.Router();
 
 router.use(requireAuth);
 
+function draftStatusLabel(status) {
+  if (status === 'awaiting_review' || status === 'draft') return 'awaiting review';
+  if (status === 'needs_revision') return 'needs revision';
+  return String(status || '').replace(/_/g, ' ');
+}
+
 async function loadDraft(req, res, next) {
   try {
     const draft = await ContentDraft.findById(req.params.id);
@@ -39,6 +45,7 @@ async function loadDraft(req, res, next) {
     res.locals.draft = draft;
     res.locals.project = project;
     res.locals.recommendation = recommendation;
+    res.locals.draftStatusLabel = draftStatusLabel(draft.status);
     next();
   } catch (error) {
     next(error);
@@ -71,6 +78,11 @@ router.post(
     param('id').isMongoId(),
     body('keyword').optional({ checkFalsy: true }).trim().isLength({ max: 120 }).withMessage('Keyword is too long.'),
     body('title').optional({ checkFalsy: true }).trim().isLength({ max: 240 }).withMessage('Title is too long.'),
+    body('businessGoal').optional({ checkFalsy: true }).trim().isLength({ max: 300 }).withMessage('Business goal is too long.'),
+    body('targetPersona').optional({ checkFalsy: true }).trim().isLength({ max: 240 }).withMessage('Target persona is too long.'),
+    body('searchIntent').optional({ checkFalsy: true }).trim().isLength({ max: 240 }).withMessage('Search intent is too long.'),
+    body('primaryCta').optional({ checkFalsy: true }).trim().isLength({ max: 180 }).withMessage('CTA is too long.'),
+    body('proofPoints').optional().isString(),
     body('body').optional().isString(),
     body('jsonBody').optional({ checkFalsy: true }).isString(),
     handleValidation
@@ -80,6 +92,18 @@ router.post(
     req.draft.keyword = req.body.keyword || '';
     req.draft.title = req.body.title || '';
     req.draft.body = req.body.body || '';
+    req.draft.executionContext = {
+      ...(req.draft.executionContext || {}),
+      businessGoal: req.body.businessGoal || '',
+      targetPersona: req.body.targetPersona || '',
+      searchIntent: req.body.searchIntent || '',
+      primaryCta: req.body.primaryCta || '',
+      proofPoints: String(req.body.proofPoints || '')
+        .split('\n')
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .slice(0, 8)
+    };
 
     if (req.body.jsonBody) {
       try {
@@ -96,9 +120,27 @@ router.post(
   })
 );
 
-router.post('/:id/approve', [param('id').isMongoId(), handleValidation], loadDraft, asyncHandler(async (req, res) => {
+router.post('/:id/submit-for-review', [
+  param('id').isMongoId(),
+  body('reviewNotes').optional().isString(),
+  handleValidation
+], loadDraft, asyncHandler(async (req, res) => {
+  req.draft.status = 'awaiting_review';
+  req.draft.approvedAt = undefined;
+  req.draft.reviewNotes = req.body.reviewNotes || req.draft.reviewNotes || '';
+  await req.draft.save();
+  res.redirect(`/content/${req.draft._id}`);
+}));
+
+router.post('/:id/approve', [
+  param('id').isMongoId(),
+  body('reviewNotes').optional().isString(),
+  handleValidation
+], loadDraft, asyncHandler(async (req, res) => {
   req.draft.status = 'approved';
   req.draft.approvedAt = new Date();
+  req.draft.lastReviewedAt = new Date();
+  req.draft.reviewNotes = req.body.reviewNotes || '';
   await req.draft.save();
 
   if (!req.project.webhookUrl) {
@@ -114,13 +156,36 @@ router.post('/:id/approve', [param('id').isMongoId(), handleValidation], loadDra
   }
 }));
 
-router.post('/:id/reject', [param('id').isMongoId(), handleValidation], loadDraft, asyncHandler(async (req, res) => {
+router.post('/:id/request-revision', [
+  param('id').isMongoId(),
+  body('reviewNotes').optional().isString(),
+  handleValidation
+], loadDraft, asyncHandler(async (req, res) => {
+  req.draft.status = 'needs_revision';
+  req.draft.approvedAt = undefined;
+  req.draft.lastReviewedAt = new Date();
+  req.draft.reviewNotes = req.body.reviewNotes || '';
+  await req.draft.save();
+  res.redirect(`/content/${req.draft._id}`);
+}));
+
+router.post('/:id/reject', [
+  param('id').isMongoId(),
+  body('reviewNotes').optional().isString(),
+  handleValidation
+], loadDraft, asyncHandler(async (req, res) => {
   req.draft.status = 'rejected';
+  req.draft.approvedAt = undefined;
+  req.draft.lastReviewedAt = new Date();
+  req.draft.reviewNotes = req.body.reviewNotes || '';
   await req.draft.save();
   res.redirect(`/content/${req.draft._id}`);
 }));
 
 router.post('/:id/mark-published', [param('id').isMongoId(), handleValidation], loadDraft, asyncHandler(async (req, res) => {
+  if (req.draft.status !== 'approved') {
+    return res.redirect(`/content/${req.draft._id}?publishError=${encodeURIComponent('Only approved assets can be marked as published.')}`);
+  }
   req.draft.status = 'published_manually';
   req.draft.publishedAt = new Date();
   await req.draft.save();

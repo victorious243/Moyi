@@ -9,6 +9,7 @@ const env = require('./config/env');
 const { attachUser } = require('./middleware/auth');
 const csrfProtection = require('./middleware/csrf');
 
+const healthRouter = require('./routes/health');
 const indexRouter = require('./routes/index');
 const authRouter = require('./routes/auth');
 const projectsRouter = require('./routes/projects');
@@ -21,6 +22,8 @@ const trackingRouter = require('./routes/tracking');
 const socialDraftsRouter = require('./routes/socialDrafts');
 
 const app = express();
+app.disable('x-powered-by');
+app.set('trust proxy', env.trustProxyHops);
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -43,6 +46,7 @@ app.use(helmet({
 }));
 app.use(compression());
 app.use(logger('dev'));
+app.use(healthRouter);
 app.use(stripeWebhookRouter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -70,6 +74,15 @@ app.use(function(req, res, next) {
 // error handler
 app.use(function(err, req, res, next) {
   const status = err.statusCode || err.status || 500;
+
+  if (req.accepts('json') && !req.accepts('html')) {
+    return res.status(status).json({
+      error: {
+        message: err.message,
+        status
+      }
+    });
+  }
 
   if (status === 401 && req.accepts('html')) {
     return res.redirect('/login');

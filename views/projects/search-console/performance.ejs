@@ -15,7 +15,12 @@
     <a href="/projects/<%= project._id %>/search-console/performance">Performance</a>
   </aside>
 
-  <section class="app-main">
+  <section
+    class="app-main"
+    <%= syncJob && (syncJob.status === 'queued' || syncJob.status === 'running')
+      ? `data-live-job data-live-job-endpoint="/projects/${project._id}/jobs/${syncJob._id}" data-initial-job-status="${syncJob.status}"`
+      : '' %>
+  >
     <div class="page-heading">
       <div>
         <p class="eyebrow"><%= project.name %></p>
@@ -43,6 +48,24 @@
       <section class="panel">
         <h2>Search Console updated</h2>
         <p class="empty"><%= successMessage %></p>
+      </section>
+    <% } %>
+
+    <% if (queuedMessage && syncJob && (syncJob.status === 'queued' || syncJob.status === 'running')) { %>
+      <section class="panel">
+        <h2>Search Console sync in progress</h2>
+        <p class="empty"><%= queuedMessage %></p>
+        <p class="empty">Status: <strong data-job-status><%= syncJob.status %></strong><% if (syncJob.startedAt) { %> / started <%= new Date(syncJob.startedAt).toLocaleString() %><% } %></p>
+        <p class="empty"><span data-job-step><%= syncJob.currentStep || 'Preparing the Search Console sync' %></span></p>
+        <p class="empty">Progress: <span data-job-progress><%= typeof syncJob.progressPercent === 'number' ? `${syncJob.progressPercent}%` : '0%' %></span> / Last checked at <span data-job-last-checked>just now</span>.</p>
+        <p class="empty" data-job-error-row hidden>Error: <span data-job-error></span></p>
+      </section>
+    <% } %>
+
+    <% if (syncJob && syncJob.status === 'failed') { %>
+      <section class="panel notice-panel">
+        <h2>Latest Search Console sync failed</h2>
+        <p class="empty"><%= syncJob.errorMessage || 'The background sync job failed before new performance rows were saved.' %></p>
       </section>
     <% } %>
 
@@ -78,13 +101,13 @@
         <div class="panel-title">
           <div>
             <p class="eyebrow">Automated growth opportunities</p>
-            <h2><%= opportunityCount %> prioritized search opportunities</h2>
-            <p class="empty">Benchmark CTR: <%= pct(opportunities.averageCtr) %>. These recommendations are calculated from synced query and page performance.</p>
+            <h2><%= opportunityCount %> rule-based opportunity candidates</h2>
+            <p class="empty">Benchmark CTR: <%= pct(opportunities.averageCtr) %>. These candidates are calculated from synced query and page performance. They are pattern matches, not predictions.</p>
           </div>
         </div>
 
         <% if (!opportunityCount) { %>
-          <p class="empty">No high-signal opportunities yet. Sync more Search Console data or expand the date range.</p>
+          <p class="empty">No strong pattern matches yet. Sync more Search Console data or expand the date range.</p>
         <% } else { %>
           <div class="opportunity-grid">
             <div class="opportunity-column">
@@ -101,6 +124,7 @@
                     <span class="status">Page 1</span>
                     <strong><%= item.query %></strong>
                   </div>
+                  <p class="empty">Rule-based candidate from synced Search Console data.</p>
                   <p><%= item.recommendation %></p>
                   <dl class="opportunity-stats">
                     <div><dt>CTR</dt><dd><%= pct(item.ctr) %></dd></div>
@@ -136,6 +160,7 @@
                     <span class="status">Page 2</span>
                     <strong><%= item.query %></strong>
                   </div>
+                  <p class="empty">Rule-based candidate from synced Search Console data.</p>
                   <p><%= item.recommendation %></p>
                   <dl class="opportunity-stats">
                     <div><dt>Clicks</dt><dd><%= fmt.format(item.clicks) %></dd></div>

@@ -22,6 +22,9 @@ const contentDraftSchema = new mongoose.Schema(
     type: {
       type: String,
       enum: [
+        'page_improvement_brief',
+        'content_brief',
+        'comparison_page_draft',
         'meta_title',
         'meta_description',
         'h1',
@@ -64,17 +67,26 @@ const contentDraftSchema = new mongoose.Schema(
       type: String,
       default: ''
     },
+    executionContext: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null
+    },
     status: {
       type: String,
-      enum: ['draft', 'approved', 'rejected', 'published_manually'],
-      default: 'draft',
+      enum: ['draft', 'awaiting_review', 'needs_revision', 'approved', 'rejected', 'published_manually'],
+      default: 'awaiting_review',
       index: true
+    },
+    reviewNotes: {
+      type: String,
+      default: ''
     },
     aiModel: {
       type: String,
       default: ''
     },
     approvedAt: Date,
+    lastReviewedAt: Date,
     publishedAt: Date
   },
   { timestamps: true }

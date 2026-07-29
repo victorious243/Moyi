@@ -50,7 +50,7 @@
   function renderCompetitors(items) {
     competitorGrid.innerHTML = items.map((competitor) => `
       <article class="recommendation-card">
-        <div class="panel-title"><span class="status">${competitor.confidence ? `${competitor.confidence}% confidence` : 'Approved'}</span></div>
+        <div class="panel-title"><span class="status">${competitor.confidence ? `${competitor.confidence}% match estimate` : 'Approved for review'}</span></div>
         <h3>${competitor.name || competitor.websiteUrl || ''}</h3>
         ${competitor.websiteUrl ? `<p><a href="${competitor.websiteUrl}" target="_blank" rel="noreferrer">${competitor.websiteUrl}</a></p>` : ''}
         <p>${competitor.rationale || 'Competitive context discovered during onboarding.'}</p>

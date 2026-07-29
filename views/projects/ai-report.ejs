@@ -10,7 +10,12 @@
     <a href="/projects/<%= project._id %>/scans">Scan History</a>
   </aside>
 
-  <section class="app-main">
+  <section
+    class="app-main"
+    <%= job && (job.status === 'queued' || job.status === 'running')
+      ? `data-live-job data-live-job-endpoint="/projects/${project._id}/jobs/${job._id}" data-initial-job-status="${job.status}"`
+      : '' %>
+  >
     <div class="page-heading">
       <div>
         <p class="eyebrow"><%= project.name %></p>
@@ -25,6 +30,24 @@
       <section class="panel notice-panel">
         <h2>AI CMO Plan unavailable</h2>
         <p class="empty"><%= aiError %></p>
+      </section>
+    <% } %>
+
+    <% if (queuedMessage && job && (job.status === 'queued' || job.status === 'running')) { %>
+      <section class="panel">
+        <h2>AI CMO Plan in progress</h2>
+        <p class="empty"><%= queuedMessage %></p>
+        <p class="empty">Status: <strong data-job-status><%= job.status %></strong><% if (job.startedAt) { %> / started <%= new Date(job.startedAt).toLocaleString() %><% } %></p>
+        <p class="empty"><span data-job-step><%= job.currentStep || 'Preparing the AI CMO plan' %></span></p>
+        <p class="empty">Progress: <span data-job-progress><%= typeof job.progressPercent === 'number' ? `${job.progressPercent}%` : '0%' %></span> / Last checked at <span data-job-last-checked>just now</span>.</p>
+        <p class="empty" data-job-error-row hidden>Error: <span data-job-error></span></p>
+      </section>
+    <% } %>
+
+    <% if (job && job.status === 'failed') { %>
+      <section class="panel notice-panel">
+        <h2>Latest AI CMO Plan job failed</h2>
+        <p class="empty"><%= job.errorMessage || 'The background job failed before a report could be created.' %></p>
       </section>
     <% } %>
 

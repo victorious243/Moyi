@@ -3,6 +3,13 @@
 <%
   const snapshot = report.metricsSnapshot || {};
   const auditAndOperations = snapshot.auditAndOperations || {};
+  const measurement = snapshot.measurement || {};
+  const tracking = measurement.tracking || {};
+  const trackingCurrent = tracking.current || {};
+  const trackingChanges = tracking.changes || {};
+  const readiness = measurement.attributionReadiness || {};
+  const executionImpact = measurement.executionImpact || {};
+  const executedRecommendations = executionImpact.executedRecommendations || [];
   const changes = snapshot.changes || {};
   const current = snapshot.current || {};
   const fmt = new Intl.NumberFormat('en');
@@ -24,13 +31,14 @@
     <a href="/projects/<%= project._id %>">Project Overview</a>
     <a href="/projects/<%= project._id %>/reports">Reports</a>
     <a href="/projects/<%= project._id %>/search-console/performance">Search Performance</a>
+    <a href="/projects/<%= project._id %>/attribution">Attribution</a>
   </aside>
 
   <section class="app-main">
     <div class="page-heading">
       <div>
         <p class="eyebrow"><%= project.name %> / <%= report.type %></p>
-        <h1>AI CMO Report</h1>
+        <h1>Measurement Report</h1>
       </div>
       <a class="button" href="/projects/<%= project._id %>/reports">Report history</a>
     </div>
@@ -39,7 +47,9 @@
       <article><span>Clicks</span><strong><%= fmt.format(current.clicks || 0) %></strong><small><%= delta(changes.clicks, (v) => fmt.format(v)) %> / <%= percentDelta(changes.clicks) %></small></article>
       <article><span>Impressions</span><strong><%= fmt.format(current.impressions || 0) %></strong><small><%= delta(changes.impressions, (v) => fmt.format(v)) %> / <%= percentDelta(changes.impressions) %></small></article>
       <article><span>CTR</span><strong><%= pct(current.ctr || 0) %></strong><small><%= delta(changes.ctr, (v) => pct(v)) %> / <%= percentDelta(changes.ctr) %></small></article>
-      <article><span>Avg position</span><strong><%= current.position ? current.position.toFixed(1) : '0.0' %></strong><small><%= delta(changes.position, (v) => v.toFixed(1)) %> / <%= percentDelta(changes.position) %></small></article>
+      <article><span>Conversions</span><strong><%= fmt.format(trackingCurrent.conversions || 0) %></strong><small><%= delta(trackingChanges.conversions, (v) => fmt.format(v)) %> / <%= percentDelta(trackingChanges.conversions) %></small></article>
+      <article><span>Identified sessions</span><strong><%= fmt.format(trackingCurrent.identifiedSessions || 0) %></strong><small><%= delta(trackingChanges.identifiedSessions, (v) => fmt.format(v)) %> / <%= percentDelta(trackingChanges.identifiedSessions) %></small></article>
+      <article><span>Attributed sessions</span><strong><%= fmt.format(trackingCurrent.attributedSessions || 0) %></strong><small><%= delta(trackingChanges.attributedSessions, (v) => fmt.format(v)) %> / <%= percentDelta(trackingChanges.attributedSessions) %></small></article>
     </section>
 
     <section class="panel report-section">
@@ -53,6 +63,49 @@
       <p><%= report.summary %></p>
     </section>
 
+    <div class="dashboard-grid">
+      <section class="panel report-section">
+        <div class="panel-title">
+          <div>
+            <h2>Measurement Foundation</h2>
+            <p class="empty">This score decides how far Moyi can go beyond visibility and into conversion or revenue claims.</p>
+          </div>
+          <span class="status"><%= readiness.score || 0 %>% / <%= readiness.level || 'Low' %></span>
+        </div>
+        <p><strong>Revenue rule:</strong> <%= readiness.revenueStatus || 'Revenue attribution stays off until a real payment or CRM source exists.' %></p>
+        <ul class="clean-list">
+          <li><strong>Conversion goals:</strong> <%= readiness.conversionGoalCount || 0 %></li>
+          <li><strong>Tracked conversions:</strong> <%= readiness.trackedConversions || 0 %></li>
+          <li><strong>Identified sessions:</strong> <%= readiness.identifiedSessions || 0 %></li>
+          <li><strong>Attributed sessions:</strong> <%= readiness.attributedSessions || 0 %></li>
+          <li><strong>Search Console connected:</strong> <%= readiness.searchConsoleConnected ? 'Yes' : 'No' %></li>
+        </ul>
+        <% if (Array.isArray(readiness.rules) && readiness.rules.length) { %>
+          <ul class="clean-list">
+            <% readiness.rules.forEach((rule) => { %>
+              <li><%= rule %></li>
+            <% }) %>
+          </ul>
+        <% } %>
+      </section>
+
+      <section class="panel report-section">
+        <div class="panel-title">
+          <div>
+            <h2>Execution Impact</h2>
+            <p class="empty">This is the before/after layer: what shipped, what moved, and what stayed flat.</p>
+          </div>
+          <span class="status"><%= executionImpact.summary ? executionImpact.summary.executedCount : 0 %> executed</span>
+        </div>
+        <ul class="clean-list">
+          <li><strong>Moved:</strong> <%= executionImpact.summary ? executionImpact.summary.movedCount : 0 %></li>
+          <li><strong>Moved backward:</strong> <%= executionImpact.summary ? executionImpact.summary.backwardCount : 0 %></li>
+          <li><strong>No clear movement:</strong> <%= executionImpact.summary ? executionImpact.summary.noMovementCount : 0 %></li>
+          <li><strong>Too early to measure:</strong> <%= executionImpact.summary ? executionImpact.summary.tooEarlyCount : 0 %></li>
+        </ul>
+      </section>
+    </div>
+
     <section class="panel report-section">
       <h2>Organic Search Performance</h2>
       <p><%= report.organicSearchPerformance || 'No search performance narrative available.' %></p>
@@ -61,6 +114,31 @@
       <% } else { %>
         <p class="empty">Property: <%= snapshot.siteUrl %> / Last synced: <%= snapshot.lastSyncedAt ? new Date(snapshot.lastSyncedAt).toLocaleString() : 'Never' %></p>
       <% } %>
+    </section>
+
+    <section class="panel report-section">
+      <h2>Conversion & Pipeline Signals</h2>
+      <div class="table-scroll">
+        <table class="data-table compact-table">
+          <thead>
+            <tr>
+              <th>Metric</th>
+              <th>Current</th>
+              <th>Previous</th>
+              <th>Change</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Conversions</td><td><%= fmt.format((trackingChanges.conversions || {}).current || 0) %></td><td><%= fmt.format((trackingChanges.conversions || {}).previous || 0) %></td><td><%= delta(trackingChanges.conversions, (v) => fmt.format(v)) %></td></tr>
+            <tr><td>Converting sessions</td><td><%= fmt.format((trackingChanges.convertingSessions || {}).current || 0) %></td><td><%= fmt.format((trackingChanges.convertingSessions || {}).previous || 0) %></td><td><%= delta(trackingChanges.convertingSessions, (v) => fmt.format(v)) %></td></tr>
+            <tr><td>Conversion rate</td><td><%= pct((trackingChanges.conversionRate || {}).current || 0) %></td><td><%= pct((trackingChanges.conversionRate || {}).previous || 0) %></td><td><%= delta(trackingChanges.conversionRate, (v) => pct(v)) %></td></tr>
+            <tr><td>Identified sessions</td><td><%= fmt.format((trackingChanges.identifiedSessions || {}).current || 0) %></td><td><%= fmt.format((trackingChanges.identifiedSessions || {}).previous || 0) %></td><td><%= delta(trackingChanges.identifiedSessions, (v) => fmt.format(v)) %></td></tr>
+            <tr><td>Attributed sessions</td><td><%= fmt.format((trackingChanges.attributedSessions || {}).current || 0) %></td><td><%= fmt.format((trackingChanges.attributedSessions || {}).previous || 0) %></td><td><%= delta(trackingChanges.attributedSessions, (v) => fmt.format(v)) %></td></tr>
+            <tr><td>Identified session rate</td><td><%= pct((trackingChanges.identifiedRate || {}).current || 0) %></td><td><%= pct((trackingChanges.identifiedRate || {}).previous || 0) %></td><td><%= delta(trackingChanges.identifiedRate, (v) => pct(v)) %></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="empty">Revenue stays out of this table until a real payment or CRM source exists.</p>
     </section>
 
     <div class="dashboard-grid">
@@ -83,7 +161,7 @@
     </section>
 
     <section class="panel">
-      <h2>Metrics Comparison</h2>
+      <h2>Visibility Comparison</h2>
       <div class="table-scroll">
         <table class="data-table compact-table">
           <thead>
@@ -134,6 +212,64 @@
               <% }) %>
             </tbody>
           </table>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="panel report-section">
+      <h2>Executed Recommendation Impact</h2>
+      <% if (!executedRecommendations.length) { %>
+        <p class="empty">No manually published recommendations were found in this report period, so there is no before/after execution evidence yet.</p>
+      <% } else { %>
+        <div class="recommendation-grid">
+          <% executedRecommendations.forEach((item) => { %>
+            <article class="recommendation-card">
+              <div class="panel-title">
+                <span class="status"><%= item.outcome.status %></span>
+                <% if (item.recommendationPriority) { %>
+                  <span class="status">Priority <%= item.recommendationPriority %></span>
+                <% } %>
+              </div>
+              <h2><%= item.recommendationTitle %></h2>
+              <p><strong>Executed:</strong> <%= new Date(item.executionDate).toLocaleDateString() %></p>
+              <p><strong>Measurement window:</strong> <%= item.measurementWindow.beforeStart %> to <%= item.measurementWindow.beforeEnd %> vs <%= item.measurementWindow.afterStart %> to <%= item.measurementWindow.afterEnd %></p>
+              <p><strong>Assets shipped:</strong> <%= item.assets.map((asset) => asset.title || asset.type).join(', ') %></p>
+              <p><strong>Target pages:</strong> <%= item.targetUrls.join(', ') %></p>
+              <p><strong>Visibility:</strong> clicks <%= item.visibility.before.clicks %> to <%= item.visibility.after.clicks %>, impressions <%= item.visibility.before.impressions %> to <%= item.visibility.after.impressions %>, CTR <%= pct(item.visibility.before.ctr) %> to <%= pct(item.visibility.after.ctr) %>.</p>
+              <p><strong>Traffic quality:</strong> conversions <%= item.trafficQuality.before.conversions %> to <%= item.trafficQuality.after.conversions %>, conversion rate <%= pct(item.trafficQuality.before.conversionRate) %> to <%= pct(item.trafficQuality.after.conversionRate) %>, identified sessions <%= item.trafficQuality.before.identifiedSessions %> to <%= item.trafficQuality.after.identifiedSessions %>.</p>
+              <% if (item.outcome.whatChanged.length) { %>
+                <div>
+                  <strong>What changed</strong>
+                  <ul class="clean-list">
+                    <% item.outcome.whatChanged.forEach((line) => { %>
+                      <li><%= line %></li>
+                    <% }) %>
+                  </ul>
+                </div>
+              <% } %>
+              <% if (item.outcome.whatMoved.length) { %>
+                <div>
+                  <strong>What moved</strong>
+                  <ul class="clean-list">
+                    <% item.outcome.whatMoved.forEach((line) => { %>
+                      <li><%= line %></li>
+                    <% }) %>
+                  </ul>
+                </div>
+              <% } %>
+              <% if (item.outcome.whatDidNotMove.length) { %>
+                <div>
+                  <strong>What did not move</strong>
+                  <ul class="clean-list">
+                    <% item.outcome.whatDidNotMove.forEach((line) => { %>
+                      <li><%= line %></li>
+                    <% }) %>
+                  </ul>
+                </div>
+              <% } %>
+              <p class="empty"><%= item.revenue.note %></p>
+            </article>
+          <% }) %>
         </div>
       <% } %>
     </section>

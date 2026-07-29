@@ -3494,6 +3494,11 @@ textarea {
   align-self: start;
 }
 
+.workspace-hero-copy {
+  display: grid;
+  gap: 16px;
+}
+
 .project-main-card .project-badge {
   border-color: var(--app-border);
   background: rgba(255, 255, 255, 0.055);
@@ -3524,6 +3529,202 @@ textarea {
   background:
     radial-gradient(circle at center, var(--app-surface) 58%, transparent 59%),
     conic-gradient(var(--green) 0 var(--score), rgba(255, 255, 255, 0.13) var(--score) 100%);
+}
+
+.workspace-hero-signals {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.workspace-hero-signals article {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.workspace-hero-signals span,
+.workspace-mini-facts dt,
+.workspace-score-card p,
+.workspace-plan-item p,
+.workspace-note-list span {
+  color: #c7bfd8;
+}
+
+.workspace-hero-signals span {
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.workspace-hero-signals strong {
+  color: #ffffff;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.workspace-hero-aside {
+  gap: 16px;
+}
+
+.workspace-mini-facts {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+}
+
+.workspace-mini-facts div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--app-border);
+}
+
+.workspace-mini-facts dt,
+.workspace-mini-facts dd {
+  margin: 0;
+}
+
+.workspace-mini-facts dd {
+  color: #ffffff;
+  font-weight: 700;
+  text-align: right;
+}
+
+.workspace-next-step {
+  align-items: flex-start;
+}
+
+.workspace-scorecard-grid {
+  margin-top: 14px;
+}
+
+.workspace-score-card {
+  display: grid;
+  gap: 10px;
+  min-height: 152px;
+  padding: 18px;
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.workspace-score-card strong {
+  font-size: 32px;
+}
+
+.workspace-grid,
+.workspace-focus-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.workspace-panel {
+  padding: 18px;
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.workspace-priority-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.workspace-priority-card {
+  min-height: 220px;
+}
+
+.workspace-plan-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: workspace-steps;
+}
+
+.workspace-plan-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  counter-increment: workspace-steps;
+}
+
+.workspace-plan-item > div {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  padding-left: 34px;
+}
+
+.workspace-plan-item > div::before {
+  content: counter(workspace-steps);
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--accent-muted);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.workspace-plan-item strong,
+.workspace-note-list strong,
+.workspace-bet-title {
+  color: #ffffff;
+}
+
+.workspace-plan-item p {
+  margin: 0;
+}
+
+.workspace-plan-item form {
+  margin: 0;
+}
+
+.workspace-note-list li {
+  display: grid;
+  gap: 6px;
+  padding: 12px 0;
+  border-top: 1px solid var(--app-border);
+}
+
+.workspace-note-list li:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.workspace-note-list a,
+.workspace-priority-card a,
+.workspace-bet-panel a {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.workspace-bet-panel {
+  align-content: start;
+}
+
+.workspace-bet-title {
+  margin: 8px 0 0;
+  font-size: 20px;
 }
 
 .project-next-step {
@@ -3690,7 +3891,10 @@ textarea {
   .project-command-grid,
   .dashboard-work-grid,
   .history-grid,
-  .operations-grid {
+  .operations-grid,
+  .workspace-grid,
+  .workspace-focus-grid,
+  .workspace-hero-signals {
     grid-template-columns: 1fr;
   }
 
@@ -3747,6 +3951,11 @@ textarea {
 
   .project-next-actions {
     justify-content: flex-start;
+  }
+
+  .workspace-plan-item {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 
@@ -3861,6 +4070,10 @@ textarea {
   .project-danger-zone {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .workspace-plan-item > div {
+    padding-left: 30px;
   }
 
   .project-tool-tabs {

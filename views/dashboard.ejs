@@ -54,7 +54,7 @@
       <div>
         <p class="eyebrow">Command center</p>
         <h1>Growth operations</h1>
-        <p class="page-subtitle">A live workspace for project status, AI CMO execution, and monthly capacity.</p>
+        <p class="page-subtitle">A live workspace for project status, AI CMO execution, and monthly capacity. Signal coverage scores on this screen are internal progress heuristics, not business outcomes.</p>
       </div>
       <div class="dashboard-next-action">
         <span>Next best action</span>
@@ -69,7 +69,7 @@
       <div><span>Recent scans</span><strong><%= recentScans.length %></strong></div>
       <div><span>AI reports</span><strong><%= recentReports.length %></strong></div>
       <div><span>Plan</span><strong><%= plan.name %></strong></div>
-      <div><span>Readiness</span><strong><%= workspaceScore %>%</strong></div>
+      <div><span>Signal coverage</span><strong><%= workspaceScore %>%</strong></div>
     </section>
 
     <section class="dashboard-ops-grid dashboard-reveal">
@@ -103,7 +103,7 @@
         <section class="readiness-panel">
           <div class="readiness-meter" style="--score:<%= workspaceScore %>%">
             <strong><%= workspaceScore %></strong>
-            <span>Readiness</span>
+            <span>Coverage</span>
           </div>
           <p><%= hasReports ? 'AI reporting is active. Keep reviewing recommendations weekly.' : (hasScans ? 'Scan data exists. The next step is turning it into an AI CMO plan.' : 'Start with a project and a scan to unlock useful recommendations.') %></p>
         </section>
@@ -119,7 +119,7 @@
           </a>
           <a href="/integrations">
             <strong>Integrations</strong>
-            <span>Connect Search Console and publishing tools when the workspace is ready.</span>
+            <span>Connect Search Console and publishing tools when the workspace has enough evidence to make them useful.</span>
           </a>
         </section>
 

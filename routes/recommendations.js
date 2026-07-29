@@ -7,8 +7,7 @@ const ContentDraft = require('../models/ContentDraft');
 const AppError = require('../utils/appError');
 const handleValidation = require('../utils/validate');
 const { requireAuth } = require('../middleware/auth');
-const { generateDraftsForRecommendation } = require('../services/contentDraftService');
-const { auditTelemetry } = require('../services/telemetryAuditor');
+const { EXECUTION_ASSET_TYPES, generateDraftsForRecommendation } = require('../services/contentDraftService');
 const {
   ensureContentDraftAllowed,
   incrementUsage
@@ -17,26 +16,6 @@ const {
 const router = express.Router();
 
 router.use(requireAuth);
-
-// AI-CMO SPEC COMPLIANCE: Subsystem D - timeout-based autonomy with trust gates.
-const LOW_STAKES_ACTIONS = new Set(['fix_metadata', 'content', 'internal_linking', 'schema']);
-
-function isStalePending(recommendation) {
-  const lastTouched = recommendation.updatedAt || recommendation.createdAt;
-  return recommendation.status === 'pending' && lastTouched && Date.now() - lastTouched.getTime() > 48 * 60 * 60 * 1000;
-}
-
-async function autoResolveStaleRecommendation(recommendation, project) {
-  if (!isStalePending(recommendation)) return recommendation;
-
-  const audit = await auditTelemetry(project);
-  if (audit.score < 85 || project.status !== 'approved') return recommendation;
-
-  recommendation.status = LOW_STAKES_ACTIONS.has(recommendation.actionType) ? 'accepted' : 'rejected';
-  recommendation.reason = `${recommendation.reason || ''}\n\nAuto-resolved after 48 hours with telemetry health ${audit.score}%.`.trim();
-  await recommendation.save();
-  return recommendation;
-}
 
 router.post(
   '/:id/status',
@@ -52,7 +31,6 @@ router.post(
     const project = await Project.findOne({ _id: recommendation.projectId, owner: req.user._id });
     if (!project) return next(new AppError('Recommendation not found.', 404));
 
-    await autoResolveStaleRecommendation(recommendation, project);
     recommendation.status = req.body.status;
     await recommendation.save();
 
@@ -64,20 +42,7 @@ router.post(
   '/:id/generate-content',
   [
     param('id').isMongoId(),
-    body('type').optional({ checkFalsy: true }).isIn([
-      'meta_title',
-      'meta_description',
-      'h1',
-      'faq_section',
-      'blog_outline',
-      'blog_article',
-      'vs_comparison_article',
-      'alternatives_list',
-      'product_led_guide',
-      'service_page_section',
-      'internal_linking_plan',
-      'schema_jsonld'
-    ]).withMessage('Content type is invalid.'),
+    body('type').optional({ checkFalsy: true }).isIn(EXECUTION_ASSET_TYPES).withMessage('Content type is invalid.'),
     body('keyword').optional({ checkFalsy: true }).trim().isLength({ max: 120 }).withMessage('Keyword is too long.'),
     handleValidation
   ],
@@ -99,6 +64,10 @@ router.post(
 
       const created = drafts.length ? await ContentDraft.insertMany(drafts) : [];
       if (created.length) {
+        if (recommendation.status === 'accepted') {
+          recommendation.status = 'in_progress';
+          await recommendation.save();
+        }
         await incrementUsage(req.user._id, 'contentDraftsUsed', created.length);
       }
       const firstDraft = created[0];

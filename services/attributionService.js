@@ -92,6 +92,7 @@ async function buildAttributionDashboard(projectId, payments = []) {
   const revenue = results.reduce((sum, result) => sum + result.amount, 0);
   const confidenceScore = results.length ? Math.round(results.reduce((sum, result) => sum + result.confidence.score, 0) / results.length) : 0;
   return {
+    hasRevenueData: results.length > 0,
     revenue,
     conversions: results.length,
     confidenceScore,

@@ -32,6 +32,21 @@ const competitorInsightSchema = new mongoose.Schema(
       type: String,
       required: true
     },
+    evidenceSummary: {
+      type: String,
+      default: ''
+    },
+    confidenceScore: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 0
+    },
+    generatedBy: {
+      type: String,
+      enum: ['system', 'ai'],
+      default: 'system'
+    },
     priority: {
       type: Number,
       min: 1,

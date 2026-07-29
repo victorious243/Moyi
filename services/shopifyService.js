@@ -49,6 +49,10 @@ function plainTextToHtml(text) {
     .join('\n');
 }
 
+function isPostDraftType(type) {
+  return ['blog_article', 'comparison_page_draft', 'vs_comparison_article', 'alternatives_list', 'product_led_guide'].includes(type);
+}
+
 async function upsertShopifyIntegration({ projectId, userId, shopDomain, blogId, accessToken, apiVersion }) {
   return ShopifyIntegration.findOneAndUpdate(
     { projectId, userId },
@@ -93,6 +97,13 @@ async function createShopifyDraftArticle({ integration, draft, userId }) {
   if (draft.status !== 'approved') {
     action.status = 'failed';
     action.errorMessage = 'Only approved content drafts can be sent to Shopify.';
+    await action.save();
+    throw new Error(action.errorMessage);
+  }
+
+  if (!isPostDraftType(draft.type)) {
+    action.status = 'failed';
+    action.errorMessage = 'Only approved article-style assets can be sent to Shopify.';
     await action.save();
     throw new Error(action.errorMessage);
   }

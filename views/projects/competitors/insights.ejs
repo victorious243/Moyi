@@ -36,7 +36,7 @@
         <h2>Comparison Report</h2>
         <span class="status"><%= insights.length %> opportunities</span>
       </div>
-      <p class="empty">This report compares your crawled project pages against manually added competitor websites. It does not use private competitor data, rankings, traffic estimates, or search result scraping.</p>
+      <p class="empty">This report compares your crawled project pages against manually added competitor websites. It does not use private competitor data, rankings, traffic estimates, or search result scraping. Treat each opportunity as a directional comparison, not a market fact.</p>
     </section>
 
     <section class="panel">
@@ -72,7 +72,10 @@
             <span class="status"><%= insight.category.replace(/_/g, ' ') %> / Priority <%= insight.priority %></span>
             <h2><%= insight.title %></h2>
             <small><%= competitor ? competitor.name : 'Competitor' %></small>
+            <p><strong>Source:</strong> <%= insight.generatedBy === 'ai' ? 'AI summary of crawled-page evidence' : 'Rule-based comparison of crawled-page evidence' %></p>
+            <p><strong>Confidence estimate:</strong> <%= insight.confidenceScore %>%</p>
             <p><strong>Insight:</strong> <%= insight.insight %></p>
+            <p><strong>Evidence:</strong> <%= insight.evidenceSummary || 'Based on the shallow public crawl available for this project and competitor.' %></p>
             <p><strong>Opportunity:</strong> <%= insight.opportunity %></p>
           </article>
         <% }) %>

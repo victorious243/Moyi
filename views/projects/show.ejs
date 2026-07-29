@@ -3,27 +3,8 @@
 <%
   const hasScan = Boolean(latestScan);
   const hasReport = Boolean(latestReport && latestReport.status !== 'failed');
-  const projectScore = hasReport ? 82 : (hasScan ? 58 : 24);
-  const nextProjectAction = !hasScan
-    ? {
-        title: 'Run the first website scan',
-        body: 'Collect factual page evidence before generating recommendations.',
-        href: '#scan-action',
-        cta: 'Run Website Scan'
-      }
-    : (!hasReport
-      ? {
-          title: 'Generate the AI CMO plan',
-          body: 'Turn the latest scan into priorities, content ideas, and weekly actions.',
-          href: '#plan-action',
-          cta: 'Generate Plan'
-        }
-      : {
-          title: 'Review recommendations',
-          body: 'Open the latest plan and approve the highest-impact improvements.',
-          href: '/projects/' + project._id + '/recommendations',
-          cta: 'Open Recommendations'
-        });
+  const primaryAction = workspace.primaryAction;
+  const queueCount = workspace.recommendationCounts.open + workspace.draftCounts.awaitingReview + workspace.draftCounts.needsRevision + workspace.draftCounts.approved;
 %>
 
 <div class="app-layout">
@@ -31,58 +12,66 @@
     <strong>Workspace</strong>
     <a href="/dashboard">Dashboard</a>
     <a href="/projects">Projects</a>
-    <a href="/projects/new">Add Project</a>
+    <a class="active" href="/projects/<%= project._id %>">CMO Workspace</a>
     <span class="sidebar-divider"></span>
-    <a href="/projects/<%= project._id %>/search-console/performance">Search Performance</a>
+    <a href="/projects/<%= project._id %>/ai-report/latest">Strategy brief</a>
+    <a href="/projects/<%= project._id %>/recommendations">Recommendations</a>
+    <a href="/projects/<%= project._id %>/content">Execution queue</a>
+    <a href="/projects/<%= project._id %>/search-console/performance">Search performance</a>
+    <a href="/projects/<%= project._id %>/tracking/setup">Tracking setup</a>
+    <a href="/projects/<%= project._id %>/analytics">Analytics</a>
     <a href="/projects/<%= project._id %>/reports">Reports</a>
     <a href="/projects/<%= project._id %>/competitors">Competitors</a>
-    <a href="/projects/<%= project._id %>/integrations/wordpress">WordPress</a>
-    <a href="/projects/<%= project._id %>/integrations/webflow">Webflow</a>
-    <a href="/projects/<%= project._id %>/integrations/shopify">Shopify</a>
-    <a href="/projects/<%= project._id %>/integrations/webhook">Webhook</a>
-    <a href="/projects/<%= project._id %>/analytics">Analytics</a>
-    <a href="/projects/<%= project._id %>/attribution">Attribution</a>
-    <a href="/projects/<%= project._id %>/calendar">Calendar</a>
   </aside>
 
   <section class="app-main project-detail-main">
-    <section class="project-main-card">
-      <div class="project-hero-content">
-        <p class="eyebrow project-badge"><%= project.industry || 'Business profile' %></p>
+    <section class="project-main-card project-workspace-card">
+      <div class="project-hero-content workspace-hero-copy">
+        <p class="eyebrow project-badge"><%= project.industry || 'CMO workspace' %></p>
         <h1><%= project.name %></h1>
         <a class="project-url" href="<%= project.websiteUrl %>" target="_blank" rel="noreferrer"><%= project.websiteUrl %></a>
-        <p class="project-hero-summary"><%= project.mainGoal || project.targetAudience || 'Set a clear growth goal to guide scans, reports, and content planning.' %></p>
-      </div>
+        <p class="project-hero-summary"><%= project.mainGoal || project.targetAudience || 'Set a clear growth goal so the workspace can prioritize the right work.' %></p>
 
-      <div class="project-card-aside">
-        <div class="health-score" style="--score:<%= projectScore %>%">
-          <strong><%= projectScore %></strong>
-          <span>Project readiness</span>
+        <div class="workspace-hero-signals">
+          <article>
+            <span>Main business risk</span>
+            <strong><%= workspace.businessRisk %></strong>
+          </article>
+          <article>
+            <span>Main growth opportunity</span>
+            <strong><%= workspace.growthOpportunity %></strong>
+          </article>
         </div>
-        <p><%= hasReport ? 'Strategy is available. Keep execution moving through reports and recommendations.' : (hasScan ? 'Scan data is ready. Generate the AI CMO plan next.' : 'No scan evidence yet. Start with a website scan.') %></p>
-        <form action="/projects/<%= project._id %>/telemetry/audit" method="post" data-loading-state="Auditing your measurement stack">
-          <button class="button" type="submit">Audit telemetry</button>
-        </form>
       </div>
 
-      <div class="project-next-step">
+      <div class="project-card-aside workspace-hero-aside">
+        <div class="health-score" style="--score:<%= workspace.overallScore %>%">
+          <strong><%= workspace.overallScore %></strong>
+          <span>Signal coverage</span>
+        </div>
+        <p><%= hasReport ? 'The workspace has strategy context. Keep moving the right work through review and measurement.' : (hasScan ? 'The evidence exists, but strategy still needs to be generated from it.' : 'The workspace is still missing factual website evidence.') %></p>
+        <dl class="workspace-mini-facts">
+          <div><dt>Queue</dt><dd><%= queueCount %> active items</dd></div>
+          <div><dt>Telemetry</dt><dd><%= telemetry.score %>% checklist</dd></div>
+          <div><dt>Search Console</dt><dd><%= connectedProperty ? 'Connected' : 'Not connected' %></dd></div>
+          <div><dt>Competitors</dt><dd><%= workspace.competitorCount %> tracked</dd></div>
+        </dl>
+      </div>
+
+      <div class="project-next-step workspace-next-step">
         <div>
-          <p class="eyebrow">Recommended next step</p>
-          <h2><%= nextProjectAction.title %></h2>
-          <p><%= nextProjectAction.body %></p>
+          <p class="eyebrow"><%= primaryAction.eyebrow %></p>
+          <h2><%= primaryAction.title %></h2>
+          <p><%= primaryAction.body %></p>
         </div>
         <div class="project-next-actions">
-        <% if (!hasScan) { %>
-          <form id="scan-action" action="/projects/<%= project._id %>/scans" method="post" data-loading-state="Running a factual website scan">
-            <button class="button button-primary" type="submit"><%= nextProjectAction.cta %></button>
-          </form>
-        <% } else if (!hasReport) { %>
-          <form id="plan-action" action="/projects/<%= project._id %>/ai-report" method="post" data-loading-state="Building your AI CMO plan">
-            <button class="button button-primary" type="submit"><%= nextProjectAction.cta %></button>
-          </form>
-        <% } else { %>
-          <a class="button button-primary" href="<%= nextProjectAction.href %>"><%= nextProjectAction.cta %></a>
-        <% } %>
+          <% if (primaryAction.action.method === 'post') { %>
+            <form action="<%= primaryAction.action.href %>" method="post" data-loading-state="<%= primaryAction.action.loadingState %>">
+              <button class="button button-primary" type="submit"><%= primaryAction.action.label %></button>
+            </form>
+          <% } else { %>
+            <a class="button button-primary" href="<%= primaryAction.action.href %>"><%= primaryAction.action.label %></a>
+          <% } %>
           <a class="button" href="/projects/<%= project._id %>/edit">Edit project</a>
         </div>
       </div>
@@ -103,49 +92,172 @@
       </section>
     <% } %>
 
-
-
-    <section class="metrics project-info-grid">
-      <article class="project-info-card"><span>Industry</span><strong><%= project.industry || 'Not set' %></strong></article>
-      <article class="project-info-card"><span>Country</span><strong><%= project.targetCountry || 'Global' %></strong></article>
-      <article class="project-info-card"><span>Latest scan</span><strong><%= latestScan ? latestScan.status : 'none' %></strong></article>
-      <article class="project-info-card"><span>Search Console</span><strong><%= connectedProperty ? 'connected' : 'not set' %></strong></article>
-      <article class="project-info-card"><span>Competitors</span><strong><%= competitorCount %></strong></article>
-      <article class="project-info-card"><span>WordPress</span><strong><%= wordpressIntegration ? wordpressIntegration.status : 'not set' %></strong></article>
-      <article class="project-info-card"><span>Telemetry health</span><strong><%= telemetry.score %>%</strong></article>
-      <article class="project-info-card"><span>Autonomy</span><strong><%= telemetry.autonomousActionsBlocked ? 'blocked' : 'ready' %></strong></article>
-    </section>
-
     <% if (telemetry.autonomousActionsBlocked) { %>
       <section class="panel notice-panel">
-        <h2>Trust gate active</h2>
-        <p class="empty">Autonomous posting and budget movement are blocked until telemetry health reaches 85%.</p>
+        <h2>Measurement caution</h2>
+        <p class="empty">Telemetry health is still below the review threshold, so measurement-driven recommendations should be checked carefully before acting on them.</p>
       </section>
     <% } %>
 
+    <section class="metrics project-info-grid workspace-scorecard-grid">
+      <% workspace.scorecards.forEach((card) => { %>
+        <article class="project-info-card workspace-score-card">
+          <span><%= card.label %></span>
+          <strong><%= card.score %>%</strong>
+          <p><%= card.detail %></p>
+        </article>
+      <% }) %>
+    </section>
+
     <section class="section-label">
-      <p class="eyebrow">Overview</p>
-      <h2>Business context</h2>
+      <p class="eyebrow">CMO Workspace</p>
+      <h2>What matters this week</h2>
+    </section>
+
+    <div class="workspace-grid">
+      <section class="panel workspace-panel">
+        <div class="panel-title">
+          <h2>Top priorities</h2>
+          <a href="/projects/<%= project._id %>/recommendations">Full queue</a>
+        </div>
+        <% if (!workspace.topPriorities.length) { %>
+          <p class="empty">Run a scan and generate the plan to surface ranked priorities.</p>
+        <% } %>
+        <div class="recommendation-grid workspace-priority-grid">
+          <% workspace.topPriorities.forEach((priority) => { %>
+            <article class="recommendation-card workspace-priority-card">
+              <span class="status"><%= priority.badge %></span>
+              <h2><%= priority.title %></h2>
+              <p><%= priority.body %></p>
+              <a href="<%= priority.href %>">Open context</a>
+            </article>
+          <% }) %>
+        </div>
+      </section>
+
+      <section class="panel workspace-panel">
+        <div class="panel-title">
+          <h2>This week’s plan</h2>
+          <a href="/projects/<%= project._id %>/reports">Reporting cadence</a>
+        </div>
+        <ol class="workspace-plan-list">
+          <% workspace.thisWeekPlan.forEach((step) => { %>
+            <li class="workspace-plan-item">
+              <div>
+                <strong><%= step.title %></strong>
+                <p><%= step.detail %></p>
+              </div>
+              <% if (step.action.method === 'post') { %>
+                <form action="<%= step.action.href %>" method="post" data-loading-state="<%= step.action.loadingState %>">
+                  <button class="button" type="submit"><%= step.action.label %></button>
+                </form>
+              <% } else { %>
+                <a class="button" href="<%= step.action.href %>"><%= step.action.label %></a>
+              <% } %>
+            </li>
+          <% }) %>
+        </ol>
+      </section>
+
+      <section class="panel workspace-panel">
+        <div class="panel-title">
+          <h2>Measurement gaps</h2>
+          <a href="/projects/<%= project._id %>/tracking/setup">Fix setup</a>
+        </div>
+        <% if (!workspace.measurementGaps.length) { %>
+          <p class="empty">The measurement foundation is in decent shape. Keep validating outcomes through reports and search performance.</p>
+        <% } else { %>
+          <ul class="clean-list workspace-note-list">
+            <% workspace.measurementGaps.forEach((gap) => { %>
+              <li>
+                <strong><%= gap.title %></strong>
+                <span><%= gap.detail %></span>
+                <a href="<%= gap.href %>">Resolve</a>
+              </li>
+            <% }) %>
+          </ul>
+        <% } %>
+      </section>
+
+      <section class="panel workspace-panel">
+        <div class="panel-title">
+          <h2>Execution queue</h2>
+          <a href="/projects/<%= project._id %>/content">Approval queue</a>
+        </div>
+        <% if (!workspace.executionQueue.length) { %>
+          <p class="empty">There is no active queue yet. Once recommendations are accepted or drafts are created, this becomes the execution control panel.</p>
+        <% } else { %>
+          <div class="work-queue">
+            <% workspace.executionQueue.forEach((item) => { %>
+              <a href="<%= item.href %>">
+                <strong><%= item.title %></strong>
+                <span><%= item.detail %></span>
+              </a>
+            <% }) %>
+          </div>
+        <% } %>
+      </section>
+    </div>
+
+    <section class="section-label">
+      <p class="eyebrow">Focus Areas</p>
+      <h2>Quick wins and strategic bet</h2>
+    </section>
+
+    <div class="dashboard-grid project-overview-grid workspace-focus-grid">
+      <section class="panel workspace-panel">
+        <div class="panel-title">
+          <h2>Quick wins</h2>
+          <a href="/projects/<%= project._id %>/recommendations">Open queue</a>
+        </div>
+        <% if (!workspace.quickWins.length) { %>
+          <p class="empty">No quick wins are visible yet. They will appear once the workspace has enough evidence.</p>
+        <% } %>
+        <ul class="clean-list workspace-note-list">
+          <% workspace.quickWins.forEach((item) => { %>
+            <li>
+              <strong><%= item.title %></strong>
+              <span><%= item.detail %></span>
+              <a href="<%= item.href %>">Review</a>
+            </li>
+          <% }) %>
+        </ul>
+      </section>
+
+      <section class="panel workspace-panel workspace-bet-panel">
+        <div class="panel-title">
+          <h2>Strategic bet</h2>
+          <a href="<%= workspace.strategicBet.href %>">Open context</a>
+        </div>
+        <p class="workspace-bet-title"><%= workspace.strategicBet.title %></p>
+        <p><%= workspace.strategicBet.body %></p>
+      </section>
+    </div>
+
+    <section class="section-label">
+      <p class="eyebrow">Business context</p>
+      <h2>Positioning and market picture</h2>
     </section>
 
     <div class="dashboard-grid project-overview-grid">
-      <section class="panel">
-        <h2>Project overview</h2>
+      <section class="panel workspace-panel">
+        <h2>Business context</h2>
         <dl class="detail-list">
-          <div><dt>Website</dt><dd><a href="<%= project.websiteUrl %>" target="_blank" rel="noreferrer"><%= project.websiteUrl %></a></dd></div>
           <div><dt>Audience</dt><dd><%= project.targetAudience || 'Not set yet.' %></dd></div>
           <div><dt>Main goal</dt><dd><%= project.mainGoal || 'Not set yet.' %></dd></div>
           <div><dt>Main offer</dt><dd><%= project.mainOffer || 'Not set yet.' %></dd></div>
+          <div><dt>Country</dt><dd><%= project.targetCountry || 'Global' %></dd></div>
+          <div><dt>Conversion goals</dt><dd><%= conversionGoalCount ? conversionGoalCount : 'Not defined yet' %></dd></div>
         </dl>
       </section>
 
-      <section class="panel">
+      <section class="panel workspace-panel">
         <h2>Market context</h2>
         <% if (!(project.competitors || []).length) { %>
-          <p class="empty">No competitors added yet.</p>
+          <p class="empty">No competitors added yet. Discovery will improve once more evidence is gathered.</p>
         <% } %>
         <ul class="clean-list">
-          <% (project.competitors || []).forEach((competitor) => { %>
+          <% (project.competitors || []).slice(0, 6).forEach((competitor) => { %>
             <li><%= typeof competitor === 'string' ? competitor : (competitor.name || competitor.websiteUrl) %></li>
           <% }) %>
         </ul>
@@ -154,51 +266,9 @@
 
     <section class="panel project-section-panel">
       <div class="panel-title">
-        <h2>Competitor comparison</h2>
+        <h2>Latest strategy brief</h2>
         <div class="row-actions">
-          <a href="/projects/<%= project._id %>/competitors">Competitors</a>
-          <a href="/projects/<%= project._id %>/competitors/insights">Open report</a>
-        </div>
-      </div>
-      <% if (!competitorCount) { %>
-        <p class="empty">No competitors have been identified for this project yet. Running another website scan will retry discovery automatically.</p>
-      <% } else if (!latestCompetitorInsights.length) { %>
-        <p class="empty">Competitors are tracked, but comparison opportunities have not been generated yet.</p>
-      <% } else { %>
-        <div class="recommendation-grid">
-          <% latestCompetitorInsights.forEach((insight) => { %>
-            <article class="recommendation-card">
-              <span class="status"><%= insight.category.replace(/_/g, ' ') %> / Priority <%= insight.priority %></span>
-              <h2><%= insight.title %></h2>
-              <p><strong>What they do better:</strong> <%= insight.insight %></p>
-              <p><strong>What to improve:</strong> <%= insight.opportunity %></p>
-            </article>
-          <% }) %>
-        </div>
-      <% } %>
-    </section>
-
-    <section class="project-danger-zone" aria-labelledby="project-danger-title">
-      <div>
-        <p class="eyebrow">Project management</p>
-        <h2 id="project-danger-title">Danger area</h2>
-        <p>Deleting removes this project and its workspace entry. Keep this action separate from daily project work.</p>
-      </div>
-      <form action="/projects/<%= project._id %>/delete" method="post" onsubmit="return confirm('Delete this project? This action cannot be undone.');">
-        <button class="button danger-button" type="submit">Delete project</button>
-      </form>
-    </section>
-
-    <section class="section-label">
-      <p class="eyebrow">Insights</p>
-      <h2>Plan and recommendations</h2>
-    </section>
-
-    <section class="panel project-section-panel">
-      <div class="panel-title">
-        <h2>Latest AI CMO summary</h2>
-        <div class="row-actions">
-          <a href="/projects/<%= project._id %>/ai-report/latest">Open report</a>
+          <a href="/projects/<%= project._id %>/ai-report/latest">Open brief</a>
           <a href="/projects/<%= project._id %>/recommendations">Recommendations</a>
           <a href="/projects/<%= project._id %>/content">Approval queue</a>
         </div>
@@ -217,57 +287,34 @@
       <% } %>
     </section>
 
-    <section class="section-label">
-      <p class="eyebrow">Execution</p>
-      <h2>Tools and integrations</h2>
-    </section>
-
-    <section class="operations-grid">
-      <article class="panel operation-card">
-        <div class="panel-title">
-          <h2>Content calendar</h2>
-          <a href="/projects/<%= project._id %>/calendar">Calendar</a>
+    <section class="panel project-section-panel">
+      <div class="panel-title">
+        <h2>Competitor comparison</h2>
+        <div class="row-actions">
+          <a href="/projects/<%= project._id %>/competitors">Competitors</a>
+          <a href="/projects/<%= project._id %>/competitors/insights">Open report</a>
         </div>
-        <p class="empty">Plan weekly campaigns and prepare social or email drafts for review.</p>
-        <a href="/projects/<%= project._id %>/campaigns">Open campaigns</a>
-      </article>
-
-      <article class="panel operation-card">
-        <div class="panel-title">
-          <h2>Traffic tracking</h2>
-          <a href="/projects/<%= project._id %>/analytics">Analytics</a>
+      </div>
+      <% if (!workspace.competitorCount) { %>
+        <p class="empty">No competitors have been identified for this project yet. Running another website scan will retry discovery automatically.</p>
+      <% } else if (!latestCompetitorInsights.length) { %>
+        <p class="empty">Competitors are tracked, but comparison opportunities have not been generated yet.</p>
+      <% } else { %>
+        <div class="recommendation-grid">
+          <% latestCompetitorInsights.forEach((insight) => { %>
+            <article class="recommendation-card">
+              <span class="status"><%= insight.category.replace(/_/g, ' ') %> / Priority <%= insight.priority %></span>
+              <h2><%= insight.title %></h2>
+              <p><strong>What they do better:</strong> <%= insight.insight %></p>
+              <p><strong>What to improve:</strong> <%= insight.opportunity %></p>
+            </article>
+          <% }) %>
         </div>
-        <p class="empty">Measure page views, campaigns, referrers, sessions, and conversion events.</p>
-        <a href="/projects/<%= project._id %>/tracking/setup">Setup script</a>
-      </article>
-
-      <article class="panel operation-card">
-        <div class="panel-title">
-          <h2>CMS integration</h2>
-          <a href="/projects/<%= project._id %>/integrations/wordpress">Manage</a>
-        </div>
-        <p class="empty">Send approved article drafts to WordPress, Webflow, or Shopify without publishing live.</p>
-        <div class="status-actions">
-          <a class="button" href="/projects/<%= project._id %>/integrations/wordpress">WordPress</a>
-          <a class="button" href="/projects/<%= project._id %>/integrations/webflow">Webflow</a>
-          <a class="button" href="/projects/<%= project._id %>/integrations/shopify">Shopify</a>
-          <a class="button" href="/projects/<%= project._id %>/integrations/webhook">Webhook</a>
-        </div>
-        <a href="/projects/<%= project._id %>/content">Approval queue</a>
-      </article>
-
-      <article class="panel operation-card">
-        <div class="panel-title">
-          <h2>Competitor tracking</h2>
-          <a href="/projects/<%= project._id %>/competitors">Manage</a>
-        </div>
-        <p class="empty">Track selected competitors and find ethical content opportunities.</p>
-        <a href="/projects/<%= project._id %>/competitors/insights">Opportunities</a>
-      </article>
+      <% } %>
     </section>
 
     <section class="section-label">
-      <p class="eyebrow">History</p>
+      <p class="eyebrow">Evidence and cadence</p>
       <h2>Reports and scans</h2>
     </section>
 
@@ -322,6 +369,17 @@
           <% }) %>
         </div>
       </section>
+    </section>
+
+    <section class="project-danger-zone" aria-labelledby="project-danger-title">
+      <div>
+        <p class="eyebrow">Project management</p>
+        <h2 id="project-danger-title">Danger area</h2>
+        <p>Deleting removes this project and its workspace entry. Keep this action separate from daily project work.</p>
+      </div>
+      <form action="/projects/<%= project._id %>/delete" method="post" onsubmit="return confirm('Delete this project? This action cannot be undone.');">
+        <button class="button danger-button" type="submit">Delete project</button>
+      </form>
     </section>
   </section>
 </div>
