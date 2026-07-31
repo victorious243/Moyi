@@ -9,7 +9,8 @@ async function connectDatabase() {
       dbName: env.mongoDbName || undefined,
       serverSelectionTimeoutMS: 10000
     });
-    console.log(`MongoDB connected: ${mongoose.connection.name}`);
+    const role = process.env.MOYI_PROCESS_ROLE ? ` (${process.env.MOYI_PROCESS_ROLE})` : '';
+    console.log(`MongoDB connected${role}: ${mongoose.connection.name}`);
   } catch (error) {
     if (error.codeName === 'AtlasError' || /auth/i.test(error.message)) {
       console.error('MongoDB authentication failed. Check MONGODB_URI username, password, database name, and Atlas database user permissions.');

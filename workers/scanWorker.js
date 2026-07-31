@@ -1,5 +1,3 @@
-require('dotenv').config();
-
 const { Worker } = require('bullmq');
 const mongoose = require('mongoose');
 const connectDatabase = require('../config/db');

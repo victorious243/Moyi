@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 
-require('dotenv').config();
-
 const { fork } = require('child_process');
 const env = require('../config/env');
 
@@ -33,7 +31,10 @@ installSignalHandlers();
 function startChild(name, script, options = {}) {
   const child = fork(script, [], {
     cwd: process.cwd(),
-    env: process.env,
+    env: {
+      ...process.env,
+      MOYI_PROCESS_ROLE: name
+    },
     execArgv: [],
     stdio: 'inherit'
   });
