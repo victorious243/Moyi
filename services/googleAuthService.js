@@ -9,11 +9,18 @@ const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GOOGLE_USERINFO_URL = 'https://openidconnect.googleapis.com/v1/userinfo';
 const AUTH_SCOPES = ['openid', 'email', 'profile'];
 
-function googleLoginRedirectUri() {
-  if (env.googleRedirectUri && env.googleRedirectUri.includes('/integrations/google/callback')) {
-    return env.googleRedirectUri.replace('/integrations/google/callback', '/auth/google/callback');
+function googleLoginRedirectUriFromEnv(source = env) {
+  if (source.googleRedirectUri && source.googleRedirectUri.includes('/auth/google/callback')) {
+    return source.googleRedirectUri;
   }
-  return `${env.appUrl}/auth/google/callback`;
+  if (source.googleRedirectUri && source.googleRedirectUri.includes('/integrations/google/callback')) {
+    return source.googleRedirectUri.replace('/integrations/google/callback', '/auth/google/callback');
+  }
+  return `${source.appUrl}/auth/google/callback`;
+}
+
+function googleLoginRedirectUri() {
+  return googleLoginRedirectUriFromEnv(env);
 }
 
 function assertGoogleConfigured() {
@@ -116,5 +123,6 @@ module.exports = {
   exchangeCodeForLoginTokens,
   fetchGoogleProfile,
   findOrCreateGoogleUser,
+  googleLoginRedirectUriFromEnv,
   googleLoginRedirectUri
 };

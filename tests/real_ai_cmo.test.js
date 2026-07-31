@@ -3,7 +3,7 @@ const test = require('node:test');
 const mongoose = require('mongoose');
 const axios = require('axios');
 const { enrichDraftBrandProfile, extractDraftBrandProfile } = require('../services/crawlerService');
-const { googleLoginRedirectUri } = require('../services/googleAuthService');
+const { googleLoginRedirectUri, googleLoginRedirectUriFromEnv } = require('../services/googleAuthService');
 const {
   extractDuckDuckGoTarget,
   filteredHost,
@@ -12,6 +12,7 @@ const {
 const { crawlWebsite } = require('../services/crawlerService');
 const { scoreChecks } = require('../services/telemetryAuditor');
 const { attributePayment } = require('../services/attributionService');
+const { normalizeCookieDomain } = require('../config/env');
 const Campaign = require('../models/Campaign');
 const Project = require('../models/Project');
 const TrackingEvent = require('../models/TrackingEvent');
@@ -151,6 +152,21 @@ test('AI-CMO SPEC COMPLIANCE Requirement 2: redirect URLs and false-positive dom
 
 test('Google auth uses the app auth callback path for sign-in', () => {
   assert.ok(googleLoginRedirectUri().includes('/auth/google/callback'));
+});
+
+test('Google auth prefers explicit auth redirect URI over app URL fallback', () => {
+  assert.equal(
+    googleLoginRedirectUriFromEnv({
+      appUrl: 'http://localhost:3000',
+      googleRedirectUri: 'https://moyi-cmo.com/auth/google/callback'
+    }),
+    'https://moyi-cmo.com/auth/google/callback'
+  );
+});
+
+test('production cookie domain is normalized from accidental URL values', () => {
+  assert.equal(normalizeCookieDomain('https://moyi-cmo.com'), 'moyi-cmo.com');
+  assert.equal(normalizeCookieDomain('moyi-cmo.com'), 'moyi-cmo.com');
 });
 
 test('Phase 2 crawler treats www and root host as the same site', () => {

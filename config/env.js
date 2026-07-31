@@ -1,6 +1,8 @@
 require('dotenv').config({ quiet: true });
 const path = require('path');
 
+const MIN_NODE_VERSION = '20.19.0';
+
 function booleanFromEnv(value, fallback = false) {
   if (value === undefined || value === null || value === '') return fallback;
   return ['1', 'true', 'yes', 'on'].includes(String(value).trim().toLowerCase());
@@ -17,6 +19,34 @@ function validUrl(value) {
   } catch (error) {
     return null;
   }
+}
+
+function normalizeCookieDomain(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+
+  if (/^https?:\/\//i.test(raw)) {
+    const parsed = validUrl(raw);
+    return parsed ? parsed.hostname : raw;
+  }
+
+  return raw
+    .replace(/^Domain=/i, '')
+    .replace(/;.*$/, '')
+    .replace(/\/.*$/, '')
+    .trim();
+}
+
+function compareVersions(actual, minimum) {
+  const actualParts = String(actual || '').split('.').map((part) => Number(part));
+  const minimumParts = String(minimum || '').split('.').map((part) => Number(part));
+  for (let index = 0; index < 3; index += 1) {
+    const actualPart = Number.isFinite(actualParts[index]) ? actualParts[index] : 0;
+    const minimumPart = Number.isFinite(minimumParts[index]) ? minimumParts[index] : 0;
+    if (actualPart > minimumPart) return 1;
+    if (actualPart < minimumPart) return -1;
+  }
+  return 0;
 }
 
 function buildMongoUri() {
@@ -77,7 +107,7 @@ const env = {
   queueEnabled: !disableQueue,
   hasExplicitRedisConfig: Boolean(process.env.REDIS_URL),
   trustProxyHops: numberFromEnv(process.env.TRUST_PROXY_HOPS, nodeEnv === 'production' ? 1 : 0),
-  cookieDomain: process.env.COOKIE_DOMAIN || '',
+  cookieDomain: normalizeCookieDomain(process.env.COOKIE_DOMAIN),
   releaseSha: process.env.RELEASE_SHA || '',
   passwordResetDeliveryUrl: process.env.PASSWORD_RESET_DELIVERY_URL || '',
   passwordResetDeliverySecret: process.env.PASSWORD_RESET_DELIVERY_SECRET || '',
@@ -100,6 +130,14 @@ function runtimeConfigProblems(target = env) {
 
   if (!target.appUrlObject) {
     problems.push('APP_URL must be a valid absolute URL.');
+  }
+
+  if (process.env.COOKIE_DOMAIN && /^https?:\/\//i.test(process.env.COOKIE_DOMAIN)) {
+    problems.push('COOKIE_DOMAIN must be a hostname only, for example moyi-cmo.com, not a full URL.');
+  }
+
+  if (compareVersions(process.versions.node, MIN_NODE_VERSION) < 0) {
+    problems.push(`Node.js ${MIN_NODE_VERSION} or newer is required. Current version is ${process.version}.`);
   }
 
   if (target.isProduction) {
@@ -242,9 +280,12 @@ function assertRuntimeConfig() {
 
 module.exports = {
   ...env,
+  MIN_NODE_VERSION,
   assertRuntimeConfig,
   booleanFromEnv,
+  compareVersions,
   numberFromEnv,
+  normalizeCookieDomain,
   runtimeConfigProblems,
   runtimeConfigWarnings,
   validUrl

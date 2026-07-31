@@ -2,6 +2,9 @@
   "name": "moyi",
   "version": "0.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "scripts": {
     "start": "node ./bin/supervisor",
     "web": "node ./bin/www",

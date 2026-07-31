@@ -41,7 +41,7 @@ function oauthCookieOptions() {
 }
 
 function clearGoogleAuthCookies(res) {
-  res.clearCookie('google_auth_state', authCookieOptions());
+  res.clearCookie('google_auth_state', oauthCookieOptions());
 }
 
 router.get('/register', (req, res) => {
@@ -93,6 +93,12 @@ router.get('/google/callback', asyncHandler(async (req, res) => {
   }
 
   if (!expectedState || req.query.state !== expectedState) {
+    console.warn('Google sign-in state verification failed.', {
+      hasExpectedState: Boolean(expectedState),
+      hasReturnedState: Boolean(req.query.state),
+      cookieDomain: env.cookieDomain || '(host-only)',
+      secureCookies: env.isProduction
+    });
     return res.redirect(`/login?error=${encodeURIComponent('Google sign-in could not be verified. Please try again.')}`);
   }
 

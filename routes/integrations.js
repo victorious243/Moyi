@@ -15,17 +15,24 @@ const router = express.Router();
 router.use(requireAuth);
 
 function oauthCookieOptions() {
-  return {
+  const options = {
     httpOnly: true,
     sameSite: 'lax',
-    secure: env.nodeEnv === 'production',
+    secure: env.isProduction,
+    path: '/',
     maxAge: 10 * 60 * 1000
   };
+
+  if (env.cookieDomain) {
+    options.domain = env.cookieDomain;
+  }
+
+  return options;
 }
 
 function clearOauthCookies(res) {
-  res.clearCookie('gsc_oauth_state');
-  res.clearCookie('gsc_oauth_project');
+  res.clearCookie('gsc_oauth_state', oauthCookieOptions());
+  res.clearCookie('gsc_oauth_project', oauthCookieOptions());
 }
 
 router.get('/', asyncHandler(async (req, res) => {
@@ -64,6 +71,12 @@ router.get('/google/callback', asyncHandler(async (req, res) => {
   }
 
   if (!expectedState || req.query.state !== expectedState) {
+    console.warn('Google integration state verification failed.', {
+      hasExpectedState: Boolean(expectedState),
+      hasReturnedState: Boolean(req.query.state),
+      cookieDomain: env.cookieDomain || '(host-only)',
+      secureCookies: env.isProduction
+    });
     return res.redirect(`/integrations?error=${encodeURIComponent('Google connection could not be verified. Please try again.')}`);
   }
 
