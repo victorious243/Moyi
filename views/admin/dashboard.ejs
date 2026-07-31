@@ -1,0 +1,291 @@
+<%- include('../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Operator</strong>
+    <a class="active" href="/admin">Dashboard</a>
+    <a href="/dashboard">Workspace</a>
+    <a href="/account">Account</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">Platform Operations</p>
+        <h1>Operator Dashboard</h1>
+      </div>
+      <span class="status"><%= health.status %></span>
+    </div>
+
+    <section class="metric-grid">
+      <article><span>Users</span><strong><%= userCount %></strong></article>
+      <article><span>Projects</span><strong><%= projectCount %></strong></article>
+      <article><span>AI ops</span><strong><%= usageTotals.aiOperationsUsed %></strong></article>
+      <article><span>AI failures</span><strong><%= usageTotals.aiOperationFailures %></strong></article>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <h2>User Management</h2>
+        <span class="status"><%= activeUsers.length %> recent</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>User</th><th>Role</th><th>Plan</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody>
+            <% activeUsers.forEach((user) => { %>
+              <tr>
+                <td><%= user.email %></td>
+                <td colspan="4">
+                  <form class="inline-form" action="/admin/users/<%= user._id %>" method="post">
+                    <select name="role">
+                      <% ['owner', 'admin', 'member'].forEach((role) => { %>
+                        <option value="<%= role %>" <%= user.role === role ? 'selected' : '' %>><%= role %></option>
+                      <% }) %>
+                    </select>
+                    <select name="plan">
+                      <% ['free', 'starter', 'pro', 'agency'].forEach((plan) => { %>
+                        <option value="<%= plan %>" <%= user.plan === plan ? 'selected' : '' %>><%= plan %></option>
+                      <% }) %>
+                    </select>
+                    <input name="subscriptionStatus" value="<%= user.subscriptionStatus || 'inactive' %>">
+                    <button class="button" type="submit">Update</button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="dashboard-grid">
+      <section class="panel">
+        <h2>Customer Email</h2>
+        <form class="form" action="/admin/email/customer" method="post">
+          <label>To <input type="email" name="to" required></label>
+          <label>Subject <input name="subject" required></label>
+          <label>Heading <input name="heading" required></label>
+          <label class="full">Message <textarea name="message" rows="5" required></textarea></label>
+          <button class="button button-primary" type="submit">Send Customer Email</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>Newsletter</h2>
+        <form class="form" action="/admin/email/newsletter" method="post">
+          <label class="full">Recipients <textarea name="recipients" rows="3" required></textarea></label>
+          <label>Subject <input name="subject" required></label>
+          <label>Heading <input name="heading" required></label>
+          <label class="full">Summary <textarea name="summary" rows="5" required></textarea></label>
+          <button class="button button-primary" type="submit">Send Newsletter</button>
+        </form>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="panel-title">
+        <h2>Runtime Health</h2>
+        <span class="status"><%= health.blockingChecks && health.blockingChecks.length ? `${health.blockingChecks.length} blocking` : 'ready path' %></span>
+      </div>
+      <div class="content-card-grid">
+        <% Object.keys(health.checks || {}).forEach((key) => { const check = health.checks[key]; %>
+          <article class="content-card">
+            <span class="status"><%= check.status %></span>
+            <strong><%= key.replace(/_/g, ' ') %></strong>
+            <p><%= check.detail || '' %></p>
+          </article>
+        <% }) %>
+      </div>
+    </section>
+
+    <div class="dashboard-grid">
+      <section class="panel">
+        <div class="panel-title">
+          <h2>Active Jobs</h2>
+          <span class="status"><%= runningJobs.length %></span>
+        </div>
+        <% if (!runningJobs.length) { %>
+          <p class="empty">No queued or running jobs.</p>
+        <% } else { %>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Type</th><th>Status</th><th>Project</th><th>Step</th></tr></thead>
+              <tbody>
+                <% runningJobs.forEach((job) => { %>
+                  <tr>
+                    <td><%= job.type %></td>
+                    <td><%= job.status %></td>
+                    <td><%= job.projectId ? job.projectId.name : '' %></td>
+                    <td><%= job.currentStep || '' %></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </section>
+
+      <section class="panel notice-panel">
+        <div class="panel-title">
+          <h2>Failed Jobs</h2>
+          <span class="status"><%= failedJobs.length %></span>
+        </div>
+        <% if (!failedJobs.length) { %>
+          <p class="empty">No failed background jobs.</p>
+        <% } else { %>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Type</th><th>Project</th><th>User</th><th>Error</th></tr></thead>
+              <tbody>
+                <% failedJobs.forEach((job) => { %>
+                  <tr>
+                    <td><%= job.type %></td>
+                    <td><%= job.projectId ? job.projectId.name : '' %></td>
+                    <td><%= job.userId ? job.userId.email : '' %></td>
+                    <td><%= job.errorMessage || '' %></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </section>
+    </div>
+
+    <section class="panel notice-panel">
+      <div class="panel-title">
+        <h2>Failed Publishing</h2>
+        <span class="status"><%= failedPublishActions.length %></span>
+      </div>
+      <% if (!failedPublishActions.length) { %>
+        <p class="empty">No failed publishing actions.</p>
+      <% } else { %>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Integration</th><th>Project</th><th>Draft</th><th>Error</th><th>Action</th></tr></thead>
+            <tbody>
+              <% failedPublishActions.forEach((action) => { %>
+                <tr>
+                  <td><%= action.integrationType %></td>
+                  <td><%= action.projectId ? action.projectId.name : '' %></td>
+                  <td><%= action.contentDraftId ? action.contentDraftId.title : '' %></td>
+                  <td><%= action.errorMessage || '' %></td>
+                  <td>
+                    <form action="/admin/publish-actions/<%= action._id %>/retry" method="post">
+                      <button class="button" type="submit">Retry</button>
+                    </form>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="panel notice-panel">
+      <div class="panel-title">
+        <h2>Failed Webhooks</h2>
+        <span class="status"><%= failedWebhookDeliveries.length %></span>
+      </div>
+      <% if (!failedWebhookDeliveries.length) { %>
+        <p class="empty">No failed webhook deliveries.</p>
+      <% } else { %>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Project</th><th>Draft</th><th>Status</th><th>Error</th><th>Action</th></tr></thead>
+            <tbody>
+              <% failedWebhookDeliveries.forEach((delivery) => { %>
+                <tr>
+                  <td><%= delivery.projectId ? delivery.projectId.name : '' %></td>
+                  <td><%= delivery.contentDraftId ? delivery.contentDraftId.title : '' %></td>
+                  <td><%= delivery.statusCode || '' %></td>
+                  <td><%= delivery.errorMessage || '' %></td>
+                  <td>
+                    <form action="/admin/webhook-deliveries/<%= delivery._id %>/retry" method="post">
+                      <button class="button" type="submit">Retry</button>
+                    </form>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <h2>Usage This Month</h2>
+        <span class="status"><%= new Date(periodStart).toLocaleDateString() %> - <%= new Date(periodEnd).toLocaleDateString() %></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>User</th><th>Plan</th><th>Scans</th><th>Reports</th><th>Drafts</th><th>AI ops</th><th>AI failures</th></tr></thead>
+          <tbody>
+            <% usageRows.forEach((row) => { %>
+              <tr>
+                <td><%= row.userId ? row.userId.email : row.userId %></td>
+                <td><%= row.userId && row.userId.plan ? row.userId.plan : '' %></td>
+                <td><%= row.scansUsed || 0 %></td>
+                <td><%= row.aiReportsUsed || 0 %></td>
+                <td><%= row.contentDraftsUsed || 0 %></td>
+                <td><%= row.aiOperationsUsed || 0 %></td>
+                <td><%= row.aiOperationFailures || 0 %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <h2>Application Logs</h2>
+        <span class="status"><%= recentAppLogs.length %></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Level</th><th>Status</th><th>Path</th><th>Message</th><th>When</th></tr></thead>
+          <tbody>
+            <% recentAppLogs.forEach((log) => { %>
+              <tr>
+                <td><%= log.level %></td>
+                <td><%= log.statusCode || '' %></td>
+                <td><%= log.path || '' %></td>
+                <td><%= log.message %></td>
+                <td><%= log.createdAt ? new Date(log.createdAt).toLocaleString() : '' %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <h2>Recent Audit Events</h2>
+        <span class="status"><%= recentAuditLogs.length %></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Event</th><th>Status</th><th>Actor</th><th>Project</th><th>When</th></tr></thead>
+          <tbody>
+            <% recentAuditLogs.forEach((log) => { %>
+              <tr>
+                <td><%= log.eventType.replace(/_/g, ' ') %></td>
+                <td><%= log.status %></td>
+                <td><%= log.actorEmailSnapshot || '' %></td>
+                <td><%= log.projectId ? log.projectId.name : '' %></td>
+                <td><%= log.createdAt ? new Date(log.createdAt).toLocaleString() : '' %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+</div>
+
+<%- include('../partials/footer') %>

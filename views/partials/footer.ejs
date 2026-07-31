@@ -7,21 +7,21 @@
       </div>
       <nav>
         <strong>Product</strong>
-        <a href="/#features">Features</a>
-        <a href="/#how-it-works">How it Works</a>
+        <a href="/features">Features</a>
+        <a href="/how-it-works">How it Works</a>
         <a href="/pricing">Pricing</a>
       </nav>
       <nav>
         <strong>Resources</strong>
-        <a href="#">Docs</a>
-        <a href="#">Demo</a>
-        <a href="#">Reports</a>
+        <a href="/docs">Documentation</a>
+        <a href="/demo">Product Demo</a>
+        <a href="/reports">Reports Guide</a>
       </nav>
       <nav>
         <strong>Company</strong>
-        <a href="/#contact">Contact</a>
-        <a href="#">GitHub</a>
-        <a href="#">Roadmap</a>
+        <a href="/contact">Contact</a>
+        <a href="/about">About Moyi</a>
+        <a href="/roadmap">Roadmap</a>
       </nav>
       <nav>
         <strong>Legal</strong>
@@ -29,23 +29,44 @@
         <a href="/terms">Terms</a>
         <a href="/cookies">Cookies</a>
       </nav>
+      <div class="footer-meta">
+        <span>&copy; <%= new Date().getFullYear() %> Moyi-CMO</span>
+        <span>Marketing decisions remain under human control.</span>
+      </div>
     </footer>
   </main>
   <div class="loading-overlay" data-loading-overlay aria-hidden="true" role="status" aria-live="polite">
-    <div class="loading-panel">
-      <div class="loading-sun" aria-hidden="true">
-        <span class="loading-sun-ring loading-sun-ring-outer"></span>
-        <span class="loading-sun-ring loading-sun-ring-inner"></span>
-        <img class="loading-logo" src="/images/moyi-logo.png" alt="">
+    <div class="loading-panel" data-loading-panel>
+      <div class="loading-brand">
+        <img src="/images/moyi-logo-dark.png" alt="Moyi">
+        <span>Public intelligence scan</span>
       </div>
-      <p class="loading-eyebrow">Moyi is working</p>
-      <h2 class="loading-title" data-loading-title>Scanning your market</h2>
-      <p class="loading-copy">We are pulling signals, checking pages, and lining up the next view.</p>
+      <div class="loading-visual" aria-hidden="true">
+        <div class="loading-orbit">
+          <span></span><span></span><span></span>
+          <b>MOYI</b>
+        </div>
+        <div class="loading-radar"></div>
+      </div>
+      <p class="loading-eyebrow">Analyzing <span data-loading-domain>your website</span></p>
+      <h2 class="loading-title" data-loading-title>Opening the public crawl</h2>
+      <p class="loading-copy" data-loading-copy>Reading page structure and search signals. This usually takes a few moments.</p>
+      <div class="loading-progress" aria-hidden="true"><span></span></div>
+      <ol class="loading-stages">
+        <li class="is-active" data-loading-stage="0"><i>01</i><span>Connect</span></li>
+        <li data-loading-stage="1"><i>02</i><span>Crawl</span></li>
+        <li data-loading-stage="2"><i>03</i><span>Diagnose</span></li>
+        <li data-loading-stage="3"><i>04</i><span>Score</span></li>
+      </ol>
+      <p class="loading-assurance"><i></i> Secure public-page analysis</p>
     </div>
   </div>
   <script src="/js/navbar.js" defer></script>
+  <script src="/js/interface-polish.js" defer></script>
   <script src="/js/loading-state.js" defer></script>
+  <script src="/js/terminal-scan.js" defer></script>
   <script src="/js/scan-status.js" defer></script>
   <script src="/js/project-job-status.js" defer></script>
+  <script src="/js/overflow-audit.js" defer></script>
 </body>
 </html>

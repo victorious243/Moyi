@@ -25,6 +25,12 @@ const campaignSchema = new mongoose.Schema(
       default: 'multi',
       index: true
     },
+    cadence: {
+      type: String,
+      enum: ['single', 'weekly', 'monthly', 'custom'],
+      default: 'custom',
+      index: true
+    },
     startDate: {
       type: Date,
       required: true,

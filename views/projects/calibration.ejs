@@ -34,6 +34,17 @@
       </div>
     </section>
 
+    <% if (!(project.brandLogo && project.brandLogo.storageKey)) { %>
+      <section class="panel brand-asset-reminder">
+        <div>
+          <p class="eyebrow">Brand asset required</p>
+          <h2>Add the official logo before visual generation</h2>
+          <p class="empty">Moyi needs a transparent PNG logo so generated content can use the real brand mark instead of inventing one.</p>
+        </div>
+        <a class="button button-primary" href="/projects/<%= project._id %>/edit">Upload Logo</a>
+      </section>
+    <% } %>
+
     <form class="form" action="/projects/<%= project._id %>/approve" method="post" data-loading-state="Activating your AI CMO workspace" data-calibration-form>
       <input type="hidden" name="toneAdjectivesJson" value="<%= JSON.stringify(toneAdjectives) %>" data-calibration-tone>
       <input type="hidden" name="valuePropsJson" value="<%= JSON.stringify(valueProps) %>" data-calibration-value-props>

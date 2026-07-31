@@ -1,22 +1,159 @@
 const express = require('express');
 const asyncHandler = require('express-async-handler');
+const { body, validationResult } = require('express-validator');
+const env = require('../config/env');
 const Project = require('../models/Project');
 const Scan = require('../models/Scan');
 const Report = require('../models/Report');
+const ContentDraft = require('../models/ContentDraft');
+const AuditLog = require('../models/AuditLog');
 const { requireAuth } = require('../middleware/auth');
+const { clearAuthCookie } = require('../middleware/auth');
 const { planFor } = require('../config/plans');
 const { getCurrentUsage } = require('../services/usageService');
+const { exportAccountData, deleteAccountData } = require('../services/accountDataService');
+const { recordAuditEvent } = require('../services/auditLogService');
+const { sendCustomerEmail, smtpConfigured, verifyEmailTransport } = require('../services/emailService');
+const { findAccessibleProjects } = require('../services/projectAccessService');
+const { runPublicQuickScan } = require('../services/publicQuickScanService');
+const handleValidation = require('../utils/validate');
+const publicPages = require('../config/publicPages');
 
 const router = express.Router();
 
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 router.get('/', function(req, res) {
   if (req.user) return res.redirect('/dashboard');
-  res.render('index', { title: 'AI CMO platform' });
+  res.render('index', {
+    title: 'AI CMO platform',
+    quickScanResult: null,
+    quickScanError: '',
+    quickScanUrl: ''
+  });
 });
 
+router.post('/quick-scan', [
+  body('websiteUrl')
+    .trim()
+    .notEmpty()
+    .withMessage('Enter a website URL.')
+    .isLength({ max: 300 })
+    .withMessage('Website URL is too long.')
+], asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(422).render('index', {
+      title: 'AI CMO platform',
+      quickScanResult: null,
+      quickScanError: errors.array().map((error) => error.msg).join(', '),
+      quickScanUrl: req.body.websiteUrl || ''
+    });
+  }
+
+  try {
+    const quickScanResult = await runPublicQuickScan(req.body.websiteUrl);
+    res.render('index', {
+      title: `${quickScanResult.snapshot.host} quick scan`,
+      quickScanResult,
+      quickScanError: '',
+      quickScanUrl: quickScanResult.websiteUrl
+    });
+  } catch (error) {
+    res.render('index', {
+      title: 'AI CMO platform',
+      quickScanResult: null,
+      quickScanError: error.message,
+      quickScanUrl: req.body.websiteUrl || ''
+    });
+  }
+}));
+
+Object.entries(publicPages).forEach(([slug, page]) => {
+  router.get(`/${slug}`, (req, res) => {
+    res.render('public/info', { title: page.title, page });
+  });
+});
+
+function contactView(overrides = {}) {
+  return {
+    title: 'Contact Moyi',
+    contactSuccess: '',
+    contactError: '',
+    formData: {},
+    supportEmail: env.supportEmail,
+    ...overrides
+  };
+}
+
+router.get('/contact', (req, res) => {
+  res.render('public/contact', contactView());
+});
+
+router.post('/contact', [
+  body('name').trim().notEmpty().withMessage('Your name is required.').isLength({ max: 120 }).withMessage('Your name is too long.'),
+  body('email').isEmail().withMessage('Enter a valid email address.').normalizeEmail(),
+  body('company').optional({ checkFalsy: true }).trim().isLength({ max: 160 }).withMessage('Company name is too long.'),
+  body('topic').isIn(['sales', 'support', 'partnership', 'privacy', 'feedback']).withMessage('Choose a valid topic.'),
+  body('message').trim().notEmpty().withMessage('Enter a message.').isLength({ max: 3000 }).withMessage('Message must be 3,000 characters or fewer.'),
+  body('website').optional({ checkFalsy: true }).isEmpty().withMessage('Unable to submit this message.')
+], asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  const formData = {
+    name: req.body.name || '',
+    email: req.body.email || '',
+    company: req.body.company || '',
+    topic: req.body.topic || 'support',
+    message: req.body.message || ''
+  };
+  if (!errors.isEmpty()) {
+    return res.status(422).render('public/contact', contactView({
+      contactError: errors.array().map((error) => error.msg).join(' '),
+      formData
+    }));
+  }
+  if (!env.supportEmail) {
+    return res.status(503).render('public/contact', contactView({
+      contactError: 'Contact delivery is not configured yet. Set SUPPORT_EMAIL and try again.',
+      formData
+    }));
+  }
+
+  try {
+    await sendCustomerEmail({
+      to: env.supportEmail,
+      replyTo: formData.email,
+      subject: `[Moyi ${formData.topic}] ${formData.company || formData.name}`,
+      heading: `New ${escapeHtml(formData.topic)} enquiry`,
+      intro: `Submitted by ${escapeHtml(formData.name)} (${escapeHtml(formData.email)})`,
+      bodyHtml: `
+        <p><strong>Company:</strong> ${escapeHtml(formData.company || 'Not provided')}</p>
+        <p><strong>Topic:</strong> ${escapeHtml(formData.topic)}</p>
+        <p><strong>Message:</strong></p>
+        <p>${escapeHtml(formData.message).replace(/\n/g, '<br>')}</p>
+      `
+    });
+    return res.render('public/contact', contactView({
+      contactSuccess: 'Your message has been sent to the Moyi team.'
+    }));
+  } catch (error) {
+    return res.status(503).render('public/contact', contactView({
+      contactError: 'Moyi could not deliver your message right now. Please try again later.',
+      formData
+    }));
+  }
+}));
+
 router.get('/dashboard', requireAuth, asyncHandler(async (req, res) => {
-  const projects = await Project.find({ owner: req.user._id }).sort({ updatedAt: -1 }).limit(6);
-  const allProjects = await Project.find({ owner: req.user._id }).select('name').sort({ updatedAt: -1 });
+  const projects = await findAccessibleProjects(req.user._id, { sort: { updatedAt: -1 }, limit: 6 });
+  const allProjects = await findAccessibleProjects(req.user._id, { select: 'name', sort: { updatedAt: -1 } });
   const projectCount = allProjects.length;
   const projectIds = allProjects.map((project) => project._id);
   const recentScans = await Scan.find({ projectId: { $in: projectIds } }).sort({ createdAt: -1 }).limit(8);
@@ -37,11 +174,105 @@ router.get('/dashboard', requireAuth, asyncHandler(async (req, res) => {
   });
 }));
 
+async function openLatestContentWorkspace(req, res) {
+  const projects = await findAccessibleProjects(req.user._id, {
+    select: '_id updatedAt',
+    sort: { updatedAt: -1 }
+  });
+  if (!projects.length) return res.redirect('/projects/new');
+
+  const projectIds = projects.map((project) => project._id);
+  const draft = await ContentDraft.findOne({ projectId: { $in: projectIds } })
+    .sort({ updatedAt: -1 })
+    .select('_id');
+
+  if (draft) return res.redirect(`/content/${draft._id}`);
+  return res.redirect(`/projects/${projects[0]._id}/content`);
+}
+
+router.get('/workspace', requireAuth, asyncHandler(openLatestContentWorkspace));
+router.get('/show', requireAuth, asyncHandler(openLatestContentWorkspace));
+
 router.get('/account', requireAuth, asyncHandler(async (req, res) => {
+  const auditLogs = await AuditLog.find({ actorUserId: req.user._id }).sort({ createdAt: -1 }).limit(12).lean();
   res.render('account', {
     title: 'Account Settings',
-    plan: planFor(req.user)
+    plan: planFor(req.user),
+    auditLogs,
+    emailConfigured: smtpConfigured(),
+    emailTestTo: env.emailTestTo || req.user.email,
+    accountMessage: req.query.message || '',
+    accountError: req.query.error || ''
   });
+}));
+
+router.post('/account/test-email', requireAuth, asyncHandler(async (req, res) => {
+  const to = env.emailTestTo || req.user.email;
+
+  try {
+    await verifyEmailTransport();
+    await sendCustomerEmail({
+      to,
+      subject: 'Moyi-CMO SMTP test email',
+      heading: 'Moyi-CMO email server is working',
+      intro: 'This confirms SMTP delivery is configured correctly.',
+      bodyHtml: `<p>Account: ${req.user.email}</p><p>Sent at: ${new Date().toISOString()}</p>`
+    });
+    await recordAuditEvent({
+      user: req.user,
+      eventType: 'smtp_test_email_sent',
+      metadata: { to },
+      req
+    });
+    res.redirect(`/account?message=${encodeURIComponent(`Test email sent to ${to}.`)}`);
+  } catch (error) {
+    await recordAuditEvent({
+      user: req.user,
+      eventType: 'smtp_test_email_failed',
+      status: 'failed',
+      severity: 'warning',
+      metadata: { to, errorMessage: error.message },
+      req
+    });
+    res.redirect(`/account?error=${encodeURIComponent(error.message)}`);
+  }
+}));
+
+router.get('/account/export', requireAuth, asyncHandler(async (req, res) => {
+  const payload = await exportAccountData(req.user._id);
+  await recordAuditEvent({ user: req.user, eventType: 'account_data_exported', req });
+  const safeEmail = String(req.user.email || 'account').replace(/[^a-z0-9._-]+/gi, '-');
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="moyi-${safeEmail}-export.json"`);
+  res.send(JSON.stringify(payload, null, 2));
+}));
+
+router.post('/account/delete', requireAuth, [
+  body('confirmEmail').isEmail().withMessage('Confirm your account email.').normalizeEmail(),
+  body('confirmText').trim().equals('DELETE').withMessage('Type DELETE to confirm account deletion.'),
+  handleValidation
+], asyncHandler(async (req, res) => {
+  if (String(req.body.confirmEmail || '').toLowerCase() !== String(req.user.email || '').toLowerCase()) {
+    return res.redirect(`/account?error=${encodeURIComponent('Confirmation email does not match this account.')}`);
+  }
+
+  const userSnapshot = {
+    _id: req.user._id,
+    email: req.user.email,
+    name: req.user.name,
+    plan: req.user.plan,
+    subscriptionStatus: req.user.subscriptionStatus
+  };
+  const result = await deleteAccountData(req.user._id);
+  await recordAuditEvent({
+    user: userSnapshot,
+    eventType: 'account_deleted',
+    severity: 'critical',
+    metadata: { deletedProjects: result.deletedProjects },
+    req
+  });
+  clearAuthCookie(res);
+  res.redirect('/?accountDeleted=1');
 }));
 
 router.get('/terms', (req, res) => {

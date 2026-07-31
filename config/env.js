@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path = require('path');
 
 function booleanFromEnv(value, fallback = false) {
   if (value === undefined || value === null || value === '') return fallback;
@@ -46,6 +47,14 @@ const env = {
   tokenEncryptionSecret: process.env.TOKEN_ENCRYPTION_SECRET || process.env.JWT_SECRET || 'change-me-in-production',
   redisUrl: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
   openaiApiKey: process.env.OPENAI_API_KEY || '',
+  openaiImageModel: process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2',
+  openaiImageQuality: process.env.OPENAI_IMAGE_QUALITY || 'medium',
+  openaiImageSize: process.env.OPENAI_IMAGE_SIZE || '1536x1024',
+  contentAiTimeoutMs: numberFromEnv(process.env.CONTENT_AI_TIMEOUT_MS, 60000),
+  contentPipelineConcurrency: numberFromEnv(process.env.CONTENT_PIPELINE_CONCURRENCY, 3),
+  contentImageStoragePath: path.resolve(
+    process.env.CONTENT_IMAGE_STORAGE_PATH || path.join(__dirname, '../storage/content-images')
+  ),
   googleClientId: process.env.GOOGLE_CLIENT_ID || '',
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
   googleRedirectUri: process.env.GOOGLE_REDIRECT_URI || '',
@@ -54,18 +63,33 @@ const env = {
   stripeStarterPriceId: process.env.STRIPE_STARTER_PRICE_ID || '',
   stripeProPriceId: process.env.STRIPE_PRO_PRICE_ID || '',
   stripeAgencyPriceId: process.env.STRIPE_AGENCY_PRICE_ID || '',
+  stripeStarterAnnualPriceId: process.env.STRIPE_STARTER_ANNUAL_PRICE_ID || '',
+  stripeProAnnualPriceId: process.env.STRIPE_PRO_ANNUAL_PRICE_ID || '',
+  stripeAgencyAnnualPriceId: process.env.STRIPE_AGENCY_ANNUAL_PRICE_ID || '',
   appUrl,
   appUrlObject,
   appName: process.env.APP_NAME || 'Moyi AI CMO',
   crawlTimeoutMs: numberFromEnv(process.env.CRAWL_TIMEOUT_MS, 12000),
   crawlDelayMs: numberFromEnv(process.env.CRAWL_DELAY_MS, 150),
   maxPagesPerScan: numberFromEnv(process.env.MAX_PAGES_PER_SCAN, 50),
+  workerConcurrency: numberFromEnv(process.env.WORKER_CONCURRENCY, 2),
   disableQueue,
   queueEnabled: !disableQueue,
   hasExplicitRedisConfig: Boolean(process.env.REDIS_URL),
   trustProxyHops: numberFromEnv(process.env.TRUST_PROXY_HOPS, nodeEnv === 'production' ? 1 : 0),
   cookieDomain: process.env.COOKIE_DOMAIN || '',
-  releaseSha: process.env.RELEASE_SHA || ''
+  releaseSha: process.env.RELEASE_SHA || '',
+  passwordResetDeliveryUrl: process.env.PASSWORD_RESET_DELIVERY_URL || '',
+  passwordResetDeliverySecret: process.env.PASSWORD_RESET_DELIVERY_SECRET || '',
+  smtpHost: process.env.SMTP_HOST || '',
+  smtpPort: numberFromEnv(process.env.SMTP_PORT, 587),
+  smtpSecure: booleanFromEnv(process.env.SMTP_SECURE, false),
+  smtpUser: process.env.SMTP_USER || '',
+  smtpPass: process.env.SMTP_PASS || '',
+  smtpFrom: process.env.SMTP_FROM || '',
+  emailTestTo: process.env.EMAIL_TEST_TO || '',
+  supportEmail: process.env.SUPPORT_EMAIL || process.env.EMAIL_TEST_TO || '',
+  maxAiOperationsPerMonth: numberFromEnv(process.env.MAX_AI_OPERATIONS_PER_MONTH, 500)
 };
 
 function runtimeConfigProblems(target = env) {
@@ -110,6 +134,14 @@ function runtimeConfigProblems(target = env) {
     if (target.trustProxyHops < 1) {
       problems.push('TRUST_PROXY_HOPS must be at least 1 in production.');
     }
+
+    if (!(target.smtpHost && target.smtpUser && target.smtpPass && target.smtpFrom)) {
+      problems.push('SMTP_HOST, SMTP_USER, SMTP_PASS, and SMTP_FROM must be configured in production so Moyi can send account and customer emails.');
+    }
+
+    if (!process.env.CONTENT_IMAGE_STORAGE_PATH) {
+      problems.push('CONTENT_IMAGE_STORAGE_PATH must point to a persistent writable volume in production.');
+    }
   }
 
   if (target.crawlTimeoutMs < 1000) {
@@ -124,6 +156,34 @@ function runtimeConfigProblems(target = env) {
     problems.push('MAX_PAGES_PER_SCAN must be at least 1.');
   }
 
+  if (target.workerConcurrency < 1) {
+    problems.push('WORKER_CONCURRENCY must be at least 1.');
+  }
+
+  if (target.smtpPort < 1 || target.smtpPort > 65535) {
+    problems.push('SMTP_PORT must be a valid TCP port.');
+  }
+
+  if (target.maxAiOperationsPerMonth < 1) {
+    problems.push('MAX_AI_OPERATIONS_PER_MONTH must be at least 1.');
+  }
+
+  if (target.contentAiTimeoutMs < 10000) {
+    problems.push('CONTENT_AI_TIMEOUT_MS must be at least 10000.');
+  }
+
+  if (target.contentPipelineConcurrency < 1 || target.contentPipelineConcurrency > 5) {
+    problems.push('CONTENT_PIPELINE_CONCURRENCY must be between 1 and 5.');
+  }
+
+  if (!['low', 'medium', 'high', 'auto'].includes(target.openaiImageQuality)) {
+    problems.push('OPENAI_IMAGE_QUALITY must be low, medium, high, or auto.');
+  }
+
+  if (!/^\d+x\d+$/.test(target.openaiImageSize) && target.openaiImageSize !== 'auto') {
+    problems.push('OPENAI_IMAGE_SIZE must use WIDTHxHEIGHT format or auto.');
+  }
+
   return problems;
 }
 
@@ -136,14 +196,20 @@ function runtimeConfigWarnings(target = env) {
     target.stripeWebhookSecret &&
     target.stripeStarterPriceId &&
     target.stripeProPriceId &&
-    target.stripeAgencyPriceId
+    target.stripeAgencyPriceId &&
+    target.stripeStarterAnnualPriceId &&
+    target.stripeProAnnualPriceId &&
+    target.stripeAgencyAnnualPriceId
   );
   const hasSomeStripeConfig = Boolean(
     target.stripeSecretKey ||
     target.stripeWebhookSecret ||
     target.stripeStarterPriceId ||
     target.stripeProPriceId ||
-    target.stripeAgencyPriceId
+    target.stripeAgencyPriceId ||
+    target.stripeStarterAnnualPriceId ||
+    target.stripeProAnnualPriceId ||
+    target.stripeAgencyAnnualPriceId
   );
 
   if (!target.openaiApiKey) {
@@ -155,7 +221,11 @@ function runtimeConfigWarnings(target = env) {
   }
 
   if (hasSomeStripeConfig && !hasStripeConfig) {
-    warnings.push('Stripe is only partially configured. Billing routes require STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, and all plan price IDs.');
+    warnings.push('Stripe is only partially configured. Billing routes require the Stripe secret, webhook secret, and monthly and annual Price IDs for every paid plan.');
+  }
+
+  if (!target.smtpHost || !target.smtpUser || !target.smtpPass || !target.smtpFrom) {
+    warnings.push('SMTP email is not fully configured. Password reset, test email, and customer communication email delivery will not work until SMTP env vars are set.');
   }
 
   return warnings;

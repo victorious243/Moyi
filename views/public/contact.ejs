@@ -1,0 +1,39 @@
+<%- include('../partials/header') %>
+
+<section class="contact-page">
+  <div class="contact-intro">
+    <p class="eyebrow">Contact Moyi</p>
+    <h1>Talk to the right person</h1>
+    <p>Use this form for product support, sales questions, partnerships, privacy requests, or product feedback. Your message goes to the configured Moyi support inbox.</p>
+    <dl>
+      <div><dt>Product support</dt><dd>Include the project and action you were taking. Never send passwords or API secrets.</dd></div>
+      <div><dt>Sales</dt><dd>Describe the number of projects, team members, and workflow you need to manage.</dd></div>
+      <div><dt>Privacy</dt><dd>Use the email address associated with your account so the request can be verified.</dd></div>
+    </dl>
+    <% if (supportEmail) { %><a href="mailto:<%= supportEmail %>"><%= supportEmail %></a><% } %>
+  </div>
+
+  <div class="contact-form-wrap">
+    <% if (contactSuccess) { %><div class="image-success-message"><%= contactSuccess %></div><% } %>
+    <% if (contactError) { %><div class="contact-error"><%= contactError %></div><% } %>
+    <form class="form" action="/contact" method="post">
+      <div class="contact-form-grid">
+        <label>Name <input name="name" maxlength="120" value="<%= formData.name || '' %>" required></label>
+        <label>Email <input type="email" name="email" maxlength="240" value="<%= formData.email || '' %>" required></label>
+        <label>Company <input name="company" maxlength="160" value="<%= formData.company || '' %>"></label>
+        <label>Topic
+          <select name="topic" required>
+            <% [['support', 'Product support'], ['sales', 'Sales'], ['partnership', 'Partnership'], ['privacy', 'Privacy request'], ['feedback', 'Product feedback']].forEach(([value, label]) => { %>
+              <option value="<%= value %>" <%= (formData.topic || 'support') === value ? 'selected' : '' %>><%= label %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label class="contact-honeypot" aria-hidden="true">Website <input name="website" tabindex="-1" autocomplete="off"></label>
+        <label class="full">Message <textarea name="message" rows="9" maxlength="3000" required><%= formData.message || '' %></textarea></label>
+      </div>
+      <div class="contact-submit"><span>Do not include passwords, tokens, or confidential credentials.</span><button class="button button-primary" type="submit">Send Message</button></div>
+    </form>
+  </div>
+</section>
+
+<%- include('../partials/footer') %>

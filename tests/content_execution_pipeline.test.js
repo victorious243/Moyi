@@ -2,11 +2,15 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
 const ContentDraft = require('../models/ContentDraft');
+const PublishAction = require('../models/PublishAction');
+const SocialDraft = require('../models/SocialDraft');
 const {
   buildExecutionContext,
+  mapWithConcurrency,
   pipelineAssetOptions,
   selectDraftTypes
 } = require('../services/contentDraftService');
+const { campaignSchedule } = require('../services/socialDraftService');
 
 function sampleRecommendation(overrides = {}) {
   return {
@@ -98,4 +102,59 @@ test('content draft model defaults new execution assets to awaiting review', () 
 
   assert.equal(draft.status, 'awaiting_review');
   assert.equal(draft.validateSync(), undefined);
+});
+
+test('content asset generation respects its concurrency ceiling and preserves order', async () => {
+  let active = 0;
+  let peak = 0;
+  const output = await mapWithConcurrency([1, 2, 3, 4, 5], 2, async (value) => {
+    active += 1;
+    peak = Math.max(peak, active);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    active -= 1;
+    return value * 2;
+  });
+
+  assert.deepEqual(output, [2, 4, 6, 8, 10]);
+  assert.equal(peak, 2);
+});
+
+test('social drafts retain the selected image and manual publication is a valid history action', () => {
+  const sourceContentDraftId = new mongoose.Types.ObjectId();
+  const contentImageId = new mongoose.Types.ObjectId();
+  const socialDraft = new SocialDraft({
+    projectId: new mongoose.Types.ObjectId(),
+    campaignId: new mongoose.Types.ObjectId(),
+    sourceContentDraftId,
+    contentImageId,
+    channel: 'linkedin',
+    scheduledFor: new Date()
+  });
+  const publishAction = new PublishAction({
+    projectId: socialDraft.projectId,
+    userId: new mongoose.Types.ObjectId(),
+    contentDraftId: sourceContentDraftId,
+    integrationType: 'manual',
+    actionType: 'manual_record',
+    status: 'success'
+  });
+
+  assert.equal(socialDraft.validateSync(), undefined);
+  assert.equal(String(socialDraft.contentImageId), String(contentImageId));
+  assert.equal(publishAction.validateSync(), undefined);
+});
+
+test('campaign scheduler creates honest single, weekly, and monthly publishing cadences', () => {
+  const startDate = new Date('2026-08-03T09:00:00');
+  const single = campaignSchedule({ cadence: 'single', channel: 'linkedin', startDate });
+  const weekly = campaignSchedule({ cadence: 'weekly', channel: 'multi', startDate });
+  const monthly = campaignSchedule({ cadence: 'monthly', channel: 'instagram', startDate });
+
+  assert.equal(single.length, 1);
+  assert.equal(single[0].channel, 'linkedin');
+  assert.equal(weekly.length, 5);
+  assert.deepEqual(weekly.map((item) => item.channel), ['linkedin', 'facebook', 'x', 'instagram', 'email']);
+  assert.equal(monthly.length, 12);
+  assert.ok(monthly.every((item) => item.channel === 'instagram'));
+  assert.equal(monthly.at(-1).scheduledFor.getDate(), 1);
 });

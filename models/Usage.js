@@ -30,9 +30,25 @@ const usageSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    imageGenerationsUsed: {
+      type: Number,
+      default: 0
+    },
     searchConsoleSyncsUsed: {
       type: Number,
       default: 0
+    },
+    aiOperationsUsed: {
+      type: Number,
+      default: 0
+    },
+    aiOperationFailures: {
+      type: Number,
+      default: 0
+    },
+    lastAiFailureAt: {
+      type: Date,
+      default: null
     }
   },
   { timestamps: true }

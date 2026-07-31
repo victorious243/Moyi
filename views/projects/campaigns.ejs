@@ -2,82 +2,62 @@
 
 <div class="app-layout">
   <aside class="app-sidebar">
-    <strong>Workspace</strong>
-    <a href="/dashboard">Dashboard</a>
-    <a href="/projects">Projects</a>
-    <a href="/projects/<%= project._id %>">Project Overview</a>
-    <a href="/projects/<%= project._id %>/calendar">Calendar</a>
-    <a href="/projects/<%= project._id %>/campaigns">Campaigns</a>
+    <strong><%= project.name %></strong>
+    <a href="/projects/<%= project._id %>">CMO Overview</a>
+    <a href="/projects/<%= project._id %>/content">Content Studio</a>
+    <a href="/projects/<%= project._id %>/calendar">Content Calendar</a>
+    <a class="active" href="/projects/<%= project._id %>/campaigns">Campaigns</a>
   </aside>
 
   <section class="app-main">
-    <div class="page-heading">
-      <div>
-        <p class="eyebrow"><%= project.name %></p>
-        <h1>Campaigns</h1>
-      </div>
-      <a class="button" href="/projects/<%= project._id %>/calendar">Calendar</a>
+    <nav class="project-command-nav" aria-label="Content operations">
+      <a href="/projects/<%= project._id %>/content"><strong>Content Studio</strong><span>Create and review</span></a>
+      <a href="/projects/<%= project._id %>/calendar"><strong>Calendar</strong><span>See what goes out</span></a>
+      <a class="is-active" href="/projects/<%= project._id %>/campaigns"><strong>Campaigns</strong><span>Track each objective</span></a>
+    </nav>
+
+    <div class="page-heading content-studio-heading">
+      <div><p class="eyebrow"><%= project.name %></p><h1>Campaigns</h1><p>Keep every content plan tied to a clear objective, schedule, and review state.</p></div>
+      <a class="button button-primary" href="/projects/<%= project._id %>/content#planner">New Campaign Plan</a>
     </div>
 
-    <% if (successMessage) { %>
-      <section class="panel">
-        <h2>Campaign updated</h2>
-        <p class="empty"><%= successMessage %></p>
+    <% if (successMessage) { %><div class="image-success-message"><%= successMessage %></div><% } %>
+
+    <% if (!campaigns.length) { %>
+      <section class="calendar-empty-state">
+        <p class="eyebrow">No campaigns yet</p>
+        <h2>Start with the business objective</h2>
+        <p>Choose a single post, weekly plan, or monthly plan. Moyi will create the campaign and schedule its drafts together.</p>
+        <a class="button button-primary" href="/projects/<%= project._id %>/content#planner">Create Campaign Plan</a>
       </section>
     <% } %>
 
-    <section class="panel">
-      <h2>Create Campaign</h2>
-      <form class="form grid-form" action="/projects/<%= project._id %>/campaigns" method="post">
-        <label>Name <input name="name" placeholder="Weekly SEO content plan" required></label>
-        <label>Channel
-          <select name="channel" required>
-            <option value="multi">Multi-channel</option>
-            <option value="linkedin">LinkedIn</option>
-            <option value="facebook">Facebook</option>
-            <option value="x">X</option>
-            <option value="instagram">Instagram</option>
-            <option value="email">Email</option>
-          </select>
-        </label>
-        <label>Start date <input type="date" name="startDate" required></label>
-        <label>End date <input type="date" name="endDate" required></label>
-        <label>Status
-          <select name="status">
-            <option value="planned">Planned</option>
-            <option value="active">Active</option>
-            <option value="paused">Paused</option>
-            <option value="completed">Completed</option>
-          </select>
-        </label>
-        <label>Daily spend limit <input type="number" min="0" step="0.01" name="dailySpendLimit" placeholder="0.00"></label>
-        <label>Monthly spend limit <input type="number" min="0" step="0.01" name="monthlySpendLimit" placeholder="0.00"></label>
-        <label class="full">Goal <textarea name="goal" rows="3" placeholder="Support next week’s SEO content push with useful, non-spammy posts."></textarea></label>
-        <button class="button button-primary" type="submit">Create Campaign</button>
-      </form>
-    </section>
-
-    <section class="panel">
-      <h2>Campaign View</h2>
-      <% if (!campaigns.length) { %>
-        <p class="empty">No campaigns yet.</p>
-      <% } %>
-      <div class="scan-list">
-        <% campaigns.forEach((campaign) => { %>
-          <% const draftCount = socialDrafts.filter((draft) => draft.campaignId.toString() === campaign._id.toString()).length; %>
-          <div class="scan-row">
-            <strong><%= campaign.name %></strong>
-            <span><%= campaign.channel %></span>
-            <span><%= campaign.status %></span>
-            <span><%= campaign.startDate.toLocaleDateString() %> - <%= campaign.endDate.toLocaleDateString() %> / <%= draftCount %> drafts</span>
+    <div class="campaign-register">
+      <% campaigns.forEach((campaign) => { %>
+        <%
+          const campaignDrafts = socialDrafts.filter((draft) => draft.campaignId && draft.campaignId.toString() === campaign._id.toString());
+          const approvedCount = campaignDrafts.filter((draft) => ['approved', 'published_manually'].includes(draft.status)).length;
+          const progress = campaignDrafts.length ? Math.round(approvedCount / campaignDrafts.length * 100) : 0;
+        %>
+        <article class="campaign-register-row">
+          <div class="campaign-register-main">
+            <span class="status"><%= campaign.cadence || 'custom' %> · <%= campaign.channel %></span>
+            <h2><%= campaign.name %></h2>
+            <p><%= campaign.goal || 'No campaign objective recorded.' %></p>
           </div>
-        <% }) %>
-      </div>
-    </section>
+          <div class="campaign-register-progress">
+            <span><%= approvedCount %> of <%= campaignDrafts.length %> reviewed</span>
+            <div><i style="width:<%= progress %>%"></i></div>
+            <small><%= campaign.startDate.toLocaleDateString() %> – <%= campaign.endDate.toLocaleDateString() %></small>
+          </div>
+          <a class="button" href="/projects/<%= project._id %>/calendar">Open Calendar</a>
+        </article>
+      <% }) %>
+    </div>
 
-    <section class="panel notice-panel">
-      <h2>Ethical Campaign Rules</h2>
-      <p class="empty">Use campaigns for planning, review, copy, and manual export. No fake engagement, fake reviews, spam DMs, or misleading claims.</p>
+    <section class="campaign-safety-note">
+      <strong>Human-controlled publishing</strong>
+      <span>Moyi prepares and organizes drafts. Review remains required, and nothing is posted automatically.</span>
     </section>
   </section>
 </div>

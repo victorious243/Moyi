@@ -1,5 +1,6 @@
 const Project = require('../models/Project');
 const Usage = require('../models/Usage');
+const env = require('../config/env');
 const { planFor } = require('../config/plans');
 
 function currentPeriod() {
@@ -48,6 +49,26 @@ async function ensureMonthlyLimit(user, field, limit, message, upgradePlan = 'st
   return usage;
 }
 
+async function ensureAiOperationAllowed(user) {
+  const usage = await getCurrentUsage(user._id);
+  const used = Number(usage.aiOperationsUsed || 0) + Number(usage.aiOperationFailures || 0);
+  if (used >= env.maxAiOperationsPerMonth) {
+    throw limitError(`Monthly AI operation safety limit reached. Contact support if this account needs a higher limit.`, 'pro');
+  }
+  return usage;
+}
+
+async function recordAiOperation(userId, amount = 1) {
+  return incrementUsage(userId, 'aiOperationsUsed', amount);
+}
+
+async function recordAiOperationFailure(userId) {
+  const usage = await incrementUsage(userId, 'aiOperationFailures', 1);
+  usage.lastAiFailureAt = new Date();
+  await usage.save();
+  return usage;
+}
+
 async function ensureScanAllowed(user) {
   const plan = planFor(user);
   await ensureMonthlyLimit(user, 'scansUsed', plan.scansPerMonth, `${plan.name} plan allows ${plan.scansPerMonth} scan${plan.scansPerMonth === 1 ? '' : 's'} per month.`, 'starter');
@@ -56,13 +77,28 @@ async function ensureScanAllowed(user) {
 
 async function ensureAiReportAllowed(user) {
   const plan = planFor(user);
+  await ensureAiOperationAllowed(user);
   await ensureMonthlyLimit(user, 'aiReportsUsed', plan.aiReportsPerMonth, `${plan.name} plan AI report limit reached for this month.`, 'starter');
   return plan;
 }
 
 async function ensureContentDraftAllowed(user) {
   const plan = planFor(user);
+  await ensureAiOperationAllowed(user);
   await ensureMonthlyLimit(user, 'contentDraftsUsed', plan.contentDraftsPerMonth, `${plan.name} plan content draft limit reached for this month.`, 'starter');
+  return plan;
+}
+
+async function ensureImageGenerationAllowed(user) {
+  const plan = planFor(user);
+  await ensureAiOperationAllowed(user);
+  await ensureMonthlyLimit(
+    user,
+    'imageGenerationsUsed',
+    plan.imageGenerationsPerMonth,
+    `${plan.name} plan image generation limit reached for this month.`,
+    'starter'
+  );
   return plan;
 }
 
@@ -111,11 +147,15 @@ module.exports = {
   budgetBoundaryStatus,
   ensureAiReportAllowed,
   ensureContentDraftAllowed,
+  ensureImageGenerationAllowed,
   ensureFeature,
+  ensureAiOperationAllowed,
   ensureProjectLimit,
   ensureScanAllowed,
   getCurrentUsage,
   incrementUsage,
   limitError,
+  recordAiOperation,
+  recordAiOperationFailure,
   upgradeRedirect
 };

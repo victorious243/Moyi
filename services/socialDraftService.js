@@ -3,9 +3,11 @@ const env = require('../config/env');
 const Campaign = require('../models/Campaign');
 const SocialDraft = require('../models/SocialDraft');
 const buildSocialDraftsPrompt = require('../src/prompts/social-drafts.prompt');
+const buildCampaignPlannerPrompt = require('../src/prompts/campaign-planner.prompt');
 
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 const CHANNELS = ['linkedin', 'facebook', 'x', 'instagram', 'email'];
+const CADENCE_COUNTS = { single: 1, weekly: 5, monthly: 12 };
 
 function parseJson(content) {
   const trimmed = String(content || '').trim();
@@ -32,6 +34,112 @@ function scheduleDate(index) {
   date.setDate(date.getDate() + index + 1);
   date.setHours(9 + (index % 3) * 3, 0, 0, 0);
   return date;
+}
+
+function campaignSchedule({ cadence, channel, startDate }) {
+  const count = CADENCE_COUNTS[cadence] || CADENCE_COUNTS.single;
+  const channelSequence = channel === 'multi' ? CHANNELS : [channel];
+  const start = new Date(startDate);
+  start.setHours(9, 0, 0, 0);
+
+  return Array.from({ length: count }, (_, index) => {
+    const scheduledFor = new Date(start);
+    const dayOffset = cadence === 'monthly'
+      ? Math.round(index * 29 / Math.max(count - 1, 1))
+      : index;
+    scheduledFor.setDate(start.getDate() + dayOffset);
+    scheduledFor.setHours(9 + (index % 3) * 3, 0, 0, 0);
+    return {
+      channel: channelSequence[index % channelSequence.length],
+      scheduledFor
+    };
+  });
+}
+
+function campaignFallbackDrafts({ project, campaign, schedule }) {
+  const audience = project.targetAudience || 'the people this business serves';
+  const offer = project.mainOffer || project.name;
+  const goal = campaign.goal;
+  const tone = project.brandTone || 'clear and helpful';
+
+  return schedule.map((slot, index) => ({
+    channel: slot.channel,
+    scheduledFor: slot.scheduledFor,
+    title: `${campaign.name}: post ${index + 1}`,
+    body: `${campaign.name}\n\n${goal}\n\n${project.name} helps ${audience} through ${offer}. This post is part of a ${tone} campaign built around that real offer.\n\nLearn more: ${project.websiteUrl}`
+  }));
+}
+
+async function requestCampaignPlan(context) {
+  if (!env.openaiApiKey) return null;
+  const client = new OpenAI({ apiKey: env.openaiApiKey, timeout: env.contentAiTimeoutMs });
+  const response = await client.chat.completions.create({
+    model: MODEL,
+    temperature: 0.35,
+    response_format: { type: 'json_object' },
+    messages: [
+      {
+        role: 'system',
+        content: 'You are an evidence-bound campaign planner. Use only supplied business facts and never invent claims.'
+      },
+      { role: 'user', content: buildCampaignPlannerPrompt(context) }
+    ]
+  });
+  return parseJson(response.choices[0].message.content);
+}
+
+function sanitizeCampaignDrafts(parsed, fallback, schedule) {
+  const received = parsed && Array.isArray(parsed.drafts) ? parsed.drafts : [];
+  return schedule.map((slot, index) => {
+    const item = received[index] || fallback[index];
+    return {
+      channel: slot.channel,
+      scheduledFor: slot.scheduledFor,
+      title: String(item.title || fallback[index].title).slice(0, 180),
+      body: String(item.body || fallback[index].body).slice(0, 4000)
+    };
+  });
+}
+
+async function createCampaignContentPlan({ project, campaign, cadence }) {
+  const schedule = campaignSchedule({
+    cadence,
+    channel: campaign.channel,
+    startDate: campaign.startDate
+  });
+  const fallback = campaignFallbackDrafts({ project, campaign, schedule });
+  const context = {
+    project: projectContext(project),
+    campaign: {
+      name: campaign.name,
+      goal: campaign.goal,
+      channel: campaign.channel,
+      cadence
+    },
+    schedule: schedule.map((slot) => ({
+      channel: slot.channel,
+      scheduledFor: slot.scheduledFor.toISOString()
+    }))
+  };
+
+  let parsed = null;
+  try {
+    parsed = await requestCampaignPlan(context);
+  } catch (error) {
+    parsed = null;
+  }
+
+  const drafts = sanitizeCampaignDrafts(parsed, fallback, schedule);
+  return SocialDraft.insertMany(drafts.map((item) => ({
+    projectId: project._id,
+    campaignId: campaign._id,
+    sourceContentDraftId: null,
+    contentImageId: null,
+    channel: item.channel,
+    title: item.title,
+    body: item.body,
+    scheduledFor: item.scheduledFor
+  })));
 }
 
 function fallbackDrafts({ project, draft }) {
@@ -113,7 +221,7 @@ async function createCampaignFromContent({ project, draft }) {
 }
 
 async function createSocialDraftsFromContent({ project, draft, campaignId = '' }) {
-  if (draft.status !== 'approved') {
+  if (!['approved', 'published_manually'].includes(draft.status)) {
     const error = new Error('Approve this content draft before creating social drafts.');
     error.statusCode = 422;
     throw error;
@@ -159,6 +267,7 @@ async function createSocialDraftsFromContent({ project, draft, campaignId = '' }
     projectId: project._id,
     campaignId: campaign._id,
     sourceContentDraftId: draft._id,
+    contentImageId: draft.selectedImageId || null,
     channel: item.channel,
     title: item.title,
     body: item.body,
@@ -167,5 +276,7 @@ async function createSocialDraftsFromContent({ project, draft, campaignId = '' }
 }
 
 module.exports = {
+  campaignSchedule,
+  createCampaignContentPlan,
   createSocialDraftsFromContent
 };

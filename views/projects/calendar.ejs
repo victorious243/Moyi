@@ -1,72 +1,178 @@
 <%- include('../partials/header') %>
 
+<%
+  const imagesByDraftId = typeof socialDraftImagesByDraftId !== 'undefined' ? socialDraftImagesByDraftId : {};
+  const groupedDrafts = new Map();
+  socialDrafts.forEach((draft) => {
+    const day = draft.scheduledFor.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+    if (!groupedDrafts.has(day)) groupedDrafts.set(day, []);
+    groupedDrafts.get(day).push(draft);
+  });
+%>
+
 <div class="app-layout">
   <aside class="app-sidebar">
-    <strong>Workspace</strong>
-    <a href="/dashboard">Dashboard</a>
-    <a href="/projects">Projects</a>
-    <a href="/projects/<%= project._id %>">Project Overview</a>
-    <a href="/projects/<%= project._id %>/calendar">Calendar</a>
+    <strong><%= project.name %></strong>
+    <a href="/projects/<%= project._id %>">CMO Overview</a>
+    <a href="/projects/<%= project._id %>/content">Content Studio</a>
+    <a class="active" href="/projects/<%= project._id %>/calendar">Content Calendar</a>
     <a href="/projects/<%= project._id %>/campaigns">Campaigns</a>
   </aside>
 
   <section class="app-main">
-    <div class="page-heading">
-      <div>
-        <p class="eyebrow"><%= project.name %></p>
-        <h1>Content Calendar</h1>
-      </div>
-      <a class="button button-primary" href="/projects/<%= project._id %>/campaigns">Plan Campaign</a>
+    <nav class="project-command-nav" aria-label="Content operations">
+      <a href="/projects/<%= project._id %>/content"><strong>Content Studio</strong><span>Create and review</span></a>
+      <a class="is-active" href="/projects/<%= project._id %>/calendar"><strong>Calendar</strong><span>See what goes out</span></a>
+      <a href="/projects/<%= project._id %>/campaigns"><strong>Campaigns</strong><span>Track each objective</span></a>
+    </nav>
+
+    <div class="page-heading content-studio-heading">
+      <div><p class="eyebrow"><%= project.name %></p><h1>Content Calendar</h1><p>Review every planned post in publishing order. Nothing is posted without approval.</p></div>
+      <a class="button button-primary" href="/projects/<%= project._id %>/content#planner">Create Content</a>
     </div>
 
-    <% if (typeof successMessage !== 'undefined' && successMessage) { %>
-      <section class="panel">
-        <h2>Calendar updated</h2>
-        <p class="empty"><%= successMessage %></p>
+    <% if (successMessage) { %><div class="image-success-message"><%= successMessage %></div><% } %>
+    <% if (typeof errorMessage !== 'undefined' && errorMessage) { %><div class="form-error"><%= errorMessage %></div><% } %>
+
+    <section class="studio-summary" aria-label="Calendar summary">
+      <div><span>Campaigns</span><strong><%= campaigns.length %></strong></div>
+      <div><span>Waiting for review</span><strong><%= socialDrafts.filter((draft) => draft.status === 'draft').length %></strong></div>
+      <div><span>Approved</span><strong><%= socialDrafts.filter((draft) => draft.status === 'approved').length %></strong></div>
+      <div><span>Published</span><strong><%= socialDrafts.filter((draft) => draft.status === 'published_manually').length %></strong></div>
+    </section>
+
+    <% if (!socialDrafts.length) { %>
+      <section class="calendar-empty-state">
+        <p class="eyebrow">Calendar empty</p>
+        <h2>Plan your first content campaign</h2>
+        <p>Create one post, a full week, or a month of drafts. Moyi will schedule them here for review.</p>
+        <a class="button button-primary" href="/projects/<%= project._id %>/content#planner">Create Content Plan</a>
       </section>
     <% } %>
 
-    <section class="metrics">
-      <article><span>Campaigns</span><strong><%= campaigns.length %></strong></article>
-      <article><span>Draft posts</span><strong><%= socialDrafts.filter((draft) => draft.status === 'draft').length %></strong></article>
-      <article><span>Approved</span><strong><%= socialDrafts.filter((draft) => draft.status === 'approved').length %></strong></article>
-      <article><span>Manual published</span><strong><%= socialDrafts.filter((draft) => draft.status === 'published_manually').length %></strong></article>
-    </section>
-
-    <section class="panel">
-      <h2>Scheduled Drafts</h2>
-      <% if (!socialDrafts.length) { %>
-        <p class="empty">No social drafts scheduled yet. Create a campaign, then generate social drafts from an approved content draft.</p>
-      <% } %>
-      <div class="content-card-grid">
-        <% socialDrafts.forEach((draft) => { %>
-          <article class="content-card">
-            <span class="status"><%= draft.channel %> / <%= draft.status.replace(/_/g, ' ') %></span>
-            <strong><%= draft.title || 'Untitled social draft' %></strong>
-            <small><%= draft.scheduledFor.toLocaleString() %></small>
-            <p id="social-draft-<%= draft._id %>"><%= draft.body %></p>
-            <div class="status-actions">
-              <button class="button copy-button" type="button" data-copy-target="social-draft-<%= draft._id %>">Copy</button>
-              <% if (draft.status === 'draft') { %>
-                <form action="/social-drafts/<%= draft._id %>/approve" method="post">
-                  <button class="button button-primary" type="submit">Approve</button>
-                </form>
-              <% } %>
-              <% if (draft.status !== 'published_manually') { %>
-                <form action="/social-drafts/<%= draft._id %>/mark-published" method="post">
-                  <button class="button" type="submit">Mark Manually Published</button>
-                </form>
-              <% } %>
-            </div>
-          </article>
-        <% }) %>
-      </div>
-    </section>
-
-    <section class="panel notice-panel">
-      <h2>Manual Publishing Only</h2>
-      <p class="empty">This calendar stores drafts and plans only. It does not auto-post, send DMs, fake engagement, or publish to social channels.</p>
-    </section>
+    <div class="calendar-agenda">
+      <% groupedDrafts.forEach((dayDrafts, day) => { %>
+        <section class="agenda-day">
+          <header><span><%= day %></span><strong><%= dayDrafts.length %> post<%= dayDrafts.length === 1 ? '' : 's' %></strong></header>
+          <div class="agenda-posts">
+            <% dayDrafts.forEach((draft) => { %>
+              <%
+                const socialImages = imagesByDraftId[String(draft._id)] || [];
+                const selectedSocialImage = socialImages.find((image) => image.status === 'selected' || String(image._id) === String(draft.contentImageId));
+                const inheritedImageUrl = draft.contentImageId && draft.sourceContentDraftId && !selectedSocialImage
+                  ? `/content/${draft.sourceContentDraftId}/images/${draft.contentImageId}/file`
+                  : '';
+                const selectedImageUrl = selectedSocialImage
+                  ? `/social-drafts/${draft._id}/images/${selectedSocialImage._id}/file`
+                  : inheritedImageUrl;
+                const selectedDownloadUrl = selectedSocialImage
+                  ? `/social-drafts/${draft._id}/images/${selectedSocialImage._id}/file?download=1`
+                  : (inheritedImageUrl ? `${inheritedImageUrl}?download=1` : '');
+              %>
+              <article class="agenda-post" id="post-<%= draft._id %>">
+                <div class="agenda-post-time"><strong><%= draft.scheduledFor.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) %></strong><span><%= draft.channel %></span></div>
+                <div class="agenda-post-content">
+                  <div class="agenda-post-heading">
+                    <div><span><%= draft.campaignId ? draft.campaignId.name : 'Campaign content' %></span><h2><%= draft.title || 'Untitled post' %></h2></div>
+                    <span class="status"><%= draft.status.replace(/_/g, ' ') %></span>
+                  </div>
+                  <% if (selectedImageUrl) { %>
+                    <figure class="social-post-preview">
+                      <img class="social-draft-image" src="<%= selectedImageUrl %>" alt="<%= selectedSocialImage ? selectedSocialImage.altText || '' : '' %>">
+                      <% if (selectedSocialImage && selectedSocialImage.caption) { %><figcaption><%= selectedSocialImage.caption %></figcaption><% } %>
+                    </figure>
+                  <% } %>
+                  <p class="agenda-post-copy" id="social-draft-<%= draft._id %>"><%= draft.body %></p>
+                  <div class="status-actions">
+                    <button class="button copy-button" type="button" data-copy-target="social-draft-<%= draft._id %>">Copy</button>
+                    <% if (selectedDownloadUrl) { %><a class="button" href="<%= selectedDownloadUrl %>">Download Image</a><% } %>
+                    <% if (draft.status === 'draft') { %><form action="/social-drafts/<%= draft._id %>/approve" method="post"><button class="button button-primary" type="submit">Approve</button></form><% } %>
+                    <% if (draft.status !== 'published_manually') { %><form action="/social-drafts/<%= draft._id %>/mark-published" method="post"><button class="button" type="submit">Mark Published</button></form><% } %>
+                    <details class="agenda-edit"><summary class="button">Edit</summary>
+                      <form class="form" action="/social-drafts/<%= draft._id %>/update" method="post">
+                        <label>Internal title <input name="title" value="<%= draft.title || '' %>" maxlength="180"></label>
+                        <label>Channel <select name="channel"><% ['linkedin', 'instagram', 'facebook', 'x', 'email'].forEach((channel) => { %><option value="<%= channel %>" <%= draft.channel === channel ? 'selected' : '' %>><%= channel %></option><% }) %></select></label>
+                        <label>Schedule <input type="datetime-local" name="scheduledFor" value="<%= new Date(draft.scheduledFor.getTime() - draft.scheduledFor.getTimezoneOffset() * 60000).toISOString().slice(0, 16) %>" required></label>
+                        <label>Post copy <textarea name="body" rows="8" maxlength="4000" required><%= draft.body %></textarea></label>
+                        <button class="button button-primary" type="submit">Save Post</button>
+                      </form>
+                    </details>
+                    <form action="/social-drafts/<%= draft._id %>/delete" method="post"><button class="button" type="submit">Remove</button></form>
+                  </div>
+                  <section class="social-image-workbench" aria-label="Visual workspace for <%= draft.title || 'post' %>">
+                    <div class="social-image-workbench-header">
+                      <div>
+                        <span>Post visual</span>
+                        <strong><%= selectedImageUrl ? 'Image ready for this post' : 'Create or upload an image' %></strong>
+                      </div>
+                      <span><%= socialImages.filter((image) => image.status !== 'rejected').length %> candidate<%= socialImages.filter((image) => image.status !== 'rejected').length === 1 ? '' : 's' %></span>
+                    </div>
+                    <div class="social-image-actions">
+                      <form
+                        class="social-image-form"
+                        action="/social-drafts/<%= draft._id %>/images/generate"
+                        method="post"
+                        data-loading-state="Creating your post image"
+                        data-loading-domain="<%= draft.title || 'this social post' %>"
+                        data-loading-copy="Moyi is turning the post copy, brand context, and your image direction into a visual candidate. Keep this page open until the image is ready."
+                        data-loading-stages="Brief,Compose,Render,Save"
+                      >
+                        <label>Image direction
+                          <textarea name="guidance" rows="3" maxlength="1500" placeholder="Describe the poster, scene, product placement, audience, offer, or logo use."></textarea>
+                        </label>
+                        <% if (socialImages.some((image) => image.status !== 'rejected')) { %>
+                          <label>Reference image
+                            <select name="referenceImageId">
+                              <option value="">No reference</option>
+                              <% socialImages.filter((image) => image.status !== 'rejected').forEach((image) => { %>
+                                <option value="<%= image._id %>"><%= image.source %> image <%= image.status === 'selected' ? '(selected)' : '' %></option>
+                              <% }) %>
+                            </select>
+                          </label>
+                        <% } %>
+                        <button class="button button-primary" type="submit">Generate Image</button>
+                      </form>
+                      <form class="social-image-form" action="/social-drafts/<%= draft._id %>/images/upload" method="post" enctype="multipart/form-data">
+                        <label>Upload image <input type="file" name="image" accept="image/jpeg,image/png,image/webp" required></label>
+                        <label>Alt text <input name="altText" maxlength="240" placeholder="Describe the image for accessibility"></label>
+                        <label>Caption <input name="caption" maxlength="500" placeholder="Optional caption"></label>
+                        <button class="button" type="submit">Upload Image</button>
+                      </form>
+                    </div>
+                    <% if (socialImages.length) { %>
+                      <div class="social-image-strip">
+                        <% socialImages.forEach((image) => { %>
+                          <article class="social-image-card <%= image.status === 'selected' ? 'is-selected' : '' %> <%= image.status === 'rejected' ? 'is-rejected' : '' %>">
+                            <img src="/social-drafts/<%= draft._id %>/images/<%= image._id %>/file" alt="<%= image.altText || '' %>">
+                            <div>
+                              <span><%= image.status %> / <%= image.source %></span>
+                              <form action="/social-drafts/<%= draft._id %>/images/<%= image._id %>/update" method="post">
+                                <input name="altText" value="<%= image.altText || '' %>" maxlength="240" placeholder="Alt text">
+                                <input name="caption" value="<%= image.caption || '' %>" maxlength="500" placeholder="Caption">
+                                <button class="button" type="submit">Save Details</button>
+                              </form>
+                              <div class="status-actions">
+                                <% if (image.status !== 'rejected') { %>
+                                  <form action="/social-drafts/<%= draft._id %>/images/<%= image._id %>/select" method="post"><button class="button button-primary" type="submit">Select</button></form>
+                                  <a class="button" href="/social-drafts/<%= draft._id %>/images/<%= image._id %>/file?download=1">Download</a>
+                                  <form action="/social-drafts/<%= draft._id %>/images/<%= image._id %>/reject" method="post"><button class="button" type="submit">Reject</button></form>
+                                <% } else { %>
+                                  <form action="/social-drafts/<%= draft._id %>/images/<%= image._id %>/restore" method="post"><button class="button" type="submit">Restore</button></form>
+                                <% } %>
+                              </div>
+                            </div>
+                          </article>
+                        <% }) %>
+                      </div>
+                    <% } %>
+                  </section>
+                </div>
+              </article>
+            <% }) %>
+          </div>
+        </section>
+      <% }) %>
+    </div>
   </section>
 </div>
 

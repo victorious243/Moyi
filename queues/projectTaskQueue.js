@@ -14,8 +14,25 @@ function getProjectTaskQueue() {
   return queue;
 }
 
+async function countProjectTaskWorkers() {
+  const workers = await getProjectTaskQueue().getWorkers();
+  return workers.length;
+}
+
 async function enqueueProjectTask(jobId) {
   if (!env.queueEnabled) {
+    return null;
+  }
+
+  const workerCount = await countProjectTaskWorkers();
+  if (workerCount < 1) {
+    if (env.isProduction) {
+      const error = new Error('Project task queue has no active worker. Run npm start or add an npm run worker process.');
+      error.statusCode = 503;
+      throw error;
+    }
+
+    console.warn(`Project task queue has no active worker. Running job inline in ${env.nodeEnv}.`);
     return null;
   }
 
@@ -25,7 +42,7 @@ async function enqueueProjectTask(jobId) {
     {
       attempts: 3,
       backoff: { type: 'exponential', delay: 5000 },
-      jobId: `project-task:${jobId}`,
+      jobId: `project-task-${jobId}`,
       removeOnComplete: { age: 3600, count: 1000 },
       removeOnFail: { age: 7 * 24 * 60 * 60 }
     }
@@ -49,6 +66,7 @@ async function closeProjectTaskQueue() {
 }
 
 module.exports = {
+  countProjectTaskWorkers,
   closeProjectTaskQueue,
   enqueueProjectTask,
   getProjectTaskQueue

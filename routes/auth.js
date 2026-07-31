@@ -14,6 +14,8 @@ const {
   fetchGoogleProfile,
   findOrCreateGoogleUser
 } = require('../services/googleAuthService');
+const { requestPasswordReset, resetPassword } = require('../services/passwordResetService');
+const { recordAuditEvent } = require('../services/auditLogService');
 
 const router = express.Router();
 const authRateLimit = createRateLimit({
@@ -60,6 +62,7 @@ router.post(
     if (existing) return next(new AppError('An account already exists for that email.', 409));
 
     const user = await User.createWithPassword(req.body);
+    await recordAuditEvent({ user, eventType: 'account_registered', req });
     setAuthCookie(res, signToken(user));
     res.redirect('/dashboard');
   })
@@ -101,6 +104,7 @@ router.get('/google/callback', asyncHandler(async (req, res) => {
     const tokenPayload = await exchangeCodeForLoginTokens(req.query.code);
     const profile = await fetchGoogleProfile(tokenPayload.access_token);
     const user = await findOrCreateGoogleUser(profile);
+    await recordAuditEvent({ user, eventType: 'login_google', req });
     setAuthCookie(res, signToken(user));
     res.redirect('/dashboard');
   } catch (error) {
@@ -119,15 +123,87 @@ router.post(
   asyncHandler(async (req, res, next) => {
     const user = await User.findOne({ email: req.body.email });
     if (!user || !(await user.verifyPassword(req.body.password))) {
+      await recordAuditEvent({
+        eventType: 'login_failed',
+        status: 'failed',
+        severity: 'warning',
+        metadata: { email: req.body.email },
+        req
+      });
       return next(new AppError('Email or password is incorrect.', 401));
     }
 
+    await recordAuditEvent({ user, eventType: 'login_password', req });
+    setAuthCookie(res, signToken(user));
+    res.redirect('/dashboard');
+  })
+);
+
+router.get('/forgot-password', (req, res) => {
+  res.render('auth/forgot-password', {
+    title: 'Reset password',
+    errorMessage: '',
+    resetUrl: ''
+  });
+});
+
+router.post(
+  '/forgot-password',
+  authRateLimit,
+  [
+    body('email').isEmail().withMessage('Valid email is required.').normalizeEmail(),
+    handleValidation
+  ],
+  asyncHandler(async (req, res, next) => {
+    try {
+      const result = await requestPasswordReset({ email: req.body.email, req });
+      res.render('auth/password-reset-requested', {
+        title: 'Check your email',
+        resetUrl: result.resetUrl || '',
+        resetPin: result.resetPin || ''
+      });
+    } catch (error) {
+      next(error);
+    }
+  })
+);
+
+router.get('/reset-password/:token', (req, res) => {
+  res.render('auth/reset-password', {
+    title: 'Choose a new password',
+    token: req.params.token,
+    errorMessage: req.query.error || ''
+  });
+});
+
+router.post(
+  '/reset-password/:token',
+  authRateLimit,
+  [
+    body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters.'),
+    body('pin').trim().matches(/^\d{6}$/).withMessage('Enter the 6-digit reset PIN from your email.'),
+    body('confirmPassword').custom((value, { req }) => {
+      if (value !== req.body.password) {
+        throw new Error('Passwords must match.');
+      }
+      return true;
+    }),
+    handleValidation
+  ],
+  asyncHandler(async (req, res) => {
+    const user = await resetPassword({
+      token: req.params.token,
+      pin: req.body.pin,
+      password: req.body.password,
+      req
+    });
     setAuthCookie(res, signToken(user));
     res.redirect('/dashboard');
   })
 );
 
 router.post('/logout', (req, res) => {
+  recordAuditEvent({ user: req.user, eventType: 'logout', req });
   clearAuthCookie(res);
   res.redirect('/');
 });

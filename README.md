@@ -1,36 +1,113 @@
 # Moyi AI CMO
 
-Phase 12 foundation for an AI Chief Marketing Officer SaaS platform.
+Moyi is an AI Chief Marketing Officer workspace for evidence-led SEO growth, content execution, campaign planning, safe publishing, and reporting.
 
-This phase includes authentication, a protected dashboard, owner-scoped business/project profile management, factual website crawling, SEO issue storage, an AI CMO Engine, SEO content draft generation from accepted recommendations, Google Search Console performance syncing, weekly/monthly AI CMO reporting, basic ethical competitor tracking, a safe WordPress draft workflow, Stripe SaaS billing with plan limits, first-party traffic/conversion tracking, and ethical content calendar/campaign planning. Social integrations, Shopify/Webflow, ad automation, and auto-publishing are intentionally left for later phases.
+It is designed to avoid generic or hallucinated marketing advice. The system starts from recorded business and website evidence, turns that evidence into recommendations, creates reviewed content assets, supports image/logo workflows, and keeps publishing under human control.
 
-## Stack
+## Table of Contents
 
-- Node.js and Express
-- MongoDB with Mongoose
-- EJS views
-- JWT cookie authentication
-- bcrypt password hashing
-- dotenv environment variables
-- express-validator validation
-- Basic in-memory auth rate limiting
-- Axios and Cheerio for factual website crawling
-- OpenAI for AI CMO report and recommendation generation
-- Approval-queue content drafts with manual review states
-- Google Search Console OAuth and readonly performance syncing
-- Weekly and monthly AI CMO reports with period-over-period metrics
-- Manual competitor website tracking and public SEO comparison
-- WordPress REST API integration for approved draft posts
-- Stripe Checkout, customer portal, webhooks, plan limits, and monthly usage tracking
-- Privacy-friendly first-party analytics and conversion tracking
-- Content calendar, campaign planning, and manual social/email draft workflow
+- [What Moyi Does](#what-moyi-does)
+- [How The Product Workflow Works](#how-the-product-workflow-works)
+- [Local Setup Tutorial](#local-setup-tutorial)
+- [Environment Variables Explained](#environment-variables-explained)
+- [Redis And Background Jobs](#redis-and-background-jobs)
+- [First Project Tutorial](#first-project-tutorial)
+- [Website Scans](#website-scans)
+- [AI CMO Plans And Recommendations](#ai-cmo-plans-and-recommendations)
+- [Content Workspace Tutorial](#content-workspace-tutorial)
+- [Image And Logo Workflow](#image-and-logo-workflow)
+- [Campaigns And Calendar](#campaigns-and-calendar)
+- [Measurement And Reports](#measurement-and-reports)
+- [Integrations](#integrations)
+- [Email Setup](#email-setup)
+- [Billing](#billing)
+- [Admin And Health Checks](#admin-and-health-checks)
+- [Testing](#testing)
+- [Production Deployment Checklist](#production-deployment-checklist)
+- [Useful Scripts](#useful-scripts)
+- [Safety Boundaries](#safety-boundaries)
 
-## Quick Start
+## What Moyi Does
+
+Moyi combines these product areas:
+
+- Public quick website scan for lead capture.
+- Project onboarding with brand calibration.
+- Factual website crawl and SEO issue storage.
+- Evidence-backed AI CMO plan.
+- Recommendation queue with accept, reject, restore, and execution states.
+- Multi-agent content draft generation.
+- High-intent SaaS templates such as comparison, alternatives, and product-led guides.
+- Content image generation and manual image uploads.
+- Project-level official logo storage for branded visuals.
+- Manual content calendar and campaign planning.
+- Google Search Console query/page opportunity analysis.
+- WordPress, Webflow, Shopify draft publishing.
+- Outgoing approved-content webhooks.
+- SMTP email for account and customer communication.
+- Stripe billing with monthly and yearly plan options.
+- Production health/readiness checks.
+
+Moyi does not auto-publish live content, auto-post social media, scrape private competitor data, guarantee rankings, or invent missing metrics.
+
+## How The Product Workflow Works
+
+The main workflow is:
+
+1. Create a project for a real business.
+2. Run a website scan.
+3. Review and approve the discovered brand profile.
+4. Upload the official transparent PNG logo.
+5. Generate the AI CMO plan.
+6. Review recommendations.
+7. Accept recommendations worth doing.
+8. Generate content or pipeline assets.
+9. Review copy in the Write step.
+10. Generate or upload visuals in the Visual step.
+11. Approve, request changes, or reject in the Review step.
+12. Export, create CMS drafts, create social drafts, or mark manual publication in the Distribute step.
+13. Use the calendar and reports to keep the work organized.
+
+## Local Setup Tutorial
+
+### 1. Install Requirements
+
+You need:
+
+- Node.js 20 or newer.
+- MongoDB local or Atlas.
+- Redis for production-style background jobs.
+- OpenAI API key for AI generation.
+- SMTP provider for password reset and customer emails.
+- Stripe keys for billing.
+- Google OAuth credentials for Search Console.
+
+### 2. Install Dependencies
+
+```bash
+npm install
+```
+
+### 3. Create Your Environment File
 
 ```bash
 cp .env.example .env
-npm install
+```
+
+Edit `.env` and fill the values explained below.
+
+### 4. Run Locally
+
+For simple local development without Redis jobs:
+
+```bash
 npm run dev
+```
+
+For production-like local behavior with web app plus worker:
+
+```bash
+npm start
 ```
 
 Open:
@@ -39,87 +116,255 @@ Open:
 http://localhost:3000
 ```
 
-You need MongoDB running locally or a MongoDB Atlas connection string in `.env`.
+Do not change the port unless your deployment requires it. Moyi defaults to `3000`.
 
-## Environment
+## Environment Variables Explained
 
-Required values:
+### Core App
 
 ```env
 APP_NAME="Moyi AI CMO"
 NODE_ENV=development
 PORT=3000
-MONGODB_URI=mongodb://127.0.0.1:27017/moyi
-JWT_SECRET=replace-with-a-long-random-secret
-TOKEN_ENCRYPTION_SECRET=replace-with-a-long-random-secret
-OPENAI_API_KEY=
-OPENAI_MODEL=gpt-4o-mini
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-GOOGLE_REDIRECT_URI=http://localhost:3000/integrations/google/callback
 APP_URL=http://localhost:3000
 TRUST_PROXY_HOPS=0
 COOKIE_DOMAIN=
 RELEASE_SHA=
-STRIPE_SECRET_KEY=
-STRIPE_WEBHOOK_SECRET=
-STRIPE_STARTER_PRICE_ID=
-STRIPE_PRO_PRICE_ID=
-STRIPE_AGENCY_PRICE_ID=
 ```
 
-For MongoDB Atlas, set `MONGODB_URI` to your Atlas URI. If your password has special characters, you can instead use:
+- `APP_NAME`: Display name used in emails and pages.
+- `NODE_ENV`: Use `production` only in deployment.
+- `PORT`: Express server port.
+- `APP_URL`: Public base URL. In production this must be HTTPS.
+- `TRUST_PROXY_HOPS`: Set to `1` or higher behind a proxy/load balancer.
+- `COOKIE_DOMAIN`: Optional shared cookie domain for subdomains.
+- `RELEASE_SHA`: Optional deployment identifier shown in health checks.
+
+### MongoDB
+
+```env
+MONGODB_URI=mongodb://127.0.0.1:27017/moyi
+MONGODB_DB=moyi
+```
+
+Atlas alternative:
 
 ```env
 MONGODB_HOST=cluster0.xxxxx.mongodb.net
 MONGODB_USER=moyi_user
 MONGODB_PASSWORD=raw-password-here
+MONGODB_QUERY=retryWrites=true&w=majority&appName=Cluster0
 MONGODB_DB=moyi
 ```
 
-## Phase 1 Features
+Use the Atlas split variables when your password contains special characters and you want Moyi to encode them safely.
 
-- Register at `/register`
-- Log in at `/login`
-- Log out with `POST /logout`
-- Protected dashboard at `/dashboard`
-- Project CRUD:
-  - `GET /projects`
-  - `GET /projects/new`
-  - `POST /projects`
-  - `GET /projects/:id`
-  - `GET /projects/:id/edit`
-  - `POST /projects/:id`
-  - `POST /projects/:id/delete`
+### Security
 
-Each user only sees and edits their own projects.
+```env
+JWT_SECRET=replace-with-a-long-random-secret
+TOKEN_ENCRYPTION_SECRET=replace-with-a-long-random-secret
+```
 
-## Phase 2 Website Scans
+- `JWT_SECRET`: Signs authentication cookies.
+- `TOKEN_ENCRYPTION_SECRET`: Encrypts third-party tokens and credentials.
 
-Authenticated users can run a factual website scan from a project page.
+In production, both must be long random values with at least 32 characters.
 
-Routes:
+### OpenAI
+
+```env
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_IMAGE_MODEL=gpt-image-2
+OPENAI_IMAGE_QUALITY=medium
+OPENAI_IMAGE_SIZE=1536x1024
+CONTENT_AI_TIMEOUT_MS=60000
+CONTENT_PIPELINE_CONCURRENCY=3
+MAX_AI_OPERATIONS_PER_MONTH=500
+```
+
+- `OPENAI_API_KEY`: Required for AI CMO plans, content generation, and images.
+- `OPENAI_MODEL`: Text model used by planning and content flows.
+- `OPENAI_IMAGE_MODEL`: Image model used for generated visuals.
+- `OPENAI_IMAGE_QUALITY`: `low`, `medium`, `high`, or `auto`.
+- `OPENAI_IMAGE_SIZE`: Example `1536x1024`, `1024x1024`, or `auto`.
+- `CONTENT_AI_TIMEOUT_MS`: Timeout for content pipeline calls.
+- `CONTENT_PIPELINE_CONCURRENCY`: Parallel content pipeline limit, between 1 and 5.
+- `MAX_AI_OPERATIONS_PER_MONTH`: Global safety ceiling per user.
+
+### Image Storage
+
+```env
+CONTENT_IMAGE_STORAGE_PATH=/var/lib/moyi/content-images
+```
+
+Moyi does not save image binaries in MongoDB. Generated images, uploaded images, and project logos are saved as private files. MongoDB stores metadata and storage keys only.
+
+In production this path must point to a persistent writable volume.
+
+### Redis And Queues
+
+```env
+DISABLE_QUEUE=false
+REDIS_URL=redis://default:password@host:port
+WORKER_CONCURRENCY=2
+```
+
+- `DISABLE_QUEUE=true`: Development-only shortcut. Jobs run inline where supported.
+- `DISABLE_QUEUE=false`: Required for production.
+- `REDIS_URL`: Redis connection string.
+- `WORKER_CONCURRENCY`: Number of background jobs handled by one worker process.
+
+### Crawling
+
+```env
+CRAWL_TIMEOUT_MS=12000
+CRAWL_DELAY_MS=150
+MAX_PAGES_PER_SCAN=50
+```
+
+- `CRAWL_TIMEOUT_MS`: Per-request crawl timeout.
+- `CRAWL_DELAY_MS`: Delay between crawl requests.
+- `MAX_PAGES_PER_SCAN`: Hard page cap per scan.
+
+### Google Search Console
+
+```env
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URI=http://localhost:3000/integrations/google/callback
+```
+
+Configure the same redirect URI in Google Cloud OAuth settings.
+
+### Stripe
+
+```env
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_STARTER_PRICE_ID=
+STRIPE_PRO_PRICE_ID=
+STRIPE_AGENCY_PRICE_ID=
+STRIPE_STARTER_ANNUAL_PRICE_ID=
+STRIPE_PRO_ANNUAL_PRICE_ID=
+STRIPE_AGENCY_ANNUAL_PRICE_ID=
+```
+
+Moyi expects monthly and yearly recurring Price IDs for Starter, Pro, and Agency.
+
+### SMTP Email
+
+```env
+SMTP_HOST=smtp-relay.brevo.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM="Moyi-CMO <no_reply@moyi-cmo.com>"
+EMAIL_TEST_TO=
+SUPPORT_EMAIL=
+```
+
+The sender address/domain must be verified in your SMTP provider. If Brevo rejects the sender, authenticate the domain or use a verified sender.
+
+## Redis And Background Jobs
+
+Production users will run scans and AI jobs at the same time. That requires Redis and BullMQ workers.
+
+### Recommended Production Setup
+
+1. Set `DISABLE_QUEUE=false`.
+2. Set `REDIS_URL` to your managed Redis URL.
+3. Run `npm start`.
+4. Confirm `/readyz` returns healthy queue state.
+5. Increase `WORKER_CONCURRENCY` carefully if jobs queue up.
+
+### When To Run Extra Workers
+
+Run extra workers only when you need more throughput:
+
+```bash
+npm run worker
+```
+
+Examples:
+
+- More website scans are waiting than one worker can process.
+- AI CMO reports queue during busy periods.
+- Content generation pipelines are slow because many users submit at once.
+
+Start conservative. Too much concurrency can overload the server, Redis, OpenAI limits, or crawler targets.
+
+## First Project Tutorial
+
+### Option A: Scan And Prefill
+
+Use this for most new customers.
+
+1. Sign in.
+2. Open `Projects`.
+3. Click `Add Project`.
+4. Use the scan/prefill form.
+5. Enter the business website URL.
+6. Wait for discovery.
+7. Review the calibration screen.
+8. Edit tone, value props, personas, or competitors if needed.
+9. Activate the workspace.
+10. Open project settings and upload the transparent PNG logo.
+
+### Option B: Manual Business Profile
+
+Use this when you already know the brand details.
+
+1. Open `Projects`.
+2. Click `Add Project`.
+3. Fill project name, website URL, industry, audience, target country, main offer, tone, goal, and competitors.
+4. Upload the official transparent PNG logo.
+5. Click `Create Project`.
+
+Manual creation requires the logo because Moyi uses it later for branded visuals.
+
+## Website Scans
+
+A scan collects crawlable website evidence.
+
+Routes and pages:
 
 - `POST /projects/:id/scans`
 - `GET /projects/:id/scans`
 - `GET /projects/:id/scans/:scanId`
 - `GET /projects/:id/pages`
 
-The crawler:
+The crawler records:
 
-- Starts from `project.websiteUrl`
-- Crawls same-domain pages only
-- Normalizes URLs and avoids duplicates
-- Ignores `mailto:`, `tel:`, `javascript:`, anchors, file downloads, and external domains
-- Crawls up to the user's plan page limit
-- Stores each page as a MongoDB `Page` document
-- Handles broken/unreachable pages without crashing the app
+- Status code.
+- Page title.
+- Meta description.
+- H1 and H2 headings.
+- Canonical URL.
+- Robots meta.
+- Word count.
+- Internal and external links.
+- Image count and missing alt text.
+- Open Graph fields.
+- JSON-LD schema types.
+- Crawl timestamp.
 
-Collected page facts include status code, title, meta description, H1, H2 headings, canonical URL, robots meta, word count, internal/external links, image alt coverage, Open Graph fields, JSON-LD schema types, and crawl timestamp.
+### How To Use Scan Results
 
-## Phase 4 AI CMO Engine
+1. Run a scan after creating or approving a project.
+2. Wait for the scan to complete.
+3. Review failed pages first.
+4. Review critical issues and warnings.
+5. Check pages with weak title/meta/H1/content depth.
+6. Generate or regenerate recommendations from the completed scan.
 
-After a project has a completed scan and stored audit issues, users can generate an AI CMO plan.
+If a scan stays pending, check Redis, the worker process, and `/readyz`.
+
+## AI CMO Plans And Recommendations
+
+The AI CMO plan turns available evidence into a ranked action queue.
 
 Routes:
 
@@ -128,56 +373,187 @@ Routes:
 - `GET /projects/:id/recommendations`
 - `POST /recommendations/:id/status`
 
-Prompt templates live in:
+### Recommendation Actions
 
-- `src/prompts/seo-report.prompt.js`
-- `src/prompts/recommendation.prompt.js`
+- `Accept`: Moves the recommendation into active execution.
+- `Reject`: Removes it from active work without deleting history.
+- `Restore`: Brings a rejected recommendation back.
+- `Generate Full Pipeline`: Creates execution assets from the recommendation.
+- `Manage recommendations`: Opens the full queue.
 
-The AI service is constrained to the supplied project profile, crawled pages, scan summary, and stored issues. It instructs the model not to invent crawl data, fake URLs, guaranteed ranking outcomes, or unsupported technical problems. Recommendation target URLs and related issue IDs are filtered against stored page and issue records before saving.
+### How To Review Recommendations
 
-If `OPENAI_API_KEY` is not configured, report generation stores a failed report state with a clear message instead of crashing.
+1. Confirm the latest scan completed.
+2. Open Recommendations.
+3. Read the target page, reason, evidence, priority, and effort.
+4. Accept only the work you want Moyi to execute.
+5. Reject recommendations that are not useful now.
+6. Generate content or pipeline assets from accepted recommendations.
 
-## Phase 5 Content Drafts
+Recommendations must stay tied to real pages, scan findings, competitor facts, or Search Console metrics.
 
-Accepted recommendations can generate content drafts. Drafts are stored in an approval queue and are never auto-published.
+## Content Workspace Tutorial
+
+Every content draft has four tabs:
+
+### 1. Write
+
+Use this step to review and edit:
+
+- Keyword.
+- Title.
+- Business goal.
+- Target persona.
+- Search intent.
+- Primary CTA.
+- Proof points.
+- Body copy.
+- JSON-LD where relevant.
+
+Save changes before moving forward.
+
+### 2. Visual
+
+Use this step to:
+
+- Generate a content-matched image.
+- Upload a user-provided image.
+- Use an existing image as a reference.
+- Preview image and post copy together.
+- Save alt text.
+- Save caption.
+- Select the final image.
+- Reject weak candidates.
+- Restore rejected candidates.
+
+### 3. Review
+
+Use this step to decide whether the asset is ready.
+
+Options:
+
+- `Approve and Continue`: Unlocks distribution controls.
+- `Request Changes`: Marks the draft as needing revision.
+- `Reject`: Rejects the asset.
+- `Return to Review`: Brings a rejected or revision draft back to review.
+
+Approval does not publish anything live.
+
+### 4. Distribute
+
+Use this step to:
+
+- Create WordPress draft.
+- Create Webflow draft.
+- Create Shopify draft.
+- Copy content.
+- Export content.
+- Create social drafts.
+- Plan campaign.
+- Record manual publication.
+
+CMS options appear only when the project integration is connected and the content type is eligible.
+
+## Content Template Options
+
+Supported content styles include:
+
+- `meta_title`: Search-result title draft.
+- `meta_description`: Search-result description draft.
+- `h1`: Page H1 improvement.
+- `faq_section`: FAQ expansion and objection handling.
+- `blog_outline`: Article structure.
+- `blog_article`: Full article draft.
+- `service_page_section`: Website section copy.
+- `internal_linking_plan`: Internal links to add or improve.
+- `schema_jsonld`: Structured data draft.
+- `vs_comparison_article`: Compares your product against a competitor.
+- `alternatives_list`: Positions your product among alternatives.
+- `product_led_guide`: Educational content that naturally uses your product as the solution.
+
+Use high-intent templates for SaaS and service businesses that need content with buying intent, not generic information.
+
+## Image And Logo Workflow
+
+### Project Logo
+
+The project logo is the official brand reference.
+
+Requirements:
+
+- PNG only.
+- Must have real transparency.
+- No background.
+- Maximum 2 MB.
+- Stored as a private file, not inside MongoDB.
+
+How to upload:
+
+1. Open the project.
+2. Open project edit/settings.
+3. Upload the transparent PNG logo.
+4. Save changes.
+5. In content image art direction, mention `logo`, `brand mark`, `wordmark`, or similar when you want Moyi to use it.
+
+Example art direction:
+
+```text
+Create a premium family broadband campaign image. Include the official logo in the top-left corner. Keep the logo clean and unchanged. Show a happy family using fast internet at home.
+```
+
+Important: prompt text alone cannot guarantee logo fidelity. The stored logo gives the image model an actual reference.
+
+### Draft Image Candidates
+
+For each content draft, users can:
+
+- Upload JPG, PNG, or WebP images.
+- Generate AI images.
+- Use one candidate as a reference for another.
+- Save alt text and captions.
+- Select exactly one final image.
+- Download, reject, or restore candidates.
+
+Images are protected by project access controls.
+
+## Campaigns And Calendar
+
+Campaigns help Moyi behave like an organized CMO, not a random content generator.
 
 Routes:
 
-- `POST /recommendations/:id/generate-content`
-- `GET /projects/:id/content`
-- `GET /content/:id`
-- `POST /content/:id/update`
-- `POST /content/:id/approve`
-- `POST /content/:id/reject`
-- `POST /content/:id/mark-published`
+- `GET /projects/:id/calendar`
+- `GET /projects/:id/campaigns`
+- `POST /projects/:id/campaigns`
+- `POST /content/:id/create-social-drafts`
+- `POST /social-drafts/:id/approve`
+- `POST /social-drafts/:id/mark-published`
 
-Supported draft types:
+### Campaign Planning Options
 
-- `meta_title`
-- `meta_description`
-- `h1`
-- `faq_section`
-- `blog_outline`
-- `blog_article`
-- `service_page_section`
-- `internal_linking_plan`
-- `schema_jsonld`
+- `Single post`: Creates one draft.
+- `Weekly plan`: Creates five scheduled posts.
+- `Monthly plan`: Creates twelve scheduled posts across about thirty days.
+- `Create social drafts`: Turns approved content into social/email drafts.
+- `Open calendar`: Shows scheduled work in one place.
+- `Mark as published`: Records manual publication after it happens elsewhere.
 
-Content prompt templates live in `src/prompts/`:
+### Recommended Weekly Workflow
 
-- `meta-title.prompt.js`
-- `meta-description.prompt.js`
-- `blog-outline.prompt.js`
-- `blog-draft.prompt.js`
-- `faq.prompt.js`
-- `schema-jsonld.prompt.js`
-- `internal-links.prompt.js`
+1. Open the project workspace.
+2. Review active recommendations.
+3. Generate or edit one core content asset.
+4. Approve the final asset.
+5. Create social drafts from it.
+6. Plan the weekly campaign.
+7. Review the calendar.
+8. Manually publish or send through the appropriate external system.
+9. Mark publication in Moyi.
+10. Review results in weekly report.
 
-Content generation follows these boundaries: no keyword stuffing, no false claims, no guaranteed rankings, no invented testimonials/reviews/awards/prices/addresses/certifications, and no CMS publishing. If no AI key is configured, the app creates conservative local template drafts marked with `local-template-no-api-key`.
+## Measurement And Reports
 
-## Phase 6 Search Console
-
-Users can connect a Google account with Search Console readonly scope, select one verified property per project, sync search analytics data, and view a project-level performance dashboard.
+### Search Console
 
 Routes:
 
@@ -189,11 +565,24 @@ Routes:
 - `POST /projects/:id/search-console/sync`
 - `GET /projects/:id/search-console/performance`
 
-Synced fields include clicks, impressions, CTR, average position, query, page, country, device, and date. The default sync window is 28 days, with 7, 28, and 90 day dashboard views. OAuth tokens are encrypted before storage and never rendered to the frontend. Expired access tokens are refreshed with the stored refresh token when possible.
+Moyi syncs:
 
-## Phase 7 AI CMO Reports
+- Query.
+- Page.
+- Country.
+- Device.
+- Date.
+- Clicks.
+- Impressions.
+- CTR.
+- Average position.
 
-Users can manually generate weekly updates and monthly executive reports from available audit, recommendation, content draft, and Search Console data.
+### GSC Opportunities
+
+- `Boost CTR`: Page-one queries, positions 1-10, with CTR below the project average. Action: improve meta title or description.
+- `Push to Page 1`: Page-two queries, positions 11-20, with high impressions. Action: improve target page content, headings, FAQs, and internal links.
+
+### Reports
 
 Routes:
 
@@ -202,60 +591,24 @@ Routes:
 - `GET /projects/:id/reports`
 - `GET /projects/:id/reports/:reportId`
 
-Reports include:
+Reports can include:
 
-- Executive summary
-- Organic search performance
-- Click, impression, CTR, and average position comparison
-- Top gaining and losing pages
-- Top gaining queries
-- Low CTR opportunities
-- Completed content actions
-- Open recommendations
-- Next 7 day and next 30 day action plans
-- Warnings and limitations
+- Executive summary.
+- Organic search performance.
+- Click, impression, CTR, and position comparison.
+- Top gaining and losing pages.
+- Top gaining queries.
+- Low CTR opportunities.
+- Completed content actions.
+- Open recommendations.
+- Next 7-day and 30-day action plans.
+- Warnings and limitations.
 
-Prompt templates live in:
+Reports should be treated as decision documents. They do not prove causation or guarantee outcomes.
 
-- `src/prompts/weekly-cmo-report.prompt.js`
-- `src/prompts/monthly-cmo-report.prompt.js`
+## Integrations
 
-The report engine only uses available metrics and project records. If Search Console is missing or empty, the report clearly says performance data is missing. If `OPENAI_API_KEY` is not configured, the app creates an honest system-generated report instead of crashing.
-
-## Health Endpoints
-
-- `GET /healthz` returns a liveness payload with uptime, environment, and release metadata.
-- `GET /readyz` returns a readiness payload with MongoDB state, queue state, configuration problems, and optional integration warnings.
-
-In production, treat `503 /readyz` as a failed deployment signal.
-
-## Phase 8 Competitor Tracking
-
-Users can manually add competitor websites, run a shallow competitor crawl, store public SEO page facts, and generate ethical opportunity suggestions.
-
-Routes:
-
-- `POST /projects/:id/competitors`
-- `GET /projects/:id/competitors`
-- `POST /projects/:id/competitors/:competitorId/scan`
-- `GET /projects/:id/competitors/:competitorId`
-- `POST /projects/:id/competitors/report`
-- `GET /projects/:id/competitors/insights`
-
-Competitor scans:
-
-- Only crawl websites manually added by the user
-- Respect basic `robots.txt` disallow rules
-- Stay on the competitor domain
-- Avoid search result pages and private data
-- Store public SEO facts such as title, meta description, H1, headings, word count, internal/external links, and schema types
-- Cap scans at a small number of pages for homepage, service/product pages, and blog/article pages that are easily discoverable
-
-Competitor opportunity reports compare crawled project pages against crawled competitor pages. They do not claim private competitor performance, traffic, conversions, or rankings, and they do not suggest copying competitor content.
-
-## Phase 9 WordPress CMS Workflow
-
-Users can connect one WordPress site per project using REST API credentials or a WordPress application password. Approved blog article drafts can be sent to WordPress as draft posts only.
+### WordPress
 
 Routes:
 
@@ -265,18 +618,99 @@ Routes:
 - `GET /projects/:id/integrations/wordpress/pages`
 - `POST /content/:id/publish/wordpress-draft`
 
-Publishing rules:
+Rules:
 
-- Content must be approved before it can be sent to WordPress.
-- Blog articles are created as WordPress `draft` posts.
-- FAQ sections, service page sections, metadata updates, schema drafts, and internal-linking plans are export-only in this MVP.
-- No existing WordPress page is overwritten automatically.
-- Application passwords are encrypted before storage and are never shown after saving.
-- Every publish/export attempt is stored as a `PublishAction`.
+- Approved content only.
+- Creates draft posts.
+- Does not overwrite existing pages.
+- Credentials are encrypted.
 
-## Phase 10 Billing & Launch Readiness
+### Webflow
 
-Stripe billing is available with Free, Starter, Pro, and Agency plans. Users start on the Free plan by default.
+Routes:
+
+- `GET /projects/:id/integrations/webflow`
+- `POST /projects/:id/integrations/webflow/connect`
+- `POST /projects/:id/integrations/webflow/test`
+- `POST /content/:id/publish/webflow-draft`
+
+Requires Webflow API token and CMS collection mapping.
+
+### Shopify
+
+Routes:
+
+- `GET /projects/:id/integrations/shopify`
+- `POST /projects/:id/integrations/shopify/connect`
+- `POST /projects/:id/integrations/shopify/test`
+- `POST /content/:id/publish/shopify-draft`
+
+Requires Shopify shop domain, blog ID, API version, and access token.
+
+### Outgoing Webhook
+
+Set the project webhook URL in project settings.
+
+When a draft is approved, Moyi sends a JSON payload with:
+
+- Draft title.
+- HTML body.
+- Metadata.
+- Keywords.
+- Project context.
+
+Security:
+
+- Header: `X-Moyi-Signature`.
+- Algorithm: HMAC-SHA256.
+- Secret: project-specific webhook signing secret.
+
+Verify the signature before accepting the payload in your custom frontend.
+
+## Email Setup
+
+Moyi uses SMTP for:
+
+- Password reset PIN/email.
+- Customer notifications.
+- Support/contact communication.
+- Newsletter or future customer messaging.
+
+Brevo example:
+
+```env
+SMTP_HOST=smtp-relay.brevo.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your_brevo_smtp_user
+SMTP_PASS=your_brevo_smtp_password
+SMTP_FROM="Moyi-CMO <no_reply@moyi-cmo.com>"
+EMAIL_TEST_TO=you@example.com
+SUPPORT_EMAIL=support@moyi-cmo.com
+```
+
+If email does not send:
+
+1. Check SMTP username and password.
+2. Confirm the sender is verified.
+3. Authenticate the sending domain with SPF, DKIM, and DMARC.
+4. Check provider logs.
+5. Send a test email.
+
+## Billing
+
+Plans are configured in `config/plans.js`.
+
+Launch pricing:
+
+- Starter monthly: EUR 49.
+- Pro monthly: EUR 129.
+- Agency monthly: EUR 299.
+- Starter yearly: EUR 490.
+- Pro yearly: EUR 1290.
+- Agency yearly: EUR 2990.
+
+Yearly billing gives two months free.
 
 Routes:
 
@@ -285,133 +719,95 @@ Routes:
 - `POST /billing/create-checkout-session`
 - `POST /billing/create-portal-session`
 - `POST /webhooks/stripe`
-- `GET /account`
-- `GET /terms`
-- `GET /privacy`
-- `GET /cookies`
 
-Plan limits are enforced server-side for:
+Stripe webhook signatures are verified with `STRIPE_WEBHOOK_SECRET`.
 
-- Project creation
-- Monthly scan count
-- Pages per scan
-- AI report generation
-- Content draft generation
-- Search Console sync
-- Competitor tracking
-- WordPress publishing
+## Admin And Health Checks
 
-Stripe webhook events update `plan`, `subscriptionStatus`, `stripeCustomerId`, `stripeSubscriptionId`, and `currentPeriodEnd`. Webhook signatures are verified using `STRIPE_WEBHOOK_SECRET`.
+Health endpoints:
 
-## Phase 11 Traffic & Conversion Tracking
+- `GET /healthz`: Liveness, uptime, environment, release.
+- `GET /readyz`: MongoDB, queue, configuration problems, and integration warnings.
 
-Each project has a public tracking key and installable first-party tracking script:
+Use `/readyz` for deployment readiness checks.
 
-```html
-<script src="https://your-domain.com/tracker.js" data-project="PROJECT_PUBLIC_KEY" async></script>
+In production, a `503 /readyz` means the deployment is not ready.
+
+## Testing
+
+Run the full test suite:
+
+```bash
+npm test
 ```
 
-Routes:
+Run syntax checks manually when editing specific files:
 
-- `GET /tracker.js`
-- `POST /api/track`
-- `GET /projects/:id/tracking/setup`
-- `GET /projects/:id/analytics`
-- `POST /projects/:id/conversion-goals`
+```bash
+node --check services/projectLogoService.js
+node --check routes/content.js
+```
 
-Tracked fields include page views, custom events, conversions, session ID, URL, referrer, UTM source/medium/campaign, device type, browser, country headers when available, and timestamp. Raw IP addresses are not stored; IPs are hashed with the server encryption secret.
+Render checks for EJS can be done with:
 
-Privacy boundaries:
+```bash
+node - <<'NODE'
+const ejs = require('ejs');
+const fs = require('fs');
+for (const file of ['views/projects/new.ejs', 'views/content/show.ejs']) {
+  ejs.compile(fs.readFileSync(file, 'utf8'), { filename: file });
+  console.log(`${file} ok`);
+}
+NODE
+```
 
-- Respects browser Do Not Track where available.
-- Does not collect form contents.
-- Does not use invasive fingerprinting.
-- Does not store raw IP addresses.
-- Provides setup-page guidance for a site privacy notice.
-- Custom events should never include personal, payment, health, or sensitive data.
+## Production Deployment Checklist
 
-## Phase 12 Content Calendar & Campaign Planning
-
-Projects include a manual content calendar and campaign planner for ethical content distribution. This phase does not auto-post to social platforms or send messages.
-
-Routes:
-
-- `GET /projects/:id/calendar`
-- `POST /projects/:id/campaigns`
-- `GET /projects/:id/campaigns`
-- `POST /content/:id/create-social-drafts`
-- `POST /social-drafts/:id/approve`
-- `POST /social-drafts/:id/mark-published`
-
-Workflow:
-
-- Create a campaign for a project.
-- Approve a content draft.
-- Generate social/email drafts from the approved draft.
-- Review, copy, export, approve, and manually mark posts as published.
-
-AI and fallback draft rules:
-
-- No fake engagement.
-- No fake reviews, testimonials, awards, or claims.
-- No spam DMs.
-- No misleading promises.
-- Posts should be useful, honest, and brand-consistent.
-- Nothing auto-posts without a future explicit integration and approval flow.
-
-### Production Deployment Guide
-
-Before production launch:
+Before launch:
 
 - Set `NODE_ENV=production`.
-- Set strong `JWT_SECRET` and `TOKEN_ENCRYPTION_SECRET` values.
-- Use a production MongoDB database and restrict network access.
-- Configure `APP_URL` to the public HTTPS app URL.
-- Set `TRUST_PROXY_HOPS=1` or higher when running behind a load balancer or reverse proxy.
-- Set `COOKIE_DOMAIN` if auth cookies must be shared across subdomains.
-- Set `RELEASE_SHA` so health responses identify the deployed version.
-- Configure Stripe live keys and live price IDs.
-- Add the Stripe webhook endpoint: `https://your-domain.com/webhooks/stripe`.
-- Set `STRIPE_WEBHOOK_SECRET` from the Stripe webhook endpoint.
-- Configure Google OAuth redirect URI if Search Console is enabled.
-- Add first-party analytics language to your production privacy/cookie notice.
-- Review and replace placeholder Terms, Privacy, and Cookie pages.
-- Run `npm install` so the Stripe package from `package.json` is installed.
-- Run the app behind HTTPS with secure cookies enabled by `NODE_ENV=production`.
-- Use a process manager or platform health checks for the web app and scan worker.
-- Keep `DISABLE_QUEUE=false` with Redis/BullMQ for production workloads. The app now rejects `DISABLE_QUEUE=true` in production.
-- Run both `npm start` and `npm run worker` in production, and wire platform health checks to `GET /readyz`.
-
-## Project Fields
-
-- `name`
-- `websiteUrl`
-- `industry`
-- `targetAudience`
-- `targetCountry`
-- `mainGoal`
-- `mainOffer`
-- `brandTone`
-- `competitors`
-- `owner`
-- `createdAt`
-- `updatedAt`
-
-## Future Placeholders
-
-Project pages include empty placeholders for:
-
-- SEO Audit
-- AI CMO Plan
-- Content Drafts
-- Reports
-
-These sections do not run Shopify/Webflow publishing, social posting, search result scraping, fake traffic, or automatic ads features in Phase 12.
+- Set `APP_URL` to the public HTTPS URL.
+- Set strong `JWT_SECRET`.
+- Set strong `TOKEN_ENCRYPTION_SECRET`.
+- Configure production MongoDB.
+- Configure Redis and set `DISABLE_QUEUE=false`.
+- Confirm `npm start` runs web and worker processes.
+- Set `TRUST_PROXY_HOPS=1` or higher behind a proxy.
+- Configure persistent `CONTENT_IMAGE_STORAGE_PATH`.
+- Configure OpenAI key and model settings.
+- Configure SMTP with verified sender/domain.
+- Configure Stripe live keys and all six Price IDs.
+- Add Stripe webhook endpoint: `https://your-domain.com/webhooks/stripe`.
+- Configure Google OAuth redirect URI if Search Console is used.
+- Verify WordPress/Webflow/Shopify credentials per project where needed.
+- Review Terms, Privacy, and Cookie pages.
+- Add analytics/tracker language to customer-facing notices if using first-party tracking.
+- Run `npm test`.
+- Check `/readyz`.
 
 ## Useful Scripts
 
 ```bash
-npm start       # run the Express app
-npm run dev     # run the app with nodemon
-npm run worker  # optional BullMQ scan worker when DISABLE_QUEUE=false
+npm start       # run Express and supervised worker
+npm run web     # run only the Express app
+npm run dev     # run development server with nodemon
+npm run worker  # run an extra BullMQ worker
+npm test        # run all tests
 ```
+
+## Safety Boundaries
+
+Moyi must stay honest.
+
+It should not:
+
+- Invent scan findings.
+- Invent traffic, clicks, impressions, conversions, or revenue.
+- Invent testimonials, awards, locations, prices, or certifications.
+- Claim guaranteed rankings.
+- Copy competitor content.
+- Auto-publish live content without explicit human review.
+- Store image binaries in MongoDB.
+- Use fake logos when the official logo is missing.
+
+When data is missing, Moyi should say what is missing and what the user needs to connect, scan, or configure next.

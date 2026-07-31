@@ -37,6 +37,7 @@
     <section class="metrics">
       <article><span>Current plan</span><strong><%= plan.name %></strong></article>
       <article><span>Status</span><strong><%= currentUser.subscriptionStatus || 'inactive' %></strong></article>
+      <article><span>Billing</span><strong><%= currentUser.billingInterval === 'annual' ? 'Yearly' : 'Monthly' %></strong></article>
       <article><span>Projects</span><strong><%= plan.projectLimit %></strong></article>
       <article><span>Renews</span><strong><%= currentUser.currentPeriodEnd ? currentUser.currentPeriodEnd.toLocaleDateString() : 'n/a' %></strong></article>
     </section>
@@ -56,12 +57,22 @@
         <h2>Upgrade</h2>
         <a href="/pricing">Compare plans</a>
       </div>
-      <div class="status-actions">
+      <div class="billing-choice-grid">
         <% ['starter', 'pro', 'agency'].forEach((targetPlan) => { %>
-          <form action="/billing/create-checkout-session" method="post">
-            <input type="hidden" name="plan" value="<%= targetPlan %>">
-            <button class="button button-primary" type="submit">Upgrade to <%= targetPlan %></button>
-          </form>
+          <% const target = publicPlans[targetPlan]; %>
+          <div class="billing-choice-row">
+            <div><strong><%= target.name %></strong><span>&euro;<%= target.monthlyPrice %>/month or &euro;<%= target.annualPrice %>/year</span></div>
+            <form action="/billing/create-checkout-session" method="post">
+              <input type="hidden" name="plan" value="<%= targetPlan %>">
+              <input type="hidden" name="billingInterval" value="monthly">
+              <button class="button" type="submit">Monthly</button>
+            </form>
+            <form action="/billing/create-checkout-session" method="post">
+              <input type="hidden" name="plan" value="<%= targetPlan %>">
+              <input type="hidden" name="billingInterval" value="annual">
+              <button class="button button-primary" type="submit">Yearly</button>
+            </form>
+          </div>
         <% }) %>
       </div>
     </section>

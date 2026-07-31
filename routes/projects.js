@@ -1,13 +1,17 @@
 const express = require('express');
 const { requireAuth } = require('../middleware/auth');
 const {
+  ensureAiOperationAllowed,
   ensureAiReportAllowed,
   ensureContentDraftAllowed,
   ensureFeature,
   ensureProjectLimit,
   ensureScanAllowed,
+  recordAiOperation,
+  recordAiOperationFailure,
   upgradeRedirect
 } = require('../services/usageService');
+const { createCampaignContentPlan } = require('../services/socialDraftService');
 const { pipelineAssetOptions } = require('../services/contentDraftService');
 const {
   bootstrapDiscoveryProject,
@@ -22,6 +26,7 @@ const {
   findLatestJob,
   findLatestJobs,
   queueMeasurementReport,
+  queueContentPipeline,
   queueSearchConsoleSync,
   queueStrategyPlan
 } = require('../services/projectTaskService');
@@ -42,7 +47,9 @@ const context = buildProjectsContext();
 const sharedServices = {
   buildAttributionReadiness,
   bootstrapDiscoveryProject,
+  createCampaignContentPlan,
   createSearchConsoleOpportunityDraft,
+  ensureAiOperationAllowed,
   ensureAiReportAllowed,
   ensureContentDraftAllowed,
   ensureFeature,
@@ -55,8 +62,11 @@ const sharedServices = {
   generateStrategyPlan,
   pipelineAssetOptions,
   queueMeasurementReport,
+  queueContentPipeline,
   queueSearchConsoleSync,
   queueStrategyPlan,
+  recordAiOperation,
+  recordAiOperationFailure,
   startProjectScan,
   syncSearchConsoleWindow,
   upgradeRedirect

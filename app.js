@@ -6,8 +6,10 @@ const path = require('path');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 const env = require('./config/env');
+const { PLANS } = require('./config/plans');
 const { attachUser } = require('./middleware/auth');
 const csrfProtection = require('./middleware/csrf');
+const { recordAppLog, requestIdMiddleware } = require('./services/appLogger');
 
 const healthRouter = require('./routes/health');
 const indexRouter = require('./routes/index');
@@ -20,6 +22,7 @@ const billingRouter = require('./routes/billing');
 const stripeWebhookRouter = require('./routes/stripeWebhook');
 const trackingRouter = require('./routes/tracking');
 const socialDraftsRouter = require('./routes/socialDrafts');
+const adminRouter = require('./routes/admin');
 
 const app = express();
 app.disable('x-powered-by');
@@ -30,6 +33,8 @@ app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 
 app.locals.appName = env.appName;
+app.locals.publicPlans = PLANS;
+app.use(requestIdMiddleware);
 
 app.use(helmet({
   contentSecurityPolicy: {
@@ -65,6 +70,7 @@ app.use('/content', contentRouter);
 app.use('/integrations', integrationsRouter);
 app.use('/', billingRouter);
 app.use('/social-drafts', socialDraftsRouter);
+app.use('/admin', adminRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
@@ -74,6 +80,15 @@ app.use(function(req, res, next) {
 // error handler
 app.use(function(err, req, res, next) {
   const status = err.statusCode || err.status || 500;
+  recordAppLog({
+    level: status >= 500 ? 'error' : 'warning',
+    message: err.message,
+    req,
+    statusCode: status,
+    metadata: {
+      stack: req.app.get('env') === 'development' ? err.stack : ''
+    }
+  });
 
   if (req.accepts('json') && !req.accepts('html')) {
     return res.status(status).json({

@@ -325,6 +325,8 @@ async function crawlWebsite(startUrl, options = {}) {
   const pages = [];
 
   while (queue.length && pages.length < maxPages) {
+    if (typeof options.shouldStop === 'function' && await options.shouldStop()) break;
+
     const nextUrl = queue.shift();
     queued.delete(nextUrl);
 
@@ -332,6 +334,8 @@ async function crawlWebsite(startUrl, options = {}) {
     visited.add(nextUrl);
 
     const page = await fetchPage(nextUrl);
+    if (typeof options.shouldStop === 'function' && await options.shouldStop()) break;
+
     if (!sameHost(page.url, baseUrl)) {
       continue;
     }
@@ -354,6 +358,7 @@ async function crawlWebsite(startUrl, options = {}) {
 
     if (queue.length && pages.length < maxPages && delayMs > 0) {
       await sleep(delayMs);
+      if (typeof options.shouldStop === 'function' && await options.shouldStop()) break;
     }
   }
 

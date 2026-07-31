@@ -1,5 +1,19 @@
 <%- include('../../partials/header') %>
 
+<%
+  const scanIssues = typeof issues !== 'undefined' && Array.isArray(issues) ? issues : [];
+  const scanRecommendations = typeof recommendations !== 'undefined' && Array.isArray(recommendations)
+    ? recommendations
+    : scanIssues.slice(0, 12).map((issue) => ({
+        priority: issue.severity === 'critical' ? 5 : (issue.severity === 'warning' ? 3 : 1),
+        category: 'Scan finding',
+        title: `Review ${issue.title}`,
+        reason: `Observed on ${issue.url}. Recommended action: ${issue.recommendation}`,
+        expectedImpact: 'Addressing this verified finding can improve the page search readiness.'
+      }));
+  const scanIsActive = scan.status === 'pending' || scan.status === 'running';
+%>
+
 <div class="app-layout">
   <aside class="app-sidebar">
     <strong>Workspace</strong>
@@ -21,12 +35,25 @@
         <p class="eyebrow"><%= project.name %></p>
         <h1>Website Scan</h1>
       </div>
-      <form action="/projects/<%= project._id %>/scans" method="post" data-loading-state="Running a factual website scan">
-        <button class="button button-primary" type="submit">Run Again</button>
-      </form>
+      <div class="row-actions">
+        <% if (scanIsActive) { %>
+          <form action="/projects/<%= project._id %>/scans/<%= scan._id %>/cancel" method="post" onsubmit="return confirm('Stop this scan now? Partial findings already saved may remain visible.');">
+            <button class="button danger-button" type="submit">Stop Scan</button>
+          </form>
+        <% } %>
+        <form action="/projects/<%= project._id %>/scans" method="post" data-loading-state="Running a factual website scan">
+          <button class="button button-primary" type="submit">Run Again</button>
+        </form>
+      </div>
     </div>
 
-    <% const scanIsActive = scan.status === 'pending' || scan.status === 'running'; %>
+    <% if (typeof stopped !== 'undefined' && stopped) { %>
+      <section class="panel notice-panel">
+        <h2>Scan stopped</h2>
+        <p class="empty">The stop signal was saved. The worker will exit this scan instead of completing more crawl, audit, recommendation, or competitor stages.</p>
+      </section>
+    <% } %>
+
     <% if (scanIsActive) { %>
       <section class="panel notice-panel scan-live-panel">
         <h2>Scan in progress</h2>
@@ -82,6 +109,35 @@
           </tbody>
         </table>
       </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <h2>Actions from this scan</h2>
+        <a href="/projects/<%= project._id %>/recommendations">Manage recommendations</a>
+      </div>
+      <% if (!scanRecommendations.length) { %>
+        <p class="empty">
+          <%= scanIsActive
+            ? 'Evidence-backed recommendations will appear when the scan audit completes.'
+            : 'This scan did not produce a supported recommendation from the findings it recorded.' %>
+        </p>
+      <% } else { %>
+        <div class="recommendation-grid">
+          <% scanRecommendations.forEach((recommendation) => { %>
+            <article class="recommendation-card">
+              <div class="panel-title">
+                <span class="status">Priority <%= recommendation.priority %></span>
+                <span class="status"><%= recommendation.category %></span>
+              </div>
+              <h2><%= recommendation.title %></h2>
+              <p><%= recommendation.reason %></p>
+              <p><strong>Expected impact:</strong> <%= recommendation.expectedImpact %></p>
+              <a href="/projects/<%= project._id %>/recommendations">Review and act</a>
+            </article>
+          <% }) %>
+        </div>
+      <% } %>
     </section>
 
     <section class="panel">

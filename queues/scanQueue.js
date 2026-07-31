@@ -15,6 +15,11 @@ function getQueue() {
   return queue;
 }
 
+async function countScanWorkers() {
+  const workers = await getQueue().getWorkers();
+  return workers.length;
+}
+
 async function enqueueScan(scanId) {
   if (!env.queueEnabled) {
     setImmediate(() => runScan(scanId));
@@ -22,13 +27,27 @@ async function enqueueScan(scanId) {
   }
 
   try {
+    const workerCount = await countScanWorkers();
+    if (workerCount < 1) {
+      const message = 'Scan queue has no active worker. Run npm start or add an npm run worker process.';
+      if (env.isProduction) {
+        const error = new Error(message);
+        error.statusCode = 503;
+        throw error;
+      }
+
+      console.warn(`${message} Running scan inline in ${env.nodeEnv}.`);
+      setImmediate(() => runScan(scanId));
+      return null;
+    }
+
     return await getQueue().add(
       'run-scan',
       { scanId: scanId.toString() },
       {
         attempts: 3,
         backoff: { type: 'exponential', delay: 5000 },
-        jobId: `scan:${scanId}`,
+        jobId: `scan-${scanId}`,
         removeOnComplete: { age: 3600, count: 1000 },
         removeOnFail: { age: 7 * 24 * 60 * 60 }
       }
@@ -63,6 +82,7 @@ async function closeQueue() {
 }
 
 module.exports = {
+  countScanWorkers,
   closeQueue,
   enqueueScan,
   getQueue

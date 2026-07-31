@@ -1,63 +1,160 @@
 <%- include('../partials/header') %>
 
+<%
+  const reviewDrafts = drafts.filter((draft) => ['draft', 'awaiting_review', 'needs_revision'].includes(draft.status));
+  const completedDrafts = drafts.filter((draft) => ['approved', 'published_manually'].includes(draft.status));
+  const scheduledCount = socialDrafts.filter((draft) => draft.status === 'draft').length;
+  const currentJob = typeof job !== 'undefined' ? job : null;
+  const recentPipelineDrafts = typeof pipelineDrafts !== 'undefined' ? pipelineDrafts : [];
+%>
+
 <div class="app-layout">
   <aside class="app-sidebar">
-    <strong>Workspace</strong>
-    <a href="/dashboard">Dashboard</a>
-    <a href="/projects">Projects</a>
-    <a href="/projects/<%= project._id %>">Project Overview</a>
-    <a href="/projects/<%= project._id %>/recommendations">Recommendations</a>
+    <strong><%= project.name %></strong>
+    <a href="/projects/<%= project._id %>">CMO Overview</a>
+    <a class="active" href="/projects/<%= project._id %>/content">Content Studio</a>
+    <a href="/projects/<%= project._id %>/calendar">Content Calendar</a>
+    <a href="/projects/<%= project._id %>/campaigns">Campaigns</a>
+    <span class="sidebar-divider"></span>
+    <a href="/projects/<%= project._id %>/recommendations">Growth Opportunities</a>
     <a href="/projects/<%= project._id %>/ai-report/latest">AI CMO Plan</a>
-    <a href="/projects/<%= project._id %>/calendar">Calendar</a>
   </aside>
 
-  <section class="app-main">
-    <div class="page-heading">
+  <section
+    class="app-main"
+    <% if (currentJob && (currentJob.status === 'queued' || currentJob.status === 'running')) { %>
+      data-live-job
+      data-live-job-endpoint="/projects/<%= project._id %>/jobs/<%= currentJob._id %>"
+      data-initial-job-status="<%= currentJob.status %>"
+    <% } %>
+  >
+    <nav class="project-command-nav" aria-label="Content operations">
+      <a class="is-active" href="/projects/<%= project._id %>/content"><strong>Content Studio</strong><span>Create and review</span></a>
+      <a href="/projects/<%= project._id %>/calendar"><strong>Calendar</strong><span>See what goes out</span></a>
+      <a href="/projects/<%= project._id %>/campaigns"><strong>Campaigns</strong><span>Track each objective</span></a>
+    </nav>
+
+    <div class="page-heading content-studio-heading">
       <div>
         <p class="eyebrow"><%= project.name %></p>
-        <h1>Approval Queue</h1>
+        <h1>Content Studio</h1>
+        <p>Create a post or build an organized campaign plan. Everything generated appears below and in the calendar.</p>
       </div>
-      <a class="button" href="/projects/<%= project._id %>/recommendations">Generate from recommendations</a>
-      <a class="button" href="/projects/<%= project._id %>/calendar">Calendar</a>
+      <a class="button button-primary" href="/projects/<%= project._id %>/calendar">Open Calendar</a>
     </div>
 
-    <section class="panel">
-      <div class="panel-title">
-        <h2>Drafts needing review</h2>
-        <span class="status"><%= drafts.filter((draft) => ['draft', 'awaiting_review', 'needs_revision'].includes(draft.status)).length %> drafts</span>
-      </div>
-      <% const queueDrafts = drafts.filter((draft) => ['draft', 'awaiting_review', 'needs_revision'].includes(draft.status)); %>
-      <% if (!queueDrafts.length) { %>
-        <p class="empty">No drafts are waiting for approval.</p>
-      <% } %>
-      <div class="content-card-grid">
-        <% queueDrafts.forEach((draft) => { %>
-          <a class="content-card" href="/content/<%= draft._id %>">
-            <span class="status"><%= draft.type.replace(/_/g, ' ') %> / <%= draft.status.replace(/_/g, ' ') %></span>
-            <strong><%= draft.title || 'Untitled draft' %></strong>
-            <small><%= draft.targetUrl %></small>
-            <p><%= draft.body.slice(0, 150) %><%= draft.body.length > 150 ? '...' : '' %></p>
-          </a>
-        <% }) %>
-      </div>
+    <section class="studio-summary" aria-label="Content summary">
+      <div><span>Needs review</span><strong><%= reviewDrafts.length %></strong></div>
+      <div><span>Approved assets</span><strong><%= completedDrafts.length %></strong></div>
+      <div><span>Scheduled posts</span><strong><%= scheduledCount %></strong></div>
+      <div><span>Campaigns</span><strong><%= campaigns.length %></strong></div>
     </section>
 
-    <section class="panel">
-      <h2>Content History</h2>
-      <% if (!drafts.length) { %>
-        <p class="empty">No content drafts have been generated yet.</p>
-      <% } %>
-      <div class="scan-list">
-        <% drafts.forEach((draft) => { %>
-          <a class="scan-row" href="/content/<%= draft._id %>">
-            <strong><%= draft.title || draft.type.replace(/_/g, ' ') %></strong>
-            <span><%= draft.type.replace(/_/g, ' ') %></span>
-            <span><%= draft.status.replace(/_/g, ' ') %></span>
-            <span><%= draft.updatedAt.toLocaleString() %></span>
-          </a>
-        <% }) %>
+    <% if (currentJob && (currentJob.status === 'queued' || currentJob.status === 'running')) { %>
+      <section class="studio-job-bar">
+        <div><strong>Content pipeline running</strong><span data-job-step><%= currentJob.currentStep || 'Preparing evidence-backed content assets' %></span></div>
+        <span class="status" data-job-status><%= currentJob.status %></span>
+        <span data-job-progress><%= currentJob.progressPercent || 0 %>%</span>
+        <span data-job-error-row hidden><span data-job-error></span></span>
+      </section>
+    <% } %>
+
+    <% if (currentJob && currentJob.status === 'failed') { %>
+      <section class="panel notice-panel">
+        <h2>Content pipeline failed</h2>
+        <p><%= currentJob.errorMessage || 'The content pipeline could not complete.' %></p>
+        <form action="/projects/<%= project._id %>/jobs/<%= currentJob._id %>/retry" method="post"><button class="button button-primary" type="submit">Retry Pipeline</button></form>
+      </section>
+    <% } %>
+
+    <% if (successMessage) { %><div class="image-success-message"><%= successMessage %></div><% } %>
+    <% if (errorMessage) { %><section class="panel notice-panel"><strong>Plan creation failed</strong><p><%= errorMessage %></p></section><% } %>
+
+    <section class="campaign-composer" id="planner">
+      <div class="campaign-composer-intro">
+        <p class="eyebrow">Create new content</p>
+        <h2>What should Moyi plan?</h2>
+        <p>Give Moyi the campaign objective. It will use this project’s real audience, offer, website, and tone to prepare drafts for review.</p>
       </div>
+      <form action="/projects/<%= project._id %>/content-plan" method="post" data-loading-state="Building your campaign content plan">
+        <fieldset class="cadence-selector">
+          <legend>Plan length</legend>
+          <label><input type="radio" name="cadence" value="single" checked><span><strong>Single post</strong><small>One focused draft</small></span></label>
+          <label><input type="radio" name="cadence" value="weekly"><span><strong>Weekly plan</strong><small>5 scheduled posts</small></span></label>
+          <label><input type="radio" name="cadence" value="monthly"><span><strong>Monthly plan</strong><small>12 scheduled posts</small></span></label>
+        </fieldset>
+        <div class="campaign-composer-fields">
+          <label>Campaign name <input name="name" maxlength="160" placeholder="August product education" required></label>
+          <label>Channel
+            <select name="channel" required>
+              <option value="multi">Multi-channel</option>
+              <option value="linkedin">LinkedIn</option>
+              <option value="instagram">Instagram</option>
+              <option value="facebook">Facebook</option>
+              <option value="x">X</option>
+              <option value="email">Email</option>
+            </select>
+          </label>
+          <label>Start date <input type="date" name="startDate" value="<%= today %>" required></label>
+          <label class="full">Campaign objective <textarea name="goal" rows="4" maxlength="500" placeholder="What are we promoting, who needs it, and what action should they take?" required></textarea></label>
+        </div>
+        <div class="campaign-composer-submit">
+          <span>Drafts are scheduled for review. Nothing posts automatically.</span>
+          <button class="button button-primary" type="submit">Create Content Plan</button>
+        </div>
+      </form>
     </section>
+
+    <section class="studio-section-heading">
+      <div><p class="eyebrow">Generated work</p><h2>Find everything here</h2></div>
+      <a href="/projects/<%= project._id %>/calendar">View scheduled work</a>
+    </section>
+
+    <div class="studio-library-grid">
+      <section class="studio-library">
+        <div class="studio-library-title"><h2>Content assets</h2><span><%= drafts.length %></span></div>
+        <% if (!drafts.length) { %>
+          <p class="empty">No website or article assets yet. Generate them from a growth opportunity.</p>
+          <a class="button" href="/projects/<%= project._id %>/recommendations">Open Growth Opportunities</a>
+        <% } else { %>
+          <div class="studio-work-list">
+            <% drafts.slice(0, 12).forEach((draft) => { %>
+              <a href="/content/<%= draft._id %>">
+                <div><strong><%= draft.title || 'Untitled asset' %></strong><span><%= draft.type.replace(/_/g, ' ') %></span></div>
+                <span class="status"><%= draft.status.replace(/_/g, ' ') %></span>
+              </a>
+            <% }) %>
+          </div>
+        <% } %>
+      </section>
+
+      <section class="studio-library">
+        <div class="studio-library-title"><h2>Campaign posts</h2><span><%= socialDrafts.length %></span></div>
+        <% if (!socialDrafts.length) { %>
+          <p class="empty">No campaign posts yet. Use the planner above to create one post, a week, or a month.</p>
+        <% } else { %>
+          <div class="studio-work-list">
+            <% socialDrafts.forEach((draft) => { %>
+              <a href="/projects/<%= project._id %>/calendar#post-<%= draft._id %>">
+                <div><strong><%= draft.title || 'Untitled post' %></strong><span><%= draft.channel %> · <%= draft.scheduledFor.toLocaleDateString() %></span></div>
+                <span class="status"><%= draft.status.replace(/_/g, ' ') %></span>
+              </a>
+            <% }) %>
+          </div>
+        <% } %>
+      </section>
+    </div>
+
+    <% if (recentPipelineDrafts.length) { %>
+      <section class="panel">
+        <div class="panel-title"><h2>Just generated</h2><span class="status"><%= recentPipelineDrafts.length %> assets</span></div>
+        <div class="content-card-grid">
+          <% recentPipelineDrafts.forEach((draft) => { %>
+            <a class="content-card" href="/content/<%= draft._id %>"><strong><%= draft.title || 'Untitled draft' %></strong><span><%= draft.type.replace(/_/g, ' ') %></span><p><%= draft.body.slice(0, 180) %></p></a>
+          <% }) %>
+        </div>
+      </section>
+    <% } %>
   </section>
 </div>
 

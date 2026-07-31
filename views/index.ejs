@@ -1,41 +1,167 @@
 <%- include('partials/header') %>
 
-<section class="hero landing-hero reveal">
+<%
+  const scanResult = typeof quickScanResult !== 'undefined' ? quickScanResult : null;
+  const scanError = typeof quickScanError !== 'undefined' ? quickScanError : '';
+  const scanUrl = typeof quickScanUrl !== 'undefined' ? quickScanUrl : '';
+%>
+
+<section class="hero landing-hero reveal" id="quick-scan">
   <div class="hero-glow" aria-hidden="true"></div>
   <div class="hero-copy">
     <p class="pill">AI CMO platform for search-led growth</p>
     <h1>Your AI Chief Marketing Officer for SEO Growth</h1>
     <p class="lead">Audit your website, discover SEO opportunities, generate content plans, track search performance, and know exactly what to improve next.</p>
     <div class="actions">
-      <a class="button button-primary" href="/register">Start Free Audit</a>
       <a class="button" href="#product-preview">View Demo</a>
+      <a class="button button-primary" href="/register">Create Free Account</a>
     </div>
   </div>
 
-  <div class="hero-console product-glass">
+  <div class="hero-console product-glass" data-terminal-console>
     <div class="window-bar">
       <span></span><span></span><span></span>
       <strong>moyi-cmo.run</strong>
     </div>
     <div class="console-layout">
       <div class="console-main">
-        <p class="eyebrow">Illustrative sample</p>
-        <p class="terminal-line">$ moyi scan https://example.com --plan 30d</p>
-        <h2>SEO growth plan generated</h2>
-        <p>42 crawl facts analyzed. 11 candidate opportunities found. 6 content improvements waiting for approval.</p>
-        <div class="score-ring">
-          <strong>84</strong>
-          <span>Sample signal</span>
+        <div class="terminal-status-row">
+          <p class="eyebrow"><%= scanResult ? 'Quick scan complete' : 'Live quick scan' %></p>
+          <span class="terminal-live-dot"><%= scanResult ? 'report ready' : 'agent online' %></span>
+        </div>
+        <form class="terminal-scan-form" action="/quick-scan" method="post" data-terminal-scan data-loading-state="Running your public Moyi scan">
+          <span class="terminal-prompt">$ moyi scan</span>
+          <input name="websiteUrl" value="<%= scanUrl %>" placeholder="example.com" autocomplete="url" required>
+          <button type="submit" aria-label="Run quick scan">Enter</button>
+        </form>
+        <div class="terminal-pipeline" aria-hidden="true">
+          <span style="--d:0ms">crawl</span>
+          <span style="--d:180ms">audit</span>
+          <span style="--d:360ms">score</span>
+          <span style="--d:540ms">plan</span>
+        </div>
+        <% if (scanError) { %>
+          <p class="quick-scan-error"><%= scanError %></p>
+        <% } %>
+        <h2><%= scanResult ? `${scanResult.snapshot.host} quick report generated` : 'Enter your website to wake up Moyi' %></h2>
+        <p><%= scanResult ? `${scanResult.pagesScanned} pages sampled. ${scanResult.summary.issueCount} visible signals found. Full recommendations unlock after signup.` : 'Type your website URL into the terminal, press Enter, and get a limited public scan before creating an account.' %></p>
+        <div class="score-ring <%= scanResult ? '' : 'score-ring-idle' %>" style="--score:<%= scanResult ? scanResult.score : 0 %>%">
+          <strong><%= scanResult ? scanResult.score : '--' %></strong>
+          <span><%= scanResult ? 'Quick score' : 'Awaiting scan' %></span>
         </div>
       </div>
       <div class="console-side">
-        <span>Critical issues <strong>3</strong></span>
-        <span>Content gaps <strong>12</strong></span>
-        <span>Sample impressions <strong>48.2k</strong></span>
+        <span><i></i>Critical issues <strong><%= scanResult ? scanResult.summary.criticalCount : '--' %></strong><small><%= scanResult ? 'from sampled pages' : 'waiting for URL' %></small></span>
+        <span><i></i>Warnings <strong><%= scanResult ? scanResult.summary.warningCount : '--' %></strong><small><%= scanResult ? 'from crawl evidence' : 'waiting for URL' %></small></span>
+        <span><i></i>Opportunities <strong><%= scanResult ? scanResult.summary.opportunityCount : '--' %></strong><small><%= scanResult ? 'visible preview only' : 'waiting for URL' %></small></span>
       </div>
     </div>
+    <div class="terminal-signal-grid" aria-hidden="true"></div>
   </div>
 </section>
+
+<% if (scanResult) { %>
+  <section class="public-scan-result reveal" id="quick-scan-result">
+    <div class="section-intro">
+      <p class="eyebrow">Free quick scan</p>
+      <h2>We found the shape of <%= scanResult.snapshot.host %>.</h2>
+      <p>This public preview shows a limited crawl sample. Create a free account to unlock the full prioritized plan and draft recommendations.</p>
+    </div>
+
+    <div class="public-scan-grid">
+      <div class="website-snapshot product-glass">
+        <div class="browser-bar">
+          <span></span><span></span><span></span>
+          <strong><%= scanResult.snapshot.host %></strong>
+        </div>
+        <div class="snapshot-canvas">
+          <p class="eyebrow">Captured page snapshot</p>
+          <h3><%= scanResult.snapshot.h1 || scanResult.snapshot.title %></h3>
+          <p><%= scanResult.snapshot.description %></p>
+          <div class="snapshot-lines">
+            <% scanResult.snapshot.headings.forEach((heading) => { %>
+              <span><%= heading %></span>
+            <% }) %>
+            <% if (!scanResult.snapshot.headings.length) { %>
+              <span>No visible H2 headings found in this sample.</span>
+            <% } %>
+          </div>
+        </div>
+      </div>
+
+      <div class="signal-report" style="--score:<%= scanResult.score %>%">
+        <header class="signal-report-head">
+          <div class="signal-score-dial">
+            <strong><%= scanResult.score %></strong>
+          </div>
+          <div>
+            <p class="eyebrow">Moyi signal index</p>
+            <h3><%= scanResult.score >= 80 ? 'Strong foundation' : scanResult.score >= 60 ? 'Growth is within reach' : 'Priority work detected' %></h3>
+            <p>Measured from the public crawl sample.</p>
+          </div>
+        </header>
+
+        <div class="signal-report-list">
+          <article class="signal-report-row">
+            <strong><%= scanResult.pagesScanned %></strong>
+            <div><span>Pages inspected</span><small><%= scanResult.pagesFound %> public pages discovered</small></div>
+            <i class="signal-state signal-state-info">Crawl</i>
+          </article>
+          <article class="signal-report-row">
+            <strong><%= scanResult.summary.criticalCount %></strong>
+            <div><span>Critical issues</span><small>Blocking signals in this sample</small></div>
+            <i class="signal-state <%= scanResult.summary.criticalCount ? 'signal-state-alert' : 'signal-state-clear' %>"><%= scanResult.summary.criticalCount ? 'Review' : 'Clear' %></i>
+          </article>
+          <article class="signal-report-row">
+            <strong><%= scanResult.summary.warningCount %></strong>
+            <div><span>Warnings</span><small>Metadata and page structure</small></div>
+            <i class="signal-state <%= scanResult.summary.warningCount ? 'signal-state-warn' : 'signal-state-clear' %>"><%= scanResult.summary.warningCount ? 'Improve' : 'Clear' %></i>
+          </article>
+          <article class="signal-report-row">
+            <strong><%= scanResult.summary.opportunityCount %></strong>
+            <div><span>Growth signals</span><small>Visible opportunities to pursue</small></div>
+            <i class="signal-state signal-state-growth">Open</i>
+          </article>
+        </div>
+
+        <footer class="signal-report-foot">
+          <span><i></i> Live website evidence</span>
+          <a href="/register">Unlock the full plan <b aria-hidden="true">&rarr;</b></a>
+        </footer>
+      </div>
+    </div>
+
+    <div class="public-scan-grid">
+      <section class="panel">
+        <div class="panel-title">
+          <h2>Visible Findings</h2>
+          <span class="status"><%= scanResult.visibleIssues.length %> shown</span>
+        </div>
+        <% if (!scanResult.visibleIssues.length) { %>
+          <p class="empty">No major issues were visible in the public sample. The full workspace checks deeper pages and turns findings into actions.</p>
+        <% } %>
+        <% scanResult.visibleIssues.forEach((issue) => { %>
+          <article class="quick-finding">
+            <span class="status"><%= issue.severity %></span>
+            <strong><%= issue.title %></strong>
+            <p><%= issue.recommendation %></p>
+          </article>
+        <% }) %>
+      </section>
+
+      <section class="panel gated-panel">
+        <div class="panel-title">
+          <h2>Locked Growth Plan</h2>
+          <span class="status"><%= scanResult.hiddenOpportunityCount %> more signals</span>
+        </div>
+        <% scanResult.gatedInsights.forEach((item) => { %>
+          <div class="locked-row"><span><%= item %></span><strong>Unlock</strong></div>
+        <% }) %>
+        <a class="button button-primary" href="/register">Unlock Full Free Audit</a>
+      </section>
+    </div>
+  </section>
+<% } %>
 
 <section class="value-strip reveal" aria-label="Core product value">
   <span>Website SEO audits</span>
@@ -177,32 +303,33 @@
 <section class="section-intro reveal" id="pricing">
   <p class="eyebrow">Pricing preview</p>
   <h2>Start with a scan. Scale into a marketing operating system.</h2>
+  <p>Pay yearly and get two months free on every paid plan.</p>
 </section>
 
 <section class="pricing-grid reveal">
   <article>
     <h3>Free</h3>
-    <strong>$0</strong>
-    <p>One website audit and starter recommendations.</p>
+    <strong>&euro;<%= publicPlans.free.monthlyPrice %></strong>
+    <p><%= publicPlans.free.description %></p>
     <a class="button" href="/register">Run audit</a>
   </article>
   <article>
     <h3>Starter</h3>
-    <strong>$29</strong>
-    <p>Weekly scans, content recommendations, and growth reports.</p>
+    <strong>&euro;<%= publicPlans.starter.monthlyPrice %><small>/month</small></strong>
+    <p><%= publicPlans.starter.description %></p>
     <a class="button button-primary" href="/register">Get Started</a>
   </article>
   <article>
     <h3>Pro</h3>
-    <strong>$79</strong>
-    <p>Multiple projects, Search Console insights, and approval workflows.</p>
+    <strong>&euro;<%= publicPlans.pro.monthlyPrice %><small>/month</small></strong>
+    <p><%= publicPlans.pro.description %></p>
     <a class="button" href="/register">Choose Pro</a>
   </article>
   <article>
     <h3>Agency</h3>
-    <strong>Custom</strong>
-    <p>Client portfolios, advanced reporting, and team collaboration.</p>
-    <a class="button" href="#contact">Contact</a>
+    <strong>&euro;<%= publicPlans.agency.monthlyPrice %><small>/month</small></strong>
+    <p><%= publicPlans.agency.description %></p>
+    <a class="button" href="/register">Choose Agency</a>
   </article>
 </section>
 

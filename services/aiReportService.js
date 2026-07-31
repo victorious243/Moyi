@@ -118,6 +118,7 @@ function sanitizeReport(parsed) {
 function sanitizeRecommendations(parsed, { pages, issues }) {
   const allowedUrls = new Set(pages.map((page) => page.url));
   const allowedIssueIds = new Set(issues.map((issue) => issue._id.toString()));
+  const issueById = new Map(issues.map((issue) => [issue._id.toString(), issue]));
   const items = Array.isArray(parsed.recommendations) ? parsed.recommendations : [];
 
   return items.slice(0, 12).map((item) => {
@@ -127,6 +128,12 @@ function sanitizeRecommendations(parsed, { pages, issues }) {
     const relatedIssueIds = (Array.isArray(item.relatedIssueIds) ? item.relatedIssueIds : [])
       .map(String)
       .filter((id) => allowedIssueIds.has(id));
+    relatedIssueIds.forEach((id) => {
+      const issue = issueById.get(id);
+      if (issue && issue.url && allowedUrls.has(issue.url) && !targetUrls.includes(issue.url)) {
+        targetUrls.push(issue.url);
+      }
+    });
 
     return {
       title: String(item.title || 'SEO improvement'),
@@ -142,42 +149,17 @@ function sanitizeRecommendations(parsed, { pages, issues }) {
   }).filter((item) => item.targetUrls.length || item.relatedIssueIds.length);
 }
 
-function generateFallbackCmoPlan({ project, scan, pages, issues }) {
-  const report = {
-    executiveSummary: `Moyi completed a marketing audit for ${project.name} in the ${project.industry || 'general'} sector. We analyzed user engagement, conversion architecture, and SEO posture. Key opportunities include correcting foundational crawling metadata and content structures targeting ${project.targetAudience || 'prospective customers'}.`,
-    currentSeoHealth: `Based on a crawl of ${pages.length} pages, we identified ${issues.length} SEO issues (${issues.filter(i => i.severity === 'critical').length} critical, ${issues.filter(i => i.severity === 'warning').length} warning, ${issues.filter(i => i.severity === 'opportunity').length} opportunity).`,
-    mainBusinessRisk: issues.filter(i => i.severity === 'critical').length > 0
-      ? `The primary risk is ${issues.filter(i => i.severity === 'critical').length} critical technical crawl or indexing issues blocking search visibility.`
-      : `The primary risk is thin optimization and missing search metadata on main landing pages, limiting organic growth.`,
-    mainGrowthOpportunity: `Optimize metadata across all flagged pages to improve organic click-through rate, and create product-led comparison pages targeting high-intent keywords for ${project.name}.`,
-    topPriorities: [
-      'Resolve all critical technical/http/index blockages on top pages.',
-      'Correct missing titles and meta descriptions to improve SERP click-through rate.',
-      'Expand thin pages with descriptive, high-quality copy answering visitor intent.',
-      'Ensure every image has descriptive alt text for image search traffic.',
-      'Establish conversion goals and connect Google Search Console for detailed visibility.'
-    ],
-    quickWins: [
-      'Add descriptive title tags to all pages with a "Missing title tag" warning.',
-      'Draft a high-converting meta description for the homepage.',
-      'Identify top competitors and audit their sitemaps for content gaps.'
-    ],
-    thirtyDayPlan: [
-      'Days 1-7: Resolve missing title tags, double H1 tags, and canonical issues on crawled pages.',
-      'Days 8-14: Place the tracking script on key registration and checkout steps to measure attribution.',
-      'Days 15-21: Configure WordPress/CMS integrations and draft three high-intent blog articles.',
-      'Days 22-30: Monitor low CTR pages on Google Search Console page one and update their metadata.'
-    ],
-    suggestedContentStrategy: `Produce product-led comparative and alternative content. Focus on articles like "${project.name} vs. competitors" and problem-solving guides highlighting your main offer: "${project.mainOffer || 'our product features'}". Target keywords relevant to: ${project.targetAudience || 'business owners'}.`,
-    pageImprovementPriorities: issues.slice(0, 5).map(issue => `Fix ${issue.title} on ${issue.url}`),
-    internalLinkingStrategy: 'Link high-traffic content to key landing pages using descriptive anchor text.',
-    measurementPlan: 'Track visitor sessions, UTM sources, and key conversion actions via first-party tracking, and sync organic metrics via Google Search Console.',
-    warningsLimitations: [
-      'This plan was generated using a rule-based fallback system because no OPENAI_API_KEY was configured.',
-      'Configure an OpenAI API key in your environment to unlock deep semantic AI audits and custom content drafts.'
-    ]
-  };
+function formatEvidence(evidence) {
+  if (!evidence) return '';
+  if (typeof evidence === 'string') return evidence;
+  try {
+    return JSON.stringify(evidence);
+  } catch (error) {
+    return String(evidence);
+  }
+}
 
+function buildEvidenceRecommendations({ project, pages, issues }) {
   const actionTypesMap = {
     http_status: 'technical',
     missing_title: 'fix_metadata',
@@ -212,47 +194,80 @@ function generateFallbackCmoPlan({ project, scan, pages, issues }) {
     missing_canonical: 'Canonicalization'
   };
 
-  const recommendations = [];
-  const issueLimit = Math.min(issues.length, 12);
-  for (let i = 0; i < issueLimit; i++) {
-    const issueItem = issues[i];
-    recommendations.push({
-      title: `Fix ${issueItem.title}`,
-      category: categoriesMap[issueItem.type] || 'SEO Improvement',
-      priority: severityMap[issueItem.severity] || 3,
-      reason: `Moyi crawled this page and found: ${issueItem.recommendation}`,
-      expectedImpact: `Improves indexability, search ranking appearance, and page quality.`,
-      effort: issueItem.severity === 'critical' ? 'medium' : 'low',
-      actionType: actionTypesMap[issueItem.type] || 'content',
-      relatedIssueIds: [issueItem._id.toString()],
-      targetUrls: [issueItem.url]
-    });
-  }
+  const ambiguousIssueTypes = new Set(['noindex', 'missing_canonical', 'thin_content']);
+  const crawledUrls = new Set(pages.map((page) => page.url));
+  const recommendations = issues
+    .filter((issueItem) => issueItem._id && issueItem.url && crawledUrls.has(issueItem.url))
+    .slice(0, 12)
+    .map((issueItem) => ({
+    title: `${ambiguousIssueTypes.has(issueItem.type) ? 'Review' : 'Fix'} ${issueItem.title}`,
+    category: categoriesMap[issueItem.type] || 'SEO Improvement',
+    priority: severityMap[issueItem.severity] || 3,
+    reason: [
+      `Observed on ${issueItem.url}: ${issueItem.title}.`,
+      issueItem.evidence ? `Evidence: ${formatEvidence(issueItem.evidence)}.` : '',
+      issueItem.recommendation ? `Recommended action: ${issueItem.recommendation}` : ''
+    ].filter(Boolean).join(' '),
+    expectedImpact: `Resolving this verified ${categoriesMap[issueItem.type] || 'SEO'} finding can improve this page's search readiness.`,
+    effort: issueItem.severity === 'critical' ? 'medium' : 'low',
+    actionType: actionTypesMap[issueItem.type] || 'content',
+    relatedIssueIds: [issueItem._id.toString()],
+    targetUrls: [issueItem.url]
+  }));
 
-  if (recommendations.length === 0) {
-    recommendations.push({
-      title: 'Create comparison page',
-      category: 'Content Marketing',
-      priority: 4,
-      reason: 'Comparison pages capture users who are close to a purchasing decision.',
-      expectedImpact: 'High conversion intent traffic.',
-      effort: 'medium',
-      actionType: 'content',
-      relatedIssueIds: [],
-      targetUrls: pages.length > 0 ? [pages[0].url] : [project.websiteUrl]
-    });
-    recommendations.push({
-      title: 'Integrate Search Console',
-      category: 'Technical Integration',
-      priority: 3,
-      reason: 'Syncing search query data reveals which pages rank on page 2 (positions 11-20).',
-      expectedImpact: 'Identifies quick content upgrade opportunities.',
-      effort: 'low',
-      actionType: 'technical',
-      relatedIssueIds: [],
-      targetUrls: pages.length > 0 ? [pages[0].url] : [project.websiteUrl]
-    });
-  }
+  if (recommendations.length) return recommendations;
+
+  return [];
+}
+
+function generateFallbackCmoPlan({ project, scan, pages, issues }) {
+  const criticalCount = issues.filter(i => i.severity === 'critical').length;
+  const warningCount = issues.filter(i => i.severity === 'warning').length;
+  const opportunityCount = issues.filter(i => i.severity === 'opportunity').length;
+  const hasIssues = issues.length > 0;
+  const issueTitles = issues.slice(0, 5).map(issue => `${issue.title} on ${issue.url}`);
+
+  const report = {
+    executiveSummary: `Moyi crawled ${pages.length} page${pages.length === 1 ? '' : 's'} for ${project.name} and found ${issues.length} SEO issue${issues.length === 1 ? '' : 's'}.`,
+    currentSeoHealth: `The completed crawl found ${criticalCount} critical, ${warningCount} warning, and ${opportunityCount} opportunity-level issue${issues.length === 1 ? '' : 's'}.`,
+    mainBusinessRisk: criticalCount > 0
+      ? `Moyi found ${criticalCount} critical issue${criticalCount === 1 ? '' : 's'} that should be reviewed before treating the site as search-ready.`
+      : (hasIssues
+        ? 'Moyi did not find critical issues in this scan, but did find non-critical SEO issues worth reviewing.'
+        : 'Moyi did not find SEO issues in this scan. This does not prove there are no business or search opportunities; it only means this crawl did not surface them.'),
+    mainGrowthOpportunity: hasIssues
+      ? `Address the specific crawl findings first: ${issueTitles.join('; ')}.`
+      : 'No evidence-backed growth opportunity was found from this crawl alone. Connect Search Console or run a deeper crawl before prioritizing new work.',
+    topPriorities: hasIssues
+      ? issueTitles.map(item => `Review ${item}`).slice(0, 5)
+      : ['No crawl-backed SEO fixes were found. Add Search Console data or run a deeper crawl before creating priorities.'],
+    quickWins: issues
+      .filter(issue => ['opportunity', 'warning'].includes(issue.severity))
+      .slice(0, 5)
+      .map(issue => `Fix ${issue.title} on ${issue.url}`),
+    thirtyDayPlan: hasIssues
+      ? [
+        'Days 1-7: Review and fix critical issues found in the crawl.',
+        'Days 8-14: Fix warning-level page structure, title, metadata, and canonical findings.',
+        'Days 15-21: Re-scan the affected URLs and compare issue counts.',
+        'Days 22-30: Connect Search Console to validate query, CTR, and position opportunities.'
+      ]
+      : [
+        'Days 1-7: Connect Search Console or increase crawl coverage.',
+        'Days 8-14: Re-run the scan with broader coverage.',
+        'Days 15-30: Prioritize only the issues or search metrics Moyi can verify.'
+      ],
+    suggestedContentStrategy: 'No content strategy was generated from unsupported assumptions. Use Search Console queries, verified competitor data, or explicit business inputs before creating new content recommendations.',
+    pageImprovementPriorities: issues.slice(0, 5).map(issue => `Fix ${issue.title} on ${issue.url}`),
+    internalLinkingStrategy: 'No internal-linking recommendation was generated unless a specific crawl issue or page opportunity supports it.',
+    measurementPlan: 'Use crawl findings plus Search Console data to verify priorities before execution.',
+    warningsLimitations: [
+      'This plan was generated using a rule-based fallback system because no OPENAI_API_KEY was configured.',
+      'Configure an OpenAI API key in your environment to unlock deep semantic AI audits and custom content drafts.'
+    ]
+  };
+
+  const recommendations = buildEvidenceRecommendations({ project, pages, issues });
 
   return {
     report,
@@ -281,14 +296,22 @@ async function generateAiCmoPlan({ project, scan, pages, issues }) {
     report
   }));
   const recommendations = sanitizeRecommendations(recommendationJson, { pages, issues });
+  const finalRecommendations = recommendations.length
+    ? recommendations
+    : buildEvidenceRecommendations({ project, pages, issues });
 
   return {
     report,
-    recommendations,
+    recommendations: finalRecommendations,
     model: MODEL
   };
 }
 
 module.exports = {
-  generateAiCmoPlan
+  buildEvidenceRecommendations,
+  generateAiCmoPlan,
+  _private: {
+    buildEvidenceRecommendations,
+    sanitizeRecommendations
+  }
 };

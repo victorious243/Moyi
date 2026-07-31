@@ -10,35 +10,46 @@
   <% } %>
 </section>
 
+<nav class="billing-interval-switch" aria-label="Billing interval">
+  <a class="<%= billingInterval === 'monthly' ? 'is-active' : '' %>" href="/pricing?billing=monthly">Monthly</a>
+  <a class="<%= billingInterval === 'annual' ? 'is-active' : '' %>" href="/pricing?billing=annual">Yearly <span>2 months free</span></a>
+</nav>
+
 <section class="pricing-grid">
   <% Object.entries(plans).forEach(([key, plan]) => { %>
     <article class="panel">
       <h2><%= plan.name %></h2>
-      <p class="empty">
-        <% if (key === 'free') { %>Start with one project.<% } %>
-        <% if (key === 'starter') { %>For solo businesses building momentum.<% } %>
-        <% if (key === 'pro') { %>For teams using integrations and reporting.<% } %>
-        <% if (key === 'agency') { %>For multi-client growth workflows.<% } %>
-      </p>
+      <% if (billingInterval === 'annual' && plan.monthlyPrice) { %>
+        <p class="pricing-plan-price"><strong>&euro;<%= plan.annualPrice %></strong><span>/year</span></p>
+        <p class="pricing-saving">About &euro;<%= plan.annualMonthlyEquivalent %>/month. Save &euro;<%= plan.annualSavings %>.</p>
+      <% } else { %>
+        <p class="pricing-plan-price"><strong>&euro;<%= plan.monthlyPrice %></strong><% if (plan.monthlyPrice) { %><span>/month</span><% } %></p>
+        <% if (plan.monthlyPrice) { %><p class="pricing-saving">Or pay yearly and get two months free.</p><% } %>
+      <% } %>
+      <p class="empty"><%= plan.description %></p>
       <ul class="clean-list">
         <li><%= plan.projectLimit %> projects</li>
         <li><%= plan.scansPerMonth %> scans per month</li>
         <li><%= plan.pagesPerScan %> pages per scan</li>
         <li><%= plan.aiReportsPerMonth %> AI reports per month</li>
         <li><%= plan.contentDraftsPerMonth %> content drafts per month</li>
+        <li><%= plan.imageGenerationsPerMonth %> generated images per month</li>
         <li><%= plan.searchConsole ? 'Search Console included' : 'Search Console locked' %></li>
-        <li><%= plan.wordpress ? 'WordPress drafts included' : 'WordPress locked' %></li>
+        <li><%= plan.wordpress ? 'CMS draft publishing included' : 'CMS publishing locked' %></li>
       </ul>
       <% if (key === 'free') { %>
         <a class="button" href="/register">Start Free</a>
       <% } else { %>
         <form action="/billing/create-checkout-session" method="post">
           <input type="hidden" name="plan" value="<%= key %>">
-          <button class="button button-primary" type="submit">Upgrade to <%= plan.name %></button>
+          <input type="hidden" name="billingInterval" value="<%= billingInterval %>">
+          <button class="button button-primary" type="submit">Choose <%= plan.name %> <%= billingInterval === 'annual' ? 'yearly' : 'monthly' %></button>
         </form>
       <% } %>
     </article>
   <% }) %>
 </section>
+
+<p class="pricing-tax-note">Prices are shown in EUR. VAT may apply.</p>
 
 <%- include('partials/footer') %>

@@ -1,5 +1,7 @@
 const { body } = require('express-validator');
+const User = require('../../models/User');
 const Project = require('../../models/Project');
+const ProjectMember = require('../../models/ProjectMember');
 const Scan = require('../../models/Scan');
 const Page = require('../../models/Page');
 const SeoIssue = require('../../models/SeoIssue');
@@ -8,6 +10,7 @@ const CmoReport = require('../../models/CmoReport');
 const ProjectJob = require('../../models/ProjectJob');
 const Recommendation = require('../../models/Recommendation');
 const ContentDraft = require('../../models/ContentDraft');
+const ContentImage = require('../../models/ContentImage');
 const ProjectSearchProperty = require('../../models/ProjectSearchProperty');
 const SearchMetric = require('../../models/SearchMetric');
 const Competitor = require('../../models/Competitor');
@@ -17,6 +20,7 @@ const WordPressIntegration = require('../../models/WordPressIntegration');
 const WebflowIntegration = require('../../models/WebflowIntegration');
 const ShopifyIntegration = require('../../models/ShopifyIntegration');
 const PublishAction = require('../../models/PublishAction');
+const WebhookDelivery = require('../../models/WebhookDelivery');
 const ConversionGoal = require('../../models/ConversionGoal');
 const TrackingEvent = require('../../models/TrackingEvent');
 const Campaign = require('../../models/Campaign');
@@ -27,10 +31,22 @@ const handleValidation = require('../../utils/validate');
 const { normalizeUrl } = require('../../utils/url');
 const { normalizeShopDomain } = require('../../services/shopifyService');
 const { summarizeIssues } = require('../../services/auditService');
+const { recordAuditEvent } = require('../../services/auditLogService');
+const { deleteContentImagesForProject } = require('../../services/contentImageService');
+const {
+  hasProjectLogo,
+  openDownloadStream: openProjectLogoStream,
+  removeProjectLogo,
+  saveProjectLogo
+} = require('../../services/projectLogoService');
+const { retryFailedJob } = require('../../services/projectTaskService');
+const { canManageProjectRole, isUnsafeMethod, projectAccessRole } = require('../../services/projectAccessService');
 
 function buildProjectsContext(overrides = {}) {
   const deps = {
+    User,
     Project,
+    ProjectMember,
     Scan,
     Page,
     SeoIssue,
@@ -39,6 +55,7 @@ function buildProjectsContext(overrides = {}) {
     ProjectJob,
     Recommendation,
     ContentDraft,
+    ContentImage,
     ProjectSearchProperty,
     SearchMetric,
     Competitor,
@@ -48,6 +65,7 @@ function buildProjectsContext(overrides = {}) {
     WebflowIntegration,
     ShopifyIntegration,
     PublishAction,
+    WebhookDelivery,
     ConversionGoal,
     TrackingEvent,
     Campaign,
@@ -58,6 +76,16 @@ function buildProjectsContext(overrides = {}) {
     normalizeUrl,
     normalizeShopDomain,
     summarizeIssues,
+    recordAuditEvent,
+    deleteContentImagesForProject,
+    hasProjectLogo,
+    openProjectLogoStream,
+    removeProjectLogo,
+    saveProjectLogo,
+    retryFailedJob,
+    canManageProjectRole,
+    isUnsafeMethod,
+    projectAccessRole,
     ...overrides
   };
 
@@ -90,12 +118,20 @@ function buildProjectsContext(overrides = {}) {
   }
 
   function loadProject(req, res, next) {
-    deps.Project.findOne({ _id: req.params.id, owner: req.user._id })
-      .then((project) => {
+    deps.Project.findById(req.params.id)
+      .then(async (project) => {
         if (!project) return next(new deps.AppError('Project not found.', 404));
+        const role = await deps.projectAccessRole({ project, userId: req.user._id });
+        if (!role) return next(new deps.AppError('Project not found.', 404));
+        if (deps.isUnsafeMethod(req.method) && !deps.canManageProjectRole(role)) {
+          return next(new deps.AppError('You do not have permission to change this project.', 403));
+        }
 
         req.project = project;
+        req.projectAccessRole = role;
         res.locals.project = project;
+        res.locals.projectAccessRole = role;
+        res.locals.canManageProject = deps.canManageProjectRole(role);
         next();
       })
       .catch(next);
@@ -153,9 +189,10 @@ function buildProjectsContext(overrides = {}) {
   }
 
   async function loadScanViewData({ project, scan, userId }) {
-    const [pages, issues, competitors, competitorInsights] = await Promise.all([
+    const [pages, issues, recommendations, competitors, competitorInsights] = await Promise.all([
       deps.Page.find({ scanId: scan._id }).sort({ statusCode: -1, url: 1 }),
-      deps.SeoIssue.find({ scan: scan._id }).sort({ createdAt: -1, severity: 1 }).limit(12),
+      deps.SeoIssue.find({ scan: scan._id }).sort({ createdAt: -1, severity: 1 }),
+      deps.Recommendation.find({ projectId: project._id, auditId: scan._id }).sort({ priority: -1, createdAt: 1 }),
       deps.Competitor.find({ projectId: project._id, userId }).sort({ createdAt: -1 }).limit(3),
       deps.CompetitorInsight.find({ projectId: project._id }).sort({ priority: 1, createdAt: -1 }).limit(4)
     ]);
@@ -168,7 +205,8 @@ function buildProjectsContext(overrides = {}) {
       failedPages,
       issueSummary,
       issues,
-      pages
+      pages,
+      recommendations
     };
   }
 
@@ -218,6 +256,10 @@ function buildProjectsContext(overrides = {}) {
   }
 
   async function deleteProjectOwnedData({ project, userId }) {
+    await deps.deleteContentImagesForProject(project._id);
+    if (deps.hasProjectLogo(project)) {
+      await deps.removeProjectLogo(project);
+    }
     await Promise.all([
       deps.Page.deleteMany({ projectId: project._id }),
       deps.Scan.deleteMany({ projectId: project._id }),
@@ -236,11 +278,13 @@ function buildProjectsContext(overrides = {}) {
       deps.WebflowIntegration.deleteMany({ projectId: project._id }),
       deps.ShopifyIntegration.deleteMany({ projectId: project._id }),
       deps.PublishAction.deleteMany({ projectId: project._id }),
+      deps.WebhookDelivery.deleteMany({ projectId: project._id }),
       deps.ConversionGoal.deleteMany({ projectId: project._id }),
       deps.TrackingEvent.deleteMany({ projectId: project._id }),
       deps.Campaign.deleteMany({ projectId: project._id }),
       deps.SocialDraft.deleteMany({ projectId: project._id }),
-      deps.AnalyticsSnapshot.deleteMany({ project: project._id })
+      deps.AnalyticsSnapshot.deleteMany({ project: project._id }),
+      deps.ProjectMember.deleteMany({ projectId: project._id })
     ]);
 
     await deps.Project.deleteOne({ _id: project._id, owner: userId });
@@ -353,6 +397,11 @@ function buildProjectsContext(overrides = {}) {
       body('status').optional({ checkFalsy: true }).isIn(['planned', 'active', 'completed', 'paused']).withMessage('Campaign status is invalid.'),
       body('dailySpendLimit').optional({ checkFalsy: true }).isFloat({ min: 0, max: 10000 }).withMessage('Daily spend limit is invalid.'),
       body('monthlySpendLimit').optional({ checkFalsy: true }).isFloat({ min: 0, max: 250000 }).withMessage('Monthly spend limit is invalid.'),
+      deps.handleValidation
+    ],
+    projectMemberValidation: [
+      body('email').isEmail().withMessage('Valid team member email is required.').normalizeEmail(),
+      body('role').isIn(['admin', 'member']).withMessage('Team role is invalid.'),
       deps.handleValidation
     ],
     gscOpportunityDraftValidation: [

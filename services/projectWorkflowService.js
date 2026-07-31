@@ -7,14 +7,14 @@ const Recommendation = require('../models/Recommendation');
 const ContentDraft = require('../models/ContentDraft');
 const { normalizeUrl } = require('../utils/url');
 const { enqueueScan } = require('../queues/scanQueue');
-const { generateAiCmoPlan } = require('./aiReportService');
+const { buildEvidenceRecommendations, generateAiCmoPlan } = require('./aiReportService');
 const { generateCmoReport } = require('./cmoReportService');
 const { generateDraftsForRecommendation } = require('./contentDraftService');
 const {
   competitorSummary,
   persistDiscoveredCompetitors
 } = require('./competitorDiscoveryService');
-const { incrementUsage } = require('./usageService');
+const { incrementUsage, recordAiOperation } = require('./usageService');
 const { scanProjectForDiscovery } = require('./discoveryService');
 
 function personaSummary(persona) {
@@ -37,12 +37,14 @@ function createProjectWorkflowService(deps = {}) {
     ContentDraft,
     normalizeUrl,
     enqueueScan,
+    buildEvidenceRecommendations,
     generateAiCmoPlan,
     generateCmoReport,
     generateDraftsForRecommendation,
     competitorSummary,
     persistDiscoveredCompetitors,
     incrementUsage,
+    recordAiOperation,
     scanProjectForDiscovery,
     ...deps
   };
@@ -147,7 +149,13 @@ function createProjectWorkflowService(deps = {}) {
         { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
       );
 
-      const recommendations = result.recommendations.slice(0, recommendationLimit);
+      const generatedRecommendations = Array.isArray(result.recommendations)
+        ? result.recommendations
+        : [];
+      const evidenceRecommendations = generatedRecommendations.length
+        ? generatedRecommendations
+        : services.buildEvidenceRecommendations({ project, pages, issues });
+      const recommendations = evidenceRecommendations.slice(0, recommendationLimit);
       await notifyProgress(onProgress, {
         currentStep: 'Saving prioritized recommendations',
         progressPercent: 90
@@ -162,6 +170,7 @@ function createProjectWorkflowService(deps = {}) {
       }
 
       await services.incrementUsage(userId, 'aiReportsUsed', 1);
+      await services.recordAiOperation(userId, 1);
       await notifyProgress(onProgress, {
         currentStep: 'AI CMO plan is ready',
         progressPercent: 100
@@ -227,6 +236,7 @@ function createProjectWorkflowService(deps = {}) {
     const created = drafts.length ? await services.ContentDraft.insertMany(drafts) : [];
     if (created.length) {
       await services.incrementUsage(userId, 'contentDraftsUsed', created.length);
+      await services.recordAiOperation(userId, 1);
     }
 
     return {

@@ -51,6 +51,37 @@ const projectSchema = new mongoose.Schema(
       trim: true,
       default: ''
     },
+    brandLogo: {
+      storageProvider: {
+        type: String,
+        enum: ['machine'],
+        default: 'machine'
+      },
+      storageKey: {
+        type: String,
+        trim: true,
+        default: ''
+      },
+      filename: {
+        type: String,
+        trim: true,
+        default: ''
+      },
+      mimeType: {
+        type: String,
+        enum: ['', 'image/png'],
+        default: ''
+      },
+      byteLength: {
+        type: Number,
+        min: 0,
+        default: 0
+      },
+      uploadedAt: {
+        type: Date,
+        default: null
+      }
+    },
     status: {
       type: String,
       enum: ['draft', 'approved'],

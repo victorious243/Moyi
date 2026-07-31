@@ -14,6 +14,11 @@ const contentDraftSchema = new mongoose.Schema(
       required: true,
       index: true
     },
+    selectedImageId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ContentImage',
+      default: null
+    },
     targetUrl: {
       type: String,
       required: true,

@@ -20,6 +20,12 @@ const socialDraftSchema = new mongoose.Schema(
       default: null,
       index: true
     },
+    contentImageId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ContentImage',
+      default: null,
+      index: true
+    },
     channel: {
       type: String,
       enum: ['linkedin', 'facebook', 'x', 'instagram', 'email'],

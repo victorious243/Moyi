@@ -433,7 +433,11 @@ function fallbackDraft({ type, project, recommendation, page, keyword, execution
 async function requestJson(prompt, systemContent, temperature = 0.3) {
   if (!env.openaiApiKey) return null;
 
-  const client = new OpenAI({ apiKey: env.openaiApiKey });
+  const client = new OpenAI({
+    apiKey: env.openaiApiKey,
+    maxRetries: 1,
+    timeout: env.contentAiTimeoutMs
+  });
   const response = await client.chat.completions.create({
     model: MODEL,
     temperature,
@@ -448,6 +452,23 @@ async function requestJson(prompt, systemContent, temperature = 0.3) {
   });
 
   return parseJson(response.choices[0].message.content);
+}
+
+async function mapWithConcurrency(items, concurrency, mapper) {
+  const results = new Array(items.length);
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < items.length) {
+      const index = cursor;
+      cursor += 1;
+      results[index] = await mapper(items[index], index);
+    }
+  }
+
+  const workerCount = Math.min(Math.max(1, concurrency), items.length);
+  await Promise.all(Array.from({ length: workerCount }, worker));
+  return results;
 }
 
 async function requestAiDraft(prompt) {
@@ -497,7 +518,13 @@ async function requestMultiAgentDraft(context) {
   };
 }
 
-async function generateDraftsForRecommendation({ project, recommendation, requestedType = '', keyword = '' }) {
+async function generateDraftsForRecommendation({
+  project,
+  recommendation,
+  requestedType = '',
+  requestedTypes = null,
+  keyword = ''
+}) {
   const allowedStatuses = new Set(['accepted', 'in_progress', 'done']);
   if (!allowedStatuses.has(recommendation.status)) {
     const error = new Error('Accept the recommendation before generating content drafts.');
@@ -505,7 +532,11 @@ async function generateDraftsForRecommendation({ project, recommendation, reques
     throw error;
   }
 
-  const types = selectDraftTypes(recommendation, requestedType);
+  const allowedTypes = selectDraftTypes(recommendation, '');
+  const types = Array.isArray(requestedTypes)
+    ? requestedTypes.filter((type) => allowedTypes.includes(type))
+    : selectDraftTypes(recommendation, requestedType);
+  if (!types.length) return [];
   const targetUrl = recommendation.targetUrls[0] || project.websiteUrl;
   const page = await Page.findOne({ projectId: project._id, url: targetUrl }).sort({ lastCrawledAt: -1 });
   const issues = recommendation.relatedIssueIds.length
@@ -535,8 +566,7 @@ async function generateDraftsForRecommendation({ project, recommendation, reques
     keyword
   };
 
-  const drafts = [];
-  for (const type of types) {
+  const drafts = await mapWithConcurrency(types, env.contentPipelineConcurrency, async (type) => {
     const executionContext = buildExecutionContext({
       project,
       recommendation,
@@ -569,7 +599,7 @@ async function generateDraftsForRecommendation({ project, recommendation, reques
       : null;
     const output = generated || fallbackDraft({ type, project, recommendation, page, keyword, executionContext });
 
-    drafts.push({
+    return {
       projectId: project._id,
       recommendationId: recommendation._id,
       targetUrl,
@@ -583,8 +613,8 @@ async function generateDraftsForRecommendation({ project, recommendation, reques
       executionContext,
       status: 'awaiting_review',
       aiModel: generated ? `${MODEL}${MULTI_AGENT_TYPES.has(type) ? ':multi-agent' : ''}` : 'local-template-no-api-key'
-    });
-  }
+    };
+  });
 
   return drafts;
 }
@@ -594,6 +624,7 @@ module.exports = {
   EXECUTION_ASSET_TYPES,
   buildExecutionContext,
   generateDraftsForRecommendation,
+  mapWithConcurrency,
   pipelineAssetOptions,
   pipelineTypesForAction,
   selectDraftTypes

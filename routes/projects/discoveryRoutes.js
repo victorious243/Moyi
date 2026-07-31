@@ -95,6 +95,25 @@ function registerDiscoveryRoutes(router, context, services = {}) {
     res.redirect(`/projects/${req.project._id}/scans/${scan._id}`);
   }));
 
+  router.post(
+    '/:id/scans/:scanId/cancel',
+    [param('id').isMongoId(), param('scanId').isMongoId(), context.handleValidation],
+    context.loadProject,
+    context.loadScan,
+    asyncHandler(async (req, res) => {
+      if (req.scan.status === 'pending' || req.scan.status === 'running') {
+        req.scan.status = 'cancelled';
+        req.scan.completedAt = new Date();
+        req.scan.currentStep = 'Stopped by user';
+        req.scan.currentUrl = '';
+        req.scan.errorMessage = '';
+        await req.scan.save();
+      }
+
+      res.redirect(`/projects/${req.project._id}/scans/${req.scan._id}?stopped=1`);
+    })
+  );
+
   router.get('/:id/competitors', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
     let upgradeMessage = '';
     try {
@@ -246,6 +265,7 @@ function registerDiscoveryRoutes(router, context, services = {}) {
 
       res.render('projects/scans/show', {
         title: `${req.project.name} scan`,
+        stopped: req.query.stopped === '1',
         ...viewData
       });
     })

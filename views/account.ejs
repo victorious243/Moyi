@@ -17,6 +17,19 @@
       </div>
     </div>
 
+    <% if (accountMessage) { %>
+      <section class="panel notice-panel">
+        <h2>Account update</h2>
+        <p class="empty"><%= accountMessage %></p>
+      </section>
+    <% } %>
+    <% if (accountError) { %>
+      <section class="panel notice-panel">
+        <h2>Account issue</h2>
+        <p class="empty"><%= accountError %></p>
+      </section>
+    <% } %>
+
     <section class="panel">
       <h2>Profile</h2>
       <dl class="detail-list">
@@ -27,10 +40,57 @@
       </dl>
     </section>
 
+    <section class="panel">
+      <h2>Data Export</h2>
+      <p class="empty">Download account, project, recommendation, content, analytics, publishing, and audit data as JSON. Saved integration credentials are redacted.</p>
+      <a class="button" href="/account/export">Download Account Export</a>
+    </section>
+
+    <section class="panel">
+      <h2>Email Server</h2>
+      <p class="empty">SMTP status: <strong><%= emailConfigured ? 'configured' : 'not configured' %></strong></p>
+      <p class="empty">Test recipient: <%= emailTestTo %></p>
+      <form action="/account/test-email" method="post">
+        <button class="button button-primary" type="submit">Send Test Email</button>
+      </form>
+    </section>
+
     <section class="panel notice-panel">
       <h2>Delete Account & Data</h2>
-      <p class="empty">Placeholder for a production-safe delete flow. Add confirmation, cancellation checks, data export, and irreversible deletion audit logging before enabling.</p>
-      <button class="button danger-button" type="button" disabled>Delete Account Placeholder</button>
+      <p class="empty">This permanently deletes your user account, projects, scans, reports, recommendations, drafts, tracking events, integrations, campaigns, and social drafts. Audit records are retained for security and compliance evidence.</p>
+      <form class="form" action="/account/delete" method="post" onsubmit="return confirm('Permanently delete this account and all owned Moyi data? This cannot be undone.');">
+        <label>Confirm email <input type="email" name="confirmEmail" autocomplete="email" required></label>
+        <label>Type DELETE <input name="confirmText" pattern="DELETE" required></label>
+        <button class="button danger-button" type="submit">Delete Account Permanently</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>Recent Security Events</h2>
+      <% if (auditLogs.length) { %>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Event</th>
+                <th>Status</th>
+                <th>When</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% auditLogs.forEach((log) => { %>
+                <tr>
+                  <td><%= log.eventType.replace(/_/g, ' ') %></td>
+                  <td><%= log.status %></td>
+                  <td><%= log.createdAt ? new Date(log.createdAt).toLocaleString() : '' %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } else { %>
+        <p class="empty">No security events recorded yet.</p>
+      <% } %>
     </section>
   </section>
 </div>

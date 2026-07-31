@@ -6,6 +6,7 @@ const Project = require('../models/Project');
 const SeoIssue = require('../models/SeoIssue');
 const Scan = require('../models/Scan');
 const AppError = require('../utils/appError');
+const { projectAccessRole } = require('../services/projectAccessService');
 
 const router = express.Router();
 
@@ -15,8 +16,10 @@ router.get('/:id', asyncHandler(async (req, res, next) => {
   const report = await Report.findById(req.params.id);
   if (!report) return next(new AppError('Report not found.', 404));
 
-  const project = await Project.findOne({ _id: report.project, owner: req.user._id });
+  const project = await Project.findById(report.project);
   if (!project) return next(new AppError('Report not found.', 404));
+  const role = await projectAccessRole({ project, userId: req.user._id });
+  if (!role) return next(new AppError('Report not found.', 404));
 
   const [scan, issues] = await Promise.all([
     Scan.findById(report.scan),

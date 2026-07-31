@@ -1,0 +1,115 @@
+#!/usr/bin/env node
+
+require('dotenv').config();
+
+const { fork } = require('child_process');
+const env = require('../config/env');
+
+const children = new Map();
+let shuttingDown = false;
+let workerRestartCount = 0;
+let workerRestartWindowStartedAt = Date.now();
+
+try {
+  env.assertRuntimeConfig();
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
+}
+
+startChild('web', './bin/www', { required: true });
+
+if (env.queueEnabled) {
+  startChild('worker', './workers/scanWorker.js', {
+    required: env.isProduction,
+    restart: true
+  });
+} else {
+  console.log('Queue disabled; worker process not started.');
+}
+
+installSignalHandlers();
+
+function startChild(name, script, options = {}) {
+  const child = fork(script, [], {
+    cwd: process.cwd(),
+    env: process.env,
+    execArgv: [],
+    stdio: 'inherit'
+  });
+
+  children.set(name, { child, script, options });
+  console.log(`Started ${name} process pid=${child.pid}.`);
+
+  child.on('exit', (code, signal) => {
+    children.delete(name);
+    if (shuttingDown) return;
+
+    const reason = signal || `exit ${code}`;
+    console.error(`${name} process stopped with ${reason}.`);
+
+    if (options.restart && shouldRestartWorker()) {
+      const delayMs = Math.min(30000, 1000 * workerRestartCount);
+      console.error(`Restarting ${name} process in ${delayMs}ms.`);
+      setTimeout(() => {
+        if (!shuttingDown) startChild(name, script, options);
+      }, delayMs);
+      return;
+    }
+
+    if (options.required) {
+      console.error(`${name} process is required. Stopping Moyi.`);
+      shutdown(signal || 'child-exit', code || 1);
+    }
+  });
+
+  return child;
+}
+
+function shouldRestartWorker() {
+  const now = Date.now();
+  if (now - workerRestartWindowStartedAt > 60000) {
+    workerRestartWindowStartedAt = now;
+    workerRestartCount = 0;
+  }
+
+  workerRestartCount += 1;
+  return workerRestartCount <= 5;
+}
+
+function installSignalHandlers() {
+  ['SIGINT', 'SIGTERM'].forEach((signal) => {
+    process.on(signal, () => shutdown(signal, 0));
+  });
+}
+
+function shutdown(signal, exitCode) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`Received ${signal}. Stopping Moyi processes...`);
+
+  const forceExitTimer = setTimeout(() => {
+    console.error('Forced supervisor shutdown after timeout.');
+    process.exit(1);
+  }, 15000);
+  forceExitTimer.unref();
+
+  if (!children.size) {
+    clearTimeout(forceExitTimer);
+    process.exit(exitCode);
+  }
+
+  let remaining = children.size;
+  for (const [name, entry] of children.entries()) {
+    entry.child.once('exit', () => {
+      remaining -= 1;
+      if (remaining === 0) {
+        clearTimeout(forceExitTimer);
+        process.exit(exitCode);
+      }
+    });
+
+    console.log(`Stopping ${name} process pid=${entry.child.pid}.`);
+    entry.child.kill('SIGTERM');
+  }
+}

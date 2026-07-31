@@ -16,12 +16,15 @@
     <span class="sidebar-divider"></span>
     <a href="/projects/<%= project._id %>/ai-report/latest">Strategy brief</a>
     <a href="/projects/<%= project._id %>/recommendations">Recommendations</a>
-    <a href="/projects/<%= project._id %>/content">Execution queue</a>
+    <a href="/projects/<%= project._id %>/content">Content Studio</a>
+    <a href="/projects/<%= project._id %>/calendar">Content Calendar</a>
+    <a href="/projects/<%= project._id %>/campaigns">Campaigns</a>
     <a href="/projects/<%= project._id %>/search-console/performance">Search performance</a>
     <a href="/projects/<%= project._id %>/tracking/setup">Tracking setup</a>
     <a href="/projects/<%= project._id %>/analytics">Analytics</a>
     <a href="/projects/<%= project._id %>/reports">Reports</a>
     <a href="/projects/<%= project._id %>/competitors">Competitors</a>
+    <a href="/projects/<%= project._id %>/team">Team</a>
   </aside>
 
   <section class="app-main project-detail-main">
@@ -45,9 +48,12 @@
       </div>
 
       <div class="project-card-aside workspace-hero-aside">
-        <div class="health-score" style="--score:<%= workspace.overallScore %>%">
-          <strong><%= workspace.overallScore %></strong>
-          <span>Signal coverage</span>
+        <div class="coverage-cup" style="--score:<%= workspace.overallScore %>%">
+          <div class="coverage-cup-vessel" aria-hidden="true">
+            <span class="coverage-cup-fill"></span>
+            <strong><%= workspace.overallScore %></strong>
+          </div>
+          <span>Coverage</span>
         </div>
         <p><%= hasReport ? 'The workspace has strategy context. Keep moving the right work through review and measurement.' : (hasScan ? 'The evidence exists, but strategy still needs to be generated from it.' : 'The workspace is still missing factual website evidence.') %></p>
         <dl class="workspace-mini-facts">
@@ -72,6 +78,8 @@
           <% } else { %>
             <a class="button button-primary" href="<%= primaryAction.action.href %>"><%= primaryAction.action.label %></a>
           <% } %>
+          <a class="button" href="/projects/<%= project._id %>/content">Content Studio</a>
+          <a class="button" href="/projects/<%= project._id %>/calendar">Calendar</a>
           <a class="button" href="/projects/<%= project._id %>/edit">Edit project</a>
         </div>
       </div>
@@ -338,10 +346,13 @@
         <div class="scan-list">
           <% recentCmoReports.forEach((report) => { %>
             <a class="scan-row" href="/projects/<%= project._id %>/reports/<%= report._id %>">
-              <strong><%= report.type %></strong>
+              <span class="scan-status scan-status-report"><i></i><b><%= report.type %></b></span>
               <span><%= report.periodStart %></span>
               <span><%= report.periodEnd %></span>
-              <span><%= report.createdAt.toLocaleString() %></span>
+              <time class="scan-time" datetime="<%= report.createdAt.toISOString() %>">
+                <span><%= report.createdAt.toLocaleDateString() %></span>
+                <span><%= report.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) %></span>
+              </time>
             </a>
           <% }) %>
         </div>
@@ -361,10 +372,17 @@
         <div class="scan-list">
           <% recentScans.forEach((scan) => { %>
             <a class="scan-row" href="/projects/<%= project._id %>/scans/<%= scan._id %>">
-              <strong><%= scan.status %></strong>
+              <span class="scan-status scan-status-<%= scan.status %>">
+                <i></i>
+                <b><%= scan.status === 'completed' ? 'Done' : (scan.status === 'failed' ? 'Failed' : scan.status) %></b>
+              </span>
               <span><%= scan.pagesScanned %> scanned</span>
               <span><%= scan.pagesFound %> found</span>
-              <span><%= scan.completedAt ? scan.completedAt.toLocaleString() : scan.createdAt.toLocaleString() %></span>
+              <% const scanTime = scan.completedAt || scan.createdAt; %>
+              <time class="scan-time" datetime="<%= scanTime.toISOString() %>">
+                <span><%= scanTime.toLocaleDateString() %></span>
+                <span><%= scanTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) %></span>
+              </time>
             </a>
           <% }) %>
         </div>

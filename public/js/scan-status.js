@@ -46,6 +46,12 @@
   });
 
   const activeStatus = (status) => status === 'pending' || status === 'running';
+  const completeStatusLabel = (status) => {
+    if (status === 'cancelled') return 'Scan stopped. Partial findings may remain visible below.';
+    if (status === 'failed') return 'Scan failed. Review the error message below.';
+    return 'Scan complete. Review the findings below.';
+  };
+  const startedActive = activeStatus(latestStatus);
 
   const updateRunningStatus = () => {
     if (!statusNodes.length || !activeStatus(latestStatus)) return;
@@ -153,7 +159,7 @@
     if (stepNode) {
       stepNode.textContent = data.scan.currentStep || (activeStatus(latestStatus)
         ? 'Working through the scan'
-        : 'Scan complete. Review the findings below.');
+        : completeStatusLabel(latestStatus));
     }
 
     if (currentUrlNode) {
@@ -192,6 +198,9 @@
       statusNodes.forEach((node) => {
         node.textContent = latestStatus;
       });
+      if (startedActive && latestStatus === 'completed') {
+        window.location.reload();
+      }
     }
   };
 

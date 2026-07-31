@@ -12,7 +12,14 @@
     <section class="wide-form">
       <p class="eyebrow">Edit Project</p>
       <h1><%= project.name %></h1>
-      <form class="form grid-form" action="/projects/<%= project._id %>" method="post">
+      <% if (typeof logoError !== 'undefined' && logoError) { %>
+        <div class="notice-panel">
+          <strong>Logo upload failed</strong>
+          <p><%= logoError %></p>
+        </div>
+      <% } %>
+      <% if (typeof logoSuccess !== 'undefined' && logoSuccess) { %><div class="image-success-message"><%= logoSuccess %></div><% } %>
+      <form class="form grid-form" action="/projects/<%= project._id %>" method="post" enctype="multipart/form-data">
         <label>Project name <input name="name" value="<%= project.name %>" required></label>
         <label>Website URL <input name="websiteUrl" value="<%= project.websiteUrl %>" required></label>
         <label>Industry <input name="industry" value="<%= project.industry || '' %>"></label>
@@ -20,6 +27,23 @@
         <label>Target country <input name="targetCountry" value="<%= project.targetCountry || '' %>"></label>
         <label>Main offer <input name="mainOffer" value="<%= project.mainOffer || '' %>"></label>
         <label>Brand tone <input name="brandTone" value="<%= project.brandTone || '' %>"></label>
+        <div class="full brand-logo-manager">
+          <div>
+            <strong>Brand logo</strong>
+            <span class="empty">Transparent PNG only. Used as the official logo reference for generated visuals.</span>
+          </div>
+          <% if (project.brandLogo && project.brandLogo.storageKey) { %>
+            <img src="/projects/<%= project._id %>/logo" alt="<%= project.name %> logo">
+            <span class="status"><%= project.brandLogo.filename || 'logo.png' %></span>
+          <% } else { %>
+            <div class="brand-logo-placeholder">No logo uploaded</div>
+          <% } %>
+        </div>
+        <label class="full">
+          Replace logo
+          <input type="file" name="brandLogo" accept="image/png">
+          <span class="field-hint">Upload a PNG with real transparency and no background, 2 MB maximum.</span>
+        </label>
         <label class="full">Main goal <textarea name="mainGoal" rows="4"><%= project.mainGoal || '' %></textarea></label>
         <label class="full">Competitors <textarea name="competitors" rows="4"><%= (project.competitors || []).join('\n') %></textarea></label>
         <label class="full">
@@ -35,6 +59,11 @@
           <a class="button" href="/projects/<%= project._id %>">Cancel</a>
         </div>
       </form>
+      <% if (project.brandLogo && project.brandLogo.storageKey) { %>
+        <form class="compact-form" action="/projects/<%= project._id %>/logo/remove" method="post">
+          <button class="button" type="submit">Remove Brand Logo</button>
+        </form>
+      <% } %>
     </section>
   </section>
 </div>

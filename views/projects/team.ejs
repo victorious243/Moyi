@@ -1,0 +1,94 @@
+<%- include('../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong><%= project.name %></strong>
+    <a href="/projects/<%= project._id %>">Overview</a>
+    <a href="/projects/<%= project._id %>/team">Team</a>
+    <a href="/projects/<%= project._id %>/edit">Settings</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">Workspace Access</p>
+        <h1>Team</h1>
+      </div>
+    </div>
+
+    <% if (teamMessage) { %>
+      <section class="panel notice-panel">
+        <h2>Team updated</h2>
+        <p class="empty"><%= teamMessage %></p>
+      </section>
+    <% } %>
+    <% if (teamError) { %>
+      <section class="panel notice-panel">
+        <h2>Team issue</h2>
+        <p class="empty"><%= teamError %></p>
+      </section>
+    <% } %>
+
+    <section class="panel">
+      <h2>Owner</h2>
+      <p class="empty">The project owner has full access and cannot be removed from the workspace.</p>
+    </section>
+
+    <% if (canManageProject) { %>
+      <section class="panel">
+        <h2>Add Existing User</h2>
+        <form class="form" action="/projects/<%= project._id %>/team" method="post">
+          <label>Email <input type="email" name="email" autocomplete="email" required></label>
+          <label>Role
+            <select name="role" required>
+              <option value="member">Member - view only</option>
+              <option value="admin">Admin - manage project</option>
+            </select>
+          </label>
+          <button class="button button-primary" type="submit">Add Team Member</button>
+        </form>
+      </section>
+    <% } %>
+
+    <section class="panel">
+      <div class="panel-title">
+        <h2>Members</h2>
+        <span class="status"><%= members.length %> shared access</span>
+      </div>
+      <% if (!members.length) { %>
+        <p class="empty">No team members have access yet.</p>
+      <% } else { %>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Role</th>
+                <th>Added</th>
+                <% if (canManageProject) { %><th>Action</th><% } %>
+              </tr>
+            </thead>
+            <tbody>
+              <% members.forEach((member) => { %>
+                <tr>
+                  <td><%= member.userId ? `${member.userId.name} (${member.userId.email})` : 'Unknown user' %></td>
+                  <td><%= member.role %></td>
+                  <td><%= member.createdAt ? new Date(member.createdAt).toLocaleString() : '' %></td>
+                  <% if (canManageProject) { %>
+                    <td>
+                      <form action="/projects/<%= project._id %>/team/<%= member._id %>/remove" method="post" onsubmit="return confirm('Remove this team member from the project?');">
+                        <button class="button danger-button" type="submit">Remove</button>
+                      </form>
+                    </td>
+                  <% } %>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+  </section>
+</div>
+
+<%- include('../partials/footer') %>

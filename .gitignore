@@ -14,10 +14,10 @@ build/
 .cache/
 .tmp/
 tmp/
+storage/content-images/
 
 .DS_Store
 Thumbs.db
 
 .agents/
 .codex/
-

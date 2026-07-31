@@ -4,6 +4,7 @@ const express = require('express');
 const { registerDiscoveryRoutes } = require('../routes/projects/discoveryRoutes');
 const { registerMeasurementRoutes } = require('../routes/projects/measurementRoutes');
 const { registerPrioritizationRoutes } = require('../routes/projects/prioritizationRoutes');
+const { registerExecutionRoutes } = require('../routes/projects/executionRoutes');
 
 function noop(req, res, next) {
   next();
@@ -14,6 +15,16 @@ function findRoute(router, method, path) {
   assert.ok(layer, `Route ${method.toUpperCase()} ${path} should be registered.`);
   return layer.route.stack.map((item) => item.handle);
 }
+
+test('content operations expose the campaign planning route', () => {
+  const router = express.Router();
+  const context = { handleValidation: noop, loadProject: noop, campaignValidation: [] };
+  registerExecutionRoutes(router, context, {});
+
+  assert.ok(findRoute(router, 'post', '/:id/content-plan'));
+  assert.ok(findRoute(router, 'get', '/:id/content'));
+  assert.ok(findRoute(router, 'get', '/:id/calendar'));
+});
 
 async function runRoute(router, { method, path, req }) {
   const handlers = findRoute(router, method, path);

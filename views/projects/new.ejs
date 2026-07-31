@@ -22,7 +22,13 @@
     <section class="wide-form">
       <p class="eyebrow">Manual fallback</p>
       <h1>Add a business profile</h1>
-      <form class="form grid-form" action="/projects" method="post">
+      <% if (typeof logoError !== 'undefined' && logoError) { %>
+        <div class="notice-panel">
+          <strong>Logo upload failed</strong>
+          <p><%= logoError %></p>
+        </div>
+      <% } %>
+      <form class="form grid-form" action="/projects" method="post" enctype="multipart/form-data">
         <label>Project name <input name="name" placeholder="Kununga" required></label>
         <label>Website URL <input name="websiteUrl" placeholder="https://example.com" required></label>
         <label>Industry <input name="industry" placeholder="Hospitality, AI, ecommerce"></label>
@@ -30,6 +36,11 @@
         <label>Target country <input name="targetCountry" placeholder="Ireland, United States, Global"></label>
         <label>Main offer <input name="mainOffer" placeholder="What you sell or promote"></label>
         <label>Brand tone <input name="brandTone" placeholder="Premium, friendly, technical"></label>
+        <label class="full">
+          Brand logo
+          <input type="file" name="brandLogo" accept="image/png" required>
+          <span class="field-hint">Transparent PNG only, no background, 2 MB maximum. Moyi uses this exact logo as a brand reference for generated visuals.</span>
+        </label>
         <label class="full">Main goal <textarea name="mainGoal" rows="4" placeholder="What should the AI CMO help this business achieve?"></textarea></label>
         <label class="full">Competitors <textarea name="competitors" rows="4" placeholder="One competitor per line"></textarea></label>
         <button class="button button-primary" type="submit">Create Project</button>

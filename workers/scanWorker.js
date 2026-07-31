@@ -13,17 +13,18 @@ async function startWorker() {
   await connectDatabase();
   const scanConnection = createRedisConnection({ lazyConnect: false, label: 'scan-worker' });
   const taskConnection = createRedisConnection({ lazyConnect: false, label: 'project-task-worker' });
+  const concurrency = env.workerConcurrency;
 
   const scanWorker = new Worker(
     'website-scans',
     async (job) => runScan(job.data.scanId),
-    { connection: scanConnection, concurrency: 2 }
+    { connection: scanConnection, concurrency }
   );
 
   const taskWorker = new Worker(
     'project-tasks',
     async (job) => processProjectTask(job.data.jobId, { attemptsMade: job.attemptsMade || 0 }),
-    { connection: taskConnection, concurrency: 2 }
+    { connection: taskConnection, concurrency }
   );
 
   scanWorker.on('completed', (job) => console.log(`Scan job completed: ${job.id}`));
@@ -32,12 +33,16 @@ async function startWorker() {
   taskWorker.on('failed', (job, error) => console.error(`Project task failed: ${job && job.id}`, error));
 
   installSignalHandlers([scanWorker, taskWorker], [scanConnection, taskConnection]);
+
+  return { scanWorker, taskWorker, scanConnection, taskConnection };
 }
 
-startWorker().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+if (require.main === module) {
+  startWorker().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
 
 let shuttingDown = false;
 
@@ -75,3 +80,7 @@ async function gracefulShutdown(signal, workers, connections) {
     process.exit(1);
   }
 }
+
+module.exports = {
+  startWorker
+};

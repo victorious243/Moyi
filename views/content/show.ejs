@@ -4,6 +4,11 @@
   const execution = draft.executionContext || {};
   const proofPoints = Array.isArray(execution.proofPoints) ? execution.proofPoints : [];
   const evidenceHighlights = Array.isArray(execution.evidenceHighlights) ? execution.evidenceHighlights : [];
+  const draftImages = typeof contentImages !== 'undefined' && Array.isArray(contentImages) ? contentImages : [];
+  const activeImages = draftImages.filter((image) => image.status !== 'rejected');
+  const rejectedImages = draftImages.filter((image) => image.status === 'rejected');
+  const selectedImage = activeImages.find((image) => image.status === 'selected') || null;
+  const previewImage = selectedImage || activeImages[0] || null;
 %>
 
 <div class="app-layout">
@@ -27,6 +32,27 @@
       </div>
       <span class="status"><%= draftStatusLabel %></span>
     </div>
+
+    <nav class="content-workflow-nav" aria-label="Content workflow">
+      <button type="button" data-workflow-tab="write" aria-controls="workflow-write">
+        <span>1</span><strong>Write</strong><small><%= draft.body ? 'Draft ready' : 'Needs content' %></small>
+      </button>
+      <button type="button" data-workflow-tab="visual" aria-controls="workflow-visual">
+        <span>2</span><strong>Visual</strong><small><%= selectedImage ? 'Image selected' : `${activeImages.length} candidates` %></small>
+      </button>
+      <button type="button" data-workflow-tab="review" aria-controls="workflow-review">
+        <span>3</span><strong>Review</strong><small><%= ['approved', 'published_manually'].includes(draft.status) ? 'Approved' : draftStatusLabel %></small>
+      </button>
+      <button type="button" data-workflow-tab="distribute" aria-controls="workflow-distribute">
+        <span>4</span><strong>Distribute</strong><small><%= draft.status === 'published_manually' ? 'Recorded' : (draft.status === 'approved' ? 'Ready' : 'After approval') %></small>
+      </button>
+    </nav>
+
+    <div class="content-workflow-panel" id="workflow-write" data-workflow-panel="write">
+      <div class="workflow-step-heading">
+        <div><p class="eyebrow">Step 1 of 4</p><h2>Prepare the message</h2></div>
+        <p>Review the evidence, adjust the copy, and save before choosing a visual.</p>
+      </div>
 
     <% if (['meta_title', 'meta_description', 'h1'].includes(draft.type)) { %>
       <section class="before-after-grid">
@@ -122,6 +148,14 @@
       </article>
     </section>
 
+    <section class="workflow-source-strip">
+      <div>
+        <span>Source recommendation</span>
+        <strong><%= recommendation ? recommendation.title : (execution.sourceRecommendation ? execution.sourceRecommendation.title : 'No source recommendation available') %></strong>
+      </div>
+      <p><%= recommendation ? recommendation.reason : (execution.sourceRecommendation ? execution.sourceRecommendation.reason : 'This asset has no active recommendation record.') %></p>
+    </section>
+
     <form class="form" action="/content/<%= draft._id %>/update" method="post">
       <section class="panel">
         <div class="panel-title">
@@ -143,33 +177,269 @@
       </section>
     </form>
 
-    <% if (publishError) { %>
-      <section class="panel notice-panel">
-        <h2>Publish failed</h2>
-        <p class="empty"><%= publishError %></p>
-      </section>
-    <% } %>
+      <div class="workflow-step-actions">
+        <span>Save changes before continuing.</span>
+        <button class="button button-primary" type="button" data-workflow-next="visual">Next: Choose Visual</button>
+      </div>
+    </div>
 
-    <% if (publishSuccess) { %>
-      <section class="panel">
-        <h2>Publish action complete</h2>
-        <p class="empty"><%= publishSuccess %></p>
-      </section>
-    <% } %>
+    <div class="content-workflow-panel" id="workflow-visual" data-workflow-panel="visual" hidden>
+      <div class="workflow-step-heading">
+        <div><p class="eyebrow">Step 2 of 4</p><h2>Choose the visual</h2></div>
+        <p>Generate or upload candidates, preview them with the message, then select the final image.</p>
+      </div>
+      <section class="content-image-workspace">
+        <div class="panel-title">
+          <div>
+            <p class="eyebrow">Visual workspace</p>
+            <h2>Content image</h2>
+          </div>
+          <span class="status"><%= selectedImage ? 'Image selected' : `${activeImages.length} candidates` %></span>
+        </div>
 
-    <% if (webhookStatus === 'sent') { %>
-      <section class="panel">
-        <h2>Webhook delivered</h2>
-        <p class="empty">The approved draft was sent to the project webhook endpoint.</p>
-      </section>
-    <% } %>
+        <% if (typeof imageError !== 'undefined' && imageError) { %>
+          <div class="notice-panel">
+            <strong>Image action failed</strong>
+            <p><%= imageError %></p>
+          </div>
+        <% } %>
+        <% if (typeof imageSuccess !== 'undefined' && imageSuccess) { %>
+          <div class="image-success-message"><%= imageSuccess %></div>
+        <% } %>
 
-    <% if (webhookStatus === 'failed') { %>
-      <section class="panel notice-panel">
-        <h2>Webhook delivery failed</h2>
-        <p class="empty">The draft was approved, but the external webhook endpoint did not accept the payload. Check the endpoint logs and signature verification.</p>
+        <% if (previewImage) { %>
+          <section class="post-composition-preview" id="post-composition-preview">
+            <div class="post-preview-toolbar">
+              <div>
+                <p class="eyebrow">Post preview</p>
+                <strong>Image and draft together</strong>
+              </div>
+              <span class="status" data-post-preview-status><%= selectedImage ? 'Selected image' : 'Candidate preview' %></span>
+            </div>
+            <figure class="post-preview-media">
+              <img
+                data-post-preview-image
+                src="/content/<%= draft._id %>/images/<%= previewImage._id %>/file"
+                alt="<%= previewImage.altText || draft.title %>"
+              >
+              <figcaption data-post-preview-caption <%= previewImage.caption ? '' : 'hidden' %>><%= previewImage.caption || '' %></figcaption>
+            </figure>
+            <div class="post-preview-copy">
+              <p class="post-preview-type"><%= draft.type.replace(/_/g, ' ') %></p>
+              <h2><%= draft.title || 'Untitled content' %></h2>
+              <div class="post-preview-body"><%- typeof postBodyHtml !== 'undefined' ? postBodyHtml : '' %></div>
+              <% if (execution.primaryCta) { %>
+                <div class="post-preview-cta">
+                  <span>Call to action</span>
+                  <strong><%= execution.primaryCta %></strong>
+                </div>
+              <% } %>
+            </div>
+          </section>
+        <% } %>
+
+        <div class="image-control-grid">
+          <form
+            class="image-control"
+            action="/content/<%= draft._id %>/images/generate"
+            method="post"
+            data-loading-state="Generating a content-matched image"
+          >
+            <div>
+              <strong>Generate with Moyi</strong>
+              <span class="empty">GPT Image 2 · content-aware · review required</span>
+            </div>
+            <% if (project.brandLogo && project.brandLogo.storageKey) { %>
+              <div class="brand-reference-chip">
+                <img src="/projects/<%= project._id %>/logo" alt="">
+                <span>Official logo ready. Mention “logo” in the art direction to use it as a reference.</span>
+              </div>
+            <% } else { %>
+              <div class="brand-reference-chip is-empty">
+                <span>No project logo uploaded. Add a transparent PNG in project settings before asking Moyi to include the logo.</span>
+                <a href="/projects/<%= project._id %>/edit">Add logo</a>
+              </div>
+            <% } %>
+            <label>
+              Art direction
+              <textarea name="guidance" rows="4" maxlength="1500" placeholder="Subject, setting, mood, colors, composition, details to include or avoid"></textarea>
+            </label>
+            <label>
+              Reference image
+              <select name="referenceImageId">
+                <option value="">Generate from this content only</option>
+                <% activeImages.forEach((image) => { %>
+                  <option value="<%= image._id %>"><%= image.source %> · <%= image.filename %></option>
+                <% }) %>
+              </select>
+            </label>
+            <button class="button button-primary" type="submit"><%= activeImages.length ? 'Generate New Candidate' : 'Generate Content Image' %></button>
+          </form>
+
+          <form
+            class="image-control"
+            id="content-image-upload"
+            action="/content/<%= draft._id %>/images/upload"
+            method="post"
+            enctype="multipart/form-data"
+          >
+            <div>
+              <strong>Upload your image</strong>
+              <span class="empty">JPG, PNG, or WebP · 10 MB maximum</span>
+            </div>
+            <label>Image <input type="file" name="image" accept="image/jpeg,image/png,image/webp" required></label>
+            <label>Alt text <input name="altText" maxlength="240" placeholder="Describe the image for accessibility"></label>
+            <label>Caption <input name="caption" maxlength="500" placeholder="Optional visible caption"></label>
+            <button class="button" type="submit">Upload Candidate</button>
+          </form>
+        </div>
+
+        <% if (!activeImages.length) { %>
+          <p class="empty">No image candidates yet.</p>
+        <% } else { %>
+          <div class="content-image-grid">
+            <% activeImages.forEach((image) => { %>
+              <article class="content-image-candidate <%= image.status === 'selected' ? 'is-selected' : '' %>">
+                <img src="/content/<%= draft._id %>/images/<%= image._id %>/file" alt="<%= image.altText || 'Content image candidate' %>">
+                <div class="content-image-meta">
+                  <div class="panel-title">
+                    <span class="status"><%= image.source %></span>
+                    <% if (image.status === 'selected') { %><span class="status">Selected</span><% } %>
+                  </div>
+                  <form class="compact-form" action="/content/<%= draft._id %>/images/<%= image._id %>/update" method="post">
+                    <label>Alt text <input name="altText" value="<%= image.altText || '' %>" maxlength="240"></label>
+                    <label>Caption <input name="caption" value="<%= image.caption || '' %>" maxlength="500"></label>
+                    <button class="button" type="submit">Save Details</button>
+                  </form>
+                  <div class="status-actions">
+                    <button
+                      class="button post-preview-button"
+                      type="button"
+                      data-preview-image="/content/<%= draft._id %>/images/<%= image._id %>/file"
+                      data-preview-alt="<%= image.altText || draft.title || 'Content image candidate' %>"
+                      data-preview-caption="<%= image.caption || '' %>"
+                      data-preview-selected="<%= image.status === 'selected' ? '1' : '0' %>"
+                    >Preview with Post</button>
+                    <% if (image.status !== 'selected') { %>
+                      <form action="/content/<%= draft._id %>/images/<%= image._id %>/select" method="post">
+                        <button class="button button-primary" type="submit">Select</button>
+                      </form>
+                    <% } %>
+                    <a class="button" href="/content/<%= draft._id %>/images/<%= image._id %>/file?download=1">Download</a>
+                    <form action="/content/<%= draft._id %>/images/<%= image._id %>/reject" method="post">
+                      <button class="button" type="submit">Reject</button>
+                    </form>
+                  </div>
+                </div>
+              </article>
+            <% }) %>
+          </div>
+        <% } %>
+
+        <% if (rejectedImages.length) { %>
+          <details class="rejected-image-list">
+            <summary><%= rejectedImages.length %> rejected image<%= rejectedImages.length === 1 ? '' : 's' %></summary>
+            <div class="status-actions">
+              <% rejectedImages.forEach((image) => { %>
+                <form action="/content/<%= draft._id %>/images/<%= image._id %>/restore" method="post">
+                  <button class="button" type="submit">Restore <%= image.filename %></button>
+                </form>
+              <% }) %>
+            </div>
+          </details>
+        <% } %>
       </section>
-    <% } %>
+      <div class="workflow-step-actions">
+        <button class="button" type="button" data-workflow-next="write">Back: Write</button>
+        <span><%= selectedImage ? 'Final image selected.' : 'You can continue without an image or select one now.' %></span>
+        <button class="button button-primary" type="button" data-workflow-next="review">Next: Review</button>
+      </div>
+    </div>
+
+    <div class="content-workflow-panel" id="workflow-review" data-workflow-panel="review" hidden>
+      <div class="workflow-step-heading">
+        <div><p class="eyebrow">Step 3 of 4</p><h2>Review the final asset</h2></div>
+        <p>Confirm the message and visual are ready, leave notes, then approve or request changes.</p>
+      </div>
+
+      <section class="final-review-summary">
+        <% if (selectedImage) { %>
+          <img src="/content/<%= draft._id %>/images/<%= selectedImage._id %>/file" alt="<%= selectedImage.altText || draft.title %>">
+        <% } else { %>
+          <div class="final-review-no-image"><strong>No image selected</strong><span>The content can still be approved without one.</span></div>
+        <% } %>
+        <div>
+          <p class="eyebrow"><%= draft.type.replace(/_/g, ' ') %></p>
+          <h2><%= draft.title || 'Untitled content' %></h2>
+          <div class="final-review-copy"><%- typeof postBodyHtml !== 'undefined' ? postBodyHtml : '' %></div>
+        </div>
+      </section>
+
+      <section class="panel review-decision-panel">
+        <div class="panel-title">
+          <div><h2>Decision</h2><p class="empty">Approval unlocks distribution. Nothing is automatically published.</p></div>
+          <span class="status"><%= draftStatusLabel %></span>
+        </div>
+        <form class="form review-actions-form" action="/content/<%= draft._id %>/approve" method="post">
+          <label>Review notes <textarea name="reviewNotes" rows="5" placeholder="Record changes, checks, or approval context"><%= draft.reviewNotes || '' %></textarea></label>
+          <div class="status-actions">
+            <% if (['needs_revision', 'rejected'].includes(draft.status)) { %>
+              <button class="button" formaction="/content/<%= draft._id %>/submit-for-review" type="submit">Return to Review</button>
+            <% } %>
+            <% if (draft.status !== 'approved' && draft.status !== 'published_manually') { %>
+              <button class="button" formaction="/content/<%= draft._id %>/request-revision" type="submit">Request Changes</button>
+              <button class="button button-primary" type="submit">Approve and Continue</button>
+              <button class="button" formaction="/content/<%= draft._id %>/reject" type="submit">Reject</button>
+            <% } else { %>
+              <span class="workflow-approved-message">Approved and ready for distribution.</span>
+            <% } %>
+          </div>
+        </form>
+      </section>
+
+      <div class="workflow-step-actions">
+        <button class="button" type="button" data-workflow-next="visual">Back: Visual</button>
+        <% if (['approved', 'published_manually'].includes(draft.status)) { %>
+          <button class="button button-primary" type="button" data-workflow-next="distribute">Next: Distribute</button>
+        <% } else { %>
+          <span>Approve this asset to unlock distribution.</span>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="content-workflow-panel" id="workflow-distribute" data-workflow-panel="distribute" hidden>
+      <div class="workflow-step-heading">
+        <div><p class="eyebrow">Step 4 of 4</p><h2>Choose where it goes</h2></div>
+        <p>Create channel drafts, send an approved CMS draft, export, or record work published elsewhere.</p>
+      </div>
+
+      <% if (publishError) { %>
+        <section class="panel notice-panel">
+          <h2>Publish failed</h2>
+          <p class="empty"><%= publishError %></p>
+        </section>
+      <% } %>
+
+      <% if (publishSuccess) { %>
+        <section class="panel">
+          <h2>Publish action complete</h2>
+          <p class="empty"><%= publishSuccess %></p>
+        </section>
+      <% } %>
+
+      <% if (webhookStatus === 'sent') { %>
+        <section class="panel">
+          <h2>Webhook delivered</h2>
+          <p class="empty">The approved draft was sent to the project webhook endpoint.</p>
+        </section>
+      <% } %>
+
+      <% if (webhookStatus === 'failed') { %>
+        <section class="panel notice-panel">
+          <h2>Webhook delivery failed</h2>
+          <p class="empty">The draft was approved, but the external webhook endpoint did not accept the payload. Check the endpoint logs and signature verification.</p>
+        </section>
+      <% } %>
 
     <section class="panel">
       <div class="panel-title">
@@ -214,7 +484,7 @@
         <% } %>
       </div>
 
-      <% if (draft.status !== 'approved') { %>
+      <% if (!['approved', 'published_manually'].includes(draft.status)) { %>
         <p class="empty">Approve this asset before sending it to a CMS.</p>
       <% } %>
       <% if (draft.status === 'approved' && !postDraftTypes.includes(draft.type)) { %>
@@ -234,37 +504,16 @@
         <a href="/projects/<%= project._id %>/calendar">Open Calendar</a>
       </div>
       <div class="status-actions">
-        <% if (draft.status === 'approved') { %>
+        <% if (['approved', 'published_manually'].includes(draft.status)) { %>
           <form action="/content/<%= draft._id %>/create-social-drafts" method="post">
             <button class="button button-primary" type="submit">Create Social Drafts</button>
           </form>
         <% } %>
         <a class="button" href="/projects/<%= project._id %>/campaigns">Plan Campaign</a>
       </div>
-      <% if (draft.status !== 'approved') { %>
+      <% if (!['approved', 'published_manually'].includes(draft.status)) { %>
         <p class="empty">Approve this content draft before creating campaign posts.</p>
       <% } %>
-    </section>
-
-    <section class="panel">
-      <h2>Review actions</h2>
-      <form class="form compact-form" action="/content/<%= draft._id %>/approve" method="post">
-        <label>Review notes <textarea name="reviewNotes" rows="5"><%= draft.reviewNotes || '' %></textarea></label>
-        <div class="status-actions">
-          <% if (['needs_revision', 'rejected'].includes(draft.status)) { %>
-            <button class="button" formaction="/content/<%= draft._id %>/submit-for-review" type="submit">Submit for Review</button>
-          <% } %>
-          <% if (draft.status !== 'approved' && draft.status !== 'published_manually') { %>
-            <button class="button" formaction="/content/<%= draft._id %>/request-revision" type="submit">Needs Revision</button>
-            <button class="button button-primary" type="submit">Approve</button>
-            <button class="button" formaction="/content/<%= draft._id %>/reject" type="submit">Reject</button>
-          <% } %>
-          <% if (draft.status === 'approved') { %>
-            <button class="button" formaction="/content/<%= draft._id %>/mark-published" type="submit">Mark as Published</button>
-          <% } %>
-        </div>
-      </form>
-      <p class="empty">Drafts are never auto-published. Approval means review is complete, not that the asset goes live automatically.</p>
     </section>
 
     <section class="panel">
@@ -292,24 +541,56 @@
       <% } %>
     </section>
 
-    <section class="panel">
-      <h2>Source recommendation</h2>
-      <% if (recommendation) { %>
-        <p><strong><%= recommendation.title %></strong></p>
-        <p><%= recommendation.reason %></p>
-        <p class="empty"><%= recommendation.actionType.replace(/_/g, ' ') %> · Priority <%= recommendation.priority %></p>
-      <% } else if (execution.sourceRecommendation) { %>
-        <p><strong><%= execution.sourceRecommendation.title %></strong></p>
-        <p><%= execution.sourceRecommendation.reason || 'The original recommendation snapshot is stored on this asset.' %></p>
-        <p class="empty"><%= execution.sourceRecommendation.actionType.replace(/_/g, ' ') %> · Priority <%= execution.sourceRecommendation.priority %></p>
-      <% } else { %>
-        <p class="empty">The source recommendation is no longer available.</p>
+      <% if (draft.status === 'approved') { %>
+        <section class="manual-publication-band">
+          <div><strong>Already published somewhere else?</strong><span>Record it in Moyi after the external publication is complete.</span></div>
+          <form action="/content/<%= draft._id %>/mark-published" method="post">
+            <button class="button" type="submit">Record Manual Publication</button>
+          </form>
+        </section>
       <% } %>
-    </section>
+
+      <div class="workflow-step-actions">
+        <button class="button" type="button" data-workflow-next="review">Back: Review</button>
+        <a class="button button-primary" href="/projects/<%= project._id %>/calendar">Open Content Calendar</a>
+      </div>
+    </div>
   </section>
 </div>
 
 <script>
+  const workflowNav = document.querySelector('.content-workflow-nav');
+  const workflowTabs = Array.from(document.querySelectorAll('[data-workflow-tab]'));
+  const workflowPanels = Array.from(document.querySelectorAll('[data-workflow-panel]'));
+  const workflowSteps = new Set(['write', 'visual', 'review', 'distribute']);
+
+  function showWorkflowStep(step, updateUrl = true, scroll = false) {
+    if (!workflowSteps.has(step)) return;
+    workflowPanels.forEach((panel) => {
+      panel.hidden = panel.dataset.workflowPanel !== step;
+    });
+    workflowTabs.forEach((tab) => {
+      const active = tab.dataset.workflowTab === step;
+      tab.classList.toggle('is-active', active);
+      if (active) tab.setAttribute('aria-current', 'step');
+      else tab.removeAttribute('aria-current');
+    });
+    if (updateUrl) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('workspace', step);
+      window.history.replaceState({}, '', url);
+    }
+    if (scroll && workflowNav) workflowNav.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  workflowTabs.forEach((tab) => {
+    tab.addEventListener('click', () => showWorkflowStep(tab.dataset.workflowTab, true, true));
+  });
+  document.querySelectorAll('[data-workflow-next]').forEach((button) => {
+    button.addEventListener('click', () => showWorkflowStep(button.dataset.workflowNext, true, true));
+  });
+  showWorkflowStep('<%= typeof workspaceStep !== 'undefined' ? workspaceStep : 'write' %>', false);
+
   document.querySelectorAll('.copy-button').forEach((button) => {
     button.addEventListener('click', async () => {
       const target = document.getElementById(button.dataset.copyTarget);
@@ -334,6 +615,54 @@
       link.download = `${filename || 'content-draft'}.txt`;
       link.click();
       URL.revokeObjectURL(link.href);
+    });
+  });
+
+  const uploadForm = document.getElementById('content-image-upload');
+  if (uploadForm) {
+    uploadForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const submitButton = uploadForm.querySelector('button[type="submit"]');
+      const csrfInput = uploadForm.querySelector('input[name="_csrf"]');
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.textContent = 'Uploading...';
+      }
+      try {
+        const response = await fetch(uploadForm.action, {
+          method: 'POST',
+          body: new FormData(uploadForm),
+          headers: csrfInput ? { 'x-csrf-token': csrfInput.value } : {}
+        });
+        window.location.assign(response.url);
+      } catch (error) {
+        if (submitButton) {
+          submitButton.disabled = false;
+          submitButton.textContent = 'Upload Candidate';
+        }
+      }
+    });
+  }
+
+  const postPreview = document.getElementById('post-composition-preview');
+  const previewImage = postPreview ? postPreview.querySelector('[data-post-preview-image]') : null;
+  const previewCaption = postPreview ? postPreview.querySelector('[data-post-preview-caption]') : null;
+  const previewStatus = postPreview ? postPreview.querySelector('[data-post-preview-status]') : null;
+  document.querySelectorAll('.post-preview-button').forEach((button) => {
+    button.addEventListener('click', () => {
+      if (!previewImage) return;
+      previewImage.src = button.dataset.previewImage;
+      previewImage.alt = button.dataset.previewAlt || 'Content image preview';
+      if (previewCaption) {
+        previewCaption.textContent = button.dataset.previewCaption || '';
+        previewCaption.hidden = !button.dataset.previewCaption;
+      }
+      if (previewStatus) {
+        previewStatus.textContent = button.dataset.previewSelected === '1' ? 'Selected image' : 'Candidate preview';
+      }
+      document.querySelectorAll('.post-preview-button').forEach((item) => item.classList.remove('is-active'));
+      button.classList.add('is-active');
+      postPreview.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   });
 </script>

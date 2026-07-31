@@ -9,6 +9,7 @@ const { crawlWebsite } = require('./crawlerService');
 const { auditPages } = require('./auditService');
 const { discoverCompetitorsForProject } = require('./competitorDiscoveryService');
 const { generateCompetitorInsights } = require('./competitorInsightService');
+const { replaceScanRecommendations } = require('./scanRecommendationService');
 
 function uniquePagesByUrl(pages) {
   const seenUrls = new Set();
@@ -36,9 +37,28 @@ function activeScanStatus(scan) {
   return scan.status === 'pending' || scan.status === 'running';
 }
 
+class ScanCancelledError extends Error {
+  constructor() {
+    super('Scan was stopped by the user.');
+    this.name = 'ScanCancelledError';
+  }
+}
+
+async function throwIfCancelled(scan) {
+  const latest = await Scan.findById(scan._id).select('status completedAt');
+  if (!latest || latest.status === 'cancelled') {
+    scan.status = 'cancelled';
+    scan.completedAt = latest && latest.completedAt ? latest.completedAt : new Date();
+    scan.currentStep = 'Stopped by user';
+    scan.currentUrl = '';
+    throw new ScanCancelledError();
+  }
+}
+
 async function runScan(scanId) {
   const scan = await Scan.findById(scanId);
   if (!scan) return null;
+  if (!activeScanStatus(scan)) return scan;
 
   const project = await Project.findById(scan.projectId);
   if (!project) {
@@ -59,13 +79,23 @@ async function runScan(scanId) {
   await scan.save();
 
   try {
+    await throwIfCancelled(scan);
     await Page.deleteMany({ scanId: scan._id });
     await SeoIssue.deleteMany({ scan: scan._id });
     let lastProgressSavedAt = 0;
     const result = await crawlWebsite(project.websiteUrl, {
       maxPages: plan.pagesPerScan,
+      shouldStop: async () => {
+        try {
+          await throwIfCancelled(scan);
+          return false;
+        } catch (error) {
+          if (error instanceof ScanCancelledError) return true;
+          throw error;
+        }
+      },
       onPage: async ({ page, pages, pagesFound }) => {
-        if (!activeScanStatus(scan)) return;
+        await throwIfCancelled(scan);
 
         scan.pagesScanned = pages.length;
         scan.pagesFound = pagesFound;
@@ -79,6 +109,7 @@ async function runScan(scanId) {
         }
       }
     });
+    await throwIfCancelled(scan);
     const crawledPages = uniquePagesByUrl(result.pages);
     const pages = crawledPages.map((page) => ({
       ...page,
@@ -95,6 +126,7 @@ async function runScan(scanId) {
     scan.currentStep = 'Auditing scanned pages';
     scan.currentUrl = '';
     await scan.save();
+    await throwIfCancelled(scan);
 
     const issuePayloads = auditPages(crawledPages).map((issue) => ({
       ...issue,
@@ -106,9 +138,25 @@ async function runScan(scanId) {
       await SeoIssue.insertMany(issuePayloads, { ordered: false });
     }
 
+    scan.currentStep = 'Creating evidence-backed recommendations';
+    await scan.save();
+    await throwIfCancelled(scan);
+    const [savedPages, savedIssues] = await Promise.all([
+      Page.find({ projectId: project._id, scanId: scan._id }),
+      SeoIssue.find({ project: project._id, scan: scan._id }).sort({ severity: 1, createdAt: -1 })
+    ]);
+    await replaceScanRecommendations({
+      project,
+      scanId: scan._id,
+      pages: savedPages,
+      issues: savedIssues
+    });
+    await throwIfCancelled(scan);
+
     try {
       scan.currentStep = 'Comparing competitors';
       await scan.save();
+      await throwIfCancelled(scan);
       await ensureCompetitorIntelligence({
         project,
         userId: project.owner,
@@ -126,6 +174,16 @@ async function runScan(scanId) {
 
     return scan;
   } catch (error) {
+    if (error instanceof ScanCancelledError) {
+      scan.status = 'cancelled';
+      scan.completedAt = scan.completedAt || new Date();
+      scan.currentStep = 'Stopped by user';
+      scan.currentUrl = '';
+      scan.pagesScanned = await Page.countDocuments({ scanId: scan._id });
+      await scan.save();
+      return scan;
+    }
+
     scan.status = 'failed';
     scan.errorMessage = error.message;
     scan.completedAt = new Date();

@@ -1,5 +1,32 @@
 <%- include('../partials/header') %>
 
+<%
+  const selectedView = typeof currentView !== 'undefined' ? currentView : 'active';
+  const visibleRecommendations = recommendations.filter((recommendation) => {
+    if (selectedView === 'all') return true;
+    if (selectedView === 'rejected') return recommendation.status === 'rejected';
+    if (selectedView === 'done') return recommendation.status === 'done';
+    return !['rejected', 'done'].includes(recommendation.status);
+  });
+  const counts = typeof recommendationCounts !== 'undefined'
+    ? recommendationCounts
+    : recommendations.reduce((summary, recommendation) => {
+        summary.all += 1;
+        if (recommendation.status === 'rejected') summary.rejected += 1;
+        else if (recommendation.status === 'done') summary.done += 1;
+        else summary.active += 1;
+        return summary;
+      }, { active: 0, rejected: 0, done: 0, all: 0 });
+  const statusSuccess = typeof successMessage !== 'undefined' ? successMessage : '';
+  const actionLabels = {
+    pending: 'Restore',
+    accepted: 'Accept',
+    rejected: 'Reject',
+    in_progress: 'Start',
+    done: 'Complete'
+  };
+%>
+
 <div class="app-layout">
   <aside class="app-sidebar">
     <strong>Workspace</strong>
@@ -21,9 +48,28 @@
       </form>
     </div>
 
-    <% if (!recommendations.length) { %>
+    <% if (statusSuccess) { %>
+      <section class="panel notice-panel">
+        <p><%= statusSuccess %></p>
+      </section>
+    <% } %>
+
+    <nav class="recommendation-filters" aria-label="Recommendation views">
+      <% ['active', 'rejected', 'done', 'all'].forEach((view) => { %>
+        <a class="<%= selectedView === view ? 'is-active' : '' %>" href="/projects/<%= project._id %>/recommendations?view=<%= view %>">
+          <%= view === 'done' ? 'Completed' : view.charAt(0).toUpperCase() + view.slice(1) %>
+          <span><%= counts[view] || 0 %></span>
+        </a>
+      <% }) %>
+    </nav>
+
+    <% if (!visibleRecommendations.length) { %>
       <section class="panel">
-        <p class="empty">No recommendations yet. Generate an AI CMO plan after a completed scan.</p>
+        <p class="empty">
+          <%= selectedView === 'active'
+            ? 'No active recommendations. Complete a website scan to generate evidence-backed actions automatically.'
+            : `No ${selectedView === 'done' ? 'completed' : selectedView} recommendations.` %>
+        </p>
       </section>
     <% } %>
 
@@ -33,12 +79,22 @@
     </section>
 
     <section class="recommendation-grid">
-      <% recommendations.forEach((recommendation) => { %>
+      <% visibleRecommendations.forEach((recommendation) => { %>
         <article class="recommendation-card">
           <div class="panel-title">
             <span class="status">Priority <%= recommendation.priority %></span>
             <span class="status"><%= recommendation.status.replace('_', ' ') %></span>
           </div>
+          <% if (recommendation.auditId && recommendation.auditId._id) { %>
+            <p class="empty">
+              Source scan:
+              <a href="/projects/<%= project._id %>/scans/<%= recommendation.auditId._id %>">
+                <%= recommendation.auditId.completedAt
+                  ? new Date(recommendation.auditId.completedAt).toLocaleString()
+                  : new Date(recommendation.auditId.createdAt).toLocaleString() %>
+              </a>
+            </p>
+          <% } %>
           <h2><%= recommendation.title %></h2>
           <p><strong>Impact:</strong> <%= recommendation.expectedImpact || 'Not specified' %></p>
           <p><strong>Effort:</strong> <%= recommendation.effort %></p>
@@ -63,23 +119,41 @@
             </ul>
           </div>
           <div class="status-actions">
-            <% ['accepted', 'rejected', 'in_progress', 'done'].forEach((status) => { %>
+            <% const availableActions = recommendation.status === 'rejected' || recommendation.status === 'done'
+              ? ['pending']
+              : ['accepted', 'rejected', 'in_progress', 'done']; %>
+            <% availableActions.forEach((status) => { %>
               <form action="/recommendations/<%= recommendation._id %>/status" method="post">
                 <input type="hidden" name="status" value="<%= status %>">
-                <button class="button" type="submit"><%= status.replace('_', ' ') %></button>
+                <button
+                  class="button <%= status === 'accepted' ? 'button-primary' : '' %>"
+                  type="submit"
+                  <%= recommendation.status === status ? 'disabled' : '' %>
+                ><%= actionLabels[status] %></button>
               </form>
             <% }) %>
           </div>
           <% if (['accepted', 'in_progress', 'done'].includes(recommendation.status)) { %>
             <div class="content-generate-panel">
               <strong>Build execution assets</strong>
-              <form class="form compact-form" action="/recommendations/<%= recommendation._id %>/generate-content" method="post">
+              <form
+                class="form compact-form"
+                action="/recommendations/<%= recommendation._id %>/generate-content"
+                method="post"
+                data-loading-state="Generating <%= (recommendation.assetOptions || []).length %> evidence-backed pipeline assets"
+              >
                 <input name="keyword" placeholder="Optional keyword">
-                <button class="button button-primary" type="submit">Generate full pipeline</button>
+                <button class="button button-primary" type="submit">
+                  Generate <%= (recommendation.assetOptions || []).length %> Pipeline Assets
+                </button>
               </form>
               <div class="status-actions">
                 <% (recommendation.assetOptions || []).forEach((option) => { %>
-                  <form action="/recommendations/<%= recommendation._id %>/generate-content" method="post">
+                  <form
+                    action="/recommendations/<%= recommendation._id %>/generate-content"
+                    method="post"
+                    data-loading-state="Generating <%= option.label %>"
+                  >
                     <input type="hidden" name="type" value="<%= option.type %>">
                     <button class="button" type="submit"><%= option.label %></button>
                   </form>

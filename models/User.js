@@ -49,7 +49,35 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: 'inactive'
     },
-    currentPeriodEnd: Date
+    billingInterval: {
+      type: String,
+      enum: ['monthly', 'annual'],
+      default: 'monthly'
+    },
+    currentPeriodEnd: Date,
+    passwordResetTokenHash: {
+      type: String,
+      default: '',
+      select: false
+    },
+    passwordResetPinHash: {
+      type: String,
+      default: '',
+      select: false
+    },
+    passwordResetExpiresAt: {
+      type: Date,
+      default: null,
+      select: false
+    },
+    passwordResetRequestedAt: {
+      type: Date,
+      default: null
+    },
+    passwordChangedAt: {
+      type: Date,
+      default: null
+    }
   },
   { timestamps: true }
 );
@@ -61,6 +89,15 @@ userSchema.statics.createWithPassword = async function createWithPassword({ name
 
 userSchema.methods.verifyPassword = function verifyPassword(password) {
   return bcrypt.compare(password, this.passwordHash);
+};
+
+userSchema.methods.setPassword = async function setPassword(password) {
+  this.passwordHash = await bcrypt.hash(password, 12);
+  this.passwordChangedAt = new Date();
+  this.passwordResetTokenHash = '';
+  this.passwordResetPinHash = '';
+  this.passwordResetExpiresAt = null;
+  return this;
 };
 
 module.exports = mongoose.model('User', userSchema);

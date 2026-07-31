@@ -12,6 +12,9 @@
     <% if (typeof currentUser !== 'undefined' && currentUser) { %>
       <a href="/dashboard">Dashboard</a>
       <a href="/projects">Projects</a>
+      <% if (currentUser.role === 'admin') { %>
+        <a href="/admin">Operator</a>
+      <% } %>
       <a href="/account">Account</a>
       <form action="/logout" method="post">
         <button class="icon-button" title="Sign out" aria-label="Sign out">Logout</button>
@@ -32,6 +35,9 @@
       <a href="/projects/new">Add Project</a>
       <a href="/integrations">Integrations</a>
       <a href="/billing">Billing</a>
+      <% if (currentUser.role === 'admin') { %>
+        <a href="/admin">Operator</a>
+      <% } %>
       <a href="/account">Account</a>
       <form action="/logout" method="post">
         <button class="button" type="submit">Logout</button>

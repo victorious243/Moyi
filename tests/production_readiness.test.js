@@ -115,13 +115,46 @@ test('runtime health reports ready only when database and queue are healthy', as
     mongoose: {
       connection: { readyState: 1 }
     },
-    pingRedis: async () => 'PONG'
+    pingRedis: async () => 'PONG',
+    queueWorkerCounts: async () => ({ scans: 1, projectTasks: 1 })
   });
 
   const payload = await health.readinessPayload();
   assert.equal(payload.status, 'ready');
   assert.equal(payload.checks.database.status, 'ready');
   assert.equal(payload.checks.queue.status, 'ready');
+});
+
+test('runtime health fails queue readiness when workers are not running', async () => {
+  const health = createRuntimeHealthService({
+    env: {
+      isProduction: true,
+      nodeEnv: 'production',
+      openaiApiKey: 'key',
+      googleClientId: '',
+      googleClientSecret: '',
+      googleRedirectUri: '',
+      queueEnabled: true,
+      releaseSha: 'abc123',
+      runtimeConfigProblems: () => [],
+      runtimeConfigWarnings: () => [],
+      stripeAgencyPriceId: '',
+      stripeProPriceId: '',
+      stripeSecretKey: '',
+      stripeStarterPriceId: '',
+      stripeWebhookSecret: ''
+    },
+    mongoose: {
+      connection: { readyState: 1 }
+    },
+    pingRedis: async () => 'PONG',
+    queueWorkerCounts: async () => ({ scans: 0, projectTasks: 0 })
+  });
+
+  const payload = await health.readinessPayload();
+  assert.equal(payload.status, 'not_ready');
+  assert.equal(payload.checks.queue.status, 'failed');
+  assert.match(payload.checks.queue.detail, /Run npm start/);
 });
 
 test('health routes reflect readiness status codes', async () => {

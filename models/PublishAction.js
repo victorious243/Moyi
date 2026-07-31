@@ -22,12 +22,12 @@ const publishActionSchema = new mongoose.Schema(
     },
     integrationType: {
       type: String,
-      enum: ['wordpress', 'webflow', 'shopify'],
+      enum: ['wordpress', 'webflow', 'shopify', 'manual'],
       default: 'wordpress'
     },
     actionType: {
       type: String,
-      enum: ['create_post', 'update_page', 'export_only'],
+      enum: ['create_post', 'update_page', 'export_only', 'manual_record'],
       required: true
     },
     externalId: {

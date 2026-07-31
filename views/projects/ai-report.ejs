@@ -12,9 +12,11 @@
 
   <section
     class="app-main"
-    <%= job && (job.status === 'queued' || job.status === 'running')
-      ? `data-live-job data-live-job-endpoint="/projects/${project._id}/jobs/${job._id}" data-initial-job-status="${job.status}"`
-      : '' %>
+    <% if (job && (job.status === 'queued' || job.status === 'running')) { %>
+      data-live-job
+      data-live-job-endpoint="/projects/<%= project._id %>/jobs/<%= job._id %>"
+      data-initial-job-status="<%= job.status %>"
+    <% } %>
   >
     <div class="page-heading">
       <div>
@@ -48,6 +50,9 @@
       <section class="panel notice-panel">
         <h2>Latest AI CMO Plan job failed</h2>
         <p class="empty"><%= job.errorMessage || 'The background job failed before a report could be created.' %></p>
+        <form action="/projects/<%= project._id %>/jobs/<%= job._id %>/retry" method="post">
+          <button class="button button-primary" type="submit">Retry Job</button>
+        </form>
       </section>
     <% } %>
 

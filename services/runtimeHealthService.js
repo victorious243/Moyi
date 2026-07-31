@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
 const env = require('../config/env');
 const { pingRedis } = require('./redisService');
+const { countScanWorkers } = require('../queues/scanQueue');
+const { countProjectTaskWorkers } = require('../queues/projectTaskQueue');
 
 const READY_STATE_LABELS = {
   0: 'disconnected',
@@ -14,6 +16,7 @@ function createRuntimeHealthService(deps = {}) {
     env,
     mongoose,
     pingRedis,
+    queueWorkerCounts,
     ...deps
   };
 
@@ -83,8 +86,20 @@ function createRuntimeHealthService(deps = {}) {
     if (services.env.queueEnabled) {
       try {
         const result = await services.pingRedis();
-        queueCheck.status = result === 'PONG' ? 'ready' : 'failed';
-        queueCheck.detail = result === 'PONG' ? 'Redis queue connection is healthy.' : `Unexpected Redis ping response: ${result}`;
+        if (result !== 'PONG') {
+          queueCheck.status = 'failed';
+          queueCheck.detail = `Unexpected Redis ping response: ${result}`;
+        } else {
+          const workers = await services.queueWorkerCounts();
+          const missingWorkers = Object.entries(workers)
+            .filter(([, count]) => count < 1)
+            .map(([name]) => name);
+
+          queueCheck.status = missingWorkers.length ? 'failed' : 'ready';
+          queueCheck.detail = missingWorkers.length
+            ? `Redis is healthy, but no worker is registered for: ${missingWorkers.join(', ')}. Run npm start or add an npm run worker process.`
+            : `Redis queue connection is healthy. Active workers: scans=${workers.scans}, projectTasks=${workers.projectTasks}.`;
+        }
       } catch (error) {
         queueCheck.status = 'failed';
         queueCheck.detail = error.message;
@@ -122,6 +137,18 @@ function createRuntimeHealthService(deps = {}) {
   return {
     livenessPayload,
     readinessPayload
+  };
+}
+
+async function queueWorkerCounts() {
+  const [scanWorkers, projectTaskWorkers] = await Promise.all([
+    countScanWorkers(),
+    countProjectTaskWorkers()
+  ]);
+
+  return {
+    scans: scanWorkers,
+    projectTasks: projectTaskWorkers
   };
 }
 

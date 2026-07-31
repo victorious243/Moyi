@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const csrfProtection = require('../middleware/csrf');
-const { generateAiCmoPlan } = require('../services/aiReportService');
+const { generateAiCmoPlan, _private: aiReportPrivate } = require('../services/aiReportService');
 
 test('CSRF Middleware: bypasses GET requests and sets cookie', () => {
   let cookieName = '';
@@ -141,4 +141,112 @@ test('AI CMO Plan Fallback: generates report and recommendations when OpenAI key
   } finally {
     env.openaiApiKey = oldKey;
   }
+});
+
+test('AI CMO recommendations only attach URLs backed by issue or crawl evidence', () => {
+  const pages = [
+    {
+      _id: '60c72b2f9b1d8b2e5c8b4569',
+      url: 'https://test.example',
+      statusCode: 200,
+      title: 'Home'
+    }
+  ];
+  const issues = [
+    {
+      _id: '60c72b2f9b1d8b2e5c8b4570',
+      url: 'https://test.example',
+      type: 'missing_title',
+      severity: 'critical',
+      title: 'Missing title tag',
+      recommendation: 'Add a title.'
+    }
+  ];
+
+  const recommendations = aiReportPrivate.sanitizeRecommendations({
+    recommendations: [
+      {
+        title: 'Rewrite the homepage title',
+        category: 'Metadata',
+        priority: 5,
+        reason: 'The title is missing.',
+        expectedImpact: 'Clearer search result appearance.',
+        effort: 'low',
+        actionType: 'fix_metadata',
+        relatedIssueIds: ['60c72b2f9b1d8b2e5c8b4570'],
+        targetUrls: ['https://not-in-the-crawl.example']
+      }
+    ]
+  }, { pages, issues });
+
+  assert.equal(recommendations.length, 1);
+  assert.deepEqual(recommendations[0].targetUrls, ['https://test.example']);
+  assert.deepEqual(recommendations[0].relatedIssueIds, ['60c72b2f9b1d8b2e5c8b4570']);
+});
+
+test('AI CMO recommendation fallback never returns zero when scan evidence exists', () => {
+  const project = {
+    name: 'Test Project',
+    websiteUrl: 'https://test.example'
+  };
+  const pages = [
+    { url: 'https://test.example' }
+  ];
+  const issues = [
+    {
+      _id: '60c72b2f9b1d8b2e5c8b4570',
+      url: 'https://test.example',
+      type: 'thin_content',
+      severity: 'opportunity',
+      title: 'Page has limited crawlable text',
+      recommendation: 'Expand the page with useful information.'
+    }
+  ];
+
+  const recommendations = aiReportPrivate.buildEvidenceRecommendations({ project, pages, issues });
+  assert.ok(recommendations.length > 0);
+  assert.equal(recommendations[0].title, 'Review Page has limited crawlable text');
+  assert.deepEqual(recommendations[0].relatedIssueIds, ['60c72b2f9b1d8b2e5c8b4570']);
+  assert.deepEqual(recommendations[0].targetUrls, ['https://test.example']);
+});
+
+test('AI CMO marks conditional indexing findings for review instead of claiming they are errors', () => {
+  const recommendations = aiReportPrivate.buildEvidenceRecommendations({
+    project: {
+      name: 'Test Project',
+      websiteUrl: 'https://test.example'
+    },
+    pages: [
+      { url: 'https://test.example/login' }
+    ],
+    issues: [
+      {
+        _id: '60c72b2f9b1d8b2e5c8b4571',
+        url: 'https://test.example/login',
+        type: 'noindex',
+        severity: 'critical',
+        title: 'Page includes a noindex directive',
+        evidence: 'robots meta contains noindex',
+        recommendation: 'Remove noindex if this page should appear in search results.'
+      }
+    ]
+  });
+
+  assert.equal(recommendations[0].title, 'Review Page includes a noindex directive');
+  assert.match(recommendations[0].reason, /if this page should appear in search results/);
+});
+
+test('AI CMO recommendation fallback does not invent work when no issues exist', () => {
+  const recommendations = aiReportPrivate.buildEvidenceRecommendations({
+    project: {
+      name: 'Test Project',
+      websiteUrl: 'https://test.example'
+    },
+    pages: [
+      { url: 'https://test.example' }
+    ],
+    issues: []
+  });
+
+  assert.deepEqual(recommendations, []);
 });

@@ -62,9 +62,30 @@ function registerPrioritizationRoutes(router, context, services = {}) {
   }));
 
   router.get('/:id/recommendations', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
-    const recommendations = await context.Recommendation.find({ projectId: req.project._id }).sort({ status: 1, priority: 1, createdAt: -1 });
+    const allowedViews = new Set(['active', 'rejected', 'done', 'all']);
+    const currentView = allowedViews.has(req.query.view) ? req.query.view : 'active';
+    const allRecommendations = await context.Recommendation.find({ projectId: req.project._id })
+      .sort({ createdAt: -1, priority: -1 })
+      .populate('auditId', 'completedAt createdAt pagesScanned');
+    const recommendations = allRecommendations.filter((recommendation) => {
+      if (currentView === 'all') return true;
+      if (currentView === 'rejected') return recommendation.status === 'rejected';
+      if (currentView === 'done') return recommendation.status === 'done';
+      return !['rejected', 'done'].includes(recommendation.status);
+    });
+    const recommendationCounts = allRecommendations.reduce((counts, recommendation) => {
+      counts.all += 1;
+      if (recommendation.status === 'rejected') counts.rejected += 1;
+      else if (recommendation.status === 'done') counts.done += 1;
+      else counts.active += 1;
+      return counts;
+    }, { active: 0, rejected: 0, done: 0, all: 0 });
+
     res.render('projects/recommendations', {
       title: `${req.project.name} recommendations`,
+      currentView,
+      recommendationCounts,
+      successMessage: req.query.success || '',
       recommendations: recommendations.map((recommendation) => ({
         ...recommendation.toObject(),
         assetOptions: pipelineAssetOptions(recommendation)

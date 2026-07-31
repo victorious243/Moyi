@@ -69,7 +69,7 @@ function csrfProtection(req, res, next) {
   }
 
   // 6. Verify token
-  const clientToken = req.body._csrf || req.headers['x-csrf-token'];
+  const clientToken = (req.body && req.body._csrf) || req.headers['x-csrf-token'];
   if (!clientToken || clientToken !== token) {
     const error = new Error('Invalid or missing CSRF token.');
     error.status = 403;

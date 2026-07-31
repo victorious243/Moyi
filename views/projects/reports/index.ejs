@@ -12,9 +12,11 @@
 
   <section
     class="app-main"
-    <%= reportJob && (reportJob.status === 'queued' || reportJob.status === 'running')
-      ? `data-live-job data-live-job-endpoint="/projects/${project._id}/jobs/${reportJob._id}" data-initial-job-status="${reportJob.status}"`
-      : '' %>
+    <% if (reportJob && (reportJob.status === 'queued' || reportJob.status === 'running')) { %>
+      data-live-job
+      data-live-job-endpoint="/projects/<%= project._id %>/jobs/<%= reportJob._id %>"
+      data-initial-job-status="<%= reportJob.status %>"
+    <% } %>
   >
     <div class="page-heading">
       <div>
@@ -46,6 +48,9 @@
       <section class="panel notice-panel">
         <h2>Latest report job failed</h2>
         <p class="empty"><%= reportJob.errorMessage || 'The background report job failed before a report could be created.' %></p>
+        <form action="/projects/<%= project._id %>/jobs/<%= reportJob._id %>/retry" method="post">
+          <button class="button button-primary" type="submit">Retry Job</button>
+        </form>
       </section>
     <% } %>
 
