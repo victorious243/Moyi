@@ -100,7 +100,7 @@ app.use(function(err, req, res, next) {
   }
 
   if (status === 401 && req.accepts('html')) {
-    return res.redirect('/login');
+    return res.redirect(`/login?error=${encodeURIComponent(err.message || 'Please sign in to continue.')}`);
   }
 
   // set locals, only providing error in development

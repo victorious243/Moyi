@@ -24,6 +24,24 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true
     },
+    emailVerifiedAt: {
+      type: Date,
+      default: null
+    },
+    emailVerificationPinHash: {
+      type: String,
+      default: '',
+      select: false
+    },
+    emailVerificationExpiresAt: {
+      type: Date,
+      default: null,
+      select: false
+    },
+    emailVerificationRequestedAt: {
+      type: Date,
+      default: null
+    },
     role: {
       type: String,
       enum: ['owner', 'admin', 'member'],

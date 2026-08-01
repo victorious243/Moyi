@@ -13,7 +13,7 @@ const { planFor } = require('../config/plans');
 const { getCurrentUsage } = require('../services/usageService');
 const { exportAccountData, deleteAccountData } = require('../services/accountDataService');
 const { recordAuditEvent } = require('../services/auditLogService');
-const { sendCustomerEmail, smtpConfigured, verifyEmailTransport } = require('../services/emailService');
+const { sendCustomerEmail, sendGoodbyeEmail, smtpConfigured, verifyEmailTransport } = require('../services/emailService');
 const { findAccessibleProjects } = require('../services/projectAccessService');
 const { runPublicQuickScan } = require('../services/publicQuickScanService');
 const handleValidation = require('../utils/validate');
@@ -271,6 +271,22 @@ router.post('/account/delete', requireAuth, [
     metadata: { deletedProjects: result.deletedProjects },
     req
   });
+  try {
+    await sendGoodbyeEmail({
+      user: userSnapshot,
+      reason: 'Your account was permanently deleted from the Moyi-CMO account area.'
+    });
+    await recordAuditEvent({ user: userSnapshot, eventType: 'goodbye_email_sent', req });
+  } catch (emailError) {
+    await recordAuditEvent({
+      user: userSnapshot,
+      eventType: 'goodbye_email_failed',
+      status: 'failed',
+      severity: 'warning',
+      metadata: { errorMessage: emailError.message },
+      req
+    });
+  }
   clearAuthCookie(res);
   res.redirect('/?accountDeleted=1');
 }));

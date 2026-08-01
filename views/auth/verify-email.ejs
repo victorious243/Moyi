@@ -1,0 +1,34 @@
+<%- include('../partials/header') %>
+
+<section class="auth-panel">
+  <p class="eyebrow">Email verification</p>
+  <h1>Check your inbox</h1>
+  <p class="empty">Enter the 6-digit PIN we sent to <strong><%= email %></strong> to activate your Moyi-CMO account.</p>
+
+  <% if (successMessage) { %>
+    <section class="panel notice-panel auth-notice success-notice">
+      <h2>PIN sent</h2>
+      <p class="empty"><%= successMessage %></p>
+    </section>
+  <% } %>
+
+  <% if (errorMessage) { %>
+    <section class="panel notice-panel auth-notice">
+      <h2>Verification issue</h2>
+      <p class="empty"><%= errorMessage %></p>
+    </section>
+  <% } %>
+
+  <form class="form" action="/verify-email" method="post">
+    <input type="hidden" name="email" value="<%= email %>">
+    <label>Verification PIN <input inputmode="numeric" pattern="[0-9]{6}" maxlength="6" name="pin" autocomplete="one-time-code" required></label>
+    <button class="button button-primary" type="submit">Verify account</button>
+  </form>
+
+  <form class="inline-form auth-resend-form" action="/verify-email/resend" method="post">
+    <input type="hidden" name="email" value="<%= email %>">
+    <button class="button button-secondary" type="submit">Send a new PIN</button>
+  </form>
+</section>
+
+<%- include('../partials/footer') %>

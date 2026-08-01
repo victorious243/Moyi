@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const express = require('express');
 const asyncHandler = require('express-async-handler');
-const { body } = require('express-validator');
+const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
 const env = require('../config/env');
 const AppError = require('../utils/appError');
@@ -15,6 +15,12 @@ const {
   findOrCreateGoogleUser
 } = require('../services/googleAuthService');
 const { requestPasswordReset, resetPassword } = require('../services/passwordResetService');
+const { sendWelcomeEmail } = require('../services/emailService');
+const {
+  findUnverifiedUserByEmail,
+  requestEmailVerification,
+  verifyEmailPin
+} = require('../services/emailVerificationService');
 const { recordAuditEvent } = require('../services/auditLogService');
 
 const router = express.Router();
@@ -44,6 +50,25 @@ function clearGoogleAuthCookies(res) {
   res.clearCookie('google_auth_state', oauthCookieOptions());
 }
 
+function renderVerifyEmail(res, { email = '', errorMessage = '', successMessage = '' } = {}, statusCode = 200) {
+  return res.status(statusCode).render('auth/verify-email', {
+    title: 'Verify email',
+    email,
+    errorMessage,
+    successMessage
+  });
+}
+
+function handleVerifyEmailValidation(req, res, next) {
+  const errors = validationResult(req);
+  if (errors.isEmpty()) return next();
+
+  return renderVerifyEmail(res, {
+    email: req.body.email || '',
+    errorMessage: errors.array().map((error) => error.msg).join(', ')
+  }, 422);
+}
+
 router.get('/register', (req, res) => {
   res.render('auth/register', { title: 'Create account', errorMessage: req.query.error || '' });
 });
@@ -59,12 +84,96 @@ router.post(
   ],
   asyncHandler(async (req, res, next) => {
     const existing = await User.findOne({ email: req.body.email });
-    if (existing) return next(new AppError('An account already exists for that email.', 409));
+    if (existing) {
+      if (!existing.emailVerifiedAt) {
+        await requestEmailVerification({ user: existing, req });
+        return renderVerifyEmail(res, {
+          email: existing.email,
+          successMessage: 'That account is not verified yet, so we sent a fresh PIN.'
+        });
+      }
+      return next(new AppError('An account already exists for that email.', 409));
+    }
 
     const user = await User.createWithPassword(req.body);
     await recordAuditEvent({ user, eventType: 'account_registered', req });
-    setAuthCookie(res, signToken(user));
-    res.redirect('/dashboard');
+    await requestEmailVerification({ user, req });
+    renderVerifyEmail(res, {
+      email: user.email,
+      successMessage: 'Your verification PIN has been sent.'
+    });
+  })
+);
+
+router.get('/verify-email', (req, res) => {
+  renderVerifyEmail(res, {
+    email: req.query.email || '',
+    errorMessage: req.query.error || '',
+    successMessage: req.query.message || ''
+  });
+});
+
+router.post(
+  '/verify-email',
+  authRateLimit,
+  [
+    body('email').isEmail().withMessage('Valid email is required.').normalizeEmail(),
+    body('pin').trim().matches(/^\d{6}$/).withMessage('Enter the 6-digit verification PIN from your email.'),
+    handleVerifyEmailValidation
+  ],
+  asyncHandler(async (req, res) => {
+    try {
+      const user = await verifyEmailPin({ email: req.body.email, pin: req.body.pin, req });
+      await recordAuditEvent({ user, eventType: 'login_after_email_verification', req });
+      try {
+        await sendWelcomeEmail({ user });
+        await recordAuditEvent({ user, eventType: 'welcome_email_sent', req });
+      } catch (emailError) {
+        await recordAuditEvent({
+          user,
+          eventType: 'welcome_email_failed',
+          status: 'failed',
+          severity: 'warning',
+          metadata: { errorMessage: emailError.message },
+          req
+        });
+      }
+      setAuthCookie(res, signToken(user));
+      res.redirect('/dashboard');
+    } catch (error) {
+      renderVerifyEmail(res, {
+        email: req.body.email,
+        errorMessage: error.message
+      }, error.statusCode || 400);
+    }
+  })
+);
+
+router.post(
+  '/verify-email/resend',
+  authRateLimit,
+  [
+    body('email').isEmail().withMessage('Valid email is required.').normalizeEmail(),
+    handleVerifyEmailValidation
+  ],
+  asyncHandler(async (req, res) => {
+    const user = await findUnverifiedUserByEmail(req.body.email);
+    if (!user) {
+      return renderVerifyEmail(res, {
+        email: req.body.email,
+        errorMessage: 'We could not find an unverified account for that email.'
+      }, 404);
+    }
+
+    if (user.emailVerifiedAt) {
+      return res.redirect('/login?error=' + encodeURIComponent('That email is already verified. Please sign in.'));
+    }
+
+    await requestEmailVerification({ user, req });
+    renderVerifyEmail(res, {
+      email: user.email,
+      successMessage: 'A fresh verification PIN has been sent.'
+    });
   })
 );
 
@@ -136,10 +245,21 @@ router.post(
         metadata: { email: req.body.email },
         req
       });
-      return next(new AppError('Email or password is incorrect.', 401));
+      return res.status(401).render('auth/login', {
+        title: 'Sign in',
+        errorMessage: 'Email or password is incorrect.'
+      });
     }
 
     await recordAuditEvent({ user, eventType: 'login_password', req });
+    if (!user.emailVerifiedAt) {
+      await requestEmailVerification({ user, req });
+      return renderVerifyEmail(res, {
+        email: user.email,
+        successMessage: 'Verify your email before entering the workspace. We sent a fresh PIN.'
+      });
+    }
+
     setAuthCookie(res, signToken(user));
     res.redirect('/dashboard');
   })

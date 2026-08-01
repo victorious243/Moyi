@@ -12,6 +12,7 @@ test('application and production-critical services load', () => {
   const logger = require('../services/appLogger');
   const quickScanService = require('../services/publicQuickScanService');
   const contentImageService = require('../services/contentImageService');
+  const emailVerificationService = require('../services/emailVerificationService');
 
   assert.ok(app);
   assert.equal(typeof emailService.sendCustomerEmail, 'function');
@@ -23,6 +24,42 @@ test('application and production-critical services load', () => {
   assert.equal(typeof quickScanService.runPublicQuickScan, 'function');
   assert.equal(typeof contentImageService.generateContentImage, 'function');
   assert.equal(typeof contentImageService.deleteContentImagesForProject, 'function');
+  assert.equal(typeof emailVerificationService.requestEmailVerification, 'function');
+  assert.equal(typeof emailVerificationService.verifyEmailPin, 'function');
+});
+
+test('login template shows invalid password feedback on the sign-in page', async () => {
+  const html = await ejs.renderFile(
+    path.join(__dirname, '../views/auth/login.ejs'),
+    {
+      appName: 'Moyi',
+      title: 'Sign in',
+      currentUser: null,
+      errorMessage: 'Email or password is incorrect.'
+    }
+  );
+
+  assert.match(html, /Sign-in issue/);
+  assert.match(html, /Email or password is incorrect\./);
+});
+
+test('email verification template renders the PIN workflow', async () => {
+  const html = await ejs.renderFile(
+    path.join(__dirname, '../views/auth/verify-email.ejs'),
+    {
+      appName: 'Moyi',
+      title: 'Verify email',
+      currentUser: null,
+      email: 'founder@example.com',
+      errorMessage: '',
+      successMessage: 'Your verification PIN has been sent.'
+    }
+  );
+
+  assert.match(html, /Check your inbox/);
+  assert.match(html, /founder@example\.com/);
+  assert.match(html, /name="pin"/);
+  assert.match(html, /Send a new PIN/);
 });
 
 test('workspace recovery routes are registered', () => {

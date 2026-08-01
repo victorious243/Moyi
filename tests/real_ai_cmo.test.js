@@ -3,7 +3,11 @@ const test = require('node:test');
 const mongoose = require('mongoose');
 const axios = require('axios');
 const { enrichDraftBrandProfile, extractDraftBrandProfile } = require('../services/crawlerService');
-const { googleLoginRedirectUri, googleLoginRedirectUriFromEnv } = require('../services/googleAuthService');
+const {
+  googleLoginRedirectUri,
+  googleLoginRedirectUriFromEnv,
+  googleOAuthErrorMessage
+} = require('../services/googleAuthService');
 const {
   extractDuckDuckGoTarget,
   filteredHost,
@@ -162,6 +166,18 @@ test('Google auth prefers explicit auth redirect URI over app URL fallback', () 
     }),
     'https://moyi-cmo.com/auth/google/callback'
   );
+});
+
+test('Google auth explains invalid OAuth client credentials clearly', () => {
+  const message = googleOAuthErrorMessage({
+    response: {
+      status: 401,
+      data: { error: 'invalid_client' }
+    }
+  }, 'fallback');
+
+  assert.match(message, /GOOGLE_CLIENT_ID/);
+  assert.match(message, /GOOGLE_CLIENT_SECRET/);
 });
 
 test('production cookie domain is normalized from accidental URL values', () => {

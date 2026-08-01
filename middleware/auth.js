@@ -57,6 +57,11 @@ function requireAuth(req, res, next) {
     return next(new AppError('Please sign in to continue.', 401));
   }
 
+  if (!req.user.emailVerifiedAt) {
+    clearAuthCookie(res);
+    return res.redirect(`/verify-email?email=${encodeURIComponent(req.user.email)}&error=${encodeURIComponent('Verify your email before entering the workspace. Use Send a new PIN if you need one.')}`);
+  }
+
   next();
 }
 

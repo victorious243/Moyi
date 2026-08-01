@@ -47,29 +47,68 @@ function buildGoogleLoginUrl({ state }) {
   return `${GOOGLE_AUTH_URL}?${params.toString()}`;
 }
 
+function googleOAuthErrorMessage(error, fallback) {
+  const status = error && error.response && error.response.status;
+  const data = (error && error.response && error.response.data) || {};
+  const googleError = data.error || '';
+  const description = data.error_description || data.error_description_text || '';
+  const message = description || googleError || fallback;
+
+  if (status || googleError || description) {
+    console.warn('Google OAuth request failed.', {
+      status,
+      googleError,
+      description,
+      redirectUri: googleLoginRedirectUri()
+    });
+  }
+
+  if (status === 401 || googleError === 'invalid_client') {
+    return 'Google sign-in is not authorized. Check that GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET belong to the same OAuth web client.';
+  }
+
+  if (googleError === 'invalid_grant') {
+    return 'Google sign-in expired or the callback did not match. Try again, then verify the Authorized redirect URI in Google Cloud.';
+  }
+
+  if (googleError === 'redirect_uri_mismatch') {
+    return `Google redirect URI mismatch. Add this exact URI in Google Cloud: ${googleLoginRedirectUri()}`;
+  }
+
+  return message || fallback;
+}
+
 async function exchangeCodeForLoginTokens(code) {
   assertGoogleConfigured();
-  const response = await axios.post(GOOGLE_TOKEN_URL, new URLSearchParams({
-    code,
-    client_id: env.googleClientId,
-    client_secret: env.googleClientSecret,
-    redirect_uri: googleLoginRedirectUri(),
-    grant_type: 'authorization_code'
-  }).toString(), {
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-  });
+  try {
+    const response = await axios.post(GOOGLE_TOKEN_URL, new URLSearchParams({
+      code,
+      client_id: env.googleClientId,
+      client_secret: env.googleClientSecret,
+      redirect_uri: googleLoginRedirectUri(),
+      grant_type: 'authorization_code'
+    }).toString(), {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    });
 
-  return response.data;
+    return response.data;
+  } catch (error) {
+    throw new Error(googleOAuthErrorMessage(error, 'Google could not exchange the sign-in code for account tokens.'));
+  }
 }
 
 async function fetchGoogleProfile(accessToken) {
-  const response = await axios.get(GOOGLE_USERINFO_URL, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`
-    }
-  });
+  try {
+    const response = await axios.get(GOOGLE_USERINFO_URL, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
 
-  return response.data;
+    return response.data;
+  } catch (error) {
+    throw new Error(googleOAuthErrorMessage(error, 'Google could not return the signed-in account profile.'));
+  }
 }
 
 async function findOrCreateGoogleUser(profile) {
@@ -95,7 +134,8 @@ async function findOrCreateGoogleUser(profile) {
       name: String(profile.name || email.split('@')[0] || 'Google User').trim(),
       email,
       googleSubject: subject,
-      passwordHash
+      passwordHash,
+      emailVerifiedAt: profile.email_verified === false ? null : new Date()
     });
     return user;
   }
@@ -107,6 +147,10 @@ async function findOrCreateGoogleUser(profile) {
   }
   if (!user.name && profile.name) {
     user.name = String(profile.name).trim();
+    changed = true;
+  }
+  if (!user.emailVerifiedAt && profile.email_verified !== false) {
+    user.emailVerifiedAt = new Date();
     changed = true;
   }
   if (changed) {
@@ -123,6 +167,7 @@ module.exports = {
   exchangeCodeForLoginTokens,
   fetchGoogleProfile,
   findOrCreateGoogleUser,
+  googleOAuthErrorMessage,
   googleLoginRedirectUriFromEnv,
   googleLoginRedirectUri
 };

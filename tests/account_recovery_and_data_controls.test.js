@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createPasswordResetService, hashResetToken } = require('../services/passwordResetService');
+const { createEmailVerificationService } = require('../services/emailVerificationService');
 const { redactIntegration } = require('../services/accountDataService');
 const { createProjectTaskService } = require('../services/projectTaskService');
 const { createEmailService, smtpConfigured } = require('../services/emailService');
@@ -98,6 +99,78 @@ test('password reset consumes valid token and clears reset fields', async () => 
   assert.equal(user.passwordResetExpiresAt, null);
 });
 
+test('email verification sends a hashed expiring PIN and unlocks the user', async () => {
+  let deliveredPin = '';
+  const user = {
+    _id: 'user_1',
+    email: 'founder@example.com',
+    name: 'Founder',
+    emailVerifiedAt: null,
+    emailVerificationPinHash: '',
+    emailVerificationExpiresAt: null,
+    emailVerificationRequestedAt: null,
+    async save() {
+      return this;
+    }
+  };
+
+  const service = createEmailVerificationService({
+    User: {
+      findOne(query) {
+        assert.equal(query.email, 'founder@example.com');
+        return {
+          select: async () => user
+        };
+      }
+    },
+    deliverEmailVerification: async ({ pin }) => {
+      deliveredPin = pin;
+    },
+    recordAuditEvent: async () => null
+  });
+
+  await service.requestEmailVerification({ user });
+  assert.match(deliveredPin, /^\d{6}$/);
+  assert.equal(user.emailVerificationPinHash, hashResetToken(deliveredPin));
+  assert.ok(user.emailVerificationExpiresAt > new Date());
+  assert.equal(user.emailVerifiedAt, null);
+
+  const verified = await service.verifyEmailPin({ email: 'Founder@Example.com', pin: deliveredPin });
+  assert.equal(verified.emailVerifiedAt instanceof Date, true);
+  assert.equal(verified.emailVerificationPinHash, '');
+  assert.equal(verified.emailVerificationExpiresAt, null);
+});
+
+test('email verification rejects an invalid PIN without unlocking the user', async () => {
+  const user = {
+    _id: 'user_1',
+    email: 'founder@example.com',
+    emailVerifiedAt: null,
+    emailVerificationPinHash: hashResetToken('123456'),
+    emailVerificationExpiresAt: new Date(Date.now() + 60000),
+    async save() {
+      return this;
+    }
+  };
+
+  const service = createEmailVerificationService({
+    User: {
+      findOne() {
+        return {
+          select: async () => user
+        };
+      }
+    },
+    recordAuditEvent: async () => null
+  });
+
+  await assert.rejects(
+    () => service.verifyEmailPin({ email: 'founder@example.com', pin: '000000' }),
+    /invalid or expired/
+  );
+  assert.equal(user.emailVerifiedAt, null);
+});
+
 test('email service builds SMTP messages from configured env', async () => {
   const sent = [];
   const service = createEmailService({
@@ -129,6 +202,59 @@ test('email service builds SMTP messages from configured env', async () => {
   assert.equal(sent[0].to, 'customer@example.com');
   assert.match(sent[0].subject, /password reset PIN/i);
   assert.match(sent[0].html, /123456/);
+  assert.match(sent[0].html, /cid:moyi-logo/);
+  assert.equal(sent[0].attachments[0].cid, 'moyi-logo');
+});
+
+test('email service includes branded SaaS lifecycle templates', async () => {
+  const sent = [];
+  const service = createEmailService({
+    env: {
+      smtpHost: 'smtp-relay.brevo.com',
+      smtpPort: 587,
+      smtpSecure: false,
+      smtpUser: 'user',
+      smtpPass: 'pass',
+      smtpFrom: 'Moyi-CMO <no_reply@moyi-cmo.com>',
+      appUrl: 'https://moyi-cmo.com'
+    },
+    createTransport: () => ({
+      sendMail: async (payload) => {
+        sent.push(payload);
+        return { messageId: `message_${sent.length}` };
+      },
+      verify: async () => true
+    })
+  });
+
+  await service.sendWelcomeEmail({
+    user: { email: 'founder@example.com', name: 'Founder' }
+  });
+  await service.sendMfaPinEmail({
+    user: { email: 'founder@example.com', name: 'Founder' },
+    pin: '654321'
+  });
+  await service.sendPaymentFailedEmail({
+    user: { email: 'founder@example.com', name: 'Founder' },
+    plan: 'Pro',
+    amount: 'EUR 129'
+  });
+  await service.sendGoodbyeEmail({
+    user: { email: 'founder@example.com', name: 'Founder' },
+    reason: 'Account deleted by request.'
+  });
+
+  assert.equal(sent.length, 4);
+  assert.match(sent[0].subject, /Welcome/);
+  assert.match(sent[0].html, /Create a project/);
+  assert.match(sent[0].html, /run a scan/);
+  assert.match(sent[0].html, /cid:moyi-logo/);
+  assert.match(sent[1].html, /654321/);
+  assert.match(sent[1].html, /background:#05070b/);
+  assert.match(sent[2].subject, /payment failed/i);
+  assert.match(sent[2].html, /Update payment method/);
+  assert.match(sent[3].subject, /closed/);
+  assert.match(sent[3].html, /Account deleted by request\./);
 });
 
 test('smtpConfigured requires SMTP host, user, password, and from address', () => {
