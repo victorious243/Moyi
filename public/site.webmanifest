@@ -1,0 +1,23 @@
+{
+  "name": "Moyi-CMO",
+  "short_name": "Moyi-CMO",
+  "description": "Evidence-led AI Chief Marketing Officer workspace for SEO growth.",
+  "icons": [
+    {
+      "src": "/images/moyi-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/moyi-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#05070b",
+  "theme_color": "#5b4dff"
+}

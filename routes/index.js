@@ -40,6 +40,59 @@ router.get('/', function(req, res) {
   });
 });
 
+function publicBaseUrl() {
+  return String(env.appUrl || 'https://moyi-cmo.com').replace(/\/$/, '');
+}
+
+function sitemapUrl(pathname, priority = '0.7', changefreq = 'weekly') {
+  return {
+    loc: `${publicBaseUrl()}${pathname}`,
+    priority,
+    changefreq
+  };
+}
+
+router.get('/sitemap.xml', (req, res) => {
+  const urls = [
+    sitemapUrl('/', '1.0', 'weekly'),
+    sitemapUrl('/features', '0.9', 'monthly'),
+    sitemapUrl('/how-it-works', '0.9', 'monthly'),
+    sitemapUrl('/pricing', '0.9', 'monthly'),
+    sitemapUrl('/docs', '0.8', 'monthly'),
+    sitemapUrl('/demo', '0.8', 'monthly'),
+    sitemapUrl('/reports', '0.8', 'monthly'),
+    sitemapUrl('/roadmap', '0.7', 'monthly'),
+    sitemapUrl('/about', '0.7', 'monthly'),
+    sitemapUrl('/contact', '0.6', 'monthly'),
+    sitemapUrl('/privacy', '0.5', 'yearly'),
+    sitemapUrl('/terms', '0.5', 'yearly'),
+    sitemapUrl('/cookies', '0.5', 'yearly')
+  ];
+
+  const xml = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ...urls.map((url) => [
+      '  <url>',
+      `    <loc>${escapeHtml(url.loc)}</loc>`,
+      `    <changefreq>${url.changefreq}</changefreq>`,
+      `    <priority>${url.priority}</priority>`,
+      '  </url>'
+    ].join('\n')),
+    '</urlset>'
+  ].join('\n');
+
+  res.type('application/xml').send(xml);
+});
+
+router.get('/robots.txt', (req, res) => {
+  res.type('text/plain').send([
+    'User-agent: *',
+    'Allow: /',
+    `Sitemap: ${publicBaseUrl()}/sitemap.xml`
+  ].join('\n'));
+});
+
 router.post('/quick-scan', [
   body('websiteUrl')
     .trim()
