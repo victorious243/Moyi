@@ -2,6 +2,7 @@
 
 <%
   const imagesByDraftId = typeof socialDraftImagesByDraftId !== 'undefined' ? socialDraftImagesByDraftId : {};
+  const currentImageJob = typeof imageJob !== 'undefined' ? imageJob : null;
   const groupedDrafts = new Map();
   socialDrafts.forEach((draft) => {
     const day = draft.scheduledFor.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
@@ -19,7 +20,14 @@
     <a href="/projects/<%= project._id %>/campaigns">Campaigns</a>
   </aside>
 
-  <section class="app-main">
+  <section
+    class="app-main"
+    <% if (currentImageJob && (currentImageJob.status === 'queued' || currentImageJob.status === 'running')) { %>
+      data-live-job
+      data-live-job-endpoint="/projects/<%= project._id %>/jobs/<%= currentImageJob._id %>"
+      data-initial-job-status="<%= currentImageJob.status %>"
+    <% } %>
+  >
     <nav class="project-command-nav" aria-label="Content operations">
       <a href="/projects/<%= project._id %>/content"><strong>Content Studio</strong><span>Create and review</span></a>
       <a class="is-active" href="/projects/<%= project._id %>/calendar"><strong>Calendar</strong><span>See what goes out</span></a>
@@ -33,6 +41,16 @@
 
     <% if (successMessage) { %><div class="image-success-message"><%= successMessage %></div><% } %>
     <% if (typeof errorMessage !== 'undefined' && errorMessage) { %><div class="form-error"><%= errorMessage %></div><% } %>
+
+    <% if (currentImageJob && (currentImageJob.status === 'queued' || currentImageJob.status === 'running')) { %>
+      <section class="panel live-job-panel">
+        <h2>Poster generation in progress</h2>
+        <p>Status: <strong data-job-status><%= currentImageJob.status %></strong></p>
+        <p data-job-step><%= currentImageJob.currentStep || 'Waiting for the image worker' %></p>
+        <p>Progress: <span data-job-progress><%= currentImageJob.progressPercent || 0 %>%</span> / Last checked at <span data-job-last-checked>just now</span>.</p>
+        <p data-job-error-row hidden><span data-job-error></span></p>
+      </section>
+    <% } %>
 
     <section class="studio-summary" aria-label="Calendar summary">
       <div><span>Campaigns</span><strong><%= campaigns.length %></strong></div>

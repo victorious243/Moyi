@@ -9,21 +9,15 @@ const AppError = require('../utils/appError');
 const handleValidation = require('../utils/validate');
 const { requireAuth } = require('../middleware/auth');
 const {
-  generateContentImage,
   rejectContentImage,
   restoreContentImage,
   saveUploadedImage,
   selectContentImage
 } = require('../services/contentImageService');
 const { openDownloadStream } = require('../services/contentImageStorageService');
-const { hasProjectLogo, projectLogoReference } = require('../services/projectLogoService');
 const { canManageProjectRole, projectAccessRole } = require('../services/projectAccessService');
-const {
-  ensureImageGenerationAllowed,
-  incrementUsage,
-  recordAiOperation,
-  recordAiOperationFailure
-} = require('../services/usageService');
+const { queueContentImageGeneration } = require('../services/projectTaskService');
+const { ensureImageGenerationAllowed } = require('../services/usageService');
 
 const router = express.Router();
 const imageUpload = multer({
@@ -44,10 +38,6 @@ function uploadSingleImage(req, res, next) {
       : 'The image upload could not be processed.';
     return res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { error: message }));
   });
-}
-
-function guidanceRequestsLogo(value) {
-  return /\b(logo|brand mark|brandmark|logomark|wordmark|brand identity)\b/i.test(String(value || ''));
 }
 
 router.use(requireAuth);
@@ -142,23 +132,23 @@ router.post(
       if (req.body.referenceImageId && !referenceImage) {
         throw new AppError('Reference image not found for this post.', 404);
       }
-      const brandLogoReference = guidanceRequestsLogo(req.body.guidance) && hasProjectLogo(req.project)
-        ? await projectLogoReference(req.project)
-        : null;
-
-      await generateContentImage({
-        project: req.project,
-        draft: req.socialDraft,
-        userId: req.user._id,
-        guidance: req.body.guidance || '',
-        referenceImage,
-        brandLogoReference
+      const redirectPath = calendarUrl(req.project._id, req.socialDraft._id, {
+        success: 'Image generation started. Moyi will refresh this post when the poster is ready.'
       });
-      await incrementUsage(req.user._id, 'imageGenerationsUsed', 1);
-      await recordAiOperation(req.user._id, 1);
-      res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { success: 'Image candidate generated for this post.' }));
+      const job = await queueContentImageGeneration({
+        projectId: req.project._id,
+        userId: req.user._id,
+        draftId: req.socialDraft._id,
+        draftModel: 'SocialDraft',
+        guidance: req.body.guidance || '',
+        referenceImageId: referenceImage ? referenceImage._id : '',
+        redirectPath
+      });
+      res.redirect(calendarUrl(req.project._id, req.socialDraft._id, {
+        success: 'Image generation started. Moyi will refresh this post when the poster is ready.',
+        imageJob: job._id
+      }));
     } catch (error) {
-      await recordAiOperationFailure(req.user._id).catch(() => null);
       res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { error: error.message }));
     }
   })

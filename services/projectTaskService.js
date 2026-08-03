@@ -2,6 +2,8 @@ const Project = require('../models/Project');
 const ProjectJob = require('../models/ProjectJob');
 const Recommendation = require('../models/Recommendation');
 const ContentDraft = require('../models/ContentDraft');
+const ContentImage = require('../models/ContentImage');
+const SocialDraft = require('../models/SocialDraft');
 const { enqueueProjectTask } = require('../queues/projectTaskQueue');
 const {
   generateDraftsForRecommendation,
@@ -13,6 +15,8 @@ const {
   syncSearchConsoleWindow
 } = require('./projectWorkflowService');
 const { syncSearchConsoleProject } = require('./searchConsoleService');
+const { generateContentImage } = require('./contentImageService');
+const { hasProjectLogo, projectLogoReference } = require('./projectLogoService');
 const {
   incrementUsage,
   recordAiOperation,
@@ -40,8 +44,13 @@ function typeLabel(type) {
     ai_report: 'AI report',
     measurement_report: 'measurement report',
     search_console_sync: 'Search Console sync',
-    content_pipeline: 'content pipeline'
+    content_pipeline: 'content pipeline',
+    content_image_generation: 'image generation'
   }[type] || 'job';
+}
+
+function guidanceRequestsLogo(value) {
+  return /\b(logo|brand mark|brandmark|logomark|wordmark|brand identity)\b/i.test(String(value || ''));
 }
 
 function parseRecommendationLimit(value) {
@@ -67,10 +76,15 @@ function createProjectTaskService(deps = {}) {
     ProjectJob,
     Recommendation,
     ContentDraft,
+    ContentImage,
+    SocialDraft,
     enqueueProjectTask,
     generateDraftsForRecommendation,
+    generateContentImage,
     generateMeasurementReport,
     generateStrategyPlan,
+    hasProjectLogo,
+    projectLogoReference,
     syncSearchConsoleProject,
     syncSearchConsoleWindow,
     recordAiOperationFailure,
@@ -180,6 +194,29 @@ function createProjectTaskService(deps = {}) {
       userId,
       type: 'content_pipeline',
       payload: { recommendationId, requestedType, keyword }
+    });
+  }
+
+  async function queueContentImageGeneration({
+    projectId,
+    userId,
+    draftId,
+    draftModel = 'ContentDraft',
+    guidance = '',
+    referenceImageId = '',
+    redirectPath = ''
+  }) {
+    return enqueueWorkflow({
+      projectId,
+      userId,
+      type: 'content_image_generation',
+      payload: {
+        draftId,
+        draftModel,
+        guidance,
+        referenceImageId: referenceImageId || '',
+        redirectPath
+      }
     });
   }
 
@@ -345,6 +382,63 @@ function createProjectTaskService(deps = {}) {
             : `/projects/${project._id}/content?${query.toString()}`,
           resourceType: 'content_pipeline'
         };
+      } else if (job.type === 'content_image_generation') {
+        await onProgress({ currentStep: 'Loading post and brand assets', progressPercent: 12 });
+
+        const isSocialDraft = job.payload.draftModel === 'SocialDraft';
+        const DraftModel = isSocialDraft ? services.SocialDraft : services.ContentDraft;
+        const draft = await DraftModel.findOne({
+          _id: job.payload.draftId,
+          projectId: project._id
+        });
+        if (!draft) {
+          const error = new Error('Draft not found for image generation.');
+          error.statusCode = 404;
+          throw error;
+        }
+
+        const referenceImage = job.payload.referenceImageId
+          ? await services.ContentImage.findOne({
+            _id: job.payload.referenceImageId,
+            draftId: draft._id,
+            projectId: project._id,
+            status: { $ne: 'rejected' }
+          })
+          : null;
+        if (job.payload.referenceImageId && !referenceImage) {
+          const error = new Error('Reference image not found for this draft.');
+          error.statusCode = 404;
+          throw error;
+        }
+
+        const guidance = job.payload.guidance || '';
+        const brandLogoReference = guidanceRequestsLogo(guidance) && services.hasProjectLogo(project)
+          ? await services.projectLogoReference(project)
+          : null;
+
+        await onProgress({ currentStep: 'Generating branded image candidate', progressPercent: 35 });
+        const image = await services.generateContentImage({
+          project,
+          draft,
+          userId: job.userId,
+          guidance,
+          referenceImage,
+          brandLogoReference
+        });
+
+        await onProgress({ currentStep: 'Saving image candidate', progressPercent: 90 });
+        await services.incrementUsage(job.userId, 'imageGenerationsUsed', 1);
+        await services.recordAiOperation(job.userId, 1);
+
+        const fallbackPath = isSocialDraft
+          ? `/projects/${project._id}/calendar?success=${encodeURIComponent('Image candidate generated for this post.')}#post-${draft._id}`
+          : `/content/${draft._id}?workspace=visual&imageSuccess=${encodeURIComponent('New image candidate generated. Review and select it before using this asset.')}`;
+        result = {
+          imageId: image._id,
+          resourceId: image._id,
+          resourcePath: job.payload.redirectPath || fallbackPath,
+          resourceType: 'content_image'
+        };
       } else {
         throw new Error(`Unsupported project job type: ${job.type}`);
       }
@@ -362,7 +456,7 @@ function createProjectTaskService(deps = {}) {
       job.currentStep = 'Failed';
       job.completedAt = new Date();
       await job.save();
-      if (['ai_report', 'measurement_report', 'content_pipeline'].includes(job.type)) {
+      if (['ai_report', 'measurement_report', 'content_pipeline', 'content_image_generation'].includes(job.type)) {
         await services.recordAiOperationFailure(job.userId).catch(() => null);
       }
       throw error;
@@ -375,6 +469,7 @@ function createProjectTaskService(deps = {}) {
     findLatestJobs,
     processProjectTask,
     queueMeasurementReport,
+    queueContentImageGeneration,
     queueContentPipeline,
     queueSearchConsoleSync,
     queueStrategyPlan,

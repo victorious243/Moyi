@@ -6,6 +6,7 @@ const ContentDraft = require('../models/ContentDraft');
 const ContentImage = require('../models/ContentImage');
 const SocialDraft = require('../models/SocialDraft');
 const Project = require('../models/Project');
+const ProjectJob = require('../models/ProjectJob');
 const PublishAction = require('../models/PublishAction');
 const Recommendation = require('../models/Recommendation');
 const WordPressIntegration = require('../models/WordPressIntegration');
@@ -20,22 +21,20 @@ const { createShopifyDraftArticle } = require('../services/shopifyService');
 const { sendContentApprovedWebhook } = require('../services/webhookService');
 const { createSocialDraftsFromContent } = require('../services/socialDraftService');
 const {
-  generateContentImage,
   rejectContentImage,
   restoreContentImage,
   saveUploadedImage,
   selectContentImage
 } = require('../services/contentImageService');
 const { openDownloadStream } = require('../services/contentImageStorageService');
-const { hasProjectLogo, projectLogoReference } = require('../services/projectLogoService');
 const { renderContentBody } = require('../services/contentPreviewService');
 const { recordAuditEvent } = require('../services/auditLogService');
+const { queueContentImageGeneration } = require('../services/projectTaskService');
 const { canManageProjectRole, isUnsafeMethod, projectAccessRole } = require('../services/projectAccessService');
 const {
   ensureAiOperationAllowed,
   ensureImageGenerationAllowed,
   ensureFeature,
-  incrementUsage,
   recordAiOperation,
   recordAiOperationFailure
 } = require('../services/usageService');
@@ -59,10 +58,6 @@ function uploadSingleImage(req, res, next) {
       : 'The image upload could not be processed.';
     return res.redirect(contentUrl(req.params.id, 'visual', { imageError: message }));
   });
-}
-
-function guidanceRequestsLogo(value) {
-  return /\b(logo|brand mark|brandmark|logomark|wordmark|brand identity)\b/i.test(String(value || ''));
 }
 
 router.use(requireAuth);
@@ -101,12 +96,22 @@ async function loadDraft(req, res, next) {
 }
 
 router.get('/:id', [param('id').isMongoId(), handleValidation], loadDraft, asyncHandler(async (req, res) => {
-  const [wordpressIntegration, webflowIntegration, shopifyIntegration, publishActions, contentImages] = await Promise.all([
+  const imageJobQuery = req.query.imageJob && /^[a-f\d]{24}$/i.test(String(req.query.imageJob))
+    ? {
+        _id: req.query.imageJob,
+        projectId: req.project._id,
+        userId: req.user._id,
+        type: 'content_image_generation',
+        status: { $in: ['queued', 'running'] }
+      }
+    : null;
+  const [wordpressIntegration, webflowIntegration, shopifyIntegration, publishActions, contentImages, imageJob] = await Promise.all([
     WordPressIntegration.findOne({ projectId: req.project._id, userId: req.user._id }),
     WebflowIntegration.findOne({ projectId: req.project._id, userId: req.user._id }),
     ShopifyIntegration.findOne({ projectId: req.project._id, userId: req.user._id }),
     PublishAction.find({ contentDraftId: req.draft._id, userId: req.user._id }).sort({ createdAt: -1 }).limit(10),
-    ContentImage.find({ draftId: req.draft._id }).sort({ status: 1, createdAt: -1 })
+    ContentImage.find({ draftId: req.draft._id }).sort({ status: 1, createdAt: -1 }),
+    imageJobQuery ? ProjectJob.findOne(imageJobQuery) : null
   ]);
 
   res.render('content/show', {
@@ -124,7 +129,8 @@ router.get('/:id', [param('id').isMongoId(), handleValidation], loadDraft, async
     imageSuccess: req.query.imageSuccess || '',
     publishError: req.query.publishError || '',
     publishSuccess: req.query.publishSuccess || '',
-    webhookStatus: req.query.webhook || ''
+    webhookStatus: req.query.webhook || '',
+    imageJob
   });
 }));
 
@@ -197,23 +203,23 @@ router.post(
       if (req.body.referenceImageId && !referenceImage) {
         throw new AppError('Reference image not found for this draft.', 404);
       }
-      const brandLogoReference = guidanceRequestsLogo(req.body.guidance) && hasProjectLogo(req.project)
-        ? await projectLogoReference(req.project)
-        : null;
-
-      await generateContentImage({
-        project: req.project,
-        draft: req.draft,
-        userId: req.user._id,
-        guidance: req.body.guidance || '',
-        referenceImage,
-        brandLogoReference
+      const redirectPath = contentUrl(req.draft._id, 'visual', {
+        imageSuccess: 'Image generation started. Moyi will open this visual workspace when the candidate is ready.'
       });
-      await incrementUsage(req.user._id, 'imageGenerationsUsed', 1);
-      await recordAiOperation(req.user._id, 1);
-      res.redirect(contentUrl(req.draft._id, 'visual', { imageSuccess: 'New image candidate generated. Review and select it before using this asset.' }));
+      const job = await queueContentImageGeneration({
+        projectId: req.project._id,
+        userId: req.user._id,
+        draftId: req.draft._id,
+        draftModel: 'ContentDraft',
+        guidance: req.body.guidance || '',
+        referenceImageId: referenceImage ? referenceImage._id : '',
+        redirectPath
+      });
+      res.redirect(contentUrl(req.draft._id, 'visual', {
+        imageSuccess: 'Image generation started. Moyi will open this visual workspace when the candidate is ready.',
+        imageJob: job._id
+      }));
     } catch (error) {
-      await recordAiOperationFailure(req.user._id).catch(() => null);
       res.redirect(contentUrl(req.draft._id, 'visual', { imageError: error.message }));
     }
   })

@@ -77,9 +77,19 @@ function registerExecutionRoutes(router, context, services = {}) {
   }));
 
   router.get('/:id/calendar', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
-    const [campaigns, socialDrafts] = await Promise.all([
+    const imageJobQuery = req.query.imageJob && /^[a-f\d]{24}$/i.test(String(req.query.imageJob))
+      ? {
+          _id: req.query.imageJob,
+          projectId: req.project._id,
+          userId: req.user._id,
+          type: 'content_image_generation',
+          status: { $in: ['queued', 'running'] }
+        }
+      : null;
+    const [campaigns, socialDrafts, imageJob] = await Promise.all([
       context.Campaign.find({ projectId: req.project._id }).sort({ startDate: 1 }),
-      context.SocialDraft.find({ projectId: req.project._id }).sort({ scheduledFor: 1 }).populate('campaignId')
+      context.SocialDraft.find({ projectId: req.project._id }).sort({ scheduledFor: 1 }).populate('campaignId'),
+      imageJobQuery ? context.ProjectJob.findOne(imageJobQuery) : null
     ]);
     const socialDraftIds = socialDrafts.map((draft) => draft._id);
     const socialImages = socialDraftIds.length
@@ -101,7 +111,8 @@ function registerExecutionRoutes(router, context, services = {}) {
       socialDrafts,
       socialDraftImagesByDraftId,
       successMessage: req.query.success || '',
-      errorMessage: req.query.error || ''
+      errorMessage: req.query.error || '',
+      imageJob
     });
   }));
 

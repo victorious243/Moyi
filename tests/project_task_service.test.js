@@ -250,3 +250,93 @@ test('content pipeline job creates missing assets and returns an approval queue 
   assert.ok(savedProgress.some((entry) => entry.progress === 25));
   assert.equal(savedProgress.at(-1).progress, 100);
 });
+
+test('content image generation job runs in the project task worker', async () => {
+  const savedProgress = [];
+  const job = {
+    _id: 'job_image',
+    projectId: 'proj_1',
+    userId: 'user_1',
+    type: 'content_image_generation',
+    payload: {
+      draftId: 'draft_1',
+      draftModel: 'SocialDraft',
+      guidance: 'Create a SaaS poster with the logo visible.',
+      referenceImageId: '',
+      redirectPath: '/projects/proj_1/calendar?success=ready#post-draft_1'
+    },
+    status: 'queued',
+    attemptsMade: 0,
+    result: {},
+    errorMessage: '',
+    async save() {
+      savedProgress.push({ status: this.status, progress: this.progressPercent, step: this.currentStep });
+      return this;
+    }
+  };
+  const project = {
+    _id: 'proj_1',
+    name: 'VicPods',
+    logo: { storageKey: 'logos/vicpods.png' }
+  };
+  const draft = {
+    _id: 'draft_1',
+    projectId: 'proj_1',
+    title: 'Join VicPods',
+    channel: 'instagram'
+  };
+  let usageIncrement = 0;
+  let aiOperations = 0;
+  let logoLoaded = false;
+
+  const service = createProjectTaskService({
+    Project: {
+      findById: async () => project
+    },
+    ProjectJob: {
+      findById: async () => job
+    },
+    SocialDraft: {
+      findOne: async (query) => {
+        assert.equal(query._id, 'draft_1');
+        assert.equal(query.projectId, 'proj_1');
+        return draft;
+      }
+    },
+    ContentImage: {
+      findOne: async () => null
+    },
+    hasProjectLogo: () => true,
+    projectLogoReference: async () => {
+      logoLoaded = true;
+      return { buffer: Buffer.from('logo'), filename: 'logo.png', mimeType: 'image/png' };
+    },
+    generateContentImage: async ({ project: receivedProject, draft: receivedDraft, guidance, brandLogoReference }) => {
+      assert.equal(receivedProject, project);
+      assert.equal(receivedDraft, draft);
+      assert.match(guidance, /logo visible/);
+      assert.ok(brandLogoReference);
+      return { _id: 'image_1' };
+    },
+    incrementUsage: async (userId, field, amount) => {
+      assert.equal(userId, 'user_1');
+      assert.equal(field, 'imageGenerationsUsed');
+      usageIncrement += amount;
+    },
+    recordAiOperation: async () => {
+      aiOperations += 1;
+    }
+  });
+
+  const result = await service.processProjectTask('job_image');
+
+  assert.equal(result.status, 'completed');
+  assert.equal(result.result.resourceId, 'image_1');
+  assert.equal(result.result.resourcePath, '/projects/proj_1/calendar?success=ready#post-draft_1');
+  assert.equal(result.result.resourceType, 'content_image');
+  assert.equal(usageIncrement, 1);
+  assert.equal(aiOperations, 1);
+  assert.equal(logoLoaded, true);
+  assert.ok(savedProgress.some((entry) => entry.progress === 35));
+  assert.equal(savedProgress.at(-1).progress, 100);
+});

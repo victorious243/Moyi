@@ -9,6 +9,7 @@
   const rejectedImages = draftImages.filter((image) => image.status === 'rejected');
   const selectedImage = activeImages.find((image) => image.status === 'selected') || null;
   const previewImage = selectedImage || activeImages[0] || null;
+  const currentImageJob = typeof imageJob !== 'undefined' ? imageJob : null;
 %>
 
 <div class="app-layout">
@@ -24,7 +25,14 @@
     <a href="/projects/<%= project._id %>/calendar">Calendar</a>
   </aside>
 
-  <section class="app-main">
+  <section
+    class="app-main"
+    <% if (currentImageJob && (currentImageJob.status === 'queued' || currentImageJob.status === 'running')) { %>
+      data-live-job
+      data-live-job-endpoint="/projects/<%= project._id %>/jobs/<%= currentImageJob._id %>"
+      data-initial-job-status="<%= currentImageJob.status %>"
+    <% } %>
+  >
     <div class="page-heading">
       <div>
         <p class="eyebrow"><%= draft.type.replace(/_/g, ' ') %></p>
@@ -32,6 +40,16 @@
       </div>
       <span class="status"><%= draftStatusLabel %></span>
     </div>
+
+    <% if (currentImageJob && (currentImageJob.status === 'queued' || currentImageJob.status === 'running')) { %>
+      <section class="panel live-job-panel">
+        <h2>Image generation in progress</h2>
+        <p>Status: <strong data-job-status><%= currentImageJob.status %></strong></p>
+        <p data-job-step><%= currentImageJob.currentStep || 'Waiting for the image worker' %></p>
+        <p>Progress: <span data-job-progress><%= currentImageJob.progressPercent || 0 %>%</span> / Last checked at <span data-job-last-checked>just now</span>.</p>
+        <p data-job-error-row hidden><span data-job-error></span></p>
+      </section>
+    <% } %>
 
     <nav class="content-workflow-nav" aria-label="Content workflow">
       <button type="button" data-workflow-tab="write" aria-controls="workflow-write">
