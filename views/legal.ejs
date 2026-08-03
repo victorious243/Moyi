@@ -1,12 +1,23 @@
 <%- include('partials/header') %>
 
-<section class="report">
-  <p class="eyebrow">Launch Readiness</p>
-  <h1><%= heading %></h1>
-  <div class="legal-content">
-    <%- body %>
+<section class="legal-page">
+  <div class="legal-hero">
+    <p class="eyebrow">Trust Center</p>
+    <h1><%= heading %></h1>
+    <p>Moyi-CMO is built for businesses that need clear AI-assisted marketing workflows, accountable data handling, and human control over every important decision.</p>
   </div>
-  <p class="empty" style="margin-top: 2rem;">Last updated: <%= new Date().toLocaleDateString() %></p>
+
+  <div class="legal-shell">
+    <aside class="legal-summary" aria-label="Policy summary">
+      <span>Current Policy</span>
+      <strong><%= heading %></strong>
+      <p>Last updated <%= new Date().toLocaleDateString() %></p>
+    </aside>
+
+    <article class="legal-content">
+      <%- body %>
+    </article>
+  </div>
 </section>
 
 <%- include('partials/footer') %>

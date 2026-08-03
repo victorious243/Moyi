@@ -6,6 +6,7 @@ const {
 } = require('../../services/competitorDiscoveryService');
 const { generateCompetitorInsights } = require('../../services/competitorInsightService');
 const { auditTelemetry } = require('../../services/telemetryAuditor');
+const { generateScanPdfReport } = require('../../services/scanPdfReportService');
 
 function registerDiscoveryRoutes(router, context, services = {}) {
   const {
@@ -248,6 +249,30 @@ function registerDiscoveryRoutes(router, context, services = {}) {
       });
 
       res.json(context.scanJson(req.scan, viewData));
+    })
+  );
+
+  router.get(
+    '/:id/scans/:scanId/pdf',
+    [param('id').isMongoId(), param('scanId').isMongoId(), context.handleValidation],
+    context.loadProject,
+    context.loadScan,
+    asyncHandler(async (req, res) => {
+      const viewData = await context.loadScanViewData({
+        project: req.project,
+        scan: req.scan,
+        userId: req.user._id
+      });
+      const { buffer, filename } = generateScanPdfReport({
+        project: req.project,
+        scan: req.scan,
+        ...viewData
+      });
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', buffer.length);
+      res.send(buffer);
     })
   );
 

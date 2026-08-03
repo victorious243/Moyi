@@ -35,17 +35,17 @@
           <button type="submit" aria-label="Run quick scan">Enter</button>
         </form>
         <div class="terminal-pipeline" aria-hidden="true">
-          <span style="--d:0ms">crawl</span>
-          <span style="--d:180ms">audit</span>
-          <span style="--d:360ms">score</span>
-          <span style="--d:540ms">plan</span>
+          <span>crawl</span>
+          <span>audit</span>
+          <span>score</span>
+          <span>plan</span>
         </div>
         <% if (scanError) { %>
           <p class="quick-scan-error"><%= scanError %></p>
         <% } %>
         <h2><%= scanResult ? `${scanResult.snapshot.host} quick report generated` : 'Enter your website to wake up Moyi' %></h2>
         <p><%= scanResult ? `${scanResult.pagesScanned} pages sampled. ${scanResult.summary.issueCount} visible signals found. Full recommendations unlock after signup.` : 'Type your website URL into the terminal, press Enter, and get a limited public scan before creating an account.' %></p>
-        <div class="score-ring <%= scanResult ? '' : 'score-ring-idle' %>" style="--score:<%= scanResult ? scanResult.score : 0 %>%">
+        <div class="score-ring <%= scanResult ? '' : 'score-ring-idle' %>">
           <strong><%= scanResult ? scanResult.score : '--' %></strong>
           <span><%= scanResult ? 'Quick score' : 'Awaiting scan' %></span>
         </div>
@@ -96,7 +96,7 @@
         </div>
       </div>
 
-      <div class="signal-report" style="--score:<%= scanResult.score %>%">
+      <div class="signal-report">
         <header class="signal-report-head">
           <div class="signal-score-dial">
             <strong><%= scanResult.score %></strong>
@@ -205,9 +205,9 @@
   <div class="preview-grid">
     <div class="preview-panel">
       <h3>Top opportunities</h3>
-      <div class="bar-row"><span>Homepage title clarity</span><i style="--w: 92%"></i></div>
-      <div class="bar-row"><span>Pricing page schema</span><i style="--w: 78%"></i></div>
-      <div class="bar-row"><span>Comparison content gap</span><i style="--w: 66%"></i></div>
+      <div class="bar-row bar-row-strong"><span>Homepage title clarity</span><i></i></div>
+      <div class="bar-row bar-row-medium"><span>Pricing page schema</span><i></i></div>
+      <div class="bar-row bar-row-balanced"><span>Comparison content gap</span><i></i></div>
     </div>
     <div class="preview-panel">
       <h3>Approval queue</h3>

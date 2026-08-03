@@ -23,6 +23,15 @@
       <section class="panel notice-panel">
         <h2>Search Console unavailable</h2>
         <p class="empty"><%= errorMessage %></p>
+        <div class="integration-checklist">
+          <strong>To make this connection work:</strong>
+          <ol>
+            <li>Enable the Google Search Console API in the same Google Cloud project used by Moyi-CMO.</li>
+            <li>Add the readonly scope: <code>https://www.googleapis.com/auth/webmasters.readonly</code>.</li>
+            <li>Use the same Google account that owns or can view the Search Console property for this website.</li>
+            <li>If you changed scopes, revoke the old Moyi-CMO Google permission and click Reconnect Google.</li>
+          </ol>
+        </div>
       </section>
     <% } %>
 
@@ -65,7 +74,7 @@
       <% if (!integration) { %>
         <p class="empty">Connect Google before selecting a project property.</p>
       <% } else if (!properties.length) { %>
-        <p class="empty">No Search Console properties were found for this Google account.</p>
+        <p class="empty">No Search Console properties were found for this Google account. Open Google Search Console with this same account and verify the website property first.</p>
       <% } else { %>
         <form class="form" action="/projects/<%= project._id %>/search-console/property" method="post">
           <label>

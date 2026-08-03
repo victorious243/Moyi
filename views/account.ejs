@@ -46,15 +46,6 @@
       <a class="button" href="/account/export">Download Account Export</a>
     </section>
 
-    <section class="panel">
-      <h2>Email Server</h2>
-      <p class="empty">SMTP status: <strong><%= emailConfigured ? 'configured' : 'not configured' %></strong></p>
-      <p class="empty">Test recipient: <%= emailTestTo %></p>
-      <form action="/account/test-email" method="post">
-        <button class="button button-primary" type="submit">Send Test Email</button>
-      </form>
-    </section>
-
     <section class="panel notice-panel">
       <h2>Delete Account & Data</h2>
       <p class="empty">This permanently deletes your user account, projects, scans, reports, recommendations, drafts, tracking events, integrations, campaigns, and social drafts. Audit records are retained for security and compliance evidence.</p>

@@ -19,7 +19,7 @@
         </div>
       <% } %>
       <% if (typeof logoSuccess !== 'undefined' && logoSuccess) { %><div class="image-success-message"><%= logoSuccess %></div><% } %>
-      <form class="form grid-form" action="/projects/<%= project._id %>" method="post" enctype="multipart/form-data">
+      <form class="form grid-form" action="/projects/<%= project._id %><%= typeof csrfToken !== 'undefined' && csrfToken ? `?_csrf=${csrfToken}` : '' %>" method="post" enctype="multipart/form-data">
         <label>Project name <input name="name" value="<%= project.name %>" required></label>
         <label>Website URL <input name="websiteUrl" value="<%= project.websiteUrl %>" required></label>
         <label>Industry <input name="industry" value="<%= project.industry || '' %>"></label>

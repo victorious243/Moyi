@@ -7,7 +7,7 @@ const User = require('../models/User');
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GOOGLE_USERINFO_URL = 'https://openidconnect.googleapis.com/v1/userinfo';
-const AUTH_SCOPES = ['openid', 'email', 'profile'];
+const AUTH_SCOPES = ['openid', 'email'];
 
 function googleLoginRedirectUriFromEnv(source = env) {
   if (source.googleRedirectUri && source.googleRedirectUri.includes('/auth/google/callback')) {

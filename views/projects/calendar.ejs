@@ -110,9 +110,10 @@
                     <div class="social-image-actions">
                       <form
                         class="social-image-form"
-                        action="/social-drafts/<%= draft._id %>/images/generate"
+                        action="/social-drafts/<%= draft._id %>/images/generate<%= typeof csrfToken !== 'undefined' && csrfToken ? `?_csrf=${csrfToken}` : '' %>"
                         method="post"
                         data-loading-state="Creating your post image"
+                        data-loading-mode="calm"
                         data-loading-domain="<%= draft.title || 'this social post' %>"
                         data-loading-copy="Moyi is turning the post copy, brand context, and your image direction into a visual candidate. Keep this page open until the image is ready."
                         data-loading-stages="Brief,Compose,Render,Save"
@@ -132,7 +133,7 @@
                         <% } %>
                         <button class="button button-primary" type="submit">Generate Image</button>
                       </form>
-                      <form class="social-image-form" action="/social-drafts/<%= draft._id %>/images/upload" method="post" enctype="multipart/form-data">
+                      <form class="social-image-form" action="/social-drafts/<%= draft._id %>/images/upload<%= typeof csrfToken !== 'undefined' && csrfToken ? `?_csrf=${csrfToken}` : '' %>" method="post" enctype="multipart/form-data">
                         <label>Upload image <input type="file" name="image" accept="image/jpeg,image/png,image/webp" required></label>
                         <label>Alt text <input name="altText" maxlength="240" placeholder="Describe the image for accessibility"></label>
                         <label>Caption <input name="caption" maxlength="500" placeholder="Optional caption"></label>

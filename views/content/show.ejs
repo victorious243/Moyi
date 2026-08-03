@@ -241,9 +241,13 @@
         <div class="image-control-grid">
           <form
             class="image-control"
-            action="/content/<%= draft._id %>/images/generate"
+            action="/content/<%= draft._id %>/images/generate<%= typeof csrfToken !== 'undefined' && csrfToken ? `?_csrf=${csrfToken}` : '' %>"
             method="post"
             data-loading-state="Generating a content-matched image"
+            data-loading-mode="calm"
+            data-loading-domain="<%= draft.title || 'this content asset' %>"
+            data-loading-copy="Moyi is creating the image and saving the file. This may take a little longer for logo-based poster designs."
+            data-loading-stages="Brief,Reference,Render,Save"
           >
             <div>
               <strong>Generate with Moyi</strong>
@@ -279,7 +283,7 @@
           <form
             class="image-control"
             id="content-image-upload"
-            action="/content/<%= draft._id %>/images/upload"
+            action="/content/<%= draft._id %>/images/upload<%= typeof csrfToken !== 'undefined' && csrfToken ? `?_csrf=${csrfToken}` : '' %>"
             method="post"
             enctype="multipart/form-data"
           >

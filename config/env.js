@@ -78,13 +78,20 @@ const env = {
   redisUrl: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
   openaiApiKey: process.env.OPENAI_API_KEY || '',
   openaiImageModel: process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2',
-  openaiImageQuality: process.env.OPENAI_IMAGE_QUALITY || 'medium',
-  openaiImageSize: process.env.OPENAI_IMAGE_SIZE || '1536x1024',
+  openaiImageQuality: process.env.OPENAI_IMAGE_QUALITY || 'high',
+  openaiImageSize: process.env.OPENAI_IMAGE_SIZE || 'auto',
   contentAiTimeoutMs: numberFromEnv(process.env.CONTENT_AI_TIMEOUT_MS, 60000),
   contentPipelineConcurrency: numberFromEnv(process.env.CONTENT_PIPELINE_CONCURRENCY, 3),
+  contentImageStorageProvider: process.env.CONTENT_IMAGE_STORAGE_PROVIDER || 'machine',
   contentImageStoragePath: path.resolve(
     process.env.CONTENT_IMAGE_STORAGE_PATH || path.join(__dirname, '../storage/content-images')
   ),
+  s3Bucket: process.env.S3_BUCKET || '',
+  s3Region: process.env.S3_REGION || 'eu-west-1',
+  s3Endpoint: process.env.S3_ENDPOINT || '',
+  s3AccessKeyId: process.env.S3_ACCESS_KEY_ID || '',
+  s3SecretAccessKey: process.env.S3_SECRET_ACCESS_KEY || '',
+  s3ForcePathStyle: booleanFromEnv(process.env.S3_FORCE_PATH_STYLE, true),
   googleClientId: process.env.GOOGLE_CLIENT_ID || '',
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
   googleRedirectUri: process.env.GOOGLE_REDIRECT_URI || '',
@@ -127,6 +134,8 @@ function runtimeConfigProblems(target = env) {
   const hasMongoConfig = Boolean(
     process.env.MONGODB_URI || (process.env.MONGODB_USER && process.env.MONGODB_PASSWORD && process.env.MONGODB_HOST)
   );
+  const rawContentImageStoragePath = String(process.env.CONTENT_IMAGE_STORAGE_PATH || '').trim();
+  const storageProvider = String(target.contentImageStorageProvider || '').trim();
 
   if (!target.appUrlObject) {
     problems.push('APP_URL must be a valid absolute URL.');
@@ -177,8 +186,20 @@ function runtimeConfigProblems(target = env) {
       problems.push('SMTP_HOST, SMTP_USER, SMTP_PASS, and SMTP_FROM must be configured in production so Moyi can send account and customer emails.');
     }
 
-    if (!process.env.CONTENT_IMAGE_STORAGE_PATH) {
+    if (!['machine', 's3'].includes(storageProvider)) {
+      problems.push('CONTENT_IMAGE_STORAGE_PROVIDER must be machine or s3.');
+    }
+
+    if (storageProvider === 'machine' && !process.env.CONTENT_IMAGE_STORAGE_PATH) {
       problems.push('CONTENT_IMAGE_STORAGE_PATH must point to a persistent writable volume in production.');
+    } else if (storageProvider === 'machine' && !path.isAbsolute(rawContentImageStoragePath)) {
+      problems.push('CONTENT_IMAGE_STORAGE_PATH must be an absolute path in production, for example /var/lib/moyi/content-images.');
+    } else if (storageProvider === 'machine' && ['/', '/var', '/var/www', '/var/www/'].includes(rawContentImageStoragePath)) {
+      problems.push('CONTENT_IMAGE_STORAGE_PATH is too broad. Use a dedicated writable directory such as /var/lib/moyi/content-images.');
+    }
+
+    if (storageProvider === 's3' && !(target.s3Bucket && target.s3Region && target.s3AccessKeyId && target.s3SecretAccessKey)) {
+      problems.push('S3 storage requires S3_BUCKET, S3_REGION, S3_ACCESS_KEY_ID, and S3_SECRET_ACCESS_KEY.');
     }
   }
 

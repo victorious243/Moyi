@@ -1,6 +1,45 @@
 const crypto = require('crypto');
 const env = require('../config/env');
 
+function csrfSecret() {
+  return env.tokenEncryptionSecret || env.jwtSecret || 'moyi-csrf-development-secret';
+}
+
+function signCsrfNonce(nonce) {
+  return crypto.createHmac('sha256', csrfSecret()).update(nonce).digest('hex');
+}
+
+function createCsrfToken() {
+  const nonce = crypto.randomBytes(32).toString('hex');
+  return `${nonce}.${signCsrfNonce(nonce)}`;
+}
+
+function isSignedCsrfToken(value) {
+  const token = String(value || '');
+  const [nonce, signature] = token.split('.');
+  if (!nonce || !signature || !/^[a-f0-9]{64}$/i.test(nonce) || !/^[a-f0-9]{64}$/i.test(signature)) {
+    return false;
+  }
+
+  const expected = signCsrfNonce(nonce);
+  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+}
+
+function csrfCookieOptions() {
+  const cookieOptions = {
+    httpOnly: true,
+    path: '/',
+    sameSite: 'lax',
+    secure: env.isProduction
+  };
+
+  if (env.cookieDomain) {
+    cookieOptions.domain = env.cookieDomain;
+  }
+
+  return cookieOptions;
+}
+
 function csrfProtection(req, res, next) {
   // Early exit for external tracking script and events
   if (req.path === '/api/track' || req.path === '/tracker.js' || req.path === '/healthz' || req.path === '/readyz') {
@@ -9,20 +48,25 @@ function csrfProtection(req, res, next) {
 
   // 1. Generate CSRF token if not exists in cookies
   let token = req.cookies.csrf_token;
+  const clientToken = (req.body && req.body._csrf)
+    || (req.query && req.query._csrf)
+    || (req.headers && req.headers['x-csrf-token']);
+  let shouldSetCookie = false;
+
+  const clientTokenIsSigned = clientToken && isSignedCsrfToken(clientToken);
+
+  if (clientTokenIsSigned && clientToken !== token) {
+    token = clientToken;
+    shouldSetCookie = true;
+  }
+
   if (!token) {
-    token = crypto.randomBytes(32).toString('hex');
-    const cookieOptions = {
-      httpOnly: true,
-      path: '/',
-      sameSite: 'lax',
-      secure: env.isProduction
-    };
+    token = createCsrfToken();
+    shouldSetCookie = true;
+  }
 
-    if (env.cookieDomain) {
-      cookieOptions.domain = env.cookieDomain;
-    }
-
-    res.cookie('csrf_token', token, cookieOptions);
+  if (shouldSetCookie) {
+    res.cookie('csrf_token', token, csrfCookieOptions());
   }
 
   // 2. Make token available to templates
@@ -69,8 +113,10 @@ function csrfProtection(req, res, next) {
   }
 
   // 6. Verify token
-  const clientToken = (req.body && req.body._csrf) || req.headers['x-csrf-token'];
-  if (!clientToken || clientToken !== token) {
+  const tokenMatchesCookie = clientToken && clientToken === token;
+  const tokenIsSignedFallback = clientTokenIsSigned;
+
+  if (!tokenMatchesCookie && !tokenIsSignedFallback) {
     const error = new Error('Invalid or missing CSRF token.');
     error.status = 403;
     return next(error);

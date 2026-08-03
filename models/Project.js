@@ -54,7 +54,7 @@ const projectSchema = new mongoose.Schema(
     brandLogo: {
       storageProvider: {
         type: String,
-        enum: ['machine'],
+        enum: ['machine', 's3'],
         default: 'machine'
       },
       storageKey: {

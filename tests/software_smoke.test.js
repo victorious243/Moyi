@@ -75,6 +75,7 @@ test('workspace recovery routes are registered', () => {
   assert.ok(getPaths.includes('/docs'));
   assert.ok(getPaths.includes('/demo'));
   assert.ok(getPaths.includes('/reports'));
+  assert.ok(getPaths.includes('/llms.txt'));
   assert.ok(getPaths.includes('/roadmap'));
   assert.ok(getPaths.includes('/about'));
   assert.ok(getPaths.includes('/contact'));
@@ -120,6 +121,38 @@ test('footer product links use standalone routes for authenticated users', async
   assert.match(html, /href="\/how-it-works"/);
   assert.doesNotMatch(html, /href="\/#features"/);
   assert.doesNotMatch(html, /href="\/#how-it-works"/);
+});
+
+test('shared header renders SEO, social, canonical, and schema metadata', async () => {
+  const html = await ejs.renderFile(
+    path.join(__dirname, '../views/partials/header.ejs'),
+    {
+      appName: 'Moyi-CMO',
+      title: 'AI CMO Software for SEO Growth and Content Reports',
+      currentUser: null,
+      canonicalUrl: 'https://moyi-cmo.com',
+      seoDescription: 'Moyi-CMO turns website scans and Google Search Console evidence into SEO recommendations, content drafts, campaign planning, and reports.',
+      ogImageUrl: 'https://moyi-cmo.com/images/moyi-logo-dark.png',
+      organizationSchema: {
+        '@context': 'https://schema.org',
+        '@type': 'Organization',
+        name: 'Moyi-CMO',
+        url: 'https://moyi-cmo.com'
+      },
+      softwareSchema: {
+        '@context': 'https://schema.org',
+        '@type': 'SoftwareApplication',
+        name: 'Moyi-CMO'
+      }
+    }
+  );
+
+  assert.match(html, /<meta name="description"/);
+  assert.match(html, /<link rel="canonical" href="https:\/\/moyi-cmo\.com"/);
+  assert.match(html, /property="og:description"/);
+  assert.match(html, /name="twitter:card" content="summary_large_image"/);
+  assert.match(html, /"@type":"Organization"/);
+  assert.match(html, /"@type":"SoftwareApplication"/);
 });
 
 test('public quick scan scoring and snapshot helpers produce gated preview data', () => {
@@ -177,6 +210,7 @@ test('scan detail template remains renderable during a rolling restart without r
   const html = await ejs.renderFile(template, locals);
 
   assert.match(html, /Actions from this scan/);
+  assert.match(html, /Download PDF Report/);
   assert.match(html, /did not produce a supported recommendation/);
 
   const findingHtml = await ejs.renderFile(template, {

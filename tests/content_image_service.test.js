@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const mongoose = require('mongoose');
+const sharp = require('sharp');
 const env = require('../config/env');
 const ContentImage = require('../models/ContentImage');
 const {
@@ -13,8 +14,13 @@ const {
   uploadBuffer
 } = require('../services/contentImageStorageService');
 const {
+  detectVisualFormat,
   detectImageMimeType,
+  extractPosterText,
+  guidanceRequestsLogo,
   imagePrompt,
+  prepareBrandLogoForModel,
+  resolveImageOutputProfile,
   validateUpload
 } = require('../services/contentImageService');
 
@@ -75,6 +81,147 @@ test('content image upload validation checks real file signatures', () => {
   );
 });
 
+test('content image prompt turns a natural poster request into a logo-aware SaaS design brief', () => {
+  const guidance = 'put the logo visible in the image use the actual logo for vicpods with some text saying "Start using VicPods for free at vicpods.com" make it looks professional as you are making an ad poster';
+  const visualFormat = detectVisualFormat({ guidance, draft: { title: 'Start your podcast journey' } });
+  const prompt = imagePrompt({
+    project: {
+      name: 'VicPods',
+      websiteUrl: 'https://vicpods.com',
+      targetAudience: 'Podcast creators',
+      mainOffer: 'Plan, produce, and publish podcasts',
+      brand_profile: { valueProps: ['Turn rough ideas into structured episodes'] }
+    },
+    draft: {
+      channel: 'instagram',
+      title: 'Start your podcast journey',
+      body: 'Join VicPods and create a podcast.'
+    },
+    guidance,
+    hasBrandLogoReference: true,
+    visualFormat,
+    brandLogoInputIndex: 1,
+    exactPosterText: extractPosterText(guidance)
+  });
+
+  assert.equal(guidanceRequestsLogo('please add the logo'), true);
+  assert.equal(guidanceRequestsLogo('make a polished SaaS corporate flyer'), true);
+  assert.equal(guidanceRequestsLogo('create a natural editorial image'), true);
+  assert.equal(guidanceRequestsLogo('make a flyer without the logo'), false);
+  assert.equal(visualFormat, 'corporate-flyer');
+  assert.equal(extractPosterText(guidance), 'Start using VicPods for free at vicpods.com');
+  assert.match(prompt, /Act as a senior SaaS art director and production designer/);
+  assert.match(prompt, /Input image 1 is the official VicPods transparent PNG logo/);
+  assert.match(prompt, /only authorized logo/);
+  assert.match(prompt, /final image itself must visibly contain the supplied logo exactly once/);
+  assert.match(prompt, /There is no later logo overlay/);
+  assert.match(prompt, /finished premium SaaS campaign asset/);
+  assert.match(prompt, /Turn rough ideas into structured episodes/);
+  assert.match(prompt, /Official website: https:\/\/vicpods.com/);
+  assert.match(prompt, /User art direction: put the logo visible/);
+  assert.match(prompt, /Start using VicPods for free at vicpods.com/);
+  assert.match(prompt, /Render this exact CTA once/);
+  assert.match(prompt, /Do not show design notes, crop marks, dotted safe areas/);
+});
+
+test('long natural-language feature prompts remain available to the flyer designer', () => {
+  const guidance = 'VicPods New Features Studio workflow and approvals Organize podcast production with collaborator roles, approvals, comments, and tasks. Launch prep workspace Keep episode structure, launch assets, prep notes, and recording readiness in one place. Analytics and growth reporting Track performance and understand listener engagement trends. Podcast publishing Publish hosted shows with audio uploads, public episode pages, RSS feeds, and embeds. make a flyer use VicPods logo it needs to be SaaS corporate';
+  const visualFormat = detectVisualFormat({ guidance, draft: { title: 'VicPods New Features' } });
+  const prompt = imagePrompt({
+    project: { name: 'VicPods', mainOffer: 'Plan, produce, publish, and grow a podcast.' },
+    draft: { title: 'VicPods New Features', body: 'A product update for podcast creators.' },
+    guidance,
+    hasBrandLogoReference: true,
+    visualFormat,
+    brandLogoInputIndex: 1
+  });
+
+  assert.equal(visualFormat, 'corporate-flyer');
+  assert.equal(guidanceRequestsLogo(guidance), true);
+  assert.match(prompt, /Studio workflow and approvals/);
+  assert.match(prompt, /Podcast publishing/);
+  assert.match(prompt, /select the most important supported points/);
+});
+
+test('content image prepares the official logo reference without inventing a layout or background', async () => {
+  const mark = await sharp({
+    create: {
+      width: 140,
+      height: 60,
+      channels: 4,
+      background: { r: 91, g: 92, b: 255, alpha: 1 }
+    }
+  }).png().toBuffer();
+  const paddedLogo = await sharp({
+    create: {
+      width: 360,
+      height: 220,
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 0 }
+    }
+  }).composite([{ input: mark, left: 110, top: 80 }]).png().toBuffer();
+
+  const prepared = await prepareBrandLogoForModel(paddedLogo);
+  const metadata = await sharp(prepared).metadata();
+
+  assert.equal(metadata.format, 'png');
+  assert.equal(metadata.hasAlpha, true);
+  assert.equal(metadata.width, 140);
+  assert.equal(metadata.height, 60);
+});
+
+test('content image output uses high-quality platform-native flyer dimensions', () => {
+  const instagram = resolveImageOutputProfile({
+    draft: { channel: 'instagram' },
+    visualFormat: 'corporate-flyer',
+    model: 'gpt-image-2'
+  });
+  const linkedin = resolveImageOutputProfile({
+    draft: { channel: 'linkedin' },
+    visualFormat: 'corporate-flyer',
+    model: 'gpt-image-2'
+  });
+  const twitter = resolveImageOutputProfile({
+    draft: { channel: 'x' },
+    visualFormat: 'corporate-flyer',
+    model: 'gpt-image-2'
+  });
+
+  assert.deepEqual(
+    { size: instagram.size, quality: instagram.quality, format: instagram.outputFormat },
+    { size: '1088x1360', quality: 'high', format: 'png' }
+  );
+  assert.equal(instagram.orientation, 'portrait');
+  assert.equal(linkedin.size, '1200x1200');
+  assert.equal(linkedin.orientation, 'square');
+  assert.equal(twitter.size, '1536x864');
+  assert.equal(twitter.orientation, 'landscape');
+  assert.equal(resolveImageOutputProfile({
+    draft: { channel: 'instagram' },
+    visualFormat: 'editorial-visual',
+    model: 'gpt-image-2'
+  }).quality, 'high');
+});
+
+test('content image prompt protects the complete composition inside the output canvas', () => {
+  const outputProfile = resolveImageOutputProfile({
+    draft: { channel: 'instagram' },
+    visualFormat: 'corporate-flyer',
+    model: 'gpt-image-2'
+  });
+  const prompt = imagePrompt({
+    project: { name: 'VicPods' },
+    draft: { channel: 'instagram', title: 'Join VicPods' },
+    guidance: 'Create a professional SaaS flyer.',
+    visualFormat: 'corporate-flyer',
+    outputProfile
+  });
+
+  assert.match(prompt, /Final canvas: 1088 by 1360 pixels in portrait orientation/);
+  assert.match(prompt, /inner 8% safe margin on all four sides/);
+  assert.match(prompt, /Nothing may touch, cross, or disappear beyond the canvas edge/);
+});
+
 test('content image records require durable file and draft ownership metadata', () => {
   const image = new ContentImage({
     projectId: new mongoose.Types.ObjectId(),
@@ -97,7 +244,9 @@ test('content image records require durable file and draft ownership metadata', 
 
 test('content image binaries are written to private machine storage, not MongoDB', async () => {
   const originalStoragePath = env.contentImageStoragePath;
+  const originalStorageProvider = env.contentImageStorageProvider;
   const temporaryRoot = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'moyi-content-images-'));
+  env.contentImageStorageProvider = 'machine';
   env.contentImageStoragePath = temporaryRoot;
 
   try {
@@ -116,6 +265,7 @@ test('content image binaries are written to private machine storage, not MongoDB
     await deleteFile(storageKey);
     await assert.rejects(fs.promises.stat(storedPath), { code: 'ENOENT' });
   } finally {
+    env.contentImageStorageProvider = originalStorageProvider;
     env.contentImageStoragePath = originalStoragePath;
     await fs.promises.rm(temporaryRoot, { recursive: true, force: true });
   }

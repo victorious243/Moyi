@@ -10,6 +10,40 @@ const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const SEARCH_CONSOLE_API = 'https://searchconsole.googleapis.com/webmasters/v3';
 const SCOPES = ['https://www.googleapis.com/auth/webmasters.readonly'];
 
+function normalizeGoogleApiError(error) {
+  if (!error.response) {
+    return error;
+  }
+
+  const status = error.response.status;
+  const googleError = error.response.data && error.response.data.error;
+  const googleMessage = typeof googleError === 'string'
+    ? googleError
+    : (googleError && googleError.message) || error.response.data.error_description || '';
+  const lowerMessage = String(googleMessage).toLowerCase();
+  const reason = Array.isArray(googleError && googleError.errors) && googleError.errors[0]
+    ? googleError.errors[0].reason
+    : '';
+
+  let message = googleMessage || `Google Search Console request failed with status code ${status}.`;
+
+  if (status === 403) {
+    if (reason === 'accessNotConfigured' || lowerMessage.includes('has not been used') || lowerMessage.includes('disabled')) {
+      message = 'Google Search Console API is not enabled for this Google Cloud project. Enable the Google Search Console API, then reconnect Google in Moyi.';
+    } else if (reason === 'insufficientPermissions' || lowerMessage.includes('insufficient') || lowerMessage.includes('scope')) {
+      message = 'Google did not grant Search Console readonly permission. Add the webmasters.readonly scope to the OAuth consent screen, revoke the old Google grant, then reconnect Google.';
+    } else {
+      message = 'Google refused Search Console access. Confirm the API is enabled, the OAuth consent screen includes Search Console readonly access, and this Google account owns or can view at least one Search Console property.';
+    }
+  }
+
+  const normalized = new Error(message);
+  normalized.statusCode = status;
+  normalized.googleReason = reason;
+  normalized.googleMessage = googleMessage;
+  return normalized;
+}
+
 function assertGoogleConfigured() {
   if (!env.googleClientId || !env.googleClientSecret || !env.googleRedirectUri) {
     const error = new Error('Google OAuth is not configured. Add GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI.');
@@ -142,7 +176,7 @@ async function googleRequest(userId, config) {
         }
       });
     }
-    throw error;
+    throw normalizeGoogleApiError(error);
   }
 }
 

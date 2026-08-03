@@ -2,6 +2,7 @@ const zlib = require('zlib');
 const {
   deleteFile,
   downloadBuffer,
+  activeStorageProvider,
   openDownloadStream,
   uploadBuffer
 } = require('./contentImageStorageService');
@@ -155,7 +156,7 @@ async function saveProjectLogo({ project, file }) {
   const storageKey = await uploadBuffer({ buffer: file.buffer, mimeType: 'image/png' });
 
   project.brandLogo = {
-    storageProvider: 'machine',
+    storageProvider: activeStorageProvider(),
     storageKey,
     filename: cleanText(file.originalname, 180) || `project-logo-${Date.now()}.png`,
     mimeType: 'image/png',
@@ -180,7 +181,7 @@ async function saveProjectLogo({ project, file }) {
 async function removeProjectLogo(project) {
   const storageKey = project.brandLogo && project.brandLogo.storageKey;
   project.brandLogo = {
-    storageProvider: 'machine',
+    storageProvider: activeStorageProvider(),
     storageKey: '',
     filename: '',
     mimeType: '',

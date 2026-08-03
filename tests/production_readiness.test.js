@@ -93,6 +93,54 @@ test('production runtime config rejects insecure app URL and disabled queue', ()
   });
 });
 
+test('production runtime config rejects unsafe image storage paths', () => {
+  withEnv({
+    NODE_ENV: 'production',
+    APP_URL: 'https://moyi.example',
+    DISABLE_QUEUE: 'false',
+    JWT_SECRET: 'a'.repeat(32),
+    TOKEN_ENCRYPTION_SECRET: 'b'.repeat(32),
+    MONGODB_URI: 'mongodb://127.0.0.1:27017/moyi',
+    REDIS_URL: 'redis://127.0.0.1:6379',
+    TRUST_PROXY_HOPS: '1',
+    SMTP_HOST: 'smtp.example.com',
+    SMTP_USER: 'user',
+    SMTP_PASS: 'pass',
+    SMTP_FROM: 'Moyi <no-reply@example.com>',
+    CONTENT_IMAGE_STORAGE_PROVIDER: 'machine',
+    CONTENT_IMAGE_STORAGE_PATH: '/var/www'
+  }, () => {
+    const env = freshEnvModule();
+    assert.match(env.runtimeConfigProblems().join('\n'), /CONTENT_IMAGE_STORAGE_PATH is too broad/);
+  });
+});
+
+test('production runtime config requires S3 credentials when S3 storage is enabled', () => {
+  withEnv({
+    NODE_ENV: 'production',
+    APP_URL: 'https://moyi.example',
+    DISABLE_QUEUE: 'false',
+    JWT_SECRET: 'a'.repeat(32),
+    TOKEN_ENCRYPTION_SECRET: 'b'.repeat(32),
+    MONGODB_URI: 'mongodb://127.0.0.1:27017/moyi',
+    REDIS_URL: 'redis://127.0.0.1:6379',
+    TRUST_PROXY_HOPS: '1',
+    SMTP_HOST: 'smtp.example.com',
+    SMTP_USER: 'user',
+    SMTP_PASS: 'pass',
+    SMTP_FROM: 'Moyi <no-reply@example.com>',
+    CONTENT_IMAGE_STORAGE_PROVIDER: 's3',
+    CONTENT_IMAGE_STORAGE_PATH: undefined,
+    S3_BUCKET: '',
+    S3_REGION: 'eu-west-1',
+    S3_ACCESS_KEY_ID: '',
+    S3_SECRET_ACCESS_KEY: ''
+  }, () => {
+    const env = freshEnvModule();
+    assert.match(env.runtimeConfigProblems().join('\n'), /S3 storage requires/);
+  });
+});
+
 test('runtime health reports ready only when database and queue are healthy', async () => {
   const health = createRuntimeHealthService({
     env: {

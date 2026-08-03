@@ -58,6 +58,43 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(attachUser);
 app.use(csrfProtection);
+app.use((req, res, next) => {
+  const publicBase = String(env.appUrl || 'https://moyi-cmo.com').replace(/\/$/, '');
+  const pathname = (req.originalUrl || req.url || '/').split('?')[0] || '/';
+  const canonicalPath = pathname === '/' ? '' : pathname.replace(/\/$/, '');
+  res.locals.canonicalUrl = `${publicBase}${canonicalPath}`;
+  res.locals.seoDescription = res.locals.seoDescription || 'Moyi-CMO is an evidence-led AI Chief Marketing Officer platform for website audits, Google Search Console insights, SEO recommendations, content drafts, campaign planning, and weekly growth reports.';
+  res.locals.ogImageUrl = `${publicBase}/images/moyi-logo-dark.png`;
+  res.locals.organizationSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'Moyi-CMO',
+    url: publicBase,
+    logo: `${publicBase}/images/moyi-logo-dark.png`,
+    description: res.locals.seoDescription,
+    contactPoint: env.supportEmail ? [{
+      '@type': 'ContactPoint',
+      email: env.supportEmail,
+      contactType: 'customer support'
+    }] : []
+  };
+  res.locals.softwareSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'Moyi-CMO',
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'Web',
+    url: publicBase,
+    description: res.locals.seoDescription,
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'EUR',
+      category: 'Free trial'
+    }
+  };
+  next();
+});
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/', trackingRouter);
 

@@ -1,10 +1,12 @@
 const OpenAI = require('openai');
 const { toFile } = require('openai');
+const sharp = require('sharp');
 const env = require('../config/env');
 const ContentImage = require('../models/ContentImage');
 const {
   deleteFile,
   downloadBuffer,
+  activeStorageProvider,
   uploadBuffer
 } = require('./contentImageStorageService');
 
@@ -36,32 +38,185 @@ function detectImageMimeType(buffer) {
   return '';
 }
 
-function imagePrompt({ project, draft, guidance, hasBrandLogoReference = false }) {
+function extractPosterText(value) {
+  const text = String(value || '');
+  const quoted = text.match(/["“]([^"”]{3,160})["”]/);
+  if (quoted) return cleanText(quoted[1], 160);
+
+  const saying = text.match(/\b(?:text|saying|say|headline|cta)\b\s*:?\s*([^.!?]{8,160})/i);
+  return saying ? cleanText(saying[1], 160) : '';
+}
+
+function detectVisualFormat({ guidance = '', draft = {} } = {}) {
+  const signal = `${guidance} ${draft.title || ''} ${draft.type || ''}`;
+  if (/\b(?:flyer|poster|advert(?:isement)?|ad creative|campaign creative|feature announcement|product launch|saas corporate|brochure|banner|one-pager|social graphic|infographic)\b/i.test(signal)) {
+    return 'corporate-flyer';
+  }
+  return 'editorial-visual';
+}
+
+function explicitLogoRequest(value) {
+  return /\b(?:logo|brand mark|brandmark|logomark|wordmark|brand identity)\b/i.test(String(value || ''));
+}
+
+function logoIsExcluded(value) {
+  return /\b(?:(?:without|exclude|omit|remove|no)\s+(?:the\s+)?(?:logo|brand mark|brandmark|logomark|wordmark)|(?:do not|don't)\s+(?:use|include|show|add)\s+(?:the\s+)?(?:logo|brand mark|brandmark|logomark|wordmark))\b/i.test(String(value || ''));
+}
+
+function cleanList(value, limit = 5, itemLimit = 240) {
+  return (Array.isArray(value) ? value : [])
+    .map((item) => cleanText(item, itemLimit))
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
+function draftBody(draft = {}) {
+  return cleanText(draft.body || draft.copy || draft.content || draft.postCopy, 6000);
+}
+
+async function prepareBrandLogoForModel(buffer) {
+  if (!Buffer.isBuffer(buffer) || !buffer.length) return buffer;
+  return sharp(buffer)
+    .trim({ threshold: 8 })
+    .resize({ width: 1024, height: 1024, fit: 'inside', withoutEnlargement: true })
+    .png()
+    .toBuffer();
+}
+
+function normalizeChannel(draft = {}) {
+  const value = cleanText(draft.channel || draft.type, 120).toLowerCase();
+  if (/\binstagram\b|^ig$/.test(value)) return 'instagram';
+  if (/\blinkedin\b/.test(value)) return 'linkedin';
+  if (/\bfacebook\b|^fb$/.test(value)) return 'facebook';
+  if (/\b(?:twitter|x)\b/.test(value)) return 'x';
+  if (/\bemail\b|\bnewsletter\b/.test(value)) return 'email';
+  return '';
+}
+
+function resolveImageOutputProfile({
+  draft = {},
+  visualFormat = 'editorial-visual',
+  model = env.openaiImageModel
+} = {}) {
+  const channel = normalizeChannel(draft);
+  const isFlyer = visualFormat === 'corporate-flyer';
+  const supportsFlexibleSize = /^gpt-image-2(?:$|-)/i.test(String(model || ''));
+  const flexibleSizes = {
+    instagram: '1088x1360',
+    linkedin: '1200x1200',
+    facebook: '1200x1200',
+    x: '1536x864',
+    email: '1536x864'
+  };
+  const legacySizes = {
+    instagram: '1024x1536',
+    linkedin: '1024x1024',
+    facebook: '1024x1024',
+    x: '1536x1024',
+    email: '1536x1024'
+  };
+  const channelSize = supportsFlexibleSize ? flexibleSizes[channel] : legacySizes[channel];
+  const size = channelSize
+    || (isFlyer ? (supportsFlexibleSize ? '1088x1360' : '1024x1536') : env.openaiImageSize);
+  const [width, height] = /^\d+x\d+$/.test(size)
+    ? size.split('x').map(Number)
+    : [null, null];
+  const orientation = width && height
+    ? (width === height ? 'square' : width > height ? 'landscape' : 'portrait')
+    : 'adaptive';
+
+  return {
+    channel,
+    height,
+    orientation,
+    outputCompression: isFlyer ? null : 95,
+    outputFormat: isFlyer ? 'png' : 'jpeg',
+    quality: isFlyer || channel ? 'high' : env.openaiImageQuality,
+    size,
+    width
+  };
+}
+
+function imagePrompt({
+  project,
+  draft,
+  guidance,
+  hasBrandLogoReference = false,
+  visualFormat = 'editorial-visual',
+  referenceImageInputIndex = null,
+  brandLogoInputIndex = null,
+  exactPosterText = '',
+  outputProfile = null
+}) {
   const execution = draft.executionContext || {};
-  const proofPoints = Array.isArray(execution.proofPoints) ? execution.proofPoints : [];
-  const body = cleanText(draft.body, 5000);
+  const profile = project.brand_profile || {};
+  const proofPoints = cleanList(execution.proofPoints, 6);
+  const evidence = cleanList(execution.evidenceHighlights, 4);
+  const valueProps = cleanList(profile.valueProps, 4);
+  const callsToAction = cleanList(profile.callsToAction || profile.calls_to_action, 3, 180);
+  const body = draftBody(draft);
+  const isFlyer = visualFormat === 'corporate-flyer';
+  const logoMustAppear = Boolean(brandLogoInputIndex && (isFlyer || explicitLogoRequest(guidance)));
 
   return [
-    'Create one polished visual asset that directly matches the supplied content and its intended business use.',
-    `Content type: ${cleanText(draft.type, 120) || 'content asset'}.`,
+    isFlyer
+      ? 'Act as a senior SaaS art director and production designer. Create one complete, export-ready corporate marketing flyer from the supplied business facts, post, logo, references, and natural-language direction. You own the composition and should make the design decisions yourself.'
+      : 'Create one polished visual asset that directly matches the supplied content and its intended business use.',
+    `Content type or channel: ${cleanText(draft.type || draft.channel, 120) || 'marketing content asset'}.`,
     `Content title: ${cleanText(draft.title, 240) || 'Untitled content'}.`,
-    `Content body: ${body || 'No body content was supplied.'}`,
+    `Approved source copy and message: ${body || 'No additional body copy was supplied.'}`,
     `Business: ${cleanText(project.name, 160)}.`,
+    project.websiteUrl ? `Official website: ${cleanText(project.websiteUrl, 300)}.` : '',
+    project.industry ? `Industry: ${cleanText(project.industry, 180)}.` : '',
     project.mainOffer ? `Primary offer: ${cleanText(project.mainOffer, 300)}.` : '',
     project.targetAudience ? `Audience: ${cleanText(project.targetAudience, 300)}.` : '',
+    project.mainGoal ? `Business objective: ${cleanText(project.mainGoal, 300)}.` : '',
     project.brandTone ? `Brand tone: ${cleanText(project.brandTone, 240)}.` : '',
-    hasBrandLogoReference
-      ? 'Official brand logo reference supplied. If the user asks for a logo, use the supplied logo as the source of truth; do not invent or redesign it.'
-      : 'No official brand logo reference supplied. Do not invent a logo or brand mark.',
+    valueProps.length ? `Known value propositions: ${valueProps.join(' | ')}.` : '',
+    brandLogoInputIndex
+      ? `Input image ${brandLogoInputIndex} is the official ${cleanText(project.name, 100)} transparent PNG logo and the only authorized logo. Use that supplied logo itself as source material. Preserve its recognizable mark, colors, wordmark, proportions, and orientation. Never redraw it, replace it, imitate it, create a second logo, or put it inside an invented badge. Treat transparent pixels as empty space.`
+      : hasBrandLogoReference
+        ? 'An official brand logo exists but is not attached to this request. Do not invent an alternative logo.'
+        : 'No official brand logo reference was supplied. Do not invent a logo or brand mark.',
+    logoMustAppear
+      ? 'The final image itself must visibly contain the supplied logo exactly once, integrated naturally with professional scale, clear space, and safe margins. It must not be clipped, oversized, distorted, or placed over the headline. There is no later logo overlay, so finish its placement as part of this composition.'
+      : brandLogoInputIndex
+        ? 'Use the supplied logo as the visual identity source. Include it subtly if that improves this marketing asset; do not force it into a photographic scene.'
+        : '',
+    referenceImageInputIndex
+      ? `Input image ${referenceImageInputIndex} is a user-selected visual reference. Use its relevant subject, product, or composition faithfully while adapting it into the finished design.`
+      : '',
     execution.primaryCta ? `CTA context: ${cleanText(execution.primaryCta, 180)}.` : '',
-    proofPoints.length ? `Verified proof context: ${proofPoints.slice(0, 5).map((item) => cleanText(item, 240)).join(' | ')}.` : '',
+    callsToAction.length ? `Known calls to action: ${callsToAction.join(' | ')}.` : '',
+    proofPoints.length ? `Verified proof context: ${proofPoints.join(' | ')}.` : '',
+    evidence.length ? `Verified source evidence: ${evidence.join(' | ')}.` : '',
     guidance ? `User art direction: ${cleanText(guidance, 1500)}.` : '',
-    'Use a premium, credible corporate editorial style with a clear focal subject and natural composition.',
-    'Do not add logos, statistics, product UI, people, locations, or claims that are not supported by the supplied content or reference images.',
-    'Avoid generic AI imagery, floating interface fragments, garbled text, watermarks, and decorative typography.',
-    'Do not place text in the image unless the user explicitly asks for it.',
+    outputProfile && outputProfile.width && outputProfile.height
+      ? `Final canvas: ${outputProfile.width} by ${outputProfile.height} pixels in ${outputProfile.orientation} orientation${outputProfile.channel ? `, composed specifically for ${outputProfile.channel}` : ''}. Keep every logo, headline, paragraph, CTA, icon, person, and product fully inside an inner 8% safe margin on all four sides. Nothing may touch, cross, or disappear beyond the canvas edge. Use the whole canvas intentionally and verify the complete composition before returning it.`
+      : '',
+    isFlyer
+      ? 'Infer a strong hierarchy without requiring a technical prompt: integrated brand identity, concise headline, clear value proposition, relevant hero visual or supported product concept, scannable feature groups when useful, and a clear CTA. Use a coherent grid, intentional whitespace, and safe margins. The result must look like a finished premium SaaS campaign asset, not a photograph with a text box pasted on top.'
+      : 'Use a premium, credible corporate editorial style with a clear focal subject and natural composition.',
+    isFlyer
+      ? 'When the source contains many capabilities, select the most important supported points and arrange them as concise, readable feature groups. Do not invent capabilities, metrics, endorsements, prices, or customer claims.'
+      : 'Do not add logos, statistics, product UI, people, locations, or claims that are not supported by the supplied content or reference images.',
+    isFlyer
+      ? 'A conceptual SaaS interface may be shown only when supported by the supplied content. It must be clearly illustrative and must not add unsupported product functionality.'
+      : '',
+    exactPosterText
+      ? `Render this exact CTA once, spelled exactly as written and fully inside the safe margins: "${cleanText(exactPosterText, 160)}".`
+      : '',
+    'Return only the finished artwork. Do not show design notes, crop marks, dotted safe areas, wireframes, placeholders, labels such as "LOGO AREA", or unfinished layout instructions.',
+    'Avoid fake logos, duplicate brand marks, malformed words, garbled text, watermarks, stock-template clutter, and generic AI imagery.',
+    isFlyer
+      ? 'Any visible copy must be concise, correctly spelled, easy to read, and derived from the supplied content. Do not fill the design with long paragraphs.'
+      : 'Do not place text in the image unless the user explicitly asks for it.',
     'Use a balanced composition suitable for a professional marketing content asset.'
   ].filter(Boolean).join('\n');
+}
+
+function guidanceRequestsLogo(value) {
+  return !logoIsExcluded(value);
 }
 
 function validateUpload(file) {
@@ -101,7 +256,7 @@ async function saveUploadedImage({ project, draft, userId, file, altText = '', c
       projectId: project._id,
       draftId: draft._id,
       userId,
-      storageProvider: 'machine',
+      storageProvider: activeStorageProvider(),
       storageKey,
       source: 'uploaded',
       filename,
@@ -123,53 +278,86 @@ async function generateContentImage({ project, draft, userId, guidance = '', ref
     throw error;
   }
 
+  const posterText = extractPosterText(guidance);
+  const visualFormat = detectVisualFormat({ guidance, draft });
+  const outputProfile = resolveImageOutputProfile({ draft, visualFormat });
+  const images = [];
+  let referenceImageInputIndex = null;
+  let brandLogoInputIndex = null;
+
+  if (brandLogoReference && guidanceRequestsLogo(guidance)) {
+    const preparedLogo = await prepareBrandLogoForModel(brandLogoReference.buffer);
+    images.push(await toFile(
+      preparedLogo,
+      brandLogoReference.filename || 'official-brand-logo.png',
+      { type: brandLogoReference.mimeType || 'image/png' }
+    ));
+    brandLogoInputIndex = images.length;
+  }
+  if (referenceImage) {
+    const referenceBuffer = await downloadBuffer(referenceImage.storageKey);
+    images.push(await toFile(referenceBuffer, referenceImage.filename, { type: referenceImage.mimeType }));
+    referenceImageInputIndex = images.length;
+  }
+
   const prompt = imagePrompt({
     project,
     draft,
     guidance,
-    hasBrandLogoReference: Boolean(brandLogoReference)
+    hasBrandLogoReference: Boolean(brandLogoReference),
+    visualFormat,
+    referenceImageInputIndex,
+    brandLogoInputIndex,
+    exactPosterText: posterText,
+    outputProfile
   });
   const client = new OpenAI({ apiKey: env.openaiApiKey });
   let response;
 
-  if (referenceImage || brandLogoReference) {
-    const images = [];
-    if (referenceImage) {
-      const referenceBuffer = await downloadBuffer(referenceImage.storageKey);
-      images.push(await toFile(referenceBuffer, referenceImage.filename, { type: referenceImage.mimeType }));
-    }
-    if (brandLogoReference) {
-      images.push(await toFile(brandLogoReference.buffer, brandLogoReference.filename, { type: brandLogoReference.mimeType }));
-    }
-    response = await client.images.edit({
+  if (images.length) {
+    const editRequest = {
       model: env.openaiImageModel,
       image: images.length === 1 ? images[0] : images,
       prompt,
-      input_fidelity: 'high',
       n: 1,
-      output_format: 'jpeg',
-      quality: env.openaiImageQuality,
-      size: env.openaiImageSize
-    });
+      output_format: outputProfile.outputFormat,
+      quality: outputProfile.quality,
+      size: outputProfile.size,
+      user: cleanText(userId, 120)
+    };
+    if (outputProfile.outputCompression) {
+      editRequest.output_compression = outputProfile.outputCompression;
+    }
+    if (!/^gpt-image-2(?:$|-)/i.test(env.openaiImageModel)) {
+      editRequest.input_fidelity = 'high';
+    }
+    response = await client.images.edit(editRequest);
   } else {
-    response = await client.images.generate({
+    const generationRequest = {
       model: env.openaiImageModel,
       prompt,
       n: 1,
-      output_format: 'jpeg',
-      quality: env.openaiImageQuality,
-      size: env.openaiImageSize
-    });
+      output_format: outputProfile.outputFormat,
+      quality: outputProfile.quality,
+      size: outputProfile.size,
+      user: cleanText(userId, 120)
+    };
+    if (outputProfile.outputCompression) {
+      generationRequest.output_compression = outputProfile.outputCompression;
+    }
+    response = await client.images.generate(generationRequest);
   }
 
   const encoded = response && response.data && response.data[0] && response.data[0].b64_json;
   if (!encoded) throw new Error('The image provider returned no image data.');
 
   const buffer = Buffer.from(encoded, 'base64');
-  const filename = `moyi-${draft._id}-${Date.now()}.jpg`;
+  const isPng = outputProfile.outputFormat === 'png';
+  const mimeType = isPng ? 'image/png' : 'image/jpeg';
+  const filename = `moyi-${draft._id}-${Date.now()}.${isPng ? 'png' : 'jpg'}`;
   const storageKey = await uploadBuffer({
     buffer,
-    mimeType: 'image/jpeg'
+    mimeType
   });
 
   try {
@@ -177,12 +365,12 @@ async function generateContentImage({ project, draft, userId, guidance = '', ref
       projectId: project._id,
       draftId: draft._id,
       userId,
-      storageProvider: 'machine',
+      storageProvider: activeStorageProvider(),
       storageKey,
       source: 'generated',
       referenceImageId: referenceImage ? referenceImage._id : null,
       filename,
-      mimeType: 'image/jpeg',
+      mimeType,
       byteLength: buffer.length,
       prompt,
       guidance: cleanText(guidance, 1500),
@@ -243,10 +431,15 @@ module.exports = {
   ALLOWED_MIME_TYPES,
   MAX_UPLOAD_BYTES,
   deleteContentImagesForProject,
+  detectVisualFormat,
   detectImageMimeType,
+  extractPosterText,
   generateContentImage,
+  guidanceRequestsLogo,
   imagePrompt,
+  prepareBrandLogoForModel,
   rejectContentImage,
+  resolveImageOutputProfile,
   restoreContentImage,
   saveUploadedImage,
   selectContentImage,

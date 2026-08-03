@@ -48,6 +48,18 @@ const pageSchema = new mongoose.Schema(
       type: String,
       default: ''
     },
+    lang: {
+      type: String,
+      default: ''
+    },
+    viewport: {
+      type: String,
+      default: ''
+    },
+    hreflangCount: {
+      type: Number,
+      default: 0
+    },
     wordCount: {
       type: Number,
       default: 0
@@ -72,7 +84,40 @@ const pageSchema = new mongoose.Schema(
       type: [String],
       default: []
     },
+    analyticsTools: {
+      type: [String],
+      default: []
+    },
+    socialProfiles: {
+      linkedin: { type: Boolean, default: false },
+      instagram: { type: Boolean, default: false },
+      facebook: { type: Boolean, default: false },
+      x: { type: Boolean, default: false },
+      youtube: { type: Boolean, default: false }
+    },
+    inlineStyleCount: {
+      type: Number,
+      default: 0
+    },
+    nofollowLinksCount: {
+      type: Number,
+      default: 0
+    },
+    redirectCount: {
+      type: Number,
+      default: 0
+    },
+    httpVersion: {
+      type: String,
+      default: ''
+    },
     openGraph: {
+      title: { type: String, default: '' },
+      description: { type: String, default: '' },
+      image: { type: String, default: '' }
+    },
+    twitterCard: {
+      card: { type: String, default: '' },
       title: { type: String, default: '' },
       description: { type: String, default: '' },
       image: { type: String, default: '' }

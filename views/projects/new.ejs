@@ -28,7 +28,7 @@
           <p><%= logoError %></p>
         </div>
       <% } %>
-      <form class="form grid-form" action="/projects" method="post" enctype="multipart/form-data">
+      <form class="form grid-form" action="/projects<%= typeof csrfToken !== 'undefined' && csrfToken ? `?_csrf=${csrfToken}` : '' %>" method="post" enctype="multipart/form-data">
         <label>Project name <input name="name" placeholder="Kununga" required></label>
         <label>Website URL <input name="websiteUrl" placeholder="https://example.com" required></label>
         <label>Industry <input name="industry" placeholder="Hospitality, AI, ecommerce"></label>

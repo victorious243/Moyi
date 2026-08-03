@@ -76,6 +76,7 @@
     if (active) return;
     active = true;
     if (stageTimer) window.clearInterval(stageTimer);
+    overlay.classList.toggle('is-calm', Boolean(form && form.getAttribute('data-loading-mode') === 'calm'));
 
     if (form && form.matches('[data-terminal-scan]')) {
       const input = form.querySelector('input[name="websiteUrl"]');

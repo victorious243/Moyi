@@ -71,6 +71,78 @@ test('CSRF Middleware: permits POST requests with matching token', () => {
   assert.ok(nextCalled);
 });
 
+test('CSRF Middleware: permits signed upload token when CSRF cookie is missing', () => {
+  let generatedToken = '';
+  csrfProtection({
+    method: 'GET',
+    cookies: {},
+    path: '/projects/123/edit'
+  }, {
+    cookie(name, value) {
+      if (name === 'csrf_token') generatedToken = value;
+    },
+    locals: {}
+  }, () => {});
+
+  assert.match(generatedToken, /^[a-f0-9]{64}\.[a-f0-9]{64}$/);
+
+  let restoredCookie = '';
+  let nextCalled = false;
+  csrfProtection({
+    method: 'POST',
+    cookies: {},
+    query: { _csrf: generatedToken },
+    body: undefined,
+    headers: {},
+    path: '/projects/123'
+  }, {
+    cookie(name, value) {
+      if (name === 'csrf_token') restoredCookie = value;
+    },
+    locals: {}
+  }, (err) => {
+    if (!err) nextCalled = true;
+  });
+
+  assert.ok(nextCalled);
+  assert.equal(restoredCookie, generatedToken);
+});
+
+test('CSRF Middleware: permits signed form token when browser cookie is stale', () => {
+  let generatedToken = '';
+  csrfProtection({
+    method: 'GET',
+    cookies: {},
+    path: '/content/123'
+  }, {
+    cookie(name, value) {
+      if (name === 'csrf_token') generatedToken = value;
+    },
+    locals: {}
+  }, () => {});
+
+  let restoredCookie = '';
+  let nextCalled = false;
+  csrfProtection({
+    method: 'POST',
+    cookies: { csrf_token: 'old_cookie_value' },
+    query: { _csrf: generatedToken },
+    body: {},
+    headers: {},
+    path: '/social-drafts/123/images/generate'
+  }, {
+    cookie(name, value) {
+      if (name === 'csrf_token') restoredCookie = value;
+    },
+    locals: {}
+  }, (err) => {
+    if (!err) nextCalled = true;
+  });
+
+  assert.ok(nextCalled);
+  assert.equal(restoredCookie, generatedToken);
+});
+
 test('CSRF Middleware: bypasses stripe webhook and tracking requests', () => {
   const req = {
     method: 'POST',

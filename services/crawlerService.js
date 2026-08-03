@@ -54,26 +54,66 @@ function extractSchemaTypes($) {
   return [...types];
 }
 
-function extractPage(html, pageUrl, statusCode, errorMessage = '') {
+function extractAnalyticsTools($, html) {
+  const markup = String(html || '');
+  const tools = new Set();
+
+  if (/googletagmanager\.com\/gtag\/js|google-analytics\.com|G-[A-Z0-9]+|UA-\d+/i.test(markup)) tools.add('Google Analytics');
+  if (/googletagmanager\.com\/gtm\.js|GTM-[A-Z0-9]+/i.test(markup)) tools.add('Google Tag Manager');
+  if (/connect\.facebook\.net|fbq\(/i.test(markup)) tools.add('Meta Pixel');
+  if (/plausible\.io/i.test(markup)) tools.add('Plausible');
+  if (/cdn\.usefathom\.com|fathom/i.test(markup)) tools.add('Fathom');
+  if (/static\.hotjar\.com|hotjar/i.test(markup)) tools.add('Hotjar');
+  if (/clarity\.ms|clarity\(/i.test(markup)) tools.add('Microsoft Clarity');
+  if (/segment\.com|analytics\.js/i.test(markup)) tools.add('Segment');
+
+  $('script[src]').each((_, element) => {
+    const src = String($(element).attr('src') || '');
+    if (/googletagmanager|google-analytics|gtag/i.test(src)) tools.add('Google Analytics');
+    if (/connect\.facebook\.net/i.test(src)) tools.add('Meta Pixel');
+  });
+
+  return [...tools];
+}
+
+function extractSocialProfiles(links) {
+  const joined = links.join(' ');
+  return {
+    linkedin: /linkedin\.com\/(company|in)\//i.test(joined),
+    instagram: /instagram\.com\//i.test(joined),
+    facebook: /facebook\.com\//i.test(joined),
+    x: /(?:twitter\.com|x\.com)\//i.test(joined),
+    youtube: /youtube\.com\/|youtu\.be\//i.test(joined)
+  };
+}
+
+function extractPage(html, pageUrl, statusCode, errorMessage = '', metadata = {}) {
   const $ = cheerio.load(html || '');
   const title = $('title').first().text().replace(/\s+/g, ' ').trim();
   const metaDescription = ($('meta[name="description"]').attr('content') || '').trim();
   const canonical = safeNormalizeLink($('link[rel="canonical"]').attr('href'), pageUrl);
   const robotsMeta = ($('meta[name="robots"]').attr('content') || '').trim();
+  const lang = ($('html').attr('lang') || '').trim();
+  const viewport = ($('meta[name="viewport"]').attr('content') || '').trim();
   const h1 = $('h1').map((_, element) => $(element).text().replace(/\s+/g, ' ').trim()).get().filter(Boolean);
   const headings = $('h2').map((_, element) => $(element).text().replace(/\s+/g, ' ').trim()).get().filter(Boolean);
   const text = $('body').text().replace(/\s+/g, ' ').trim();
   const internalLinks = new Set();
   const externalLinks = new Set();
+  let nofollowLinksCount = 0;
 
   $('a[href]').each((_, element) => {
     const link = safeNormalizeLink($(element).attr('href'), pageUrl);
-    if (!link || !isCrawlableUrl(link)) return;
+    const rel = String($(element).attr('rel') || '');
+    if (/\bnofollow\b/i.test(rel)) nofollowLinksCount += 1;
+    if (!link) return;
     if (sameHost(link, pageUrl)) internalLinks.add(link);
     else externalLinks.add(link);
   });
 
   const images = $('img');
+  const schemaTypes = extractSchemaTypes($);
+  const externalLinkList = [...externalLinks];
 
   return {
     url: pageUrl,
@@ -84,19 +124,87 @@ function extractPage(html, pageUrl, statusCode, errorMessage = '') {
     headings,
     canonical,
     robotsMeta,
+    lang,
+    viewport,
+    hreflangCount: $('link[rel="alternate"][hreflang]').length,
     wordCount: text ? text.split(/\s+/).length : 0,
     internalLinks: [...internalLinks],
-    externalLinks: [...externalLinks],
+    externalLinks: externalLinkList,
     imagesCount: images.length,
     imagesMissingAlt: images.filter((_, element) => !($(element).attr('alt') || '').trim()).length,
-    schemaTypes: extractSchemaTypes($),
+    schemaTypes,
+    analyticsTools: extractAnalyticsTools($, html),
+    socialProfiles: extractSocialProfiles(externalLinkList),
+    inlineStyleCount: $('[style]').length,
+    nofollowLinksCount,
+    redirectCount: Number(metadata.redirectCount || 0),
+    httpVersion: cleanText(metadata.httpVersion, 20),
     openGraph: {
       title: ($('meta[property="og:title"]').attr('content') || '').trim(),
       description: ($('meta[property="og:description"]').attr('content') || '').trim(),
       image: safeNormalizeLink($('meta[property="og:image"]').attr('content'), pageUrl)
     },
+    twitterCard: {
+      card: ($('meta[name="twitter:card"]').attr('content') || '').trim(),
+      title: ($('meta[name="twitter:title"]').attr('content') || '').trim(),
+      description: ($('meta[name="twitter:description"]').attr('content') || '').trim(),
+      image: safeNormalizeLink($('meta[name="twitter:image"]').attr('content'), pageUrl)
+    },
     errorMessage,
     lastCrawledAt: new Date()
+  };
+}
+
+async function fetchText(url) {
+  try {
+    const response = await axios.get(url, {
+      timeout: env.crawlTimeoutMs,
+      maxRedirects: 5,
+      validateStatus: () => true,
+      headers: {
+        'User-Agent': USER_AGENT,
+        Accept: 'text/plain,application/xml,text/xml,*/*'
+      }
+    });
+    return {
+      ok: response.status >= 200 && response.status < 400,
+      statusCode: response.status,
+      body: String(response.data || '').slice(0, 200000)
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      statusCode: 0,
+      body: '',
+      errorMessage: error.message
+    };
+  }
+}
+
+async function fetchSiteSignals(baseUrl) {
+  const parsed = new URL(baseUrl);
+  const origin = parsed.origin;
+  const [robots, sitemap, llms] = await Promise.all([
+    fetchText(`${origin}/robots.txt`),
+    fetchText(`${origin}/sitemap.xml`),
+    fetchText(`${origin}/llms.txt`)
+  ]);
+
+  return {
+    robotsTxt: {
+      exists: robots.ok,
+      statusCode: robots.statusCode,
+      blocksMajorSearch: /User-agent:\s*\*\s*[\s\S]*?Disallow:\s*\/(?:\s|$)/i.test(robots.body),
+      blocksAiCrawlers: /(GPTBot|ClaudeBot|PerplexityBot|Google-Extended)[\s\S]*?Disallow:\s*\/(?:\s|$)/i.test(robots.body)
+    },
+    sitemap: {
+      exists: sitemap.ok && /<urlset|<sitemapindex/i.test(sitemap.body),
+      statusCode: sitemap.statusCode
+    },
+    llmsTxt: {
+      exists: llms.ok && cleanText(llms.body, 200).length > 0,
+      statusCode: llms.statusCode
+    }
   };
 }
 
@@ -308,7 +416,11 @@ async function fetchPage(url) {
     });
 
     const finalUrl = normalizeUrl(response.request && response.request.res && response.request.res.responseUrl ? response.request.res.responseUrl : url);
-    return extractPage(response.data || '', finalUrl, response.status);
+    const redirectCount = response.request && response.request._redirectable
+      ? response.request._redirectable._redirectCount
+      : 0;
+    const httpVersion = response.request && response.request.res ? response.request.res.httpVersion : '';
+    return extractPage(response.data || '', finalUrl, response.status, '', { redirectCount, httpVersion });
   } catch (error) {
     return extractPage('', url, 0, error.message);
   }
@@ -323,6 +435,7 @@ async function crawlWebsite(startUrl, options = {}) {
   const queued = new Set([baseUrl]);
   const queue = [baseUrl];
   const pages = [];
+  const siteSignals = await fetchSiteSignals(baseUrl);
 
   while (queue.length && pages.length < maxPages) {
     if (typeof options.shouldStop === 'function' && await options.shouldStop()) break;
@@ -364,7 +477,8 @@ async function crawlWebsite(startUrl, options = {}) {
 
   return {
     pages,
-    pagesFound: visited.size + queue.length
+    pagesFound: visited.size + queue.length,
+    siteSignals
   };
 }
 
@@ -372,5 +486,6 @@ module.exports = {
   enrichDraftBrandProfile,
   crawlWebsite,
   extractDraftBrandProfile,
-  extractPage
+  extractPage,
+  fetchSiteSignals
 };

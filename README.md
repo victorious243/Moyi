@@ -196,12 +196,27 @@ MAX_AI_OPERATIONS_PER_MONTH=500
 ### Image Storage
 
 ```env
+CONTENT_IMAGE_STORAGE_PROVIDER=machine
 CONTENT_IMAGE_STORAGE_PATH=/var/lib/moyi/content-images
 ```
 
 Moyi does not save image binaries in MongoDB. Generated images, uploaded images, and project logos are saved as private files. MongoDB stores metadata and storage keys only.
 
 In production this path must point to a persistent writable volume.
+
+To store new images and logos in an S3-compatible bucket instead:
+
+```env
+CONTENT_IMAGE_STORAGE_PROVIDER=s3
+S3_BUCKET=your-bucket-name
+S3_REGION=eu-west-1
+S3_ENDPOINT=
+S3_ACCESS_KEY_ID=your-access-key
+S3_SECRET_ACCESS_KEY=your-secret-key
+S3_FORCE_PATH_STYLE=true
+```
+
+Leave `S3_ENDPOINT` empty for AWS S3. Set it for S3-compatible providers such as Cloudflare R2, DigitalOcean Spaces, or Backblaze B2. Moyi stores private objects under `content-images/` and serves them through authenticated application routes.
 
 ### Redis And Queues
 

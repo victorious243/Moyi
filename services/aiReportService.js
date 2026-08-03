@@ -168,10 +168,29 @@ function buildEvidenceRecommendations({ project, pages, issues }) {
     meta_description_length: 'fix_metadata',
     missing_h1: 'technical',
     multiple_h1: 'technical',
+    missing_lang_attribute: 'technical',
+    missing_viewport: 'technical',
+    missing_hreflang: 'technical',
+    keyword_tag_alignment: 'fix_metadata',
     missing_image_alt: 'performance',
     thin_content: 'content',
     noindex: 'technical',
-    missing_canonical: 'technical'
+    missing_canonical: 'technical',
+    missing_schema: 'schema',
+    missing_identity_schema: 'schema',
+    missing_local_business_schema: 'schema',
+    missing_open_graph: 'technical',
+    missing_x_cards: 'technical',
+    analytics_not_detected: 'technical',
+    inline_styles: 'performance',
+    multiple_redirects: 'performance',
+    outdated_http_protocol: 'performance',
+    missing_social_profile_links: 'technical',
+    missing_robots_txt: 'technical',
+    robots_blocks_search: 'technical',
+    robots_blocks_ai_crawlers: 'technical',
+    missing_xml_sitemap: 'technical',
+    missing_llms_txt: 'technical'
   };
 
   const severityMap = {
@@ -188,13 +207,40 @@ function buildEvidenceRecommendations({ project, pages, issues }) {
     meta_description_length: 'Metadata',
     missing_h1: 'Page Structure',
     multiple_h1: 'Page Structure',
+    missing_lang_attribute: 'Usability',
+    missing_viewport: 'Mobile Usability',
+    missing_hreflang: 'International SEO',
+    keyword_tag_alignment: 'Keyword Consistency',
     missing_image_alt: 'Accessibility',
     thin_content: 'Content Quality',
     noindex: 'Indexing',
-    missing_canonical: 'Canonicalization'
+    missing_canonical: 'Canonicalization',
+    missing_schema: 'Structured Data',
+    missing_identity_schema: 'GEO',
+    missing_local_business_schema: 'Local SEO',
+    missing_open_graph: 'Social Sharing',
+    missing_x_cards: 'Social Sharing',
+    analytics_not_detected: 'Measurement',
+    inline_styles: 'Performance',
+    multiple_redirects: 'Performance',
+    outdated_http_protocol: 'Performance',
+    missing_social_profile_links: 'Trust Signals',
+    missing_robots_txt: 'Crawl Control',
+    robots_blocks_search: 'Crawl Control',
+    robots_blocks_ai_crawlers: 'GEO',
+    missing_xml_sitemap: 'Crawl Discovery',
+    missing_llms_txt: 'GEO'
   };
 
-  const ambiguousIssueTypes = new Set(['noindex', 'missing_canonical', 'thin_content']);
+  const ambiguousIssueTypes = new Set([
+    'noindex',
+    'missing_canonical',
+    'thin_content',
+    'missing_hreflang',
+    'missing_social_profile_links',
+    'missing_local_business_schema',
+    'robots_blocks_ai_crawlers'
+  ]);
   const crawledUrls = new Set(pages.map((page) => page.url));
   const recommendations = issues
     .filter((issueItem) => issueItem._id && issueItem.url && crawledUrls.has(issueItem.url))

@@ -5,6 +5,10 @@ const {
   scoreAttributionReadiness,
   summarizeTrackingWindow
 } = require('../services/measurementService');
+const {
+  buildEvidenceSnapshot,
+  buildSystemReport
+} = require('../services/cmoReportService');
 
 test('Phase 4 attribution readiness stays conversion-first when no real revenue source exists', () => {
   const readiness = scoreAttributionReadiness({
@@ -59,4 +63,65 @@ test('Phase 4 execution impact calls out movement and non-movement separately', 
   assert.equal(outcome.status, 'Moved');
   assert.ok(outcome.whatMoved.some((item) => /visibility improved/i.test(item)));
   assert.ok(outcome.whatDidNotMove.some((item) => item.includes('Conversion count')));
+});
+
+test('CMO measurement report separates zero metrics from real scan evidence', () => {
+  const measurementSnapshot = {
+    tracking: {
+      current: { sessions: 0, pageViews: 0 },
+      changes: {
+        conversions: { current: 0, previous: 0, delta: 0, percent: null }
+      }
+    },
+    executionImpact: {
+      summary: {
+        movedCount: 0,
+        backwardCount: 0,
+        noMovementCount: 0
+      }
+    },
+    attributionReadiness: {
+      score: 0,
+      conversionGoalCount: 0,
+      revenueStatus: 'Revenue attribution stays locked until a real payment or CRM source is connected.'
+    }
+  };
+  const operationalContext = {
+    latestScan: { pagesScanned: 12, pagesFound: 15 },
+    issueCounts: { critical: 2, warning: 5, opportunity: 4 },
+    recommendationStatusCounts: { pending: 3, accepted: 1, done: 2 },
+    contentDraftStatusCounts: { approved: 1, published_manually: 1 },
+    contentActionsCompleted: [{ title: 'Approved post' }],
+    openRecommendations: [
+      { title: 'Fix missing meta descriptions' },
+      { title: 'Add H1 to homepage' }
+    ]
+  };
+  const metricsSnapshot = {
+    searchConsoleConnected: false,
+    current: { clicks: 0, impressions: 0, ctr: 0, position: 0 },
+    changes: {
+      clicks: { delta: 0, percent: null },
+      impressions: { delta: 0, percent: null }
+    },
+    topGainingPages: [],
+    topLosingPages: [],
+    lowCtrOpportunities: []
+  };
+
+  const evidence = buildEvidenceSnapshot({ operationalContext, measurementSnapshot });
+  const report = buildSystemReport({
+    type: 'weekly',
+    metricsSnapshot,
+    operationalContext,
+    measurementSnapshot,
+    evidenceSnapshot: evidence
+  });
+
+  assert.equal(evidence.pagesScanned, 12);
+  assert.equal(evidence.openRecommendations, 4);
+  assert.match(report.summary, /12 pages scanned/);
+  assert.match(report.summary, /2 critical issues/);
+  assert.ok(report.losses.some((item) => /critical SEO issue/i.test(item)));
+  assert.ok(report.opportunities.some((item) => /Connect and sync Search Console/i.test(item)));
 });

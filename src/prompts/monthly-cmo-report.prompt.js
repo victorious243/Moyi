@@ -6,6 +6,8 @@ Rules:
 - Use only the project, audit, recommendation, content draft, and Search Console metrics provided below.
 - Do not invent rankings, conversions, revenue, leads, traffic sources, or page URLs.
 - If Search Console data is missing, say performance data is missing and explain what can still be reviewed.
+- Use evidenceSnapshot to summarize factual scan, recommendation, content, and tracking readiness evidence when hard performance metrics are zero.
+- Do not treat zero clicks, impressions, or conversions as failure unless the connected data source proves those zeros are real.
 - Be honest about limitations.
 - Explain changes in simple business language.
 - Focus on what the owner should do next.

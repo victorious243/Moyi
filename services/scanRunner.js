@@ -128,7 +128,7 @@ async function runScan(scanId) {
     await scan.save();
     await throwIfCancelled(scan);
 
-    const issuePayloads = auditPages(crawledPages).map((issue) => ({
+    const issuePayloads = auditPages(crawledPages, result.siteSignals).map((issue) => ({
       ...issue,
       project: project._id,
       scan: scan._id

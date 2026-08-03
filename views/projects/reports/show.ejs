@@ -12,6 +12,7 @@
   const executedRecommendations = executionImpact.executedRecommendations || [];
   const changes = snapshot.changes || {};
   const current = snapshot.current || {};
+  const evidence = snapshot.evidence || {};
   const fmt = new Intl.NumberFormat('en');
   const pct = (value) => typeof value === 'number' ? `${(value * 100).toFixed(2)}%` : 'n/a';
   const delta = (item, formatter) => {
@@ -50,6 +51,24 @@
       <article><span>Conversions</span><strong><%= fmt.format(trackingCurrent.conversions || 0) %></strong><small><%= delta(trackingChanges.conversions, (v) => fmt.format(v)) %> / <%= percentDelta(trackingChanges.conversions) %></small></article>
       <article><span>Identified sessions</span><strong><%= fmt.format(trackingCurrent.identifiedSessions || 0) %></strong><small><%= delta(trackingChanges.identifiedSessions, (v) => fmt.format(v)) %> / <%= percentDelta(trackingChanges.identifiedSessions) %></small></article>
       <article><span>Attributed sessions</span><strong><%= fmt.format(trackingCurrent.attributedSessions || 0) %></strong><small><%= delta(trackingChanges.attributedSessions, (v) => fmt.format(v)) %> / <%= percentDelta(trackingChanges.attributedSessions) %></small></article>
+    </section>
+
+    <section class="panel report-section">
+      <div class="panel-title">
+        <div>
+          <h2>Why some numbers are zero</h2>
+          <p class="empty">The KPI cards above only show measured Search Console and tracking data. Scan evidence is shown separately so Moyi does not mix findings with outcomes.</p>
+        </div>
+        <span class="status"><%= snapshot.searchConsoleConnected ? 'GSC connected' : 'GSC missing' %></span>
+      </div>
+      <div class="metrics report-evidence-metrics">
+        <article><span>Pages scanned</span><strong><%= fmt.format(evidence.pagesScanned || ((auditAndOperations.latestScan || {}).pagesScanned || 0)) %></strong><small><%= fmt.format(evidence.pagesFound || ((auditAndOperations.latestScan || {}).pagesFound || 0)) %> found</small></article>
+        <article><span>Critical issues</span><strong><%= fmt.format(evidence.criticalIssues || 0) %></strong><small>scan evidence</small></article>
+        <article><span>Warnings</span><strong><%= fmt.format(evidence.warnings || 0) %></strong><small>scan evidence</small></article>
+        <article><span>Open actions</span><strong><%= fmt.format(evidence.openRecommendations || ((auditAndOperations.openRecommendations || []).length)) %></strong><small><%= fmt.format(evidence.completedRecommendations || 0) %> completed</small></article>
+        <article><span>Drafts ready</span><strong><%= fmt.format((evidence.approvedDrafts || 0) + (evidence.publishedDrafts || 0)) %></strong><small><%= fmt.format(evidence.completedContentThisPeriod || 0) %> this period</small></article>
+        <article><span>Tracking readiness</span><strong><%= fmt.format(evidence.trackingReadinessScore || readiness.score || 0) %>%</strong><small><%= readiness.level || 'Low' %></small></article>
+      </div>
     </section>
 
     <section class="panel report-section">

@@ -165,10 +165,28 @@ async function buildMetricsSnapshot({ projectId, userId, type }) {
 }
 
 async function buildOperationalContext({ project, userId, period }) {
-  const [latestScan, openIssues, openRecommendations, contentCompleted, draftCounts, pages] = await Promise.all([
+  const [
+    latestScan,
+    openIssues,
+    issueCounts,
+    openRecommendations,
+    recommendationCounts,
+    contentCompleted,
+    draftCounts,
+    pages,
+    totalPages
+  ] = await Promise.all([
     Scan.findOne({ projectId: project._id }).sort({ createdAt: -1 }).lean(),
     SeoIssue.find({ project: project._id, status: { $ne: 'resolved' } }).sort({ severity: 1, createdAt: -1 }).limit(20).lean(),
+    SeoIssue.aggregate([
+      { $match: { project: project._id, status: { $ne: 'resolved' } } },
+      { $group: { _id: '$severity', count: { $sum: 1 } } }
+    ]),
     Recommendation.find({ projectId: project._id, status: { $in: ['pending', 'accepted', 'in_progress'] } }).sort({ priority: 1, createdAt: -1 }).limit(20).lean(),
+    Recommendation.aggregate([
+      { $match: { projectId: project._id } },
+      { $group: { _id: '$status', count: { $sum: 1 } } }
+    ]),
     ContentDraft.find({
       projectId: project._id,
       status: { $in: ['approved', 'published_manually'] },
@@ -178,7 +196,8 @@ async function buildOperationalContext({ project, userId, period }) {
       { $match: { projectId: project._id } },
       { $group: { _id: '$status', count: { $sum: 1 } } }
     ]),
-    Page.find({ projectId: project._id }).sort({ lastCrawledAt: -1 }).limit(20).lean()
+    Page.find({ projectId: project._id }).sort({ lastCrawledAt: -1 }).limit(20).lean(),
+    Page.countDocuments({ projectId: project._id })
   ]);
 
   return {
@@ -213,6 +232,15 @@ async function buildOperationalContext({ project, userId, period }) {
       acc[item._id] = item.count;
       return acc;
     }, {}),
+    issueCounts: issueCounts.reduce((acc, item) => {
+      acc[item._id] = item.count;
+      return acc;
+    }, {}),
+    recommendationStatusCounts: recommendationCounts.reduce((acc, item) => {
+      acc[item._id] = item.count;
+      return acc;
+    }, {}),
+    totalPages,
     recentPages: pages.map((page) => ({
       url: page.url,
       title: page.title,
@@ -220,6 +248,37 @@ async function buildOperationalContext({ project, userId, period }) {
       h1: page.h1,
       wordCount: page.wordCount
     }))
+  };
+}
+
+function buildEvidenceSnapshot({ operationalContext, measurementSnapshot }) {
+  const issues = operationalContext.issueCounts || {};
+  const recommendations = operationalContext.recommendationStatusCounts || {};
+  const draftCounts = operationalContext.contentDraftStatusCounts || {};
+  const latestScan = operationalContext.latestScan || {};
+  const trackingCurrent = measurementSnapshot.tracking && measurementSnapshot.tracking.current
+    ? measurementSnapshot.tracking.current
+    : {};
+  const readiness = measurementSnapshot.attributionReadiness || {};
+
+  return {
+    pagesScanned: Number(latestScan.pagesScanned || 0),
+    pagesFound: Number(latestScan.pagesFound || operationalContext.totalPages || 0),
+    criticalIssues: Number(issues.critical || 0),
+    warnings: Number(issues.warning || 0),
+    opportunities: Number(issues.opportunity || 0),
+    openRecommendations: Number(recommendations.pending || 0)
+      + Number(recommendations.accepted || 0)
+      + Number(recommendations.in_progress || 0),
+    acceptedRecommendations: Number(recommendations.accepted || 0),
+    inProgressRecommendations: Number(recommendations.in_progress || 0),
+    completedRecommendations: Number(recommendations.done || 0),
+    approvedDrafts: Number(draftCounts.approved || 0),
+    publishedDrafts: Number(draftCounts.published_manually || 0),
+    completedContentThisPeriod: operationalContext.contentActionsCompleted.length,
+    trackedSessions: Number(trackingCurrent.sessions || 0),
+    trackedPageViews: Number(trackingCurrent.pageViews || 0),
+    trackingReadinessScore: Number(readiness.score || 0)
   };
 }
 
@@ -271,17 +330,22 @@ function formatPercent(value) {
   return `${value >= 0 ? '+' : ''}${(value * 100).toFixed(1)}%`;
 }
 
-function buildSystemReport({ type, metricsSnapshot, operationalContext, measurementSnapshot }) {
+function buildSystemReport({ type, metricsSnapshot, operationalContext, measurementSnapshot, evidenceSnapshot = null }) {
   const hasMetrics = metricsSnapshot.searchConsoleConnected && metricsSnapshot.current.impressions > 0;
   const openRecommendations = operationalContext.openRecommendations.slice(0, 5).map((item) => item.title);
   const completedCount = operationalContext.contentActionsCompleted.length;
   const conversionChanges = measurementSnapshot.tracking.changes;
   const impactSummary = measurementSnapshot.executionImpact.summary;
   const readiness = measurementSnapshot.attributionReadiness;
+  const evidence = evidenceSnapshot || buildEvidenceSnapshot({ operationalContext, measurementSnapshot });
+  const hasScanEvidence = evidence.pagesScanned || evidence.pagesFound || evidence.criticalIssues || evidence.warnings || evidence.opportunities;
+  const hasOperationalEvidence = hasScanEvidence || evidence.openRecommendations || evidence.approvedDrafts || evidence.publishedDrafts;
 
   const summary = hasMetrics
     ? `${type === 'monthly' ? 'Monthly' : 'Weekly'} update: organic search recorded ${formatNumber(metricsSnapshot.current.clicks)} clicks and ${formatNumber(metricsSnapshot.current.impressions)} impressions for the period, while conversions changed ${formatPercent(conversionChanges.conversions.percent)} against the prior window.`
-    : `Search Console performance data is missing for this period, so this report focuses on conversion signals, executed work, and content progress.`;
+    : hasOperationalEvidence
+      ? `${type === 'monthly' ? 'Monthly' : 'Weekly'} update: no Search Console clicks or conversion events were measured in this window, but Moyi has factual workspace evidence to act on: ${formatNumber(evidence.pagesScanned)} pages scanned, ${formatNumber(evidence.criticalIssues)} critical issues, ${formatNumber(evidence.warnings)} warnings, and ${formatNumber(evidence.openRecommendations)} open recommendations.`
+      : `Search Console performance data and conversion events are missing for this period, so this report is waiting for measurable input before it can judge performance.`;
 
   return {
     summary,
@@ -290,11 +354,14 @@ function buildSystemReport({ type, metricsSnapshot, operationalContext, measurem
       : 'No Search Console metrics are available. Connect and sync Search Console to compare clicks, impressions, CTR, and average position.',
     wins: [
       completedCount ? `${completedCount} content action${completedCount === 1 ? '' : 's'} completed in this period.` : '',
+      evidence.completedRecommendations ? `${evidence.completedRecommendations} recommendation${evidence.completedRecommendations === 1 ? '' : 's'} marked done in the workspace.` : '',
       metricsSnapshot.topGainingPages[0] ? `Top gaining page by impressions: ${metricsSnapshot.topGainingPages[0].page}.` : '',
       impactSummary.movedCount ? `${impactSummary.movedCount} executed recommendation${impactSummary.movedCount === 1 ? '' : 's'} showed positive movement.` : '',
       conversionChanges.conversions.delta > 0 ? `Tracked conversions increased by ${formatNumber(conversionChanges.conversions.delta)} versus the previous period.` : ''
     ].filter(Boolean),
     losses: [
+      !hasMetrics && evidence.criticalIssues ? `${formatNumber(evidence.criticalIssues)} critical SEO issue${evidence.criticalIssues === 1 ? '' : 's'} remain open from scan evidence.` : '',
+      !hasMetrics && evidence.warnings ? `${formatNumber(evidence.warnings)} warning${evidence.warnings === 1 ? '' : 's'} remain open from scan evidence.` : '',
       ...metricsSnapshot.topLosingPages
         .filter((item) => item.impressionsChange < 0)
         .slice(0, 3)
@@ -304,8 +371,10 @@ function buildSystemReport({ type, metricsSnapshot, operationalContext, measurem
     opportunities: [
       ...metricsSnapshot.lowCtrOpportunities.slice(0, 3).map((item) => `${item.value} has high impressions and low CTR.`),
       ...openRecommendations.slice(0, 3).map((title) => `Open recommendation: ${title}.`),
+      !hasMetrics && hasScanEvidence ? 'Connect and sync Search Console so the next report can compare real clicks, impressions, CTR, and ranking movement against these scan findings.' : '',
+      readiness.conversionGoalCount ? '' : 'Add at least one conversion goal so Moyi can measure pipeline actions instead of only visibility and scan evidence.',
       ...(impactSummary.noMovementCount ? [`${impactSummary.noMovementCount} executed recommendation${impactSummary.noMovementCount === 1 ? '' : 's'} did not move yet, so the page, proof, or CTA should be revisited.`] : [])
-    ],
+    ].filter(Boolean),
     nextActions: openRecommendations.length ? openRecommendations : ['Review open SEO recommendations and choose the next content or metadata action.'],
     nextSevenDaysActionPlan: openRecommendations.slice(0, 4),
     nextThirtyDaysActionPlan: [
@@ -314,6 +383,7 @@ function buildSystemReport({ type, metricsSnapshot, operationalContext, measurem
     ],
     warningsLimitations: [
       hasMetrics ? '' : 'Search Console data was unavailable or empty for this period.',
+      evidence.trackedSessions ? '' : 'No Moyi tracking sessions were recorded in this report window.',
       readiness.revenueStatus,
       'Revenue is never attributed here without a real payment or CRM source.'
     ].filter(Boolean)
@@ -367,7 +437,8 @@ async function generateCmoReport({ project, userId, type, onProgress = null }) {
     project: projectContext(project),
     metricsSnapshot,
     measurementSnapshot,
-    auditAndOperations: operationalContext
+    auditAndOperations: operationalContext,
+    evidenceSnapshot: buildEvidenceSnapshot({ operationalContext, measurementSnapshot })
   };
 
   let generatedBy = 'system';
@@ -393,7 +464,13 @@ async function generateCmoReport({ project, userId, type, onProgress = null }) {
       currentStep: 'Composing the system fallback report',
       progressPercent: 82
     });
-    reportBody = buildSystemReport({ type, metricsSnapshot, operationalContext, measurementSnapshot });
+    reportBody = buildSystemReport({
+      type,
+      metricsSnapshot,
+      operationalContext,
+      measurementSnapshot,
+      evidenceSnapshot: context.evidenceSnapshot
+    });
   }
 
   await notifyProgress(onProgress, {
@@ -410,7 +487,8 @@ async function generateCmoReport({ project, userId, type, onProgress = null }) {
     metricsSnapshot: {
       ...metricsSnapshot,
       measurement: measurementSnapshot,
-      auditAndOperations: operationalContext
+      auditAndOperations: operationalContext,
+      evidence: context.evidenceSnapshot
     },
     generatedBy,
     aiModel
@@ -424,5 +502,7 @@ async function generateCmoReport({ project, userId, type, onProgress = null }) {
 }
 
 module.exports = {
+  buildEvidenceSnapshot,
+  buildSystemReport,
   generateCmoReport
 };

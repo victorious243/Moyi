@@ -22,7 +22,7 @@ const contentImageSchema = new mongoose.Schema(
     },
     storageProvider: {
       type: String,
-      enum: ['machine'],
+      enum: ['machine', 's3'],
       default: 'machine',
       required: true
     },

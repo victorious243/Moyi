@@ -36,6 +36,9 @@
         <h1>Website Scan</h1>
       </div>
       <div class="row-actions">
+        <% if (!scanIsActive) { %>
+          <a class="button" href="/projects/<%= project._id %>/scans/<%= scan._id %>/pdf">Download PDF Report</a>
+        <% } %>
         <% if (scanIsActive) { %>
           <form action="/projects/<%= project._id %>/scans/<%= scan._id %>/cancel" method="post" onsubmit="return confirm('Stop this scan now? Partial findings already saved may remain visible.');">
             <button class="button danger-button" type="submit">Stop Scan</button>
