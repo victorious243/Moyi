@@ -4,16 +4,16 @@
   "description": "Evidence-led AI Chief Marketing Officer workspace for SEO growth.",
   "icons": [
     {
-      "src": "/images/moyi-logo.png",
+      "src": "/images/brand/moyi-mark-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
-      "src": "/images/moyi-logo.png",
+      "src": "/images/brand/moyi-mark-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     }
   ],
   "start_url": "/",

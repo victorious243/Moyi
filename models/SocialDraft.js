@@ -26,9 +26,15 @@ const socialDraftSchema = new mongoose.Schema(
       default: null,
       index: true
     },
+    socialAccountId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SocialAccount',
+      default: null,
+      index: true
+    },
     channel: {
       type: String,
-      enum: ['linkedin', 'facebook', 'x', 'instagram', 'email'],
+      enum: ['linkedin', 'facebook', 'x', 'instagram', 'youtube', 'tiktok', 'email', 'webhook'],
       required: true,
       index: true
     },
@@ -46,6 +52,24 @@ const socialDraftSchema = new mongoose.Schema(
       enum: ['draft', 'approved', 'published_manually'],
       default: 'draft',
       index: true
+    },
+    publishStatus: {
+      type: String,
+      enum: ['draft', 'pending_approval', 'approved', 'publishing', 'published', 'failed'],
+      default: 'draft',
+      index: true
+    },
+    publishedAt: {
+      type: Date,
+      default: null
+    },
+    platformPostId: {
+      type: String,
+      default: ''
+    },
+    errorMessage: {
+      type: String,
+      default: ''
     },
     scheduledFor: {
       type: Date,

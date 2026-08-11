@@ -1,0 +1,125 @@
+<%- include('../../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Workspace</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Projects</a>
+    <a href="/projects/<%= project._id %>">Project Overview</a>
+    <a href="/projects/<%= project._id %>/integrations/wordpress">WordPress</a>
+    <a href="/projects/<%= project._id %>/integrations/webflow">Webflow</a>
+    <a href="/projects/<%= project._id %>/integrations/shopify">Shopify</a>
+    <a href="/projects/<%= project._id %>/integrations/social" class="active">Social Accounts</a>
+    <a href="/projects/<%= project._id %>/integrations/webhook">Webhook</a>
+    <a href="/projects/<%= project._id %>/content">Approval Queue</a>
+    <a href="/projects/<%= project._id %>/calendar">Calendar</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow"><%= project.name %></p>
+        <h1>Connect Social Accounts</h1>
+        <p>Connect your social media accounts in 1 click. No technical setup required.</p>
+      </div>
+    </div>
+
+    <% if (errorMessage) { %>
+      <section class="panel notice-panel">
+        <h2>Connection Note</h2>
+        <p class="empty"><%= errorMessage %></p>
+      </section>
+    <% } %>
+
+    <% if (successMessage) { %>
+      <section class="panel">
+        <h2>Connected!</h2>
+        <p class="empty"><%= successMessage %></p>
+      </section>
+    <% } %>
+
+    <!-- 1-CLICK SOCIAL CONNECTIONS (ULTRA CLEAN) -->
+    <section class="panel">
+      <h2>1-Click Social Sign-In</h2>
+      <p>Click any platform below to sign in with your normal social account and connect it to Moyi automatically.</p>
+
+      <div class="social-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-top: 24px;">
+        
+        <!-- LinkedIn Card -->
+        <% const linkedinAcc = accounts.find((a) => a.platform === 'linkedin'); %>
+        <article class="panel" style="border: 2px solid <%= linkedinAcc ? '#0077b5' : 'var(--border)' %>; padding: 20px; border-radius: 12px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <strong style="font-size: 1.2rem; color: #0077b5;">LinkedIn</strong>
+            <span class="status <%= linkedinAcc ? 'status-success' : '' %>"><%= linkedinAcc ? 'Connected ✓' : 'Not Connected' %></span>
+          </div>
+          <p style="font-size: 0.9rem; margin-bottom: 16px;">
+            <%= linkedinAcc ? `Connected as: ${linkedinAcc.accountName}` : 'Publish updates directly to your LinkedIn profile or company page.' %>
+          </p>
+          <% if (linkedinAcc) { %>
+            <form action="/projects/<%= project._id %>/integrations/social/<%= linkedinAcc.id %>/disconnect" method="post">
+              <button class="button button-small button-danger" type="submit">Disconnect Account</button>
+            </form>
+          <% } else { %>
+            <a class="button button-primary" href="/integrations/social/linkedin/connect?projectId=<%= project._id %>" style="background: #0077b5; border-color: #0077b5; width: 100%; text-align: center;">
+              Connect LinkedIn
+            </a>
+          <% } %>
+        </article>
+
+        <!-- X / Twitter Card -->
+        <% const xAcc = accounts.find((a) => a.platform === 'x' || a.platform === 'twitter'); %>
+        <article class="panel" style="border: 2px solid <%= xAcc ? '#000000' : 'var(--border)' %>; padding: 20px; border-radius: 12px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <strong style="font-size: 1.2rem; color: #000000;">X / Twitter</strong>
+            <span class="status <%= xAcc ? 'status-success' : '' %>"><%= xAcc ? 'Connected ✓' : 'Not Connected' %></span>
+          </div>
+          <p style="font-size: 0.9rem; margin-bottom: 16px;">
+            <%= xAcc ? `Connected as: ${xAcc.accountName}` : 'Publish posts and threads directly to your X profile.' %>
+          </p>
+          <% if (xAcc) { %>
+            <form action="/projects/<%= project._id %>/integrations/social/<%= xAcc.id %>/disconnect" method="post">
+              <button class="button button-small button-danger" type="submit">Disconnect Account</button>
+            </form>
+          <% } else { %>
+            <a class="button button-primary" href="/integrations/social/x/connect?projectId=<%= project._id %>" style="background: #000000; border-color: #333333; width: 100%; text-align: center;">
+              Connect X / Twitter
+            </a>
+          <% } %>
+        </article>
+
+        <!-- Facebook & Instagram Card -->
+        <% const metaAcc = accounts.find((a) => a.platform === 'facebook' || a.platform === 'instagram' || a.platform === 'meta'); %>
+        <article class="panel" style="border: 2px solid <%= metaAcc ? '#1877f2' : 'var(--border)' %>; padding: 20px; border-radius: 12px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <strong style="font-size: 1.2rem; color: #1877f2;">Facebook & Instagram</strong>
+            <span class="status <%= metaAcc ? 'status-success' : '' %>"><%= metaAcc ? 'Connected ✓' : 'Not Connected' %></span>
+          </div>
+          <p style="font-size: 0.9rem; margin-bottom: 16px;">
+            <%= metaAcc ? `Connected as: ${metaAcc.accountName}` : 'Publish posts and images to your Facebook Pages & Instagram Business accounts.' %>
+          </p>
+          <% if (metaAcc) { %>
+            <form action="/projects/<%= project._id %>/integrations/social/<%= metaAcc.id %>/disconnect" method="post">
+              <button class="button button-small button-danger" type="submit">Disconnect Account</button>
+            </form>
+          <% } else { %>
+            <a class="button button-primary" href="/integrations/social/meta/connect?projectId=<%= project._id %>" style="background: #1877f2; border-color: #1877f2; width: 100%; text-align: center;">
+              Connect Meta
+            </a>
+          <% } %>
+        </article>
+
+      </div>
+    </section>
+
+    <!-- Simple Publishing Guarantee -->
+    <section class="panel" style="margin-top: 24px;">
+      <h2>How Publishing Works</h2>
+      <ul class="clean-list">
+        <li><strong>Human Control:</strong> Nothing is posted automatically. All posts sit in your calendar for your review first.</li>
+        <li><strong>One-Click Approval:</strong> When you are ready, click <strong>"Approve & Publish Live"</strong> on any calendar post to send it directly to your connected social channels.</li>
+      </ul>
+    </section>
+  </section>
+</div>
+
+<%- include('../../partials/footer') %>

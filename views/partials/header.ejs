@@ -7,7 +7,7 @@
       ? seoDescription
       : 'Moyi-CMO is an evidence-led AI Chief Marketing Officer platform for website audits, Google Search Console insights, SEO recommendations, content drafts, campaign planning, and weekly growth reports.';
     const pageCanonical = typeof canonicalUrl !== 'undefined' && canonicalUrl ? canonicalUrl : 'https://moyi-cmo.com';
-    const pageOgImage = typeof ogImageUrl !== 'undefined' && ogImageUrl ? ogImageUrl : 'https://moyi-cmo.com/images/moyi-logo-dark.png';
+    const pageOgImage = typeof ogImageUrl !== 'undefined' && ogImageUrl ? ogImageUrl : 'https://moyi-cmo.com/images/brand/moyi-mark-512.png';
   %>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -24,9 +24,9 @@
   <meta name="twitter:title" content="<%= pageTitle %>">
   <meta name="twitter:description" content="<%= pageDescription %>">
   <meta name="twitter:image" content="<%= pageOgImage %>">
-  <link rel="icon" type="image/png" href="/images/moyi-logo.png">
-  <link rel="shortcut icon" type="image/png" href="/images/moyi-logo.png">
-  <link rel="apple-touch-icon" href="/images/moyi-logo.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/brand/moyi-mark-32.png">
+  <link rel="shortcut icon" type="image/png" sizes="64x64" href="/images/brand/moyi-mark-64.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/brand/moyi-mark-180.png">
   <link rel="manifest" href="/site.webmanifest">
   <% if (typeof organizationSchema !== 'undefined' && organizationSchema) { %>
     <script type="application/ld+json"><%- JSON.stringify(organizationSchema) %></script>

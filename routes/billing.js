@@ -24,6 +24,7 @@ router.get('/billing', requireAuth, asyncHandler(async (req, res) => {
   res.render('billing/index', {
     title: 'Billing',
     plan: planFor(req.user),
+    publicPlans: PLANS,
     usage,
     successMessage: req.query.success ? 'Billing updated.' : '',
     errorMessage: req.query.error || ''

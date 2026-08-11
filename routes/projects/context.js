@@ -25,6 +25,7 @@ const ConversionGoal = require('../../models/ConversionGoal');
 const TrackingEvent = require('../../models/TrackingEvent');
 const Campaign = require('../../models/Campaign');
 const SocialDraft = require('../../models/SocialDraft');
+const SocialAccount = require('../../models/SocialAccount');
 const AnalyticsSnapshot = require('../../models/AnalyticsSnapshot');
 const AppError = require('../../utils/appError');
 const handleValidation = require('../../utils/validate');
@@ -70,6 +71,7 @@ function buildProjectsContext(overrides = {}) {
     TrackingEvent,
     Campaign,
     SocialDraft,
+    SocialAccount,
     AnalyticsSnapshot,
     AppError,
     handleValidation,

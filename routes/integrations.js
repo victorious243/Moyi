@@ -98,4 +98,119 @@ router.get('/google/callback', asyncHandler(async (req, res) => {
   res.redirect('/integrations?connected=1');
 }));
 
+// ------------------------------------------
+// 1-CLICK SOCIAL OAUTH CONNECT ROUTES (NON-TECHNICAL)
+// ------------------------------------------
+const {
+  buildLinkedInAuthUrl,
+  buildMetaAuthUrl,
+  buildTwitterAuthUrl,
+  exchangeLinkedInCode,
+  exchangeMetaCode,
+  exchangeTwitterCode,
+  generateTwitterPkcePair
+} = require('../services/socialOauthService');
+
+const { connectSocialApiAccount } = require('../services/socialAccountService');
+
+function clearSocialOauthCookies(res) {
+  res.clearCookie('social_oauth_state', oauthCookieOptions());
+  res.clearCookie('social_oauth_project', oauthCookieOptions());
+  res.clearCookie('social_oauth_platform', oauthCookieOptions());
+  res.clearCookie('social_oauth_code_verifier', oauthCookieOptions());
+}
+
+router.get('/social/:platform/connect', (req, res) => {
+  const platform = req.params.platform;
+  const state = crypto.randomBytes(24).toString('hex');
+  const projectId = req.query.projectId || '';
+
+  res.cookie('social_oauth_state', state, oauthCookieOptions());
+  res.cookie('social_oauth_platform', platform, oauthCookieOptions());
+  if (projectId) {
+    res.cookie('social_oauth_project', String(projectId), oauthCookieOptions());
+  }
+
+  try {
+    let authUrl = '';
+    if (platform === 'linkedin') {
+      authUrl = buildLinkedInAuthUrl({ state });
+    } else if (platform === 'x' || platform === 'twitter') {
+      const pkce = generateTwitterPkcePair();
+      res.cookie('social_oauth_code_verifier', pkce.verifier, oauthCookieOptions());
+      authUrl = buildTwitterAuthUrl({ state, codeChallenge: pkce.challenge });
+    } else if (platform === 'meta' || platform === 'facebook' || platform === 'instagram') {
+      authUrl = buildMetaAuthUrl({ state });
+    } else {
+      throw new Error(`Unsupported 1-click OAuth platform: ${platform}`);
+    }
+
+    res.redirect(authUrl);
+  } catch (error) {
+    clearSocialOauthCookies(res);
+    const redirectPath = projectId ? `/projects/${projectId}/integrations/social` : '/integrations';
+    res.redirect(`${redirectPath}?error=${encodeURIComponent(error.message)}`);
+  }
+});
+
+router.get('/social/:platform/callback', asyncHandler(async (req, res) => {
+  const platform = req.params.platform;
+  const expectedState = req.cookies.social_oauth_state;
+  const projectId = req.cookies.social_oauth_project;
+  const requestedPlatform = req.cookies.social_oauth_platform;
+  const codeVerifier = req.cookies.social_oauth_code_verifier;
+  clearSocialOauthCookies(res);
+
+  const redirectPath = projectId ? `/projects/${projectId}/integrations/social` : '/integrations';
+
+  if (req.query.error) {
+    return res.redirect(`${redirectPath}?error=${encodeURIComponent(`Connection canceled: ${req.query.error_description || req.query.error}`)}`);
+  }
+
+  if (!expectedState || req.query.state !== expectedState) {
+    return res.redirect(`${redirectPath}?error=${encodeURIComponent('Social connection state verification failed. Please try again.')}`);
+  }
+
+  const callbackPlatform = platform === 'twitter' ? 'x' : platform;
+  const expectedPlatform = requestedPlatform === 'twitter' ? 'x' : requestedPlatform;
+  const isMetaFamily = ['meta', 'facebook', 'instagram'].includes(callbackPlatform) && ['meta', 'facebook', 'instagram'].includes(expectedPlatform);
+  if (expectedPlatform && callbackPlatform !== expectedPlatform && !isMetaFamily) {
+    return res.redirect(`${redirectPath}?error=${encodeURIComponent('Social connection platform verification failed. Please try again.')}`);
+  }
+
+  if (!req.query.code) {
+    return res.redirect(`${redirectPath}?error=${encodeURIComponent('Authorization code was not returned by the platform.')}`);
+  }
+
+  try {
+    let tokenPayload = null;
+    if (platform === 'linkedin') {
+      tokenPayload = await exchangeLinkedInCode(req.query.code);
+    } else if (platform === 'x' || platform === 'twitter') {
+      tokenPayload = await exchangeTwitterCode(req.query.code, { codeVerifier });
+    } else if (platform === 'meta' || platform === 'facebook' || platform === 'instagram') {
+      tokenPayload = await exchangeMetaCode(req.query.code);
+    } else {
+      throw new Error('Invalid platform callback');
+    }
+
+    if (projectId && /^[a-f0-9]{24}$/i.test(projectId)) {
+      await connectSocialApiAccount({
+        projectId,
+        userId: req.user._id,
+        platform: tokenPayload.platform,
+        accountName: tokenPayload.accountName,
+        externalAccountId: tokenPayload.externalAccountId,
+        accessToken: tokenPayload.accessToken,
+        refreshToken: tokenPayload.refreshToken,
+        expiresInSeconds: tokenPayload.expiresInSeconds
+      });
+    }
+
+    res.redirect(`${redirectPath}?success=${encodeURIComponent(`Connected ${tokenPayload.accountName} (${tokenPayload.platform.toUpperCase()}) successfully!`)}`);
+  } catch (error) {
+    res.redirect(`${redirectPath}?error=${encodeURIComponent(error.message)}`);
+  }
+}));
+
 module.exports = router;

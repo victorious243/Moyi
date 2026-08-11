@@ -262,6 +262,102 @@ function registerIntegrationRoutes(router, context, services = {}) {
       res.redirect(`/projects/${req.project._id}/integrations/webhook?success=${encodeURIComponent('Outgoing webhook settings saved.')}`);
     })
   );
+
+  // Social Account Integrations
+  const {
+    connectSocialApiAccount,
+    connectSocialWebhook,
+    disconnectSocialAccount,
+    listProjectSocialAccounts
+  } = require('../../services/socialAccountService');
+
+  router.get('/:id/integrations/social', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
+    const accounts = await listProjectSocialAccounts(req.project._id);
+    const recentActions = await context.PublishAction.find({
+      projectId: req.project._id,
+      integrationType: { $in: ['linkedin', 'x', 'facebook', 'instagram', 'youtube', 'tiktok', 'ayrshare', 'buffer', 'webhook'] }
+    }).sort({ createdAt: -1 }).limit(10);
+
+    res.render('projects/integrations/social', {
+      title: `${req.project.name} Multi-Platform Social Accounts`,
+      accounts,
+      recentActions,
+      errorMessage: req.query.error || '',
+      successMessage: req.query.success || ''
+    });
+  }));
+
+  router.post(
+    '/:id/integrations/social/webhook/connect',
+    [
+      param('id').isMongoId(),
+      body('accountName').trim().notEmpty().withMessage('Account name is required.'),
+      body('webhookUrl').trim().isURL({ require_protocol: true, protocols: ['http', 'https'] }).withMessage('Webhook URL must be a valid http or https URL.'),
+      body('platform').optional().isIn(['linkedin', 'x', 'facebook', 'instagram', 'youtube', 'tiktok', 'webhook', 'ayrshare', 'buffer']),
+      context.handleValidation
+    ],
+    context.loadProject,
+    asyncHandler(async (req, res) => {
+      try {
+        await connectSocialWebhook({
+          projectId: req.project._id,
+          userId: req.user._id,
+          platform: req.body.platform || 'webhook',
+          accountName: req.body.accountName,
+          webhookUrl: req.body.webhookUrl,
+          webhookSecret: req.body.webhookSecret || ''
+        });
+        res.redirect(`/projects/${req.project._id}/integrations/social?success=${encodeURIComponent('Social webhook connected successfully.')}`);
+      } catch (error) {
+        res.redirect(`/projects/${req.project._id}/integrations/social?error=${encodeURIComponent(error.message)}`);
+      }
+    })
+  );
+
+  router.post(
+    '/:id/integrations/social/api/connect',
+    [
+      param('id').isMongoId(),
+      body('platform').isIn(['linkedin', 'x', 'facebook', 'instagram', 'youtube', 'tiktok', 'ayrshare', 'buffer']).withMessage('Invalid social platform.'),
+      body('accountName').trim().notEmpty().withMessage('Account name is required.'),
+      body('accessToken').trim().notEmpty().withMessage('Access token is required.'),
+      context.handleValidation
+    ],
+    context.loadProject,
+    asyncHandler(async (req, res) => {
+      try {
+        await connectSocialApiAccount({
+          projectId: req.project._id,
+          userId: req.user._id,
+          platform: req.body.platform,
+          accountName: req.body.accountName,
+          externalAccountId: req.body.externalAccountId || '',
+          accessToken: req.body.accessToken,
+          refreshToken: req.body.refreshToken || ''
+        });
+        res.redirect(`/projects/${req.project._id}/integrations/social?success=${encodeURIComponent(`Connected ${req.body.platform} account successfully.`)}`);
+      } catch (error) {
+        res.redirect(`/projects/${req.project._id}/integrations/social?error=${encodeURIComponent(error.message)}`);
+      }
+    })
+  );
+
+  router.post(
+    '/:id/integrations/social/:accountId/disconnect',
+    [param('id').isMongoId(), param('accountId').isMongoId(), context.handleValidation],
+    context.loadProject,
+    asyncHandler(async (req, res) => {
+      try {
+        await disconnectSocialAccount({
+          projectId: req.project._id,
+          accountId: req.params.accountId
+        });
+        res.redirect(`/projects/${req.project._id}/integrations/social?success=${encodeURIComponent('Social account disconnected.')}`);
+      } catch (error) {
+        res.redirect(`/projects/${req.project._id}/integrations/social?error=${encodeURIComponent(error.message)}`);
+      }
+    })
+  );
 }
 
 module.exports = {

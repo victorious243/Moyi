@@ -132,7 +132,7 @@ test('shared header renders SEO, social, canonical, and schema metadata', async 
       currentUser: null,
       canonicalUrl: 'https://moyi-cmo.com',
       seoDescription: 'Moyi-CMO turns website scans and Google Search Console evidence into SEO recommendations, content drafts, campaign planning, and reports.',
-      ogImageUrl: 'https://moyi-cmo.com/images/moyi-logo-dark.png',
+      ogImageUrl: 'https://moyi-cmo.com/images/brand/moyi-mark-512.png',
       organizationSchema: {
         '@context': 'https://schema.org',
         '@type': 'Organization',

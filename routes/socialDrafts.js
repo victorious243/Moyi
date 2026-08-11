@@ -228,17 +228,88 @@ router.post(
   })
 );
 
+const {
+  batchPublishSocialDrafts,
+  publishAllConnectedChannels,
+  publishSocialDraft
+} = require('../services/socialPublisherService');
+
+router.post('/publish-all-connected', [
+  body('projectId').isMongoId().withMessage('Project ID is required.'),
+  handleValidation
+], asyncHandler(async (req, res) => {
+  const project = await Project.findById(req.body.projectId);
+  if (!project) throw new AppError('Project not found.', 404);
+
+  const role = await projectAccessRole({ project, userId: req.user._id });
+  if (!canManageProjectRole(role)) {
+    throw new AppError('You do not have permission to publish social drafts.', 403);
+  }
+
+  const results = await publishAllConnectedChannels({
+    projectId: project._id,
+    userId: req.user._id
+  });
+
+  const msg = results.total === 0
+    ? 'No pending social drafts to publish.'
+    : `All-in-One publish completed: ${results.successCount} succeeded across connected channels.`;
+
+  res.redirect(`/projects/${project._id}/calendar?success=${encodeURIComponent(msg)}`);
+}));
+
 router.post('/:id/approve', [param('id').isMongoId(), handleValidation], loadSocialDraft, asyncHandler(async (req, res) => {
   req.socialDraft.status = 'approved';
+  req.socialDraft.publishStatus = 'approved';
   await req.socialDraft.save();
   res.redirect(`/projects/${req.project._id}/calendar`);
+}));
+
+router.post('/:id/approve-and-publish', [param('id').isMongoId(), handleValidation], loadSocialDraft, asyncHandler(async (req, res) => {
+  req.socialDraft.status = 'approved';
+  req.socialDraft.publishStatus = 'approved';
+  await req.socialDraft.save();
+
+  try {
+    await publishSocialDraft({
+      socialDraftId: req.socialDraft._id,
+      userId: req.user._id,
+      project: req.project
+    });
+    res.redirect(`/projects/${req.project._id}/calendar?success=${encodeURIComponent('Approved & published to connected platforms.')}#post-${req.socialDraft._id}`);
+  } catch (error) {
+    res.redirect(`/projects/${req.project._id}/calendar?error=${encodeURIComponent(`Publish failed: ${error.message}`)}#post-${req.socialDraft._id}`);
+  }
+}));
+
+router.post('/batch-publish', [
+  body('projectId').isMongoId().withMessage('Project ID is required.'),
+  body('draftIds').isArray({ min: 1 }).withMessage('Select at least one draft to publish.'),
+  handleValidation
+], asyncHandler(async (req, res) => {
+  const project = await Project.findById(req.body.projectId);
+  if (!project) throw new AppError('Project not found.', 404);
+
+  const role = await projectAccessRole({ project, userId: req.user._id });
+  if (!canManageProjectRole(role)) {
+    throw new AppError('You do not have permission to publish social drafts.', 403);
+  }
+
+  const results = await batchPublishSocialDrafts({
+    projectId: project._id,
+    userId: req.user._id,
+    draftIds: req.body.draftIds
+  });
+
+  const msg = `Multi-platform publish completed: ${results.successCount} succeeded, ${results.failedCount} failed.`;
+  res.redirect(`/projects/${project._id}/calendar?success=${encodeURIComponent(msg)}`);
 }));
 
 router.post('/:id/update', [
   param('id').isMongoId(),
   body('title').trim().isLength({ max: 180 }).withMessage('Post title is too long.'),
   body('body').trim().notEmpty().withMessage('Post copy is required.').isLength({ max: 4000 }).withMessage('Post copy is too long.'),
-  body('channel').isIn(['linkedin', 'facebook', 'x', 'instagram', 'email']).withMessage('Channel is invalid.'),
+  body('channel').isIn(['linkedin', 'facebook', 'x', 'instagram', 'youtube', 'tiktok', 'email', 'webhook']).withMessage('Channel is invalid.'),
   body('scheduledFor').isISO8601().withMessage('Choose a valid schedule date.'),
   handleValidation
 ], loadSocialDraft, asyncHandler(async (req, res) => {
@@ -257,6 +328,8 @@ router.post('/:id/delete', [param('id').isMongoId(), handleValidation], loadSoci
 
 router.post('/:id/mark-published', [param('id').isMongoId(), handleValidation], loadSocialDraft, asyncHandler(async (req, res) => {
   req.socialDraft.status = 'published_manually';
+  req.socialDraft.publishStatus = 'published';
+  req.socialDraft.publishedAt = new Date();
   await req.socialDraft.save();
   res.redirect(`/projects/${req.project._id}/calendar`);
 }));

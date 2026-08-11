@@ -18,6 +18,7 @@
     <a href="/projects/<%= project._id %>/content">Content Studio</a>
     <a class="active" href="/projects/<%= project._id %>/calendar">Content Calendar</a>
     <a href="/projects/<%= project._id %>/campaigns">Campaigns</a>
+    <a href="/projects/<%= project._id %>/integrations/social">Social Accounts</a>
   </aside>
 
   <section
@@ -36,7 +37,17 @@
 
     <div class="page-heading content-studio-heading">
       <div><p class="eyebrow"><%= project.name %></p><h1>Content Calendar</h1><p>Review every planned post in publishing order. Nothing is posted without approval.</p></div>
-      <a class="button button-primary" href="/projects/<%= project._id %>/content#planner">Create Content</a>
+      <div class="row-actions" style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <% if (socialDrafts.some((d) => d.publishStatus !== 'published')) { %>
+          <form action="/social-drafts/publish-all-connected" method="post">
+            <input type="hidden" name="projectId" value="<%= project._id %>">
+            <button class="button button-primary" type="submit" style="background: #1877f2; border-color: #1877f2;">
+              🚀 Publish All to Connected Channels
+            </button>
+          </form>
+        <% } %>
+        <a class="button" href="/projects/<%= project._id %>/content#planner">Create Content</a>
+      </div>
     </div>
 
     <% if (successMessage) { %><div class="image-success-message"><%= successMessage %></div><% } %>
@@ -104,8 +115,13 @@
                   <div class="status-actions">
                     <button class="button copy-button" type="button" data-copy-target="social-draft-<%= draft._id %>">Copy</button>
                     <% if (selectedDownloadUrl) { %><a class="button" href="<%= selectedDownloadUrl %>">Download Image</a><% } %>
-                    <% if (draft.status === 'draft') { %><form action="/social-drafts/<%= draft._id %>/approve" method="post"><button class="button button-primary" type="submit">Approve</button></form><% } %>
-                    <% if (draft.status !== 'published_manually') { %><form action="/social-drafts/<%= draft._id %>/mark-published" method="post"><button class="button" type="submit">Mark Published</button></form><% } %>
+                    <% if (draft.status === 'draft') { %>
+                      <form action="/social-drafts/<%= draft._id %>/approve" method="post"><button class="button" type="submit">Approve</button></form>
+                      <form action="/social-drafts/<%= draft._id %>/approve-and-publish" method="post"><button class="button button-primary" type="submit">Approve & Publish Live</button></form>
+                    <% } else if (draft.status === 'approved' && draft.publishStatus !== 'published') { %>
+                      <form action="/social-drafts/<%= draft._id %>/approve-and-publish" method="post"><button class="button button-primary" type="submit">Publish to Platforms</button></form>
+                    <% } %>
+                    <% if (draft.status !== 'published_manually' && draft.publishStatus !== 'published') { %><form action="/social-drafts/<%= draft._id %>/mark-published" method="post"><button class="button" type="submit">Mark Published</button></form><% } %>
                     <details class="agenda-edit"><summary class="button">Edit</summary>
                       <form class="form" action="/social-drafts/<%= draft._id %>/update" method="post">
                         <label>Internal title <input name="title" value="<%= draft.title || '' %>" maxlength="180"></label>

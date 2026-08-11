@@ -64,13 +64,13 @@ app.use((req, res, next) => {
   const canonicalPath = pathname === '/' ? '' : pathname.replace(/\/$/, '');
   res.locals.canonicalUrl = `${publicBase}${canonicalPath}`;
   res.locals.seoDescription = res.locals.seoDescription || 'Moyi-CMO is an evidence-led AI Chief Marketing Officer platform for website audits, Google Search Console insights, SEO recommendations, content drafts, campaign planning, and weekly growth reports.';
-  res.locals.ogImageUrl = `${publicBase}/images/moyi-logo-dark.png`;
+  res.locals.ogImageUrl = `${publicBase}/images/brand/moyi-mark-512.png`;
   res.locals.organizationSchema = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
     name: 'Moyi-CMO',
     url: publicBase,
-    logo: `${publicBase}/images/moyi-logo-dark.png`,
+    logo: `${publicBase}/images/brand/moyi-mark-512.png`,
     description: res.locals.seoDescription,
     contactPoint: env.supportEmail ? [{
       '@type': 'ContactPoint',

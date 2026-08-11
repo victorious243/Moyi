@@ -253,6 +253,35 @@ GOOGLE_REDIRECT_URI=http://localhost:3000/integrations/google/callback
 
 Configure the same redirect URI in Google Cloud OAuth settings.
 
+### One-Click Social Publishing
+
+```env
+LINKEDIN_CLIENT_ID=
+LINKEDIN_CLIENT_SECRET=
+LINKEDIN_REDIRECT_URI=http://localhost:3000/integrations/social/linkedin/callback
+TWITTER_CLIENT_ID=
+TWITTER_CLIENT_SECRET=
+TWITTER_REDIRECT_URI=http://localhost:3000/integrations/social/x/callback
+META_APP_ID=
+META_APP_SECRET=
+META_REDIRECT_URI=http://localhost:3000/integrations/social/meta/callback
+```
+
+Configure these exact callback URLs in the LinkedIn, X, and Meta developer apps. Users connect from `Social Accounts`, approve the provider OAuth screen, and Moyi stores encrypted tokens on the project. Calendar publishing requires an approved social draft and a connected account for that channel.
+
+Run this before a live posting test:
+
+```bash
+npm run check:social
+```
+
+Provider setup checklist:
+
+- LinkedIn: enable OAuth 2.0 and products/scopes that allow member posting, including `openid`, `profile`, `email`, and `w_member_social`. Add the exact LinkedIn callback URL printed by `npm run check:social`.
+- X: create an OAuth 2.0 app with read/write permissions, enable PKCE, add the exact X callback URL printed by `npm run check:social`, then set `TWITTER_CLIENT_ID`. Set `TWITTER_CLIENT_SECRET` too when the app type provides one.
+- Meta: create a Meta app with Facebook Login, request page posting and Instagram content publishing permissions, connect a Facebook Page and Instagram Business account, and add the exact Meta callback URL printed by `npm run check:social`.
+- Production: use the public HTTPS domain in `APP_URL` and in every provider callback, for example `https://moyi-cmo.com/integrations/social/x/callback`.
+
 ### Stripe
 
 ```env
@@ -661,6 +690,25 @@ Routes:
 - `POST /content/:id/publish/shopify-draft`
 
 Requires Shopify shop domain, blog ID, API version, and access token.
+
+### Social Accounts
+
+Routes:
+
+- `GET /projects/:id/integrations/social`
+- `GET /integrations/social/linkedin/connect`
+- `GET /integrations/social/x/connect`
+- `GET /integrations/social/meta/connect`
+- `POST /social-drafts/:id/approve-and-publish`
+- `POST /social-drafts/publish-all-connected`
+
+Rules:
+
+- Users connect LinkedIn, X, or Meta with one OAuth click.
+- Tokens are encrypted before storage.
+- Drafts must pass the human approval gate before live publishing.
+- Publishing fails with a clear connect-first message when the matching social account is missing.
+- Instagram publishing requires an image URL on the draft.
 
 ### Outgoing Webhook
 

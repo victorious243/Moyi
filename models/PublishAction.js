@@ -17,17 +17,29 @@ const publishActionSchema = new mongoose.Schema(
     contentDraftId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'ContentDraft',
-      required: true,
+      default: null,
+      index: true
+    },
+    socialDraftId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SocialDraft',
+      default: null,
+      index: true
+    },
+    socialAccountId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SocialAccount',
+      default: null,
       index: true
     },
     integrationType: {
       type: String,
-      enum: ['wordpress', 'webflow', 'shopify', 'manual'],
+      enum: ['wordpress', 'webflow', 'shopify', 'linkedin', 'x', 'facebook', 'instagram', 'youtube', 'tiktok', 'ayrshare', 'buffer', 'webhook', 'manual'],
       default: 'wordpress'
     },
     actionType: {
       type: String,
-      enum: ['create_post', 'update_page', 'export_only', 'manual_record'],
+      enum: ['create_post', 'update_page', 'publish_social_post', 'export_only', 'webhook_dispatch', 'manual_record'],
       required: true
     },
     externalId: {

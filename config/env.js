@@ -67,6 +67,28 @@ const appUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || '3
 const appUrlObject = validUrl(appUrl);
 const disableQueue = booleanFromEnv(process.env.DISABLE_QUEUE, false);
 
+const SOCIAL_PROVIDER_CONFIG = {
+  linkedin: {
+    label: 'LinkedIn',
+    requiredKeys: ['LINKEDIN_CLIENT_ID', 'LINKEDIN_CLIENT_SECRET'],
+    redirectKey: 'LINKEDIN_REDIRECT_URI',
+    redirectPath: '/integrations/social/linkedin/callback'
+  },
+  x: {
+    label: 'X',
+    requiredKeys: ['TWITTER_CLIENT_ID'],
+    optionalKeys: ['TWITTER_CLIENT_SECRET'],
+    redirectKey: 'TWITTER_REDIRECT_URI',
+    redirectPath: '/integrations/social/x/callback'
+  },
+  meta: {
+    label: 'Meta',
+    requiredKeys: ['META_APP_ID', 'META_APP_SECRET'],
+    redirectKey: 'META_REDIRECT_URI',
+    redirectPath: '/integrations/social/meta/callback'
+  }
+};
+
 const env = {
   nodeEnv,
   isProduction: nodeEnv === 'production',
@@ -95,6 +117,15 @@ const env = {
   googleClientId: process.env.GOOGLE_CLIENT_ID || '',
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
   googleRedirectUri: process.env.GOOGLE_REDIRECT_URI || '',
+  linkedinClientId: process.env.LINKEDIN_CLIENT_ID || '',
+  linkedinClientSecret: process.env.LINKEDIN_CLIENT_SECRET || '',
+  linkedinRedirectUri: process.env.LINKEDIN_REDIRECT_URI || '',
+  twitterClientId: process.env.TWITTER_CLIENT_ID || '',
+  twitterClientSecret: process.env.TWITTER_CLIENT_SECRET || '',
+  twitterRedirectUri: process.env.TWITTER_REDIRECT_URI || '',
+  metaAppId: process.env.META_APP_ID || '',
+  metaAppSecret: process.env.META_APP_SECRET || '',
+  metaRedirectUri: process.env.META_REDIRECT_URI || '',
   stripeSecretKey: process.env.STRIPE_SECRET_KEY || '',
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
   stripeStarterPriceId: process.env.STRIPE_STARTER_PRICE_ID || '',
@@ -246,6 +277,55 @@ function runtimeConfigProblems(target = env) {
   return problems;
 }
 
+function configuredSocialRedirectUri(target, providerKey) {
+  const provider = SOCIAL_PROVIDER_CONFIG[providerKey];
+  if (!provider) return '';
+
+  const configured = process.env[provider.redirectKey] || target[
+    providerKey === 'linkedin'
+      ? 'linkedinRedirectUri'
+      : providerKey === 'x'
+        ? 'twitterRedirectUri'
+        : 'metaRedirectUri'
+  ];
+
+  if (configured) return configured;
+  const baseUrl = String(target.appUrl || 'http://localhost:3000').replace(/\/$/, '');
+  return baseUrl + provider.redirectPath;
+}
+
+function socialProviderReadiness(target = env) {
+  const providers = {};
+  const missingProviders = [];
+  const configuredProviders = [];
+
+  Object.entries(SOCIAL_PROVIDER_CONFIG).forEach(([key, provider]) => {
+    const requiredKeys = [...provider.requiredKeys, provider.redirectKey];
+    const missingKeys = requiredKeys.filter((envKey) => !String(process.env[envKey] || '').trim());
+    const optionalMissingKeys = (provider.optionalKeys || []).filter((envKey) => !String(process.env[envKey] || '').trim());
+    const callbackUrl = configuredSocialRedirectUri(target, key);
+    const ready = missingKeys.length === 0;
+
+    providers[key] = {
+      label: provider.label,
+      ready,
+      missingKeys,
+      optionalMissingKeys,
+      callbackUrl
+    };
+
+    if (ready) configuredProviders.push(key);
+    else missingProviders.push(key);
+  });
+
+  return {
+    ready: missingProviders.length === 0,
+    configuredProviders,
+    missingProviders,
+    providers
+  };
+}
+
 function runtimeConfigWarnings(target = env) {
   const warnings = [];
   const hasGoogleConfig = Boolean(target.googleClientId && target.googleClientSecret && target.googleRedirectUri);
@@ -270,6 +350,7 @@ function runtimeConfigWarnings(target = env) {
     target.stripeProAnnualPriceId ||
     target.stripeAgencyAnnualPriceId
   );
+  const socialReadiness = socialProviderReadiness(target);
 
   if (!target.openaiApiKey) {
     warnings.push('OPENAI_API_KEY is not configured. AI strategy generation will use fallback behavior or fail gracefully.');
@@ -285,6 +366,13 @@ function runtimeConfigWarnings(target = env) {
 
   if (!target.smtpHost || !target.smtpUser || !target.smtpPass || !target.smtpFrom) {
     warnings.push('SMTP email is not fully configured. Password reset, test email, and customer communication email delivery will not work until SMTP env vars are set.');
+  }
+
+  if (!socialReadiness.ready) {
+    const missing = socialReadiness.missingProviders
+      .map((providerKey) => socialReadiness.providers[providerKey].label)
+      .join(', ');
+    warnings.push('One-click social publishing is not fully configured for: ' + missing + '. Run npm run check:social to see exact provider keys and callback URLs.');
   }
 
   return warnings;
@@ -309,5 +397,6 @@ module.exports = {
   normalizeCookieDomain,
   runtimeConfigProblems,
   runtimeConfigWarnings,
+  socialProviderReadiness,
   validUrl
 };

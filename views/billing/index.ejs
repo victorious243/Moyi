@@ -5,73 +5,121 @@
     <strong>Workspace</strong>
     <a href="/dashboard">Dashboard</a>
     <a href="/projects">Projects</a>
-    <a href="/billing">Billing</a>
+    <a href="/billing" class="active">Billing</a>
     <a href="/account">Account</a>
   </aside>
 
   <section class="app-main">
     <div class="page-heading">
       <div>
-        <p class="eyebrow">Subscription</p>
-        <h1>Billing</h1>
+        <p class="eyebrow">Subscription & Usage</p>
+        <h1>Billing Management</h1>
+        <p>Manage your plan, check monthly limits, or update subscription billing.</p>
       </div>
       <form action="/billing/create-portal-session" method="post">
-        <button class="button" type="submit">Customer Portal</button>
+        <button class="button" type="submit">Stripe Customer Portal</button>
       </form>
     </div>
 
     <% if (errorMessage) { %>
       <section class="panel notice-panel">
-        <h2>Billing issue</h2>
+        <h2>Billing Issue</h2>
         <p class="empty"><%= errorMessage %></p>
       </section>
     <% } %>
 
     <% if (successMessage) { %>
       <section class="panel">
-        <h2>Billing updated</h2>
+        <h2>Subscription Updated</h2>
         <p class="empty"><%= successMessage %></p>
       </section>
     <% } %>
 
+    <!-- Current Plan Details -->
     <section class="metrics">
-      <article><span>Current plan</span><strong><%= plan.name %></strong></article>
-      <article><span>Status</span><strong><%= currentUser.subscriptionStatus || 'inactive' %></strong></article>
-      <article><span>Billing</span><strong><%= currentUser.billingInterval === 'annual' ? 'Yearly' : 'Monthly' %></strong></article>
-      <article><span>Projects</span><strong><%= plan.projectLimit %></strong></article>
-      <article><span>Renews</span><strong><%= currentUser.currentPeriodEnd ? currentUser.currentPeriodEnd.toLocaleDateString() : 'n/a' %></strong></article>
+      <article><span>Current Plan</span><strong><%= plan.name %> Plan</strong></article>
+      <article><span>Subscription Status</span><strong><span class="status status-success"><%= currentUser.subscriptionStatus || 'active (free)' %></span></strong></article>
+      <article><span>Billing Interval</span><strong><%= currentUser.billingInterval === 'annual' ? 'Yearly' : 'Monthly' %></strong></article>
+      <article><span>Project Limit</span><strong><%= plan.projectLimit %> Projects</strong></article>
+      <article><span>Renews / Resets</span><strong><%= currentUser.currentPeriodEnd ? new Date(currentUser.currentPeriodEnd).toLocaleDateString() : 'Monthly' %></strong></article>
     </section>
 
+    <!-- Usage This Month -->
     <section class="panel">
-      <h2>Usage This Month</h2>
-      <div class="metrics">
-        <article><span>Scans</span><strong><%= usage.scansUsed %>/<%= plan.scansPerMonth %></strong></article>
-        <article><span>AI reports</span><strong><%= usage.aiReportsUsed %>/<%= plan.aiReportsPerMonth %></strong></article>
-        <article><span>Content drafts</span><strong><%= usage.contentDraftsUsed %>/<%= plan.contentDraftsPerMonth %></strong></article>
-        <article><span>GSC syncs</span><strong><%= usage.searchConsoleSyncsUsed %></strong></article>
+      <h2>Monthly Usage & Quotas</h2>
+      <div class="metrics" style="margin-top: 16px;">
+        <article>
+          <span>Website Scans</span>
+          <strong><%= usage.scansUsed %> / <%= plan.scansPerMonth %></strong>
+          <small style="color: var(--text-muted); font-size: 0.85rem;"><%= Math.round((usage.scansUsed / (plan.scansPerMonth || 1)) * 100) %>% used</small>
+        </article>
+        <article>
+          <span>AI Strategy Reports</span>
+          <strong><%= usage.aiReportsUsed %> / <%= plan.aiReportsPerMonth %></strong>
+          <small style="color: var(--text-muted); font-size: 0.85rem;"><%= Math.round((usage.aiReportsUsed / (plan.aiReportsPerMonth || 1)) * 100) %>% used</small>
+        </article>
+        <article>
+          <span>AI Content Drafts</span>
+          <strong><%= usage.contentDraftsUsed %> / <%= plan.contentDraftsPerMonth %></strong>
+          <small style="color: var(--text-muted); font-size: 0.85rem;"><%= Math.round((usage.contentDraftsUsed / (plan.contentDraftsPerMonth || 1)) * 100) %>% used</small>
+        </article>
+        <article><span>Search Console Syncs</span><strong><%= usage.searchConsoleSyncsUsed %></strong></article>
       </div>
     </section>
 
+    <!-- Upgrade / Select Plan Grid -->
     <section class="panel">
-      <div class="panel-title">
-        <h2>Upgrade</h2>
-        <a href="/pricing">Compare plans</a>
+      <div class="panel-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2>Available Packages</h2>
+        <a href="/pricing" class="button">Full Feature Comparison</a>
       </div>
-      <div class="billing-choice-grid">
-        <% ['starter', 'pro', 'agency'].forEach((targetPlan) => { %>
-          <% const target = publicPlans[targetPlan]; %>
-          <div class="billing-choice-row">
-            <div><strong><%= target.name %></strong><span>&euro;<%= target.monthlyPrice %>/month or &euro;<%= target.annualPrice %>/year</span></div>
-            <form action="/billing/create-checkout-session" method="post">
-              <input type="hidden" name="plan" value="<%= targetPlan %>">
-              <input type="hidden" name="billingInterval" value="monthly">
-              <button class="button" type="submit">Monthly</button>
-            </form>
-            <form action="/billing/create-checkout-session" method="post">
-              <input type="hidden" name="plan" value="<%= targetPlan %>">
-              <input type="hidden" name="billingInterval" value="annual">
-              <button class="button button-primary" type="submit">Yearly</button>
-            </form>
+
+      <div class="billing-plans-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px;">
+        <% ['starter', 'pro', 'agency'].forEach((targetPlanKey) => { %>
+          <% const target = publicPlans[targetPlanKey]; %>
+          <% const isCurrent = currentUser.plan === targetPlanKey; %>
+          
+          <div class="panel" style="border: 2px solid <%= isCurrent ? 'var(--primary)' : 'var(--border)' %>; padding: 20px; border-radius: 12px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <h3 style="font-size: 1.3rem; margin: 0;"><%= target.name %></h3>
+                <% if (isCurrent) { %>
+                  <span class="status status-success">Active Plan</span>
+                <% } %>
+              </div>
+              
+              <p style="font-size: 1.5rem; font-weight: bold; margin-bottom: 4px;">&euro;<%= target.monthlyPrice %> <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-muted);">/mo</span></p>
+              <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">Or &euro;<%= target.annualPrice %>/year (Save 2 months)</p>
+              
+              <ul class="clean-list" style="font-size: 0.85rem; line-height: 1.6; margin-bottom: 20px;">
+                <li>✓ <%= target.projectLimit %> Projects</li>
+                <li>✓ <%= target.scansPerMonth %> Scans / mo</li>
+                <li>✓ <%= target.contentDraftsPerMonth %> AI Drafts / mo</li>
+                <li><%= target.wordpress ? '✓ CMS Publishing (WP/Webflow/Shopify)' : '✗ CMS Publishing' %></li>
+                <li><%= target.competitors ? '✓ Competitor Intelligence' : '✗ Competitor Intelligence' %></li>
+              </ul>
+            </div>
+
+            <div>
+              <% if (isCurrent) { %>
+                <form action="/billing/create-portal-session" method="post">
+                  <button class="button button-small" type="submit" style="width: 100%;">Manage in Portal</button>
+                </form>
+              <% } else { %>
+                <div style="display: flex; gap: 8px;">
+                  <form action="/billing/create-checkout-session" method="post" style="flex: 1;">
+                    <input type="hidden" name="plan" value="<%= targetPlanKey %>">
+                    <input type="hidden" name="billingInterval" value="monthly">
+                    <button class="button button-small" type="submit" style="width: 100%;">Monthly</button>
+                  </form>
+                  <form action="/billing/create-checkout-session" method="post" style="flex: 1;">
+                    <input type="hidden" name="plan" value="<%= targetPlanKey %>">
+                    <input type="hidden" name="billingInterval" value="annual">
+                    <button class="button button-small button-primary" type="submit" style="width: 100%;">Yearly</button>
+                  </form>
+                </div>
+              <% } %>
+            </div>
           </div>
         <% }) %>
       </div>

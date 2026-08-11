@@ -10,6 +10,7 @@
     "web": "node ./bin/www",
     "dev": "DISABLE_QUEUE=true nodemon ./bin/www",
     "worker": "node ./workers/scanWorker.js",
+    "check:social": "node ./scripts/check-social-readiness.js",
     "test": "node --test tests/*.test.js"
   },
   "dependencies": {

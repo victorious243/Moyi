@@ -310,37 +310,89 @@
 </section>
 
 <section class="section-intro reveal" id="pricing">
-  <p class="eyebrow">Pricing preview</p>
-  <h2>Start with a scan. Scale into a marketing operating system.</h2>
-  <p>Pay yearly and get two months free on every paid plan.</p>
+  <p class="eyebrow">Flexible Plans</p>
+  <h2>Start with a free scan. Scale into an AI marketing system.</h2>
+  <p>Choose the right package for your website. Pay yearly to get two months free.</p>
 </section>
 
-<section class="pricing-grid reveal">
-  <article>
-    <h3>Free</h3>
-    <strong>&euro;<%= publicPlans.free.monthlyPrice %></strong>
-    <p><%= publicPlans.free.description %></p>
-    <a class="button" href="/register">Run audit</a>
+<section class="pricing-grid reveal" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 24px;">
+  <!-- Free Plan Card -->
+  <article class="panel" style="display: flex; flex-direction: column; justify-content: space-between; border-radius: 14px; padding: 24px;">
+    <div>
+      <h3 style="font-size: 1.4rem; margin-bottom: 8px;">Free Tier</h3>
+      <strong style="font-size: 2rem; font-weight: 800;">&euro;0</strong>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">Free forever &bull; No credit card required</p>
+      <p style="font-size: 0.9rem; margin-bottom: 20px;"><%= publicPlans.free.description %></p>
+      <ul class="clean-list" style="font-size: 0.85rem; line-height: 1.7; margin-bottom: 24px;">
+        <li>✓ 1 Project / Domain</li>
+        <li>✓ 1 Audit Scan (50 pages)</li>
+        <li>✓ AI Strategy Report & Recommendations</li>
+        <li>✓ 1 Sample AI Content Draft</li>
+        <li>✓ GSC & 1st-Party Analytics Tracker</li>
+      </ul>
+    </div>
+    <a class="button" href="/register" style="width: 100%; text-align: center;">Run Free Audit</a>
   </article>
-  <article>
-    <h3>Starter</h3>
-    <strong>&euro;<%= publicPlans.starter.monthlyPrice %><small>/month</small></strong>
-    <p><%= publicPlans.starter.description %></p>
-    <a class="button button-primary" href="/register">Get Started</a>
+
+  <!-- Starter Plan Card -->
+  <article class="panel" style="display: flex; flex-direction: column; justify-content: space-between; border-radius: 14px; padding: 24px;">
+    <div>
+      <h3 style="font-size: 1.4rem; margin-bottom: 8px;">Starter</h3>
+      <strong style="font-size: 2rem; font-weight: 800;">&euro;<%= publicPlans.starter.monthlyPrice %><small style="font-size: 0.9rem; font-weight: normal;">/month</small></strong>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">Or &euro;<%= publicPlans.starter.annualPrice %>/yr (2 months free)</p>
+      <p style="font-size: 0.9rem; margin-bottom: 20px;"><%= publicPlans.starter.description %></p>
+      <ul class="clean-list" style="font-size: 0.85rem; line-height: 1.7; margin-bottom: 24px;">
+        <li>✓ 3 Projects / Domains</li>
+        <li>✓ 10 Scans / month (50 pages)</li>
+        <li>✓ 10 AI Strategy Reports / mo</li>
+        <li>✓ 30 AI Drafts & 30 Posters / mo</li>
+        <li>✓ 1-Click Social Accounts</li>
+      </ul>
+    </div>
+    <a class="button button-primary" href="/register" style="width: 100%; text-align: center;">Get Starter</a>
   </article>
-  <article>
-    <h3>Pro</h3>
-    <strong>&euro;<%= publicPlans.pro.monthlyPrice %><small>/month</small></strong>
-    <p><%= publicPlans.pro.description %></p>
-    <a class="button" href="/register">Choose Pro</a>
+
+  <!-- Pro Plan Card -->
+  <article class="panel" style="display: flex; flex-direction: column; justify-content: space-between; border-radius: 14px; padding: 24px; border: 2px solid var(--primary); position: relative;">
+    <span style="position: absolute; top: -12px; right: 16px; background: var(--primary); color: #fff; font-size: 0.7rem; font-weight: bold; padding: 2px 10px; border-radius: 10px; text-transform: uppercase;">Most Popular</span>
+    <div>
+      <h3 style="font-size: 1.4rem; margin-bottom: 8px;">Pro</h3>
+      <strong style="font-size: 2rem; font-weight: 800;">&euro;<%= publicPlans.pro.monthlyPrice %><small style="font-size: 0.9rem; font-weight: normal;">/month</small></strong>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">Or &euro;<%= publicPlans.pro.annualPrice %>/yr (2 months free)</p>
+      <p style="font-size: 0.9rem; margin-bottom: 20px;"><%= publicPlans.pro.description %></p>
+      <ul class="clean-list" style="font-size: 0.85rem; line-height: 1.7; margin-bottom: 24px;">
+        <li>✓ 10 Projects / Domains</li>
+        <li>✓ 50 Scans / month (200 pages)</li>
+        <li>✓ 50 AI Reports & 150 Drafts / mo</li>
+        <li>✓ CMS Publishing (WordPress, Webflow, Shopify)</li>
+        <li>✓ Competitor Benchmarking</li>
+      </ul>
+    </div>
+    <a class="button button-primary" href="/register" style="width: 100%; text-align: center;">Get Pro</a>
   </article>
-  <article>
-    <h3>Agency</h3>
-    <strong>&euro;<%= publicPlans.agency.monthlyPrice %><small>/month</small></strong>
-    <p><%= publicPlans.agency.description %></p>
-    <a class="button" href="/register">Choose Agency</a>
+
+  <!-- Agency Plan Card -->
+  <article class="panel" style="display: flex; flex-direction: column; justify-content: space-between; border-radius: 14px; padding: 24px;">
+    <div>
+      <h3 style="font-size: 1.4rem; margin-bottom: 8px;">Agency</h3>
+      <strong style="font-size: 2rem; font-weight: 800;">&euro;<%= publicPlans.agency.monthlyPrice %><small style="font-size: 0.9rem; font-weight: normal;">/month</small></strong>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">Or &euro;<%= publicPlans.agency.annualPrice %>/yr (2 months free)</p>
+      <p style="font-size: 0.9rem; margin-bottom: 20px;"><%= publicPlans.agency.description %></p>
+      <ul class="clean-list" style="font-size: 0.85rem; line-height: 1.7; margin-bottom: 24px;">
+        <li>✓ 30 Projects / Client Accounts</li>
+        <li>✓ 200 Scans / month (500 pages)</li>
+        <li>✓ 200 AI Reports & 600 Drafts / mo</li>
+        <li>✓ All Pro Features + PDF Client Reports</li>
+        <li>✓ Shared Team Access</li>
+      </ul>
+    </div>
+    <a class="button" href="/register" style="width: 100%; text-align: center;">Get Agency</a>
   </article>
 </section>
+
+<div style="text-align: center; margin-top: -24px; margin-bottom: 48px;">
+  <a class="button" href="/pricing">View Detailed Feature Matrix &rarr;</a>
+</div>
 
 <section class="final-cta reveal" id="contact">
   <div class="hero-glow" aria-hidden="true"></div>

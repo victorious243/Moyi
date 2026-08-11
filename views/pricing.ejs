@@ -1,55 +1,93 @@
 <%- include('partials/header') %>
 
-<section class="page-heading">
+<div class="page-heading" style="text-align: center; margin-bottom: 32px;">
   <div>
-    <p class="eyebrow">Launch Plans</p>
-    <h1>Pricing</h1>
+    <p class="eyebrow">Flexible Plans for Every Stage</p>
+    <h1>Simple, Transparent Pricing</h1>
+    <p>Choose the plan that fits your growth. Upgrade, downgrade, or cancel anytime.</p>
   </div>
   <% if (typeof canceled !== 'undefined' && canceled) { %>
-    <span class="status">Checkout canceled</span>
+    <span class="status" style="margin-top: 12px; display: inline-block;">Checkout canceled</span>
   <% } %>
-</section>
+</div>
 
-<nav class="billing-interval-switch" aria-label="Billing interval">
-  <a class="<%= billingInterval === 'monthly' ? 'is-active' : '' %>" href="/pricing?billing=monthly">Monthly</a>
-  <a class="<%= billingInterval === 'annual' ? 'is-active' : '' %>" href="/pricing?billing=annual">Yearly <span>2 months free</span></a>
-</nav>
+<!-- Interval Switcher -->
+<div style="display: flex; justify-content: center; margin-bottom: 40px;">
+  <nav class="billing-interval-switch" aria-label="Billing interval" style="background: var(--surface); padding: 6px; border-radius: 30px; border: 1px solid var(--border);">
+    <a class="<%= billingInterval === 'monthly' ? 'is-active' : '' %>" href="/pricing?billing=monthly" style="padding: 10px 24px; border-radius: 20px; text-decoration: none;">Monthly Billing</a>
+    <a class="<%= billingInterval === 'annual' ? 'is-active' : '' %>" href="/pricing?billing=annual" style="padding: 10px 24px; border-radius: 20px; text-decoration: none;">Yearly Billing <span style="background: var(--primary); color: #fff; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; margin-left: 6px;">2 Months Free</span></a>
+  </nav>
+</div>
 
-<section class="pricing-grid">
+<!-- Pricing Cards Grid -->
+<section class="pricing-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; max-width: 1200px; margin: 0 auto 48px auto;">
   <% Object.entries(plans).forEach(([key, plan]) => { %>
-    <article class="panel">
-      <h2><%= plan.name %></h2>
-      <% if (billingInterval === 'annual' && plan.monthlyPrice) { %>
-        <p class="pricing-plan-price"><strong>&euro;<%= plan.annualPrice %></strong><span>/year</span></p>
-        <p class="pricing-saving">About &euro;<%= plan.annualMonthlyEquivalent %>/month. Save &euro;<%= plan.annualSavings %>.</p>
-      <% } else { %>
-        <p class="pricing-plan-price"><strong>&euro;<%= plan.monthlyPrice %></strong><% if (plan.monthlyPrice) { %><span>/month</span><% } %></p>
-        <% if (plan.monthlyPrice) { %><p class="pricing-saving">Or pay yearly and get two months free.</p><% } %>
+    <article class="panel" style="display: flex; flex-direction: column; justify-content: space-between; position: relative; border: 2px solid <%= key === 'pro' ? 'var(--primary)' : 'var(--border)' %>; border-radius: 16px; padding: 28px;">
+      
+      <% if (key === 'pro') { %>
+        <span style="position: absolute; top: -14px; right: 20px; background: var(--primary); color: #fff; font-size: 0.75rem; font-weight: bold; padding: 4px 12px; border-radius: 12px; text-transform: uppercase;">Most Popular</span>
       <% } %>
-      <p class="empty"><%= plan.description %></p>
-      <ul class="clean-list">
-        <li><%= plan.projectLimit %> projects</li>
-        <li><%= plan.scansPerMonth %> scans per month</li>
-        <li><%= plan.pagesPerScan %> pages per scan</li>
-        <li><%= plan.aiReportsPerMonth %> AI reports per month</li>
-        <li><%= plan.contentDraftsPerMonth %> content drafts per month</li>
-        <li><%= plan.imageGenerationsPerMonth %> generated images per month</li>
-        <li><%= plan.searchConsole ? 'Search Console included' : 'Search Console locked' %></li>
-        <li><%= plan.wordpress ? 'CMS draft publishing included' : 'CMS publishing locked' %></li>
-      </ul>
-      <% if (key === 'free') { %>
-        <a class="button" href="/register">Start Free</a>
-      <% } else { %>
-        <form action="/billing/create-checkout-session" method="post">
-          <input type="hidden" name="plan" value="<%= key %>">
-          <input type="hidden" name="billingInterval" value="<%= billingInterval %>">
-          <button class="button button-primary" type="submit">Choose <%= plan.name %> <%= billingInterval === 'annual' ? 'yearly' : 'monthly' %></button>
-        </form>
-      <% } %>
+
+      <div>
+        <h2 style="font-size: 1.5rem; margin-bottom: 8px;"><%= plan.name %></h2>
+        
+        <!-- Price Display -->
+        <% if (key === 'free') { %>
+          <p class="pricing-plan-price" style="font-size: 2.2rem; font-weight: 800; margin-bottom: 4px;">&euro;0</p>
+          <p class="pricing-saving" style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">Free forever &bull; No credit card needed</p>
+        <% } else if (billingInterval === 'annual' && plan.monthlyPrice) { %>
+          <p class="pricing-plan-price" style="font-size: 2.2rem; font-weight: 800; margin-bottom: 4px;">&euro;<%= plan.annualPrice %> <span style="font-size: 1rem; font-weight: normal; color: var(--text-muted);">/ year</span></p>
+          <p class="pricing-saving" style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">&euro;<%= plan.annualMonthlyEquivalent %>/mo equivalent (Save &euro;<%= plan.annualSavings %>)</p>
+        <% } else { %>
+          <p class="pricing-plan-price" style="font-size: 2.2rem; font-weight: 800; margin-bottom: 4px;">&euro;<%= plan.monthlyPrice %> <span style="font-size: 1rem; font-weight: normal; color: var(--text-muted);">/ month</span></p>
+          <p class="pricing-saving" style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">Billed monthly &bull; Switch to annual for 2 months free</p>
+        <% } %>
+
+        <p class="empty" style="margin-bottom: 20px; font-size: 0.95rem; min-height: 48px;"><%= plan.description %></p>
+
+        <hr style="border: 0; border-top: 1px solid var(--border); margin-bottom: 20px;">
+
+        <!-- Feature List -->
+        <ul class="clean-list" style="font-size: 0.9rem; line-height: 1.8; margin-bottom: 28px;">
+          <li>✓ <strong><%= plan.projectLimit %></strong> <%= plan.projectLimit === 1 ? 'Project / Domain' : 'Projects / Domains' %></li>
+          <li>✓ <strong><%= plan.scansPerMonth %></strong> Website Scans / month</li>
+          <li>✓ <strong><%= plan.pagesPerScan %></strong> Pages audited per scan</li>
+          <li>✓ <strong><%= plan.aiReportsPerMonth %></strong> AI Strategy Reports / month</li>
+          <li>✓ <strong><%= plan.contentDraftsPerMonth %></strong> AI Content Drafts / month</li>
+          <li>✓ <strong><%= plan.imageGenerationsPerMonth %></strong> AI Posters & Images / month</li>
+          <li>✓ 1-Click Social Media Accounts</li>
+          <li><%= plan.searchConsole ? '✓ Google Search Console & Analytics' : '✗ Search Console Integration' %></li>
+          <li><%= plan.wordpress ? '✓ WordPress, Webflow & Shopify CMS Publishing' : '✗ CMS Publishing (Pro & Agency)' %></li>
+          <li><%= plan.competitors ? '✓ Competitor Intelligence & Benchmarking' : '✗ Competitor Benchmarking' %></li>
+          <li><%= key === 'agency' ? '✓ Executive PDF Client Reports' : (key === 'pro' ? '✓ Outgoing Webhooks (Make/Zapier)' : '✗ Outgoing Webhooks') %></li>
+        </ul>
+      </div>
+
+      <!-- Action Button -->
+      <div>
+        <% if (key === 'free') { %>
+          <a class="button" href="/register" style="width: 100%; text-align: center; display: block; padding: 12px;">Start Free Audit</a>
+        <% } else { %>
+          <form action="/billing/create-checkout-session" method="post">
+            <input type="hidden" name="plan" value="<%= key %>">
+            <input type="hidden" name="billingInterval" value="<%= billingInterval %>">
+            <button class="button button-primary" type="submit" style="width: 100%; padding: 12px;">
+              Get Started with <%= plan.name %>
+            </button>
+          </form>
+        <% } %>
+      </div>
+
     </article>
   <% }) %>
 </section>
 
-<p class="pricing-tax-note">Prices are shown in EUR. VAT may apply.</p>
+<!-- Guarantee Note -->
+<section class="panel" style="max-width: 900px; margin: 0 auto 48px auto; text-align: center; padding: 32px;">
+  <h2>100% Human Control & Transparency Guarantee</h2>
+  <p style="margin-top: 8px; color: var(--text-muted);">No automatic posting. Every recommendation and content draft is reviewed by you before publishing. Upgrade, downgrade, or cancel anytime from your billing dashboard.</p>
+</section>
+
+<p class="pricing-tax-note" style="text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 32px;">Prices shown in EUR (&euro;). Applicable taxes calculated at checkout.</p>
 
 <%- include('partials/footer') %>

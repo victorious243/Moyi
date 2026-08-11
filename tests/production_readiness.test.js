@@ -141,6 +141,31 @@ test('production runtime config requires S3 credentials when S3 storage is enabl
   });
 });
 
+test('social provider readiness reports missing keys and callback URLs', () => {
+  withEnv({
+    APP_URL: 'https://moyi.example',
+    LINKEDIN_CLIENT_ID: 'linkedin-client',
+    LINKEDIN_CLIENT_SECRET: 'linkedin-secret',
+    LINKEDIN_REDIRECT_URI: 'https://moyi.example/integrations/social/linkedin/callback',
+    TWITTER_CLIENT_ID: undefined,
+    TWITTER_CLIENT_SECRET: undefined,
+    TWITTER_REDIRECT_URI: undefined,
+    META_APP_ID: undefined,
+    META_APP_SECRET: undefined,
+    META_REDIRECT_URI: undefined
+  }, () => {
+    const env = freshEnvModule();
+    const readiness = env.socialProviderReadiness();
+
+    assert.equal(readiness.ready, false);
+    assert.equal(readiness.providers.linkedin.ready, true);
+    assert.equal(readiness.providers.x.ready, false);
+    assert.deepEqual(readiness.providers.x.missingKeys, ['TWITTER_CLIENT_ID', 'TWITTER_REDIRECT_URI']);
+    assert.equal(readiness.providers.meta.callbackUrl, 'https://moyi.example/integrations/social/meta/callback');
+    assert.match(env.runtimeConfigWarnings().join('\n'), /One-click social publishing is not fully configured/);
+  });
+});
+
 test('runtime health reports ready only when database and queue are healthy', async () => {
   const health = createRuntimeHealthService({
     env: {

@@ -4,7 +4,7 @@ const path = require('path');
 const env = require('../config/env');
 
 const BRAND_LOGO_CID = 'moyi-logo';
-const BRAND_LOGO_PATH = path.join(__dirname, '../public/images/moyi-logo.png');
+const BRAND_LOGO_PATH = path.join(__dirname, '../public/images/brand/moyi-mark-192.png');
 
 function smtpConfigured(target = env) {
   return Boolean(target.smtpHost && target.smtpUser && target.smtpPass && target.smtpFrom);
@@ -47,13 +47,13 @@ function escapeHtml(value) {
 }
 
 function brandLogoUrl(target = env) {
-  return `${String(target.appUrl || '').replace(/\/$/, '')}/images/moyi-logo-dark.png`;
+  return `${String(target.appUrl || '').replace(/\/$/, '')}/images/brand/moyi-mark-512.png`;
 }
 
 function brandLogoAttachment() {
   if (!fs.existsSync(BRAND_LOGO_PATH)) return null;
   return {
-    filename: 'moyi-logo.png',
+    filename: 'moyi-mark.png',
     path: BRAND_LOGO_PATH,
     cid: BRAND_LOGO_CID
   };
@@ -110,7 +110,14 @@ function wrapEmail({ heading, intro, bodyHtml, ctaUrl = '', ctaLabel = '', prehe
             <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:680px;background:#ffffff;border:1px solid #e8ebf3;border-radius:12px;overflow:hidden;box-shadow:0 24px 70px rgba(17,24,39,.08);">
               <tr>
                 <td style="padding:22px 28px;background:#ffffff;border-bottom:1px solid #edf0f6;">
-                  <img src="cid:${BRAND_LOGO_CID}" width="128" alt="Moyi-CMO" style="display:block;width:128px;height:auto;border:0;">
+                  <table role="presentation" cellspacing="0" cellpadding="0">
+                    <tr>
+                      <td style="padding:0 12px 0 0;vertical-align:middle;">
+                        <img src="cid:${BRAND_LOGO_CID}" width="64" height="64" alt="" style="display:block;width:64px;height:64px;border:0;object-fit:contain;">
+                      </td>
+                      <td style="vertical-align:middle;color:#111827;font-family:Inter,Arial,sans-serif;font-size:21px;font-weight:900;line-height:1;white-space:nowrap;">MOYI-CMO</td>
+                    </tr>
+                  </table>
                 </td>
               </tr>
               <tr>

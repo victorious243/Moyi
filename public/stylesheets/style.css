@@ -109,6 +109,7 @@ blockquote {
 .brand {
   display: inline-flex;
   align-items: center;
+  gap: 10px;
   color: var(--ink);
   font-size: 20px;
   font-weight: 850;
@@ -131,6 +132,15 @@ blockquote {
   box-shadow: none;
   object-fit: contain;
   filter: none;
+}
+
+.brand-name {
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
 }
 
 .nav,
@@ -336,8 +346,24 @@ blockquote {
 }
 
 .loading-brand img {
-  width: 104px;
-  height: auto;
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+
+.loading-brand-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.loading-brand-identity strong {
+  color: #f7f7fb;
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .loading-brand span {
@@ -2378,8 +2404,12 @@ pre code {
 }
 
 .footer-brand .brand-logo {
-  width: 170px;
-  height: 72px;
+  width: 64px;
+  height: 64px;
+}
+
+.footer-brand .brand-name {
+  font-size: 18px;
 }
 
 .check-list,
@@ -7368,6 +7398,10 @@ input[type="file"]::file-selector-button {
 
   .brand-logo {
     height: 32px;
+  }
+
+  .brand-name {
+    font-size: 14px;
   }
 
   .mobile-menu {
