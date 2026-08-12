@@ -150,9 +150,9 @@ test('social provider readiness reports missing keys and callback URLs', () => {
     TWITTER_CLIENT_ID: undefined,
     TWITTER_CLIENT_SECRET: undefined,
     TWITTER_REDIRECT_URI: undefined,
-    META_APP_ID: undefined,
-    META_APP_SECRET: undefined,
-    META_REDIRECT_URI: undefined
+    META_APP_ID: '',
+    META_APP_SECRET: '',
+    META_REDIRECT_URI: ''
   }, () => {
     const env = freshEnvModule();
     const readiness = env.socialProviderReadiness();
