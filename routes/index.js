@@ -15,6 +15,7 @@ const { getCurrentUsage } = require('../services/usageService');
 const { exportAccountData, deleteAccountData } = require('../services/accountDataService');
 const { recordAuditEvent } = require('../services/auditLogService');
 const { sendCustomerEmail, sendGoodbyeEmail, verifyEmailTransport } = require('../services/emailService');
+const { DEFAULT_TEST_URL, fetchMetaOembed, missingMetaOembedKeys, normalizeOembedUrl } = require('../services/metaOembedService');
 const { findAccessibleProjects } = require('../services/projectAccessService');
 const { runPublicQuickScan } = require('../services/publicQuickScanService');
 const handleValidation = require('../utils/validate');
@@ -160,6 +161,65 @@ router.post('/quick-scan', [
       quickScanError: error.message,
       quickScanUrl: req.body.websiteUrl || ''
     });
+  }
+}));
+
+function metaOembedReviewView(overrides = {}) {
+  return {
+    title: 'Meta oEmbed Read Test',
+    seoDescription: 'A review-only Moyi-CMO page that demonstrates Meta oEmbed Read for public Facebook and Instagram URLs.',
+    sourceUrl: DEFAULT_TEST_URL,
+    embedResult: null,
+    embedError: '',
+    missingKeys: missingMetaOembedKeys(),
+    ...overrides
+  };
+}
+
+router.get('/meta-review/oembed', (req, res) => {
+  try {
+    res.render('public/meta-oembed-review', metaOembedReviewView({
+      sourceUrl: normalizeOembedUrl(req.query.url)
+    }));
+  } catch (error) {
+    res.status(error.statusCode || 400).render('public/meta-oembed-review', metaOembedReviewView({
+      sourceUrl: DEFAULT_TEST_URL,
+      embedError: error.message
+    }));
+  }
+});
+
+router.post('/meta-review/oembed', [
+  body('sourceUrl')
+    .trim()
+    .notEmpty()
+    .withMessage('Enter a public Facebook or Instagram URL.')
+    .isLength({ max: 500 })
+    .withMessage('The URL is too long.')
+], asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(422).render('public/meta-oembed-review', metaOembedReviewView({
+      sourceUrl: req.body.sourceUrl || DEFAULT_TEST_URL,
+      embedError: errors.array().map((error) => error.msg).join(' ')
+    }));
+  }
+
+  try {
+    const embedResult = await fetchMetaOembed(req.body.sourceUrl);
+    res.render('public/meta-oembed-review', metaOembedReviewView({
+      sourceUrl: embedResult.sourceUrl,
+      embedResult
+    }));
+  } catch (error) {
+    const status = error.statusCode || (error.response && error.response.status) || 500;
+    const metaMessage = error.response && error.response.data && error.response.data.error && error.response.data.error.message
+      ? error.response.data.error.message
+      : error.message;
+    res.status(status).render('public/meta-oembed-review', metaOembedReviewView({
+      sourceUrl: req.body.sourceUrl || DEFAULT_TEST_URL,
+      embedError: metaMessage
+    }));
   }
 }));
 

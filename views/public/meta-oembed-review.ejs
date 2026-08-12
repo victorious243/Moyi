@@ -1,0 +1,78 @@
+<%- include('../partials/header') %>
+
+<section class="public-info-hero meta-review-hero">
+  <p class="eyebrow">Meta review</p>
+  <h1>Meta oEmbed Read Test</h1>
+  <p>
+    This page demonstrates how Moyi-CMO renders front-end previews of public Facebook and Instagram content inside campaign planning workflows.
+  </p>
+</section>
+
+<section class="meta-review-layout">
+  <article class="meta-review-panel">
+    <div class="section-header">
+      <div>
+        <p class="eyebrow">Official public URL</p>
+        <h2>Load a Meta embed</h2>
+      </div>
+      <span class="pill">Review-only</span>
+    </div>
+
+    <form class="form meta-review-form" action="/meta-review/oembed" method="post">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <label>
+        <span>Facebook or Instagram URL</span>
+        <input type="url" name="sourceUrl" value="<%= sourceUrl %>" required>
+      </label>
+      <button class="button button-primary" type="submit">Load Embed</button>
+    </form>
+
+    <% if (missingKeys.length) { %>
+      <aside class="docs-note">
+        Configure <%= missingKeys.join(', ') %> in production before submitting this page to Meta review.
+      </aside>
+    <% } %>
+
+    <% if (embedError) { %>
+      <p class="alert alert-error"><%= embedError %></p>
+    <% } %>
+  </article>
+
+  <article class="meta-review-panel">
+    <p class="eyebrow">Allowed usage</p>
+    <h2>How Moyi-CMO uses this feature</h2>
+    <p>
+      Moyi-CMO uses Meta oEmbed Read only to render public Facebook and Instagram pages, posts, and videos that a user intentionally adds as campaign inspiration or review material.
+    </p>
+    <ul>
+      <li>Only public Facebook and Instagram URLs are accepted on this page.</li>
+      <li>No private messages, comments, user data, or non-public content is requested.</li>
+      <li>The embed is used as a visual preview in marketing planning and review workflows.</li>
+    </ul>
+  </article>
+</section>
+
+<% if (embedResult && embedResult.html) { %>
+  <section class="meta-review-result">
+    <div class="section-header">
+      <div>
+        <p class="eyebrow">Embed preview</p>
+        <h2><%= embedResult.providerName %> public content</h2>
+      </div>
+      <a class="button" href="<%= embedResult.sourceUrl %>" target="_blank" rel="noopener">Open Source</a>
+    </div>
+    <% if (embedResult.authorName || embedResult.title) { %>
+      <p class="muted">
+        <%= [embedResult.authorName, embedResult.title].filter(Boolean).join(' · ') %>
+      </p>
+    <% } %>
+    <iframe
+      class="meta-oembed-frame"
+      title="Meta oEmbed preview"
+      sandbox="allow-scripts allow-same-origin allow-popups"
+      srcdoc="<%- embedResult.html.replace(/&/g, '&amp;').replace(/"/g, '&quot;') %>">
+    </iframe>
+  </section>
+<% } %>
+
+<%- include('../partials/footer') %>
