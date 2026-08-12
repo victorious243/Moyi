@@ -1,5 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const { body, param } = require('express-validator');
+const { buildPublishReadiness } = require('../../services/socialPublisherService');
 
 function registerExecutionRoutes(router, context, services = {}) {
   const {
@@ -86,9 +87,10 @@ function registerExecutionRoutes(router, context, services = {}) {
           status: { $in: ['queued', 'running'] }
         }
       : null;
-    const [campaigns, socialDrafts, imageJob] = await Promise.all([
+    const [campaigns, socialDrafts, socialAccounts, imageJob] = await Promise.all([
       context.Campaign.find({ projectId: req.project._id }).sort({ startDate: 1 }),
       context.SocialDraft.find({ projectId: req.project._id }).sort({ scheduledFor: 1 }).populate('campaignId'),
+      context.SocialAccount.find({ projectId: req.project._id, status: 'connected' }).sort({ platform: 1, updatedAt: -1 }),
       imageJobQuery ? context.ProjectJob.findOne(imageJobQuery) : null
     ]);
     const socialDraftIds = socialDrafts.map((draft) => draft._id);
@@ -104,12 +106,19 @@ function registerExecutionRoutes(router, context, services = {}) {
       grouped[key].push(image);
       return grouped;
     }, {});
+    const publishReadiness = buildPublishReadiness({
+      socialDrafts,
+      connectedAccounts: socialAccounts,
+      imagesByDraftId: socialDraftImagesByDraftId
+    });
 
     res.render('projects/calendar', {
       title: `${req.project.name} calendar`,
       campaigns,
       socialDrafts,
+      socialAccounts,
       socialDraftImagesByDraftId,
+      publishReadiness,
       successMessage: req.query.success || '',
       errorMessage: req.query.error || '',
       imageJob

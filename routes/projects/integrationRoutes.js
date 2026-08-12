@@ -1,6 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const { body, param } = require('express-validator');
 const crypto = require('crypto');
+const env = require('../../config/env');
 const {
   fetchWordPressPages,
   testWordPressConnection,
@@ -265,6 +266,7 @@ function registerIntegrationRoutes(router, context, services = {}) {
 
   // Social Account Integrations
   const {
+    DIRECT_API_PLATFORMS,
     connectSocialApiAccount,
     connectSocialWebhook,
     disconnectSocialAccount,
@@ -282,6 +284,7 @@ function registerIntegrationRoutes(router, context, services = {}) {
       title: `${req.project.name} Multi-Platform Social Accounts`,
       accounts,
       recentActions,
+      socialReadiness: env.socialProviderReadiness(),
       errorMessage: req.query.error || '',
       successMessage: req.query.success || ''
     });
@@ -293,7 +296,7 @@ function registerIntegrationRoutes(router, context, services = {}) {
       param('id').isMongoId(),
       body('accountName').trim().notEmpty().withMessage('Account name is required.'),
       body('webhookUrl').trim().isURL({ require_protocol: true, protocols: ['http', 'https'] }).withMessage('Webhook URL must be a valid http or https URL.'),
-      body('platform').optional().isIn(['linkedin', 'x', 'facebook', 'instagram', 'youtube', 'tiktok', 'webhook', 'ayrshare', 'buffer']),
+      body('platform').optional().isIn(['linkedin', 'x', 'facebook', 'instagram', 'youtube', 'tiktok', 'webhook', 'ayrshare']),
       context.handleValidation
     ],
     context.loadProject,
@@ -318,7 +321,7 @@ function registerIntegrationRoutes(router, context, services = {}) {
     '/:id/integrations/social/api/connect',
     [
       param('id').isMongoId(),
-      body('platform').isIn(['linkedin', 'x', 'facebook', 'instagram', 'youtube', 'tiktok', 'ayrshare', 'buffer']).withMessage('Invalid social platform.'),
+      body('platform').isIn(DIRECT_API_PLATFORMS).withMessage('Invalid social platform.'),
       body('accountName').trim().notEmpty().withMessage('Account name is required.'),
       body('accessToken').trim().notEmpty().withMessage('Access token is required.'),
       context.handleValidation

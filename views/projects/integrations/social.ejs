@@ -1,5 +1,30 @@
 <%- include('../../partials/header') %>
 
+<%
+  const readiness = typeof socialReadiness !== 'undefined' ? socialReadiness : { providers: {} };
+  const providerCards = [
+    {
+      key: 'linkedin',
+      label: 'LinkedIn',
+      body: 'Connect a LinkedIn member or company-page capable account for thought leadership and product updates.',
+      href: `/integrations/social/linkedin/connect?projectId=${project._id}`
+    },
+    {
+      key: 'x',
+      label: 'X',
+      body: 'Connect an X account for short updates and launch posts.',
+      href: `/integrations/social/x/connect?projectId=${project._id}`
+    },
+    {
+      key: 'meta',
+      label: 'Facebook and Instagram',
+      body: 'Connect Meta once. Moyi stores Facebook Page and Instagram Business targets separately when both are available.',
+      href: `/integrations/social/meta/connect?projectId=${project._id}`
+    }
+  ];
+  const connectedByPlatform = (platforms) => accounts.filter((account) => platforms.includes(account.platform) && account.status === 'connected');
+%>
+
 <div class="app-layout">
   <aside class="app-sidebar">
     <strong>Workspace</strong>
@@ -19,105 +44,187 @@
     <div class="page-heading">
       <div>
         <p class="eyebrow"><%= project.name %></p>
-        <h1>Connect Social Accounts</h1>
-        <p>Connect your social media accounts in 1 click. No technical setup required.</p>
+        <h1>Social Publishing</h1>
+        <p>Connect the accounts Moyi can publish approved calendar posts to. Nothing posts until a human approves the draft.</p>
+      </div>
+      <div class="row-actions">
+        <a class="button" href="/projects/<%= project._id %>/calendar">Open Calendar</a>
       </div>
     </div>
 
-    <% if (errorMessage) { %>
-      <section class="panel notice-panel">
-        <h2>Connection Note</h2>
-        <p class="empty"><%= errorMessage %></p>
-      </section>
-    <% } %>
+    <% if (errorMessage) { %><div class="form-error"><%= errorMessage %></div><% } %>
+    <% if (successMessage) { %><div class="image-success-message"><%= successMessage %></div><% } %>
 
-    <% if (successMessage) { %>
-      <section class="panel">
-        <h2>Connected!</h2>
-        <p class="empty"><%= successMessage %></p>
-      </section>
-    <% } %>
+    <section class="studio-summary" aria-label="Social publishing summary">
+      <div><span>Connected</span><strong><%= accounts.filter((account) => account.status === 'connected').length %></strong></div>
+      <div><span>OAuth ready</span><strong><%= (readiness.configuredProviders || []).length %>/3</strong></div>
+      <div><span>Publish actions</span><strong><%= recentActions.length %></strong></div>
+      <div><span>Human approval</span><strong>On</strong></div>
+    </section>
 
-    <!-- 1-CLICK SOCIAL CONNECTIONS (ULTRA CLEAN) -->
     <section class="panel">
-      <h2>1-Click Social Sign-In</h2>
-      <p>Click any platform below to sign in with your normal social account and connect it to Moyi automatically.</p>
-
-      <div class="social-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-top: 24px;">
-        
-        <!-- LinkedIn Card -->
-        <% const linkedinAcc = accounts.find((a) => a.platform === 'linkedin'); %>
-        <article class="panel" style="border: 2px solid <%= linkedinAcc ? '#0077b5' : 'var(--border)' %>; padding: 20px; border-radius: 12px;">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-            <strong style="font-size: 1.2rem; color: #0077b5;">LinkedIn</strong>
-            <span class="status <%= linkedinAcc ? 'status-success' : '' %>"><%= linkedinAcc ? 'Connected ✓' : 'Not Connected' %></span>
-          </div>
-          <p style="font-size: 0.9rem; margin-bottom: 16px;">
-            <%= linkedinAcc ? `Connected as: ${linkedinAcc.accountName}` : 'Publish updates directly to your LinkedIn profile or company page.' %>
-          </p>
-          <% if (linkedinAcc) { %>
-            <form action="/projects/<%= project._id %>/integrations/social/<%= linkedinAcc.id %>/disconnect" method="post">
-              <button class="button button-small button-danger" type="submit">Disconnect Account</button>
-            </form>
-          <% } else { %>
-            <a class="button button-primary" href="/integrations/social/linkedin/connect?projectId=<%= project._id %>" style="background: #0077b5; border-color: #0077b5; width: 100%; text-align: center;">
-              Connect LinkedIn
-            </a>
-          <% } %>
-        </article>
-
-        <!-- X / Twitter Card -->
-        <% const xAcc = accounts.find((a) => a.platform === 'x' || a.platform === 'twitter'); %>
-        <article class="panel" style="border: 2px solid <%= xAcc ? '#000000' : 'var(--border)' %>; padding: 20px; border-radius: 12px;">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-            <strong style="font-size: 1.2rem; color: #000000;">X / Twitter</strong>
-            <span class="status <%= xAcc ? 'status-success' : '' %>"><%= xAcc ? 'Connected ✓' : 'Not Connected' %></span>
-          </div>
-          <p style="font-size: 0.9rem; margin-bottom: 16px;">
-            <%= xAcc ? `Connected as: ${xAcc.accountName}` : 'Publish posts and threads directly to your X profile.' %>
-          </p>
-          <% if (xAcc) { %>
-            <form action="/projects/<%= project._id %>/integrations/social/<%= xAcc.id %>/disconnect" method="post">
-              <button class="button button-small button-danger" type="submit">Disconnect Account</button>
-            </form>
-          <% } else { %>
-            <a class="button button-primary" href="/integrations/social/x/connect?projectId=<%= project._id %>" style="background: #000000; border-color: #333333; width: 100%; text-align: center;">
-              Connect X / Twitter
-            </a>
-          <% } %>
-        </article>
-
-        <!-- Facebook & Instagram Card -->
-        <% const metaAcc = accounts.find((a) => a.platform === 'facebook' || a.platform === 'instagram' || a.platform === 'meta'); %>
-        <article class="panel" style="border: 2px solid <%= metaAcc ? '#1877f2' : 'var(--border)' %>; padding: 20px; border-radius: 12px;">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-            <strong style="font-size: 1.2rem; color: #1877f2;">Facebook & Instagram</strong>
-            <span class="status <%= metaAcc ? 'status-success' : '' %>"><%= metaAcc ? 'Connected ✓' : 'Not Connected' %></span>
-          </div>
-          <p style="font-size: 0.9rem; margin-bottom: 16px;">
-            <%= metaAcc ? `Connected as: ${metaAcc.accountName}` : 'Publish posts and images to your Facebook Pages & Instagram Business accounts.' %>
-          </p>
-          <% if (metaAcc) { %>
-            <form action="/projects/<%= project._id %>/integrations/social/<%= metaAcc.id %>/disconnect" method="post">
-              <button class="button button-small button-danger" type="submit">Disconnect Account</button>
-            </form>
-          <% } else { %>
-            <a class="button button-primary" href="/integrations/social/meta/connect?projectId=<%= project._id %>" style="background: #1877f2; border-color: #1877f2; width: 100%; text-align: center;">
-              Connect Meta
-            </a>
-          <% } %>
-        </article>
-
+      <div class="panel-title">
+        <div>
+          <h2>One-click account connection</h2>
+          <p>Use OAuth for the cleanest customer setup. Provider apps still need the right live credentials and approved permissions.</p>
+        </div>
+      </div>
+      <div class="social-connect-grid">
+        <% providerCards.forEach((provider) => { %>
+          <%
+            const providerInfo = readiness.providers ? readiness.providers[provider.key] : null;
+            const platformAccounts = provider.key === 'meta'
+              ? connectedByPlatform(['facebook', 'instagram'])
+              : connectedByPlatform([provider.key]);
+          %>
+          <article class="social-connect-card">
+            <div>
+              <span class="status <%= platformAccounts.length ? 'status-success' : '' %>"><%= platformAccounts.length ? 'Connected' : 'Not connected' %></span>
+              <h3><%= provider.label %></h3>
+              <p><%= provider.body %></p>
+            </div>
+            <% if (platformAccounts.length) { %>
+              <ul class="clean-list compact-list">
+                <% platformAccounts.forEach((account) => { %>
+                  <li><strong><%= account.accountName %></strong> <span><%= account.platform %></span></li>
+                <% }) %>
+              </ul>
+            <% } %>
+            <% if (providerInfo && !providerInfo.ready) { %>
+              <p class="empty">Missing env: <%= providerInfo.missingKeys.join(', ') %></p>
+              <p class="empty">Callback: <code><%= providerInfo.callbackUrl %></code></p>
+            <% } %>
+            <a class="button button-primary" href="<%= provider.href %>"><%= platformAccounts.length ? 'Reconnect' : `Connect ${provider.label}` %></a>
+          </article>
+        <% }) %>
       </div>
     </section>
 
-    <!-- Simple Publishing Guarantee -->
-    <section class="panel" style="margin-top: 24px;">
-      <h2>How Publishing Works</h2>
-      <ul class="clean-list">
-        <li><strong>Human Control:</strong> Nothing is posted automatically. All posts sit in your calendar for your review first.</li>
-        <li><strong>One-Click Approval:</strong> When you are ready, click <strong>"Approve & Publish Live"</strong> on any calendar post to send it directly to your connected social channels.</li>
-      </ul>
+    <section class="panel">
+      <div class="panel-title">
+        <div>
+          <h2>Connected accounts</h2>
+          <p>These are the publishing targets Moyi can use from the content calendar.</p>
+        </div>
+      </div>
+      <% if (!accounts.length) { %>
+        <p class="empty">No social accounts connected yet.</p>
+      <% } else { %>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Platform</th>
+                <th>Account</th>
+                <th>External ID</th>
+                <th>Status</th>
+                <th>Last sync</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <% accounts.forEach((account) => { %>
+                <tr>
+                  <td><strong><%= account.platform %></strong></td>
+                  <td><%= account.accountName %></td>
+                  <td><%= account.externalAccountId || account.webhookUrl || 'Stored securely' %></td>
+                  <td><span class="status <%= account.status === 'connected' ? 'status-success' : '' %>"><%= account.status %></span></td>
+                  <td><%= account.lastSyncAt ? account.lastSyncAt.toLocaleString() : 'Not synced' %></td>
+                  <td>
+                    <% if (account.status === 'connected') { %>
+                      <form action="/projects/<%= project._id %>/integrations/social/<%= account.id %>/disconnect" method="post">
+                        <button class="button button-small" type="submit">Disconnect</button>
+                      </form>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="panel social-setup-grid">
+      <div>
+        <h2>Manual API or aggregator token</h2>
+        <p class="empty">Use this for server-side tokens or Ayrshare. Tokens are encrypted before storage.</p>
+        <form class="form" action="/projects/<%= project._id %>/integrations/social/api/connect" method="post">
+          <label>Platform
+            <select name="platform" required>
+              <option value="linkedin">LinkedIn</option>
+              <option value="x">X</option>
+              <option value="facebook">Facebook Page</option>
+              <option value="instagram">Instagram Business</option>
+              <option value="ayrshare">Ayrshare</option>
+            </select>
+          </label>
+          <label>Account label <input name="accountName" maxlength="140" placeholder="Company LinkedIn page" required></label>
+          <label>External account ID <input name="externalAccountId" maxlength="220" placeholder="Page ID, Instagram Business ID, author URN, or user ID"></label>
+          <label>Access token <input name="accessToken" type="password" autocomplete="off" required></label>
+          <label>Refresh token <input name="refreshToken" type="password" autocomplete="off"></label>
+          <button class="button button-primary" type="submit">Save API Account</button>
+        </form>
+      </div>
+
+      <div>
+        <h2>Webhook publishing target</h2>
+        <p class="empty">Use this for Make, Zapier, n8n, a custom frontend, or any platform Moyi should send approved post payloads to.</p>
+        <form class="form" action="/projects/<%= project._id %>/integrations/social/webhook/connect" method="post">
+          <label>Route as
+            <select name="platform">
+              <option value="webhook">Custom webhook</option>
+              <option value="linkedin">LinkedIn automation</option>
+              <option value="x">X automation</option>
+              <option value="facebook">Facebook automation</option>
+              <option value="instagram">Instagram automation</option>
+              <option value="youtube">YouTube automation</option>
+              <option value="tiktok">TikTok automation</option>
+            </select>
+          </label>
+          <label>Account label <input name="accountName" maxlength="140" placeholder="Make social router" required></label>
+          <label>Webhook URL <input name="webhookUrl" type="url" placeholder="https://hook.example.com/moyi-social" required></label>
+          <label>Signing secret <input name="webhookSecret" type="password" autocomplete="off" placeholder="Optional HMAC secret"></label>
+          <button class="button" type="submit">Save Webhook Target</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <div>
+          <h2>Publish history</h2>
+          <p>Latest social publishing attempts for this project.</p>
+        </div>
+      </div>
+      <% if (!recentActions.length) { %>
+        <p class="empty">No social publishing actions recorded yet.</p>
+      <% } else { %>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>When</th>
+                <th>Target</th>
+                <th>Action</th>
+                <th>Status</th>
+                <th>Result</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% recentActions.forEach((action) => { %>
+                <tr>
+                  <td><%= action.createdAt.toLocaleString() %></td>
+                  <td><%= action.integrationType %></td>
+                  <td><%= action.actionType.replace(/_/g, ' ') %></td>
+                  <td><span class="status <%= action.status === 'success' ? 'status-success' : '' %>"><%= action.status %></span></td>
+                  <td><%= action.externalId || action.errorMessage || 'Recorded' %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
     </section>
   </section>
 </div>

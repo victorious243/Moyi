@@ -195,19 +195,26 @@ router.get('/social/:platform/callback', asyncHandler(async (req, res) => {
     }
 
     if (projectId && /^[a-f0-9]{24}$/i.test(projectId)) {
-      await connectSocialApiAccount({
+      const accounts = Array.isArray(tokenPayload.accounts) && tokenPayload.accounts.length
+        ? tokenPayload.accounts
+        : [tokenPayload];
+
+      await Promise.all(accounts.map((account) => connectSocialApiAccount({
         projectId,
         userId: req.user._id,
-        platform: tokenPayload.platform,
-        accountName: tokenPayload.accountName,
-        externalAccountId: tokenPayload.externalAccountId,
-        accessToken: tokenPayload.accessToken,
-        refreshToken: tokenPayload.refreshToken,
-        expiresInSeconds: tokenPayload.expiresInSeconds
-      });
+        platform: account.platform,
+        accountName: account.accountName,
+        externalAccountId: account.externalAccountId,
+        accessToken: account.accessToken,
+        refreshToken: account.refreshToken,
+        expiresInSeconds: account.expiresInSeconds
+      })));
     }
 
-    res.redirect(`${redirectPath}?success=${encodeURIComponent(`Connected ${tokenPayload.accountName} (${tokenPayload.platform.toUpperCase()}) successfully!`)}`);
+    const accountCount = Array.isArray(tokenPayload.accounts) && tokenPayload.accounts.length
+      ? tokenPayload.accounts.length
+      : 1;
+    res.redirect(`${redirectPath}?success=${encodeURIComponent(`Connected ${accountCount} social account${accountCount === 1 ? '' : 's'} successfully.`)}`);
   } catch (error) {
     res.redirect(`${redirectPath}?error=${encodeURIComponent(error.message)}`);
   }

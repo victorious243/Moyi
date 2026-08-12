@@ -1,6 +1,9 @@
 const SocialAccount = require('../models/SocialAccount');
 const { decrypt, encrypt } = require('../utils/crypto');
 
+const DIRECT_API_PLATFORMS = ['linkedin', 'x', 'facebook', 'instagram', 'ayrshare'];
+const CONNECTABLE_PLATFORMS = [...DIRECT_API_PLATFORMS, 'webhook'];
+
 async function listProjectSocialAccounts(projectId) {
   const accounts = await SocialAccount.find({ projectId }).sort({ platform: 1, createdAt: -1 });
   return accounts.map((acc) => ({
@@ -30,7 +33,7 @@ async function connectSocialWebhook({ projectId, userId, platform, accountName, 
   const existing = await SocialAccount.findOne({
     projectId,
     platform: platform || 'webhook',
-    accountName: accountName || 'Custom Webhook'
+    webhookUrl
   });
 
   const payload = {
@@ -74,7 +77,7 @@ async function connectSocialApiAccount({
   const existing = await SocialAccount.findOne({
     projectId,
     platform,
-    accountName
+    ...(externalAccountId ? { externalAccountId } : { accountName })
   });
 
   const payload = {
@@ -135,6 +138,8 @@ async function getDecryptedSocialAccountCredentials(accountId) {
 }
 
 module.exports = {
+  CONNECTABLE_PLATFORMS,
+  DIRECT_API_PLATFORMS,
   listProjectSocialAccounts,
   connectSocialWebhook,
   connectSocialApiAccount,

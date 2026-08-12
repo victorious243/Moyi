@@ -216,7 +216,25 @@ async function exchangeMetaCode(code) {
       externalAccountId: 'meta_sandbox_page_id',
       accessToken: 'sandbox_meta_access_token',
       refreshToken: '',
-      expiresInSeconds: 5184000
+      expiresInSeconds: 5184000,
+      accounts: [
+        {
+          platform: 'facebook',
+          accountName: 'Connected Facebook Page',
+          externalAccountId: 'meta_sandbox_page_id',
+          accessToken: 'sandbox_meta_access_token',
+          refreshToken: '',
+          expiresInSeconds: 5184000
+        },
+        {
+          platform: 'instagram',
+          accountName: 'Connected Instagram Business',
+          externalAccountId: 'meta_sandbox_instagram_id',
+          accessToken: 'sandbox_meta_access_token',
+          refreshToken: '',
+          expiresInSeconds: 5184000
+        }
+      ]
     };
   }
 
@@ -233,6 +251,7 @@ async function exchangeMetaCode(code) {
   let accountName = 'Meta Page / Account';
   let externalAccountId = '';
   let pageAccessToken = accessToken;
+  const accounts = [];
 
   try {
     const pagesRes = await axios.get('https://graph.facebook.com/v19.0/me/accounts', {
@@ -246,6 +265,24 @@ async function exchangeMetaCode(code) {
       accountName = page.name || 'Meta Page';
       externalAccountId = page.id || '';
       pageAccessToken = page.access_token || accessToken;
+      accounts.push({
+        platform: 'facebook',
+        accountName,
+        externalAccountId,
+        accessToken: pageAccessToken,
+        refreshToken: '',
+        expiresInSeconds: response.data.expires_in || 5184000
+      });
+      if (page.instagram_business_account && page.instagram_business_account.id) {
+        accounts.push({
+          platform: 'instagram',
+          accountName: `${accountName} Instagram`,
+          externalAccountId: page.instagram_business_account.id,
+          accessToken: pageAccessToken,
+          refreshToken: '',
+          expiresInSeconds: response.data.expires_in || 5184000
+        });
+      }
     } else {
       const meRes = await axios.get('https://graph.facebook.com/v19.0/me', {
         params: { access_token: accessToken }
@@ -265,7 +302,8 @@ async function exchangeMetaCode(code) {
     externalAccountId,
     accessToken: pageAccessToken,
     refreshToken: '',
-    expiresInSeconds: response.data.expires_in || 5184000
+    expiresInSeconds: response.data.expires_in || 5184000,
+    accounts
   };
 }
 

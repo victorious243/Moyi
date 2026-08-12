@@ -18,14 +18,18 @@ const {
 const {
   assertHumanApproved,
   batchPublishSocialDrafts,
+  buildPublishReadiness,
   buildPostPayload,
-  publishSocialDraft
+  publishSocialDraft,
+  selectConnectedSocialAccount,
+  targetPlatformsForChannel
 } = require('../services/socialPublisherService');
 
 const {
   buildLinkedInAuthUrl,
   buildMetaAuthUrl,
   buildTwitterAuthUrl,
+  exchangeMetaCode,
   generateTwitterPkcePair
 } = require('../services/socialOauthService');
 const env = require('../config/env');
@@ -69,6 +73,96 @@ test('socialOauthService: generates 1-click OAuth URLs for platforms', () => {
   const metaUrl = buildMetaAuthUrl({ state: 'state789' });
   assert.match(metaUrl, /facebook.com\/v19.0\/dialog\/oauth/);
   assert.match(metaUrl, /client_id=test-meta-app-id/);
+});
+
+test('socialOauthService: Meta sandbox returns separate Facebook and Instagram publishing targets', async () => {
+  const payload = await exchangeMetaCode('sandbox_meta_code');
+
+  assert.equal(payload.platform, 'facebook');
+  assert.equal(payload.accounts.length, 2);
+  assert.deepEqual(payload.accounts.map((account) => account.platform), ['facebook', 'instagram']);
+  assert.equal(payload.accounts[1].externalAccountId, 'meta_sandbox_instagram_id');
+});
+
+test('socialPublisherService: channel target platform order is explicit', () => {
+  assert.deepEqual(targetPlatformsForChannel('instagram'), ['instagram', 'ayrshare', 'webhook']);
+  assert.deepEqual(targetPlatformsForChannel('facebook'), ['facebook', 'ayrshare', 'webhook']);
+  assert.deepEqual(targetPlatformsForChannel('email'), ['webhook']);
+});
+
+test('socialPublisherService: publish readiness explains one-click blockers', () => {
+  const projectId = new mongoose.Types.ObjectId();
+  const campaignId = new mongoose.Types.ObjectId();
+
+  const linkedinDraft = new SocialDraft({
+    _id: new mongoose.Types.ObjectId(),
+    projectId,
+    campaignId,
+    channel: 'linkedin',
+    title: 'Approved LinkedIn',
+    body: 'Ready copy',
+    status: 'approved',
+    publishStatus: 'approved',
+    scheduledFor: new Date()
+  });
+
+  const instagramDraft = new SocialDraft({
+    _id: new mongoose.Types.ObjectId(),
+    projectId,
+    campaignId,
+    channel: 'instagram',
+    title: 'Approved Instagram',
+    body: 'Needs visual',
+    status: 'approved',
+    publishStatus: 'approved',
+    scheduledFor: new Date()
+  });
+
+  const draftNeedingApproval = new SocialDraft({
+    _id: new mongoose.Types.ObjectId(),
+    projectId,
+    campaignId,
+    channel: 'x',
+    title: 'Unreviewed X',
+    body: 'Needs review',
+    status: 'draft',
+    publishStatus: 'draft',
+    scheduledFor: new Date()
+  });
+
+  const connectedAccounts = [
+    new SocialAccount({
+      _id: new mongoose.Types.ObjectId(),
+      projectId,
+      userId: new mongoose.Types.ObjectId(),
+      platform: 'linkedin',
+      accountName: 'Company Page',
+      accessToken: 'sandbox_linkedin'
+    }),
+    new SocialAccount({
+      _id: new mongoose.Types.ObjectId(),
+      projectId,
+      userId: new mongoose.Types.ObjectId(),
+      platform: 'instagram',
+      accountName: 'Instagram Business',
+      accessToken: 'sandbox_meta'
+    })
+  ];
+
+  const readiness = buildPublishReadiness({
+    socialDrafts: [linkedinDraft, instagramDraft, draftNeedingApproval],
+    connectedAccounts,
+    imagesByDraftId: {}
+  });
+
+  assert.equal(readiness.readyCount, 1);
+  assert.equal(readiness.blockedCount, 2);
+  assert.equal(readiness.publishedCount, 0);
+  assert.deepEqual(readiness.missingConnections, ['x']);
+
+  const instagram = readiness.posts.find((post) => post.channel === 'instagram');
+  assert.equal(instagram.ready, false);
+  assert.ok(instagram.blockers.includes('Instagram needs an image'));
 });
 
 test('SocialAccount model validation and schema defaults', () => {
@@ -195,6 +289,50 @@ test('socialAccountService: connects and encrypts webhook and API account creden
   await SocialAccount.deleteMany({ projectId });
 });
 
+test('socialPublisherService: selects Instagram account before fallback targets', async () => {
+  if (mongoose.connection.readyState !== 1) return; // Skip DB integration test if offline
+
+  const projectId = new mongoose.Types.ObjectId();
+  const userId = new mongoose.Types.ObjectId();
+  const campaignId = new mongoose.Types.ObjectId();
+
+  const draft = await SocialDraft.create({
+    projectId,
+    campaignId,
+    channel: 'instagram',
+    title: 'Instagram launch',
+    body: 'A visual post.',
+    status: 'approved',
+    publishStatus: 'approved',
+    scheduledFor: new Date()
+  });
+
+  await connectSocialApiAccount({
+    projectId,
+    userId,
+    platform: 'facebook',
+    accountName: 'Acme Facebook Page',
+    externalAccountId: 'fb_page_123',
+    accessToken: 'sandbox_meta_access_token'
+  });
+
+  const instagramAccount = await connectSocialApiAccount({
+    projectId,
+    userId,
+    platform: 'instagram',
+    accountName: 'Acme Instagram',
+    externalAccountId: 'ig_business_123',
+    accessToken: 'sandbox_meta_access_token'
+  });
+
+  const selected = await selectConnectedSocialAccount({ draft });
+  assert.equal(String(selected._id), String(instagramAccount._id));
+  assert.equal(selected.platform, 'instagram');
+
+  await SocialDraft.deleteMany({ projectId });
+  await SocialAccount.deleteMany({ projectId });
+});
+
 test('socialPublisherService: publishes approved social draft and records audit action', async () => {
   if (mongoose.connection.readyState !== 1) return; // Skip DB integration test if offline
 
@@ -275,7 +413,7 @@ test('socialPublisherService: requires a connected account before live social pu
 
   await assert.rejects(
     () => publishSocialDraft({ socialDraftId: draft._id, userId }),
-    /Connect a linkedin social account before publishing/
+    /Connect a publishing account for linkedin before publishing/
   );
 
   const unchangedDraft = await SocialDraft.findById(draft._id);

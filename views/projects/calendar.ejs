@@ -3,6 +3,28 @@
 <%
   const imagesByDraftId = typeof socialDraftImagesByDraftId !== 'undefined' ? socialDraftImagesByDraftId : {};
   const currentImageJob = typeof imageJob !== 'undefined' ? imageJob : null;
+  const connectedSocialAccounts = typeof socialAccounts !== 'undefined' ? socialAccounts : [];
+  const readiness = typeof publishReadiness !== 'undefined'
+    ? publishReadiness
+    : { posts: [], readyCount: 0, blockedCount: 0, publishedCount: 0, missingConnections: [] };
+  const readinessByDraftId = readiness.posts.reduce((grouped, item) => {
+    grouped[item.draftId] = item;
+    return grouped;
+  }, {});
+  const targetPlatformsByChannel = {
+    linkedin: ['linkedin', 'ayrshare', 'webhook'],
+    x: ['x', 'ayrshare', 'webhook'],
+    facebook: ['facebook', 'ayrshare', 'webhook'],
+    instagram: ['instagram', 'ayrshare', 'webhook'],
+    webhook: ['webhook'],
+    youtube: ['ayrshare', 'webhook'],
+    tiktok: ['ayrshare', 'webhook'],
+    email: ['webhook']
+  };
+  const publishTargetsFor = (channel) => {
+    const platforms = targetPlatformsByChannel[channel] || [channel, 'ayrshare', 'webhook'];
+    return connectedSocialAccounts.filter((account) => platforms.includes(account.platform));
+  };
   const groupedDrafts = new Map();
   socialDrafts.forEach((draft) => {
     const day = draft.scheduledFor.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
@@ -36,16 +58,8 @@
     </nav>
 
     <div class="page-heading content-studio-heading">
-      <div><p class="eyebrow"><%= project.name %></p><h1>Content Calendar</h1><p>Review every planned post in publishing order. Nothing is posted without approval.</p></div>
-      <div class="row-actions" style="display: flex; gap: 12px; flex-wrap: wrap;">
-        <% if (socialDrafts.some((d) => d.publishStatus !== 'published')) { %>
-          <form action="/social-drafts/publish-all-connected" method="post">
-            <input type="hidden" name="projectId" value="<%= project._id %>">
-            <button class="button button-primary" type="submit" style="background: #1877f2; border-color: #1877f2;">
-              🚀 Publish All to Connected Channels
-            </button>
-          </form>
-        <% } %>
+      <div><p class="eyebrow"><%= project.name %></p><h1>Content Calendar</h1><p>Approve the posts you trust, then publish every ready item from one place.</p></div>
+      <div class="row-actions">
         <a class="button" href="/projects/<%= project._id %>/content#planner">Create Content</a>
       </div>
     </div>
@@ -66,9 +80,41 @@
     <section class="studio-summary" aria-label="Calendar summary">
       <div><span>Campaigns</span><strong><%= campaigns.length %></strong></div>
       <div><span>Waiting for review</span><strong><%= socialDrafts.filter((draft) => draft.status === 'draft').length %></strong></div>
-      <div><span>Approved</span><strong><%= socialDrafts.filter((draft) => draft.status === 'approved').length %></strong></div>
-      <div><span>Published</span><strong><%= socialDrafts.filter((draft) => draft.status === 'published_manually').length %></strong></div>
+      <div><span>Ready to publish</span><strong><%= readiness.readyCount %></strong></div>
+      <div><span>Published</span><strong><%= readiness.publishedCount %></strong></div>
     </section>
+
+    <% if (socialDrafts.length) { %>
+      <section class="publish-command-panel">
+        <div class="publish-command-copy">
+          <p class="eyebrow">Publish control</p>
+          <h2><%= readiness.readyCount %> approved post<%= readiness.readyCount === 1 ? '' : 's' %> ready to go live</h2>
+          <% if (readiness.readyCount) { %>
+            <p>Moyi will publish only approved, unpublished posts that have a connected target for their channel.</p>
+          <% } else if (readiness.blockedCount) { %>
+            <p>No approved post is ready yet. Fix the blockers below, then publish in one click.</p>
+          <% } else { %>
+            <p>All reviewed posts are already published.</p>
+          <% } %>
+        </div>
+        <div class="publish-command-metrics">
+          <span><strong><%= readiness.readyCount %></strong> Ready</span>
+          <span><strong><%= readiness.blockedCount %></strong> Needs attention</span>
+          <span><strong><%= readiness.publishedCount %></strong> Live</span>
+        </div>
+        <div class="publish-command-actions">
+          <% if (readiness.readyCount) { %>
+            <form action="/social-drafts/publish-all-connected" method="post">
+              <input type="hidden" name="projectId" value="<%= project._id %>">
+              <button class="button button-primary" type="submit">Publish Ready Posts</button>
+            </form>
+          <% } %>
+          <% if (readiness.missingConnections.length) { %>
+            <a class="button" href="/projects/<%= project._id %>/integrations/social">Connect <%= readiness.missingConnections.join(', ') %></a>
+          <% } %>
+        </div>
+      </section>
+    <% } %>
 
     <% if (!socialDrafts.length) { %>
       <section class="calendar-empty-state">
@@ -97,6 +143,9 @@
                 const selectedDownloadUrl = selectedSocialImage
                   ? `/social-drafts/${draft._id}/images/${selectedSocialImage._id}/file?download=1`
                   : (inheritedImageUrl ? `${inheritedImageUrl}?download=1` : '');
+                const publishTargets = publishTargetsFor(draft.channel);
+                const selectedTarget = publishTargets.find((account) => String(account._id) === String(draft.socialAccountId || '')) || publishTargets[0];
+                const postReadiness = readinessByDraftId[String(draft._id)] || { ready: false, blockers: [] };
               %>
               <article class="agenda-post" id="post-<%= draft._id %>">
                 <div class="agenda-post-time"><strong><%= draft.scheduledFor.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) %></strong><span><%= draft.channel %></span></div>
@@ -104,6 +153,11 @@
                   <div class="agenda-post-heading">
                     <div><span><%= draft.campaignId ? draft.campaignId.name : 'Campaign content' %></span><h2><%= draft.title || 'Untitled post' %></h2></div>
                     <span class="status"><%= draft.status.replace(/_/g, ' ') %></span>
+                  </div>
+                  <div class="publish-readiness-line <%= postReadiness.ready ? 'is-ready' : 'is-blocked' %>">
+                    <span></span>
+                    <strong><%= postReadiness.ready ? 'Ready for one-click publish' : postReadiness.blockers.join(' · ') %></strong>
+                    <% if (selectedTarget && postReadiness.ready) { %><small><%= selectedTarget.platform %> · <%= selectedTarget.accountName %></small><% } %>
                   </div>
                   <% if (selectedImageUrl) { %>
                     <figure class="social-post-preview">
@@ -117,15 +171,45 @@
                     <% if (selectedDownloadUrl) { %><a class="button" href="<%= selectedDownloadUrl %>">Download Image</a><% } %>
                     <% if (draft.status === 'draft') { %>
                       <form action="/social-drafts/<%= draft._id %>/approve" method="post"><button class="button" type="submit">Approve</button></form>
-                      <form action="/social-drafts/<%= draft._id %>/approve-and-publish" method="post"><button class="button button-primary" type="submit">Approve & Publish Live</button></form>
+                      <% if (publishTargets.length) { %>
+                        <form class="social-publish-form" action="/social-drafts/<%= draft._id %>/approve-and-publish" method="post">
+                          <select name="socialAccountId" aria-label="Publishing account">
+                            <% publishTargets.forEach((account) => { %>
+                              <option value="<%= account._id %>" <%= selectedTarget && String(selectedTarget._id) === String(account._id) ? 'selected' : '' %>><%= account.platform %> · <%= account.accountName %></option>
+                            <% }) %>
+                          </select>
+                          <button class="button button-primary" type="submit">Approve & Publish Live</button>
+                        </form>
+                      <% } else { %>
+                        <a class="button" href="/projects/<%= project._id %>/integrations/social">Connect <%= draft.channel %></a>
+                      <% } %>
                     <% } else if (draft.status === 'approved' && draft.publishStatus !== 'published') { %>
-                      <form action="/social-drafts/<%= draft._id %>/approve-and-publish" method="post"><button class="button button-primary" type="submit">Publish to Platforms</button></form>
+                      <% if (publishTargets.length) { %>
+                        <form class="social-publish-form" action="/social-drafts/<%= draft._id %>/approve-and-publish" method="post">
+                          <select name="socialAccountId" aria-label="Publishing account">
+                            <% publishTargets.forEach((account) => { %>
+                              <option value="<%= account._id %>" <%= selectedTarget && String(selectedTarget._id) === String(account._id) ? 'selected' : '' %>><%= account.platform %> · <%= account.accountName %></option>
+                            <% }) %>
+                          </select>
+                          <button class="button button-primary" type="submit">Publish Now</button>
+                        </form>
+                      <% } else { %>
+                        <a class="button" href="/projects/<%= project._id %>/integrations/social">Connect <%= draft.channel %></a>
+                      <% } %>
                     <% } %>
                     <% if (draft.status !== 'published_manually' && draft.publishStatus !== 'published') { %><form action="/social-drafts/<%= draft._id %>/mark-published" method="post"><button class="button" type="submit">Mark Published</button></form><% } %>
                     <details class="agenda-edit"><summary class="button">Edit</summary>
                       <form class="form" action="/social-drafts/<%= draft._id %>/update" method="post">
                         <label>Internal title <input name="title" value="<%= draft.title || '' %>" maxlength="180"></label>
                         <label>Channel <select name="channel"><% ['linkedin', 'instagram', 'facebook', 'x', 'email'].forEach((channel) => { %><option value="<%= channel %>" <%= draft.channel === channel ? 'selected' : '' %>><%= channel %></option><% }) %></select></label>
+                        <label>Publish target
+                          <select name="socialAccountId">
+                            <option value="">Auto-select connected account</option>
+                            <% connectedSocialAccounts.forEach((account) => { %>
+                              <option value="<%= account._id %>" <%= String(draft.socialAccountId || '') === String(account._id) ? 'selected' : '' %>><%= account.platform %> · <%= account.accountName %></option>
+                            <% }) %>
+                          </select>
+                        </label>
                         <label>Schedule <input type="datetime-local" name="scheduledFor" value="<%= new Date(draft.scheduledFor.getTime() - draft.scheduledFor.getTimezoneOffset() * 60000).toISOString().slice(0, 16) %>" required></label>
                         <label>Post copy <textarea name="body" rows="8" maxlength="4000" required><%= draft.body %></textarea></label>
                         <button class="button button-primary" type="submit">Save Post</button>

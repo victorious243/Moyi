@@ -265,15 +265,21 @@ router.post('/:id/approve', [param('id').isMongoId(), handleValidation], loadSoc
   res.redirect(`/projects/${req.project._id}/calendar`);
 }));
 
-router.post('/:id/approve-and-publish', [param('id').isMongoId(), handleValidation], loadSocialDraft, asyncHandler(async (req, res) => {
+router.post('/:id/approve-and-publish', [
+  param('id').isMongoId(),
+  body('socialAccountId').optional({ checkFalsy: true }).isMongoId().withMessage('Choose a valid social account.'),
+  handleValidation
+], loadSocialDraft, asyncHandler(async (req, res) => {
   req.socialDraft.status = 'approved';
   req.socialDraft.publishStatus = 'approved';
+  req.socialDraft.socialAccountId = req.body.socialAccountId || null;
   await req.socialDraft.save();
 
   try {
     await publishSocialDraft({
       socialDraftId: req.socialDraft._id,
       userId: req.user._id,
+      socialAccountId: req.body.socialAccountId || null,
       project: req.project
     });
     res.redirect(`/projects/${req.project._id}/calendar?success=${encodeURIComponent('Approved & published to connected platforms.')}#post-${req.socialDraft._id}`);
@@ -311,11 +317,13 @@ router.post('/:id/update', [
   body('body').trim().notEmpty().withMessage('Post copy is required.').isLength({ max: 4000 }).withMessage('Post copy is too long.'),
   body('channel').isIn(['linkedin', 'facebook', 'x', 'instagram', 'youtube', 'tiktok', 'email', 'webhook']).withMessage('Channel is invalid.'),
   body('scheduledFor').isISO8601().withMessage('Choose a valid schedule date.'),
+  body('socialAccountId').optional({ checkFalsy: true }).isMongoId().withMessage('Choose a valid social account.'),
   handleValidation
 ], loadSocialDraft, asyncHandler(async (req, res) => {
   req.socialDraft.title = req.body.title;
   req.socialDraft.body = req.body.body;
   req.socialDraft.channel = req.body.channel;
+  req.socialDraft.socialAccountId = req.body.socialAccountId || null;
   req.socialDraft.scheduledFor = new Date(req.body.scheduledFor);
   await req.socialDraft.save();
   res.redirect(`/projects/${req.project._id}/calendar?success=${encodeURIComponent('Post updated.')}#post-${req.socialDraft._id}`);

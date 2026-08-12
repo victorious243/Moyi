@@ -124,7 +124,7 @@ async function dispatchWebhook({ credentials, payload }) {
 }
 
 /**
- * Dispatches post to Ayrshare or Buffer API aggregator if configured.
+ * Dispatches post to Ayrshare API aggregator if configured.
  */
 async function dispatchAggregator({ credentials, payload }) {
   if (!credentials.accessToken) {
@@ -229,6 +229,114 @@ async function dispatchTwitter({ credentials, payload }) {
   };
 }
 
+function targetPlatformsForChannel(channel) {
+  const targetPlatformsByChannel = {
+    linkedin: ['linkedin', 'ayrshare', 'webhook'],
+    x: ['x', 'ayrshare', 'webhook'],
+    facebook: ['facebook', 'ayrshare', 'webhook'],
+    instagram: ['instagram', 'ayrshare', 'webhook'],
+    webhook: ['webhook'],
+    youtube: ['ayrshare', 'webhook'],
+    tiktok: ['ayrshare', 'webhook'],
+    email: ['webhook']
+  };
+
+  return targetPlatformsByChannel[channel] || [channel, 'ayrshare', 'webhook'];
+}
+
+function hasPublishableImage(draft, imagesByDraftId = {}) {
+  if (draft.contentImageId) return true;
+  const images = imagesByDraftId[String(draft._id)] || [];
+  return images.some((image) => image.status === 'selected');
+}
+
+function describePublishReadiness({ draft, connectedAccounts = [], imagesByDraftId = {} }) {
+  const supportedPlatforms = targetPlatformsForChannel(draft.channel);
+  const targets = connectedAccounts.filter((account) => (
+    account.status === 'connected' && supportedPlatforms.includes(account.platform)
+  ));
+  const selectedTarget = draft.socialAccountId
+    ? targets.find((account) => String(account._id) === String(draft.socialAccountId)) || null
+    : targets[0] || null;
+  const blockers = [];
+
+  if (draft.publishStatus === 'published' || draft.status === 'published_manually') {
+    return {
+      draftId: String(draft._id),
+      channel: draft.channel,
+      supportedPlatforms,
+      targets,
+      selectedTarget,
+      blockers: ['Already published'],
+      ready: false
+    };
+  }
+
+  if (draft.status !== 'approved') {
+    blockers.push('Needs approval');
+  }
+
+  if (!targets.length) {
+    blockers.push(`Connect ${draft.channel}`);
+  }
+
+  if (draft.channel === 'instagram' && !hasPublishableImage(draft, imagesByDraftId)) {
+    blockers.push('Instagram needs an image');
+  }
+
+  return {
+    draftId: String(draft._id),
+    channel: draft.channel,
+    supportedPlatforms,
+    targets,
+    selectedTarget,
+    blockers,
+    ready: blockers.length === 0
+  };
+}
+
+function buildPublishReadiness({ socialDrafts = [], connectedAccounts = [], imagesByDraftId = {} }) {
+  const posts = socialDrafts.map((draft) => describePublishReadiness({
+    draft,
+    connectedAccounts,
+    imagesByDraftId
+  }));
+  const readyPosts = posts.filter((post) => post.ready);
+  const blockedPosts = posts.filter((post) => !post.ready && !post.blockers.includes('Already published'));
+  const publishedPosts = posts.filter((post) => post.blockers.includes('Already published'));
+  const missingConnections = [...new Set(blockedPosts
+    .flatMap((post) => post.blockers)
+    .filter((blocker) => blocker.startsWith('Connect '))
+    .map((blocker) => blocker.replace('Connect ', '')))];
+
+  return {
+    posts,
+    readyCount: readyPosts.length,
+    blockedCount: blockedPosts.length,
+    publishedCount: publishedPosts.length,
+    missingConnections
+  };
+}
+
+async function selectConnectedSocialAccount({ draft, socialAccountId = null }) {
+  if (socialAccountId) {
+    return SocialAccount.findOne({
+      _id: socialAccountId,
+      projectId: draft.projectId,
+      status: 'connected'
+    });
+  }
+
+  const platforms = targetPlatformsForChannel(draft.channel);
+  const accounts = await SocialAccount.find({
+    projectId: draft.projectId,
+    platform: { $in: platforms },
+    status: 'connected'
+  }).sort({ updatedAt: -1 });
+
+  return accounts.sort((a, b) => platforms.indexOf(a.platform) - platforms.indexOf(b.platform))[0] || null;
+}
+
 /**
  * Primary multi-platform publishing engine method.
  */
@@ -244,33 +352,14 @@ async function publishSocialDraft({ socialDraftId, userId, socialAccountId = nul
   assertHumanApproved(draft);
 
   // 2. Find target SocialAccount
-  let targetAccountId = socialAccountId || draft.socialAccountId;
-  let account = null;
-
-  const targetPlatformsByChannel = {
-    linkedin: ['linkedin'],
-    x: ['x'],
-    facebook: ['facebook'],
-    instagram: ['instagram', 'facebook'],
-    webhook: ['webhook'],
-    youtube: ['youtube'],
-    tiktok: ['tiktok'],
-    email: ['webhook']
-  };
-
-  if (targetAccountId) {
-    account = await SocialAccount.findOne({ _id: targetAccountId, projectId: draft.projectId });
-  } else {
-    // Look up connected account for draft channel
-    account = await SocialAccount.findOne({
-      projectId: draft.projectId,
-      platform: { $in: [...(targetPlatformsByChannel[draft.channel] || [draft.channel]), 'ayrshare', 'buffer'] },
-      status: 'connected'
-    }).sort({ updatedAt: -1 });
-  }
+  const account = await selectConnectedSocialAccount({
+    draft,
+    socialAccountId: socialAccountId || draft.socialAccountId
+  });
 
   if (!account) {
-    const error = new Error(`Connect a ${draft.channel} social account before publishing this post.`);
+    const platforms = targetPlatformsForChannel(draft.channel).join(', ');
+    const error = new Error(`Connect a publishing account for ${draft.channel} before publishing this post. Supported targets: ${platforms}.`);
     error.statusCode = 422;
     throw error;
   }
@@ -287,12 +376,15 @@ async function publishSocialDraft({ socialDraftId, userId, socialAccountId = nul
   try {
     if (account) {
       const credentials = await getDecryptedSocialAccountCredentials(account._id);
+      if (!credentials || credentials.status !== 'connected') {
+        throw new Error('The selected social account is not connected.');
+      }
 
       if (account.platform === 'webhook' || credentials.webhookUrl) {
         integrationType = 'webhook';
         actionType = 'webhook_dispatch';
         publishResult = await dispatchWebhook({ credentials, payload });
-      } else if (account.platform === 'ayrshare' || account.platform === 'buffer') {
+      } else if (account.platform === 'ayrshare') {
         integrationType = account.platform;
         publishResult = await dispatchAggregator({ credentials, payload });
       } else if (account.platform === 'linkedin') {
@@ -305,7 +397,7 @@ async function publishSocialDraft({ socialDraftId, userId, socialAccountId = nul
         integrationType = account.platform;
         publishResult = await dispatchMeta({ credentials, payload, draft });
       } else {
-        throw new Error(`${account.platform} direct publishing is not implemented yet. Connect LinkedIn, X, Facebook/Instagram, Ayrshare, Buffer, or a webhook.`);
+        throw new Error(`${account.platform} direct publishing is not implemented yet. Connect LinkedIn, X, Facebook/Instagram, Ayrshare, or a webhook.`);
       }
     }
 
@@ -414,7 +506,7 @@ async function batchPublishSocialDrafts({ projectId, userId, draftIds }) {
 async function publishAllConnectedChannels({ projectId, userId }) {
   const drafts = await SocialDraft.find({
     projectId,
-    status: { $in: ['approved', 'published_manually'] },
+    status: 'approved',
     publishStatus: { $in: ['approved', 'failed'] }
   });
 
@@ -431,7 +523,11 @@ async function publishAllConnectedChannels({ projectId, userId }) {
 
 module.exports = {
   assertHumanApproved,
+  buildPublishReadiness,
   buildPostPayload,
+  describePublishReadiness,
+  selectConnectedSocialAccount,
+  targetPlatformsForChannel,
   publishSocialDraft,
   batchPublishSocialDrafts,
   publishAllConnectedChannels
