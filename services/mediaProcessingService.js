@@ -179,15 +179,23 @@ async function uploadVariant(asset, profileName, outputPath, metadata) {
   };
 }
 
+async function renderImageVariant(sourcePath, profile) {
+  return sharp(sourcePath)
+    .rotate()
+    .resize(profile.width, profile.height, {
+      fit: 'contain',
+      withoutEnlargement: false,
+      background: { r: 255, g: 255, b: 255, alpha: 1 }
+    })
+    .jpeg({ quality: 88, mozjpeg: true })
+    .toBuffer();
+}
+
 async function generateImageVariants(asset, sourcePath, workingDirectory) {
   const variants = {};
   for (const [profileName, profile] of Object.entries(VARIANT_PROFILES)) {
     const outputPath = path.join(workingDirectory, `${profileName}.jpg`);
-    await sharp(sourcePath)
-      .rotate()
-      .resize(profile.width, profile.height, { fit: 'cover', position: 'attention' })
-      .jpeg({ quality: 88, mozjpeg: true })
-      .toFile(outputPath);
+    await fs.promises.writeFile(outputPath, await renderImageVariant(sourcePath, profile));
     const variant = await uploadVariant(asset, profileName, outputPath, {});
     variants[variant.key] = variant;
   }
@@ -341,10 +349,12 @@ async function recoverMediaAssets({ limit = 100 } = {}) {
 module.exports = {
   EXTENSIONS,
   cleanProcessingError,
+  generateImageVariants,
   generatedStorageKeys,
   probeVideo,
   processMediaAsset,
   recoverMediaAssets,
+  renderImageVariant,
   releasePreparedPublishJobs,
   runProcess
 };

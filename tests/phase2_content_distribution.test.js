@@ -1,6 +1,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const mongoose = require('mongoose');
+const sharp = require('sharp');
 
 const {
   PLATFORM_CAPABILITIES,
@@ -89,6 +93,36 @@ test('media validation enforces required media, mixed-media rules, and Shorts du
   );
   assert.doesNotThrow(() => validatePlatformMedia('threads', [image, video]));
   assert.doesNotThrow(() => validatePlatformMedia('youtube', [video, image], { youtube: { videoType: 'regular' } }));
+});
+
+test('image variants preserve the full creative instead of cropping text edges', async () => {
+  const workingDirectory = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'moyi-variant-test-'));
+  try {
+    const sourcePath = path.join(workingDirectory, 'wide.png');
+    await sharp({
+      create: {
+        width: 2000,
+        height: 1000,
+        channels: 3,
+        background: '#ffffff'
+      }
+    })
+      .composite([
+        { input: await sharp({ create: { width: 80, height: 1000, channels: 3, background: '#ff0000' } }).png().toBuffer(), left: 0, top: 0 },
+        { input: await sharp({ create: { width: 80, height: 1000, channels: 3, background: '#0000ff' } }).png().toBuffer(), left: 1920, top: 0 }
+      ])
+      .png()
+      .toFile(sourcePath);
+
+    const { renderImageVariant } = require('../services/mediaProcessingService');
+    const square = await renderImageVariant(sourcePath, { width: 1080, height: 1080 });
+    const leftPixel = await sharp(square).extract({ left: 4, top: 540, width: 1, height: 1 }).raw().toBuffer();
+    const rightPixel = await sharp(square).extract({ left: 1075, top: 540, width: 1, height: 1 }).raw().toBuffer();
+    assert.ok(leftPixel[0] > 180 && leftPixel[1] < 80 && leftPixel[2] < 80);
+    assert.ok(rightPixel[2] > 180 && rightPixel[0] < 80 && rightPixel[1] < 80);
+  } finally {
+    await fs.promises.rm(workingDirectory, { recursive: true, force: true });
+  }
 });
 
 test('signed public media URLs reject tampering and expired signatures', () => {
