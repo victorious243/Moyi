@@ -6,7 +6,7 @@
     "node": ">=20.19.0"
   },
   "scripts": {
-    "build:distribution": "node -e \"const { execSync } = require('child_process'); try { execSync('npx --no-install tsc -p tsconfig.distribution.json', { stdio: 'inherit' }); } catch (e) { console.log('TypeScript compiler skipped (dev dependency omitted in production).'); }\"",
+    "build:distribution": "node ./scripts/build-distribution.js",
     "typecheck": "tsc -p tsconfig.distribution.json --noEmit",
     "prestart": "npm run build:distribution",
     "start": "node ./bin/supervisor",

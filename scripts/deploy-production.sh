@@ -7,6 +7,7 @@ PORT="${PORT:-3000}"
 RUN_TESTS="${RUN_TESTS:-true}"
 RUN_GIT_PULL="${RUN_GIT_PULL:-true}"
 NODE_ENV="${NODE_ENV:-production}"
+READY_TIMEOUT_SECONDS="${READY_TIMEOUT_SECONDS:-60}"
 
 log() {
   printf '\n[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
@@ -112,9 +113,30 @@ else
 fi
 
 log "Checking local readiness"
-ready_response="$(curl -fsS "http://127.0.0.1:${PORT}/readyz" || true)"
+ready_url="http://127.0.0.1:${PORT}/readyz"
+ready_deadline=$((SECONDS + READY_TIMEOUT_SECONDS))
+ready_response=""
+
+while [ "$SECONDS" -lt "$ready_deadline" ]; do
+  if ready_response="$(curl -fsS "$ready_url" 2>/dev/null)"; then
+    if printf '%s' "$ready_response" | grep -q '"status":"ready"'; then
+      log "Readiness confirmed on $ready_url"
+      log "Moyi-CMO deployment complete and ready."
+      exit 0
+    fi
+  else
+    ready_response="Waiting for web server to accept connections on $ready_url"
+  fi
+
+  sleep 2
+done
+
 if ! printf '%s' "$ready_response" | grep -q '"status":"ready"'; then
   printf '%s\n' "$ready_response"
+  if command -v systemctl >/dev/null 2>&1 && [ "$(id -u)" -eq 0 ]; then
+    systemctl --no-pager --full status "$SERVICE_NAME" || true
+    journalctl -u "$SERVICE_NAME" --no-pager -n 80 || true
+  fi
   fail "Moyi did not report ready on http://127.0.0.1:${PORT}/readyz"
 fi
 
