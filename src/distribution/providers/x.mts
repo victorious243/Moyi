@@ -15,7 +15,7 @@ import type {
 } from '../types.mjs';
 import type { EngagementMetricsResult, PublishedPostReference } from '../types.mjs';
 
-const X_SCOPES = ['tweet.read', 'tweet.write', 'users.read', 'media.write', 'offline.access'];
+const X_SCOPES = ['tweet.read', 'tweet.write', 'users.read', 'offline.access'];
 
 function base64Url(value: Buffer): string {
   return value.toString('base64url');
