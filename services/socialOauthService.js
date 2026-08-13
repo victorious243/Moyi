@@ -114,12 +114,15 @@ function buildTwitterAuthUrl({ state, codeChallenge }) {
     throw new Error('X OAuth requires a PKCE code challenge.');
   }
 
+  const rawScope = env.twitterScopes || 'tweet.read tweet.write users.read offline.access';
+  const cleanScope = rawScope.split(/\s+/).filter((s) => s && s !== 'media.write').join(' ');
+
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: env.twitterClientId,
     redirect_uri: redirectUri,
     state,
-    scope: 'tweet.read tweet.write users.read offline.access',
+    scope: cleanScope,
     code_challenge: codeChallenge,
     code_challenge_method: 'S256'
   });
