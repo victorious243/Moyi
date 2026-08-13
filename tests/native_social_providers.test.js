@@ -136,6 +136,28 @@ test('Bluesky adapter enforces its 300-grapheme post limit before dispatch', asy
   );
 });
 
+test('X image publishing requires the media.write OAuth scope', async () => {
+  const image = {
+    id: new mongoose.Types.ObjectId().toString(),
+    kind: 'image',
+    buffer: Buffer.from('not-dispatched'),
+    mimeType: 'image/png',
+    size: 1024,
+    altText: 'Moyi publishing dashboard'
+  };
+  const account = {
+    ...credentials('x'),
+    accessToken: 'live_x_token_without_media_scope',
+    scopes: ['tweet.read', 'tweet.write', 'users.read', 'offline.access'],
+    metadata: {}
+  };
+
+  await assert.rejects(
+    () => publishWithProvider('x', account, { text: 'Post with image', media: image, mediaItems: [image] }),
+    /Reconnect X to allow media uploads/
+  );
+});
+
 test('Bluesky publishes standards-compliant client metadata without secrets', async () => {
   const metadata = await getBlueskyClientMetadata();
   assert.equal(metadata.dpop_bound_access_tokens, true);

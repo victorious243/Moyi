@@ -15,7 +15,7 @@ import type {
 } from '../types.mjs';
 import type { EngagementMetricsResult, PublishedPostReference } from '../types.mjs';
 
-const X_SCOPES = ['tweet.read', 'tweet.write', 'users.read', 'offline.access'];
+const X_SCOPES = ['tweet.read', 'tweet.write', 'users.read', 'media.write', 'offline.access'];
 
 function base64Url(value: Buffer): string {
   return value.toString('base64url');
@@ -130,6 +130,15 @@ export class XProvider implements SocialProvider {
     if (account.accessToken.startsWith('sandbox_') || account.metadata.sandbox === true) {
       const id = `x_sandbox_${Date.now()}`;
       return { platformPostId: id, platformUrl: `https://x.com/i/web/status/${id}` };
+    }
+    if (media.length && !account.scopes.includes('media.write')) {
+      const error = new Error('Reconnect X to allow media uploads. The current token can publish text, but it was not granted the media.write scope.') as Error & {
+        code?: string;
+        statusCode?: number;
+      };
+      error.code = 'reauthorization_required';
+      error.statusCode = 403;
+      throw error;
     }
 
     try {

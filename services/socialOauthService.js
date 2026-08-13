@@ -114,8 +114,8 @@ function buildTwitterAuthUrl({ state, codeChallenge }) {
     throw new Error('X OAuth requires a PKCE code challenge.');
   }
 
-  const rawScope = env.twitterScopes || 'tweet.read tweet.write users.read offline.access';
-  const cleanScope = rawScope.split(/\s+/).filter((s) => s && s !== 'media.write').join(' ');
+  const rawScope = env.twitterScopes || 'tweet.read tweet.write users.read media.write offline.access';
+  const cleanScope = rawScope.split(/\s+/).filter(Boolean).join(' ');
 
   const params = new URLSearchParams({
     response_type: 'code',
