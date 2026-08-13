@@ -76,8 +76,10 @@ test('socialOauthService: generates 1-click OAuth URLs for platforms', () => {
   assert.match(twitterUrl, /code_challenge_method=S256/);
 
   const metaUrl = buildMetaAuthUrl({ state: 'state789' });
-  assert.match(metaUrl, /facebook.com\/v19.0\/dialog\/oauth/);
+  assert.match(metaUrl, /facebook.com\/v25.0\/dialog\/oauth/);
   assert.match(metaUrl, /client_id=test-meta-app-id/);
+  assert.match(metaUrl, /instagram_content_publish/);
+  assert.match(metaUrl, /pages_manage_posts/);
 });
 
 test('socialOauthService: Meta sandbox returns separate Facebook and Instagram publishing targets', async () => {

@@ -2,6 +2,19 @@ const axios = require('axios');
 const crypto = require('crypto');
 const env = require('../config/env');
 
+const META_OAUTH_SCOPES = [
+  'public_profile',
+  'pages_show_list',
+  'pages_read_engagement',
+  'read_insights',
+  'pages_manage_posts',
+  'pages_manage_engagement',
+  'instagram_basic',
+  'instagram_content_publish',
+  'instagram_manage_comments',
+  'instagram_manage_insights'
+];
+
 function getRedirectUri(platform) {
   const configured = platform === 'linkedin'
     ? env.linkedinRedirectUri
@@ -205,10 +218,11 @@ function buildMetaAuthUrl({ state }) {
     client_id: env.metaAppId,
     redirect_uri: redirectUri,
     state,
-    scope: 'public_profile,pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish'
+    response_type: 'code',
+    scope: META_OAUTH_SCOPES.join(',')
   });
 
-  return `https://www.facebook.com/v19.0/dialog/oauth?${params.toString()}`;
+  return `https://www.facebook.com/${env.metaGraphVersion}/dialog/oauth?${params.toString()}`;
 }
 
 async function exchangeMetaCode(code) {
@@ -249,7 +263,7 @@ async function exchangeMetaCode(code) {
     code
   });
 
-  const response = await axios.get(`https://graph.facebook.com/v19.0/oauth/access_token?${params.toString()}`);
+  const response = await axios.get(`https://graph.facebook.com/${env.metaGraphVersion}/oauth/access_token?${params.toString()}`);
   const accessToken = response.data.access_token;
   let accountName = 'Meta Page / Account';
   let externalAccountId = '';
@@ -257,7 +271,7 @@ async function exchangeMetaCode(code) {
   const accounts = [];
 
   try {
-    const pagesRes = await axios.get('https://graph.facebook.com/v19.0/me/accounts', {
+    const pagesRes = await axios.get(`https://graph.facebook.com/${env.metaGraphVersion}/me/accounts`, {
       params: {
         access_token: accessToken,
         fields: 'id,name,access_token,instagram_business_account'
@@ -287,7 +301,7 @@ async function exchangeMetaCode(code) {
         });
       }
     } else {
-      const meRes = await axios.get('https://graph.facebook.com/v19.0/me', {
+      const meRes = await axios.get(`https://graph.facebook.com/${env.metaGraphVersion}/me`, {
         params: { access_token: accessToken }
       });
       if (meRes.data) {
