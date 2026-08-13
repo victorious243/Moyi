@@ -2,28 +2,46 @@
 
 <%
   const imagesByDraftId = typeof socialDraftImagesByDraftId !== 'undefined' ? socialDraftImagesByDraftId : {};
+  const richMediaByDraftId = typeof mediaAssetsByDraftId !== 'undefined' ? mediaAssetsByDraftId : {};
   const currentImageJob = typeof imageJob !== 'undefined' ? imageJob : null;
   const connectedSocialAccounts = typeof socialAccounts !== 'undefined' ? socialAccounts : [];
+  const socialAccountProjectNames = typeof accountProjectNames !== 'undefined' ? accountProjectNames : {};
+  const userCanPublishProject = typeof canPublishProject !== 'undefined' ? canPublishProject : true;
+  const userCanManageProject = typeof canManageProject !== 'undefined' ? canManageProject : true;
+  const jobsByDraftId = typeof publishJobsByDraftId !== 'undefined' ? publishJobsByDraftId : {};
+  const nativePublishAccounts = connectedSocialAccounts.filter((account) => ['bluesky', 'x', 'linkedin', 'facebook', 'instagram', 'threads', 'tiktok', 'youtube'].includes(account.platform));
   const readiness = typeof publishReadiness !== 'undefined'
     ? publishReadiness
-    : { posts: [], readyCount: 0, blockedCount: 0, publishedCount: 0, missingConnections: [] };
+    : { posts: [], readyCount: 0, blockedCount: 0, inFlightCount: 0, publishedCount: 0, missingConnections: [] };
   const readinessByDraftId = readiness.posts.reduce((grouped, item) => {
     grouped[item.draftId] = item;
     return grouped;
   }, {});
   const targetPlatformsByChannel = {
-    linkedin: ['linkedin', 'ayrshare', 'webhook'],
-    x: ['x', 'ayrshare', 'webhook'],
-    facebook: ['facebook', 'ayrshare', 'webhook'],
-    instagram: ['instagram', 'ayrshare', 'webhook'],
+    bluesky: ['bluesky'],
+    linkedin: ['linkedin'],
+    x: ['x'],
+    facebook: ['facebook'],
+    instagram: ['instagram'],
+    threads: ['threads'],
     webhook: ['webhook'],
-    youtube: ['ayrshare', 'webhook'],
-    tiktok: ['ayrshare', 'webhook'],
+    youtube: ['youtube'],
+    tiktok: ['tiktok'],
     email: ['webhook']
   };
   const publishTargetsFor = (channel) => {
-    const platforms = targetPlatformsByChannel[channel] || [channel, 'ayrshare', 'webhook'];
+    const platforms = targetPlatformsByChannel[channel] || [channel];
     return connectedSocialAccounts.filter((account) => platforms.includes(account.platform));
+  };
+  const defaultMediaForPlatform = (platform, assets) => {
+    const ready = assets.filter((asset) => asset.status !== 'failed');
+    const images = ready.filter((asset) => asset.kind === 'image');
+    const videos = ready.filter((asset) => asset.kind === 'video');
+    if (platform === 'youtube') return [videos[0], images[0]].filter(Boolean);
+    if (platform === 'tiktok') return videos.length ? [videos[0]] : images;
+    if (['facebook', 'linkedin'].includes(platform) && videos.length) return [videos[0]];
+    if (['bluesky', 'x'].includes(platform)) return images.slice(0, 4);
+    return ready;
   };
   const groupedDrafts = new Map();
   socialDrafts.forEach((draft) => {
@@ -40,6 +58,7 @@
     <a href="/projects/<%= project._id %>/content">Content Studio</a>
     <a class="active" href="/projects/<%= project._id %>/calendar">Content Calendar</a>
     <a href="/projects/<%= project._id %>/campaigns">Campaigns</a>
+    <a href="/projects/<%= project._id %>/social-performance">Social Performance</a>
     <a href="/projects/<%= project._id %>/integrations/social">Social Accounts</a>
   </aside>
 
@@ -78,7 +97,7 @@
     <% } %>
 
     <section class="studio-summary" aria-label="Calendar summary">
-      <div><span>Campaigns</span><strong><%= campaigns.length %></strong></div>
+      <div><span>In progress</span><strong><%= readiness.inFlightCount || 0 %></strong></div>
       <div><span>Waiting for review</span><strong><%= socialDrafts.filter((draft) => draft.status === 'draft').length %></strong></div>
       <div><span>Ready to publish</span><strong><%= readiness.readyCount %></strong></div>
       <div><span>Published</span><strong><%= readiness.publishedCount %></strong></div>
@@ -88,17 +107,20 @@
       <section class="publish-command-panel">
         <div class="publish-command-copy">
           <p class="eyebrow">Publish control</p>
-          <h2><%= readiness.readyCount %> approved post<%= readiness.readyCount === 1 ? '' : 's' %> ready to go live</h2>
-          <% if (readiness.readyCount) { %>
+          <h2><%= readiness.readyCount %> ready, <%= readiness.inFlightCount || 0 %> in progress</h2>
+          <% if (userCanPublishProject && readiness.readyCount) { %>
             <p>Moyi will publish only approved, unpublished posts that have a connected target for their channel.</p>
           <% } else if (readiness.blockedCount) { %>
             <p>No approved post is ready yet. Fix the blockers below, then publish in one click.</p>
+          <% } else if (readiness.inFlightCount) { %>
+            <p>Approved posts are moving through the publishing queue.</p>
           <% } else { %>
             <p>All reviewed posts are already published.</p>
           <% } %>
         </div>
         <div class="publish-command-metrics">
           <span><strong><%= readiness.readyCount %></strong> Ready</span>
+          <span><strong><%= readiness.inFlightCount || 0 %></strong> In progress</span>
           <span><strong><%= readiness.blockedCount %></strong> Needs attention</span>
           <span><strong><%= readiness.publishedCount %></strong> Live</span>
         </div>
@@ -109,7 +131,7 @@
               <button class="button button-primary" type="submit">Publish Ready Posts</button>
             </form>
           <% } %>
-          <% if (readiness.missingConnections.length) { %>
+          <% if (userCanManageProject && readiness.missingConnections.length) { %>
             <a class="button" href="/projects/<%= project._id %>/integrations/social">Connect <%= readiness.missingConnections.join(', ') %></a>
           <% } %>
         </div>
@@ -133,6 +155,8 @@
             <% dayDrafts.forEach((draft) => { %>
               <%
                 const socialImages = imagesByDraftId[String(draft._id)] || [];
+                const mediaAssets = richMediaByDraftId[String(draft._id)] || [];
+                const selectableMediaAssets = mediaAssets.filter((asset) => asset.status !== 'failed');
                 const selectedSocialImage = socialImages.find((image) => image.status === 'selected' || String(image._id) === String(draft.contentImageId));
                 const inheritedImageUrl = draft.contentImageId && draft.sourceContentDraftId && !selectedSocialImage
                   ? `/content/${draft.sourceContentDraftId}/images/${draft.contentImageId}/file`
@@ -146,19 +170,51 @@
                 const publishTargets = publishTargetsFor(draft.channel);
                 const selectedTarget = publishTargets.find((account) => String(account._id) === String(draft.socialAccountId || '')) || publishTargets[0];
                 const postReadiness = readinessByDraftId[String(draft._id)] || { ready: false, blockers: [] };
+                const publishJobs = jobsByDraftId[String(draft._id)] || [];
+                const accountNameById = new Map(connectedSocialAccounts.map((account) => [String(account._id), account.accountName]));
+                const draftPublishStatus = draft.publishStatus || (draft.status === 'draft' ? 'draft' : 'approved');
+                const publishInFlight = ['queued', 'preparing_media', 'publishing', 'provider_processing'].includes(draftPublishStatus);
+                const canStartPublish = draft.status === 'draft' || draftPublishStatus === 'approved' || (draftPublishStatus === 'failed' && !publishJobs.length);
+                const defaultPublishAt = draft.scheduledFor.getTime() > Date.now()
+                  ? draft.scheduledFor
+                  : new Date(Date.now() + 10 * 60 * 1000);
               %>
               <article class="agenda-post" id="post-<%= draft._id %>">
                 <div class="agenda-post-time"><strong><%= draft.scheduledFor.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) %></strong><span><%= draft.channel %></span></div>
                 <div class="agenda-post-content">
                   <div class="agenda-post-heading">
                     <div><span><%= draft.campaignId ? draft.campaignId.name : 'Campaign content' %></span><h2><%= draft.title || 'Untitled post' %></h2></div>
-                    <span class="status"><%= draft.status.replace(/_/g, ' ') %></span>
+                    <span class="status publish-status publish-status-<%= draftPublishStatus %>" data-draft-publish-status><%= draftPublishStatus.replace(/_/g, ' ') %></span>
                   </div>
                   <div class="publish-readiness-line <%= postReadiness.ready ? 'is-ready' : 'is-blocked' %>">
                     <span></span>
                     <strong><%= postReadiness.ready ? 'Ready for one-click publish' : postReadiness.blockers.join(' · ') %></strong>
-                    <% if (selectedTarget && postReadiness.ready) { %><small><%= selectedTarget.platform %> · <%= selectedTarget.accountName %></small><% } %>
+                    <% if (selectedTarget && postReadiness.ready) { %><small><%= selectedTarget.platform %> · <%= selectedTarget.accountName %> · <%= socialAccountProjectNames[String(selectedTarget.projectId)] || project.name %></small><% } %>
                   </div>
+                  <% if (publishJobs.length) { %>
+                    <div class="publish-job-list" data-publish-status-endpoint="/social-drafts/<%= draft._id %>/publish-status">
+                      <% publishJobs.forEach((job) => { %>
+                        <div class="publish-job-row" data-publish-job-id="<%= job._id %>">
+                          <div>
+                            <strong><%= job.platform %></strong>
+                            <span><%= accountNameById.get(String(job.accountId)) || 'Connected account' %></span>
+                          </div>
+                          <span class="status publish-status publish-status-<%= job.status %>" data-publish-job-status><%= job.status.replace(/_/g, ' ') %></span>
+                          <% if (job.platformUrl) { %><a class="button button-small" href="<%= job.platformUrl %>" target="_blank" rel="noopener">View post</a><% } %>
+                          <% if (['failed', 'dead_letter'].includes(job.status)) { %>
+                            <form action="/social-drafts/<%= draft._id %>/publish-jobs/<%= job._id %>/retry" method="post">
+                              <button class="button button-small" type="submit" title="Check the live account first when the provider outcome is unknown.">Retry</button>
+                            </form>
+                          <% } %>
+                          <% if (job.status === 'retry_wait' && job.nextRetryAt) { %><small>Retry at <%= job.nextRetryAt.toLocaleString() %></small><% } %>
+                          <% if (job.reconnectRequired) { %><a class="button button-small" href="/projects/<%= job.destinationProjectId || project._id %>/integrations/social">Reconnect</a><% } %>
+                          <% if (job.metricsStatus && job.status === 'published') { %><small>Metrics: <%= job.metricsStatus.replace(/_/g, ' ') %></small><% } %>
+                          <% if (job.errorMessage) { %><small class="publish-job-error"><%= job.errorMessage %></small><% } %>
+                          <% if (job.warningMessage) { %><small class="publish-job-warning"><%= job.warningMessage %></small><% } %>
+                        </div>
+                      <% }) %>
+                    </div>
+                  <% } %>
                   <% if (selectedImageUrl) { %>
                     <figure class="social-post-preview">
                       <img class="social-draft-image" src="<%= selectedImageUrl %>" alt="<%= selectedSocialImage ? selectedSocialImage.altText || '' : '' %>">
@@ -166,47 +222,169 @@
                     </figure>
                   <% } %>
                   <p class="agenda-post-copy" id="social-draft-<%= draft._id %>"><%= draft.body %></p>
+                  <section class="distribution-media-workbench" aria-label="Publishing media for <%= draft.title || 'post' %>" data-media-status-endpoint="/social-drafts/<%= draft._id %>/media-status" <%= mediaAssets.some((asset) => ['queued', 'processing'].includes(asset.status)) ? 'data-media-processing' : '' %>>
+                    <div class="distribution-media-header">
+                      <div>
+                        <span>Publishing media</span>
+                        <strong><%= mediaAssets.length ? `${mediaAssets.length} upload${mediaAssets.length === 1 ? '' : 's'}` : 'No uploads yet' %></strong>
+                      </div>
+                      <span><%= mediaAssets.filter((asset) => asset.status === 'ready').length %> ready</span>
+                    </div>
+                    <% if (userCanManageProject && canStartPublish) { %>
+                      <form class="distribution-media-upload" action="/social-drafts/<%= draft._id %>/media/upload<%= typeof csrfToken !== 'undefined' && csrfToken ? `?_csrf=${csrfToken}` : '' %>" method="post" enctype="multipart/form-data">
+                        <label>Image or video
+                          <input type="file" name="media" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm" required>
+                        </label>
+                        <label>Alt text
+                          <input name="altText" maxlength="500" placeholder="Describe the media for accessibility">
+                        </label>
+                        <button class="button" type="submit">Upload Media</button>
+                      </form>
+                    <% } %>
+                    <% if (mediaAssets.length) { %>
+                      <div class="distribution-media-grid">
+                        <% mediaAssets.forEach((asset) => { %>
+                          <article class="distribution-media-item <%= asset.status === 'failed' ? 'is-failed' : '' %>" data-media-asset-id="<%= asset._id %>">
+                            <div class="distribution-media-preview">
+                              <% if (asset.status === 'ready' && asset.kind === 'image') { %>
+                                <img src="/social-drafts/<%= draft._id %>/media/<%= asset._id %>/file?variant=portrait_image" alt="<%= asset.altText || '' %>" loading="lazy">
+                              <% } else if (asset.status === 'ready' && asset.kind === 'video') { %>
+                                <video src="/social-drafts/<%= draft._id %>/media/<%= asset._id %>/file?variant=vertical_video" controls preload="metadata"></video>
+                              <% } else { %>
+                                <div class="distribution-media-pending"><strong><%= asset.kind %></strong><span><%= asset.status.replace(/_/g, ' ') %></span></div>
+                              <% } %>
+                            </div>
+                            <div class="distribution-media-details">
+                              <div class="distribution-media-meta">
+                                <strong title="<%= asset.filename || '' %>"><%= asset.filename || `${asset.kind} upload` %></strong>
+                                <span class="status media-status-<%= asset.status %>"><%= asset.status.replace(/_/g, ' ') %></span>
+                              </div>
+                              <% if (asset.processingError) { %><p class="publish-job-error"><%= asset.processingError %></p><% } %>
+                              <% if (userCanManageProject && canStartPublish) { %>
+                                <form class="distribution-media-details-form" action="/social-drafts/<%= draft._id %>/media/<%= asset._id %>/update" method="post">
+                                  <label>Alt text <input name="altText" value="<%= asset.altText || '' %>" maxlength="500"></label>
+                                  <button class="button button-small" type="submit">Save</button>
+                                </form>
+                                <div class="distribution-media-actions">
+                                  <% if (asset.status === 'ready') { %><a class="button button-small" href="/social-drafts/<%= draft._id %>/media/<%= asset._id %>/file?download=1">Download</a><% } %>
+                                  <% if (asset.status === 'failed') { %>
+                                    <form action="/social-drafts/<%= draft._id %>/media/<%= asset._id %>/retry" method="post"><button class="button button-small" type="submit">Retry</button></form>
+                                  <% } %>
+                                  <form action="/social-drafts/<%= draft._id %>/media/<%= asset._id %>/delete" method="post"><button class="button button-small" type="submit">Remove</button></form>
+                                </div>
+                              <% } %>
+                            </div>
+                          </article>
+                        <% }) %>
+                      </div>
+                    <% } %>
+                  </section>
                   <div class="status-actions">
                     <button class="button copy-button" type="button" data-copy-target="social-draft-<%= draft._id %>">Copy</button>
                     <% if (selectedDownloadUrl) { %><a class="button" href="<%= selectedDownloadUrl %>">Download Image</a><% } %>
-                    <% if (draft.status === 'draft') { %>
-                      <form action="/social-drafts/<%= draft._id %>/approve" method="post"><button class="button" type="submit">Approve</button></form>
-                      <% if (publishTargets.length) { %>
-                        <form class="social-publish-form" action="/social-drafts/<%= draft._id %>/approve-and-publish" method="post">
-                          <select name="socialAccountId" aria-label="Publishing account">
-                            <% publishTargets.forEach((account) => { %>
-                              <option value="<%= account._id %>" <%= selectedTarget && String(selectedTarget._id) === String(account._id) ? 'selected' : '' %>><%= account.platform %> · <%= account.accountName %></option>
+                    <% if (userCanManageProject && draft.status === 'draft') { %><form action="/social-drafts/<%= draft._id %>/approve" method="post"><button class="button" type="submit">Approve</button></form><% } %>
+                    <% if (userCanPublishProject && canStartPublish && nativePublishAccounts.length) { %>
+                      <form class="social-publish-form social-publish-panel" action="/social-drafts/<%= draft._id %>/approve-and-publish" method="post">
+                        <fieldset class="publish-account-picker">
+                          <legend>Publish to</legend>
+                          <% nativePublishAccounts.forEach((account) => { %>
+                            <label>
+                              <input type="checkbox" name="accountIds" value="<%= account._id %>" data-publish-account data-platform="<%= account.platform %>" <%= account.platform === draft.channel || String(account._id) === String(draft.socialAccountId || '') ? 'checked' : '' %>>
+                              <span><strong><%= account.platform %></strong><%= account.accountName %> · <%= socialAccountProjectNames[String(account.projectId)] || project.name %></span>
+                            </label>
+                          <% }) %>
+                        </fieldset>
+
+                        <% if (selectableMediaAssets.length) { %>
+                          <div class="publish-media-matrix">
+                            <% nativePublishAccounts.forEach((account) => { %>
+                              <%
+                                const accountIsSelected = account.platform === draft.channel || String(account._id) === String(draft.socialAccountId || '');
+                                const defaultMedia = defaultMediaForPlatform(account.platform, selectableMediaAssets).map((asset) => String(asset._id));
+                              %>
+                              <fieldset data-account-media="<%= account._id %>" <%= accountIsSelected ? '' : 'hidden' %>>
+                                <input type="hidden" name="mediaAccountConfigured" value="<%= account._id %>">
+                                <legend><%= account.platform %> media</legend>
+                                <% selectableMediaAssets.forEach((asset) => { %>
+                                  <label>
+                                    <input type="checkbox" name="media_<%= account._id %>" value="<%= asset._id %>" <%= defaultMedia.includes(String(asset._id)) ? 'checked' : '' %>>
+                                    <span><strong><%= asset.kind %></strong><%= asset.filename || `${asset.kind} upload` %> · <%= asset.status %></span>
+                                  </label>
+                                <% }) %>
+                              </fieldset>
                             <% }) %>
-                          </select>
-                          <button class="button button-primary" type="submit">Approve & Publish Live</button>
-                        </form>
-                      <% } else { %>
-                        <a class="button" href="/projects/<%= project._id %>/integrations/social">Connect <%= draft.channel %></a>
-                      <% } %>
-                    <% } else if (draft.status === 'approved' && draft.publishStatus !== 'published') { %>
-                      <% if (publishTargets.length) { %>
-                        <form class="social-publish-form" action="/social-drafts/<%= draft._id %>/approve-and-publish" method="post">
-                          <select name="socialAccountId" aria-label="Publishing account">
-                            <% publishTargets.forEach((account) => { %>
-                              <option value="<%= account._id %>" <%= selectedTarget && String(selectedTarget._id) === String(account._id) ? 'selected' : '' %>><%= account.platform %> · <%= account.accountName %></option>
-                            <% }) %>
-                          </select>
-                          <button class="button button-primary" type="submit">Publish Now</button>
-                        </form>
-                      <% } else { %>
-                        <a class="button" href="/projects/<%= project._id %>/integrations/social">Connect <%= draft.channel %></a>
-                      <% } %>
+                          </div>
+                        <% } %>
+
+                        <label class="publish-first-comment">First comment
+                          <textarea name="firstComment" rows="3" maxlength="3000" placeholder="Optional follow-up comment for supported platforms"></textarea>
+                        </label>
+
+                        <fieldset class="platform-publish-options tiktok-publish-options" data-platform-options="tiktok" hidden data-creator-endpoint="/social-drafts/<%= draft._id %>/tiktok-creator-info">
+                          <legend>TikTok settings</legend>
+                          <p data-tiktok-creator-status>Select a TikTok account to load its current posting choices.</p>
+                          <label>Visibility
+                            <select name="tiktokPrivacyLevel" data-tiktok-privacy>
+                              <option value="">Choose visibility</option>
+                            </select>
+                          </label>
+                          <div class="platform-option-checks">
+                            <label><input type="checkbox" name="tiktokAllowComment" checked data-tiktok-feature="comment"> Allow comments</label>
+                            <label><input type="checkbox" name="tiktokAllowDuet" checked data-tiktok-feature="duet"> Allow Duet</label>
+                            <label><input type="checkbox" name="tiktokAllowStitch" checked data-tiktok-feature="stitch"> Allow Stitch</label>
+                          </div>
+                          <label><input type="checkbox" name="tiktokCommercialContent" data-tiktok-commercial> This post promotes a brand, product, or service</label>
+                          <div class="platform-option-checks" data-tiktok-disclosures hidden>
+                            <label><input type="checkbox" name="tiktokBrandOrganicContent"> Promotes this creator's own brand</label>
+                            <label><input type="checkbox" name="tiktokBrandedContent"> Paid partnership or third-party brand</label>
+                          </div>
+                          <label class="platform-required-consent"><input type="checkbox" name="tiktokMusicUsageConsent" data-tiktok-consent> I confirm I have permission to use the music in this post.</label>
+                        </fieldset>
+
+                        <fieldset class="platform-publish-options youtube-publish-options" data-platform-options="youtube" hidden>
+                          <legend>YouTube settings</legend>
+                          <label>Format
+                            <select name="youtubeVideoType">
+                              <option value="regular">Regular video</option>
+                              <option value="short">Short</option>
+                            </select>
+                          </label>
+                          <label>Visibility
+                            <select name="youtubePrivacyStatus">
+                              <option value="private">Private</option>
+                              <option value="unlisted">Unlisted</option>
+                              <option value="public">Public</option>
+                            </select>
+                          </label>
+                          <label><input type="checkbox" name="youtubeNotifySubscribers"> Notify subscribers</label>
+                        </fieldset>
+
+                        <div class="publish-submit-row">
+                          <div class="publish-timing-control">
+                            <label><input type="radio" name="publishMode" value="now" checked> Now</label>
+                            <label><input type="radio" name="publishMode" value="schedule"> Schedule</label>
+                          </div>
+                          <label class="publish-schedule-field">Date and time
+                            <input type="datetime-local" name="scheduledAt" data-scheduled-at="<%= defaultPublishAt.toISOString() %>" value="<%= new Date(defaultPublishAt.getTime() - defaultPublishAt.getTimezoneOffset() * 60000).toISOString().slice(0, 16) %>" disabled>
+                          </label>
+                          <input type="hidden" name="timeZone">
+                          <button class="button button-primary" type="submit"><%= draft.status === 'draft' ? 'Approve & Publish' : 'Publish' %></button>
+                        </div>
+                      </form>
+                    <% } else if (userCanPublishProject && canStartPublish && !nativePublishAccounts.length) { %>
+                      <a class="button" href="/projects/<%= project._id %>/integrations/social">Connect an account</a>
                     <% } %>
-                    <% if (draft.status !== 'published_manually' && draft.publishStatus !== 'published') { %><form action="/social-drafts/<%= draft._id %>/mark-published" method="post"><button class="button" type="submit">Mark Published</button></form><% } %>
+                    <% if (userCanManageProject && !publishInFlight && draft.status !== 'published_manually' && draftPublishStatus !== 'published') { %><form action="/social-drafts/<%= draft._id %>/mark-published" method="post"><button class="button" type="submit">Mark Published</button></form><% } %>
+                    <% if (userCanManageProject && !publishInFlight) { %>
                     <details class="agenda-edit"><summary class="button">Edit</summary>
                       <form class="form" action="/social-drafts/<%= draft._id %>/update" method="post">
                         <label>Internal title <input name="title" value="<%= draft.title || '' %>" maxlength="180"></label>
-                        <label>Channel <select name="channel"><% ['linkedin', 'instagram', 'facebook', 'x', 'email'].forEach((channel) => { %><option value="<%= channel %>" <%= draft.channel === channel ? 'selected' : '' %>><%= channel %></option><% }) %></select></label>
+                        <label>Channel <select name="channel"><% ['bluesky', 'linkedin', 'instagram', 'facebook', 'threads', 'x', 'tiktok', 'youtube', 'email'].forEach((channel) => { %><option value="<%= channel %>" <%= draft.channel === channel ? 'selected' : '' %>><%= channel %></option><% }) %></select></label>
                         <label>Publish target
                           <select name="socialAccountId">
                             <option value="">Auto-select connected account</option>
                             <% connectedSocialAccounts.forEach((account) => { %>
-                              <option value="<%= account._id %>" <%= String(draft.socialAccountId || '') === String(account._id) ? 'selected' : '' %>><%= account.platform %> · <%= account.accountName %></option>
+                              <option value="<%= account._id %>" <%= String(draft.socialAccountId || '') === String(account._id) ? 'selected' : '' %>><%= account.platform %> · <%= account.accountName %> · <%= socialAccountProjectNames[String(account.projectId)] || project.name %></option>
                             <% }) %>
                           </select>
                         </label>
@@ -216,7 +394,9 @@
                       </form>
                     </details>
                     <form action="/social-drafts/<%= draft._id %>/delete" method="post"><button class="button" type="submit">Remove</button></form>
+                    <% } %>
                   </div>
+                  <% if (userCanManageProject) { %>
                   <section class="social-image-workbench" aria-label="Visual workspace for <%= draft.title || 'post' %>">
                     <div class="social-image-workbench-header">
                       <div>
@@ -285,6 +465,7 @@
                       </div>
                     <% } %>
                   </section>
+                  <% } %>
                 </div>
               </article>
             <% }) %>
@@ -305,6 +486,175 @@
       setTimeout(() => { button.textContent = 'Copy'; }, 1200);
     });
   });
+
+  document.querySelectorAll('.social-publish-panel').forEach((form) => {
+    const scheduleInput = form.querySelector('input[name="scheduledAt"]');
+    const timeZoneInput = form.querySelector('input[name="timeZone"]');
+    timeZoneInput.value = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+    if (scheduleInput.dataset.scheduledAt) {
+      const date = new Date(scheduleInput.dataset.scheduledAt);
+      const part = (value) => String(value).padStart(2, '0');
+      scheduleInput.value = `${date.getFullYear()}-${part(date.getMonth() + 1)}-${part(date.getDate())}T${part(date.getHours())}:${part(date.getMinutes())}`;
+    }
+    const syncScheduleState = () => {
+      const scheduled = form.querySelector('input[name="publishMode"]:checked')?.value === 'schedule';
+      scheduleInput.disabled = !scheduled;
+      scheduleInput.closest('label').hidden = !scheduled;
+    };
+    form.querySelectorAll('input[name="publishMode"]').forEach((radio) => radio.addEventListener('change', syncScheduleState));
+    syncScheduleState();
+
+    const accountInputs = [...form.querySelectorAll('[data-publish-account]')];
+    const platformPanel = (platform) => form.querySelector(`[data-platform-options="${platform}"]`);
+    const tiktokPanel = platformPanel('tiktok');
+    const tiktokPrivacy = tiktokPanel?.querySelector('[data-tiktok-privacy]');
+    const tiktokConsent = tiktokPanel?.querySelector('[data-tiktok-consent]');
+    const tiktokCreatorCache = new Map();
+    let loadedTikTokKey = '';
+
+    const fetchTikTokCreator = async (accountId) => {
+      if (tiktokCreatorCache.has(accountId)) return tiktokCreatorCache.get(accountId);
+      const endpoint = `${tiktokPanel.dataset.creatorEndpoint}?accountId=${encodeURIComponent(accountId)}`;
+      const response = await fetch(endpoint, { headers: { Accept: 'application/json' } });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'TikTok posting choices could not be loaded.');
+      tiktokCreatorCache.set(accountId, data);
+      return data;
+    };
+
+    const loadTikTokCreators = async (accountIds) => {
+      if (!tiktokPanel || !accountIds.length) return;
+      const key = [...accountIds].sort().join(',');
+      if (loadedTikTokKey === key) return;
+      loadedTikTokKey = key;
+      const status = tiktokPanel.querySelector('[data-tiktok-creator-status]');
+      status.textContent = 'Loading current TikTok posting choices...';
+      const previousPrivacy = tiktokPrivacy.value;
+      tiktokPrivacy.innerHTML = '<option value="">Choose visibility</option>';
+      try {
+        const creators = await Promise.all(accountIds.map(fetchTikTokCreator));
+        if (loadedTikTokKey !== key) return;
+        const privacyOptions = creators[0].privacyLevelOptions.filter((value) => (
+          creators.every((creator) => creator.privacyLevelOptions.includes(value))
+        ));
+        const labels = {
+          PUBLIC_TO_EVERYONE: 'Everyone',
+          MUTUAL_FOLLOW_FRIENDS: 'Friends',
+          FOLLOWER_OF_CREATOR: 'Followers',
+          SELF_ONLY: 'Only me'
+        };
+        privacyOptions.forEach((value) => {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = labels[value] || value.replaceAll('_', ' ').toLowerCase();
+          tiktokPrivacy.append(option);
+        });
+        if (privacyOptions.includes(previousPrivacy)) tiktokPrivacy.value = previousPrivacy;
+        const featureState = {
+          comment: creators.some((creator) => creator.commentDisabled),
+          duet: creators.some((creator) => creator.duetDisabled),
+          stitch: creators.some((creator) => creator.stitchDisabled)
+        };
+        Object.entries(featureState).forEach(([feature, disabled]) => {
+          const input = tiktokPanel.querySelector(`[data-tiktok-feature="${feature}"]`);
+          if (!input) return;
+          input.disabled = Boolean(disabled);
+          if (disabled) input.checked = false;
+        });
+        const names = creators.map((creator) => creator.creatorNickname).join(', ');
+        const maxDuration = Math.min(...creators.map((creator) => creator.maxVideoPostDurationSeconds));
+        status.textContent = `${names} · videos up to ${Math.floor(maxDuration / 60)} minutes`;
+      } catch (error) {
+        if (loadedTikTokKey !== key) return;
+        loadedTikTokKey = '';
+        status.textContent = error.message;
+      }
+    };
+
+    const syncAccountOptions = () => {
+      accountInputs.forEach((input) => {
+        const media = form.querySelector(`[data-account-media="${input.value}"]`);
+        if (media) media.hidden = !input.checked;
+      });
+      ['tiktok', 'youtube'].forEach((platform) => {
+        const panel = platformPanel(platform);
+        if (!panel) return;
+        panel.hidden = !accountInputs.some((input) => input.checked && input.dataset.platform === platform);
+      });
+      const selectedTikTok = accountInputs.filter((input) => input.checked && input.dataset.platform === 'tiktok');
+      if (tiktokPrivacy) tiktokPrivacy.required = Boolean(selectedTikTok.length);
+      if (tiktokConsent) tiktokConsent.required = Boolean(selectedTikTok.length);
+      if (selectedTikTok.length) loadTikTokCreators(selectedTikTok.map((input) => input.value));
+    };
+
+    accountInputs.forEach((input) => input.addEventListener('change', syncAccountOptions));
+    tiktokPanel?.querySelector('[data-tiktok-commercial]')?.addEventListener('change', (event) => {
+      const disclosures = tiktokPanel.querySelector('[data-tiktok-disclosures]');
+      disclosures.hidden = !event.currentTarget.checked;
+      if (!event.currentTarget.checked) disclosures.querySelectorAll('input').forEach((input) => { input.checked = false; });
+    });
+    syncAccountOptions();
+  });
+
+  document.querySelectorAll('[data-publish-status-endpoint]').forEach((list) => {
+    const hasActiveJob = () => [...list.querySelectorAll('[data-publish-job-status]')]
+      .some((status) => ['queued', 'preparing media', 'publishing', 'provider processing'].includes(status.textContent.trim().toLowerCase()));
+    if (!hasActiveJob()) return;
+
+    const poll = async () => {
+      try {
+        const response = await fetch(list.dataset.publishStatusEndpoint, { headers: { Accept: 'application/json' } });
+        if (!response.ok) return;
+        const data = await response.json();
+        data.jobs.forEach((job) => {
+          const row = list.querySelector(`[data-publish-job-id="${job.id}"]`);
+          const status = row?.querySelector('[data-publish-job-status]');
+          if (!status) return;
+          status.textContent = job.status.replace(/_/g, ' ');
+          status.className = `status publish-status publish-status-${job.status}`;
+        });
+        const draftStatus = list.closest('.agenda-post')?.querySelector('[data-draft-publish-status]');
+        if (draftStatus) {
+          draftStatus.textContent = data.publishStatus.replace(/_/g, ' ');
+          draftStatus.className = `status publish-status publish-status-${data.publishStatus}`;
+        }
+        if (data.jobs.some((job) => ['queued', 'preparing_media', 'publishing', 'provider_processing'].includes(job.status))) {
+          setTimeout(poll, 4000);
+        } else {
+          window.location.reload();
+        }
+      } catch (error) {
+        setTimeout(poll, 8000);
+      }
+    };
+    setTimeout(poll, 2500);
+  });
+
+  document.querySelectorAll('[data-media-processing]').forEach((workbench) => {
+    const poll = async () => {
+      try {
+        const response = await fetch(workbench.dataset.mediaStatusEndpoint, { headers: { Accept: 'application/json' } });
+        if (!response.ok) throw new Error('Media status unavailable');
+        const data = await response.json();
+        data.assets.forEach((asset) => {
+          const item = workbench.querySelector(`[data-media-asset-id="${asset.id}"]`);
+          const status = item?.querySelector('.status');
+          if (!status) return;
+          status.textContent = asset.status.replace(/_/g, ' ');
+          status.className = `status media-status-${asset.status}`;
+        });
+        if (data.assets.some((asset) => ['queued', 'processing'].includes(asset.status))) {
+          setTimeout(poll, 4000);
+        } else {
+          window.location.reload();
+        }
+      } catch (error) {
+        setTimeout(poll, 8000);
+      }
+    };
+    setTimeout(poll, 2500);
+  });
+
 </script>
 
 <%- include('../partials/footer') %>

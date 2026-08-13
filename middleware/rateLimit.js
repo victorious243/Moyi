@@ -31,10 +31,12 @@ async function redisBucket(key, windowMs) {
   return { count, resetAt: Date.now() + Math.max(ttl, 0) };
 }
 
-function createRateLimit({ windowMs, max, message }) {
+function createRateLimit({ windowMs, max, message, keyPrefix = 'rate-limit', keyGenerator = null }) {
   return async function rateLimit(req, res, next) {
-    const key = req.ip || req.connection.remoteAddress || 'unknown';
-    const storageKey = `rate-limit:${key}:${windowMs}:${max}`;
+    const key = keyGenerator
+      ? String(keyGenerator(req) || 'unknown')
+      : String(req.ip || req.connection.remoteAddress || 'unknown');
+    const storageKey = `${keyPrefix}:${key}:${windowMs}:${max}`;
     let bucket;
 
     try {

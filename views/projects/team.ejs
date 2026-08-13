@@ -5,7 +5,7 @@
     <strong><%= project.name %></strong>
     <a href="/projects/<%= project._id %>">Overview</a>
     <a href="/projects/<%= project._id %>/team">Team</a>
-    <a href="/projects/<%= project._id %>/edit">Settings</a>
+    <% if (canManageProject) { %><a href="/projects/<%= project._id %>/edit">Settings</a><% } %>
   </aside>
 
   <section class="app-main">

@@ -68,24 +68,64 @@ const appUrlObject = validUrl(appUrl);
 const disableQueue = booleanFromEnv(process.env.DISABLE_QUEUE, false);
 
 const SOCIAL_PROVIDER_CONFIG = {
+  bluesky: {
+    label: 'Bluesky',
+    requiredKeys: [],
+    optionalKeys: ['BLUESKY_PRIVATE_JWK'],
+    redirectKey: 'BLUESKY_REDIRECT_URI',
+    redirectPath: '/integrations/social/bluesky/callback',
+    requiredForNativePublishing: true
+  },
   linkedin: {
     label: 'LinkedIn',
     requiredKeys: ['LINKEDIN_CLIENT_ID', 'LINKEDIN_CLIENT_SECRET'],
     redirectKey: 'LINKEDIN_REDIRECT_URI',
-    redirectPath: '/integrations/social/linkedin/callback'
+    redirectPath: '/integrations/social/linkedin/callback',
+    requiredForNativePublishing: true
   },
   x: {
     label: 'X',
     requiredKeys: ['TWITTER_CLIENT_ID'],
     optionalKeys: ['TWITTER_CLIENT_SECRET'],
     redirectKey: 'TWITTER_REDIRECT_URI',
-    redirectPath: '/integrations/social/x/callback'
+    redirectPath: '/integrations/social/x/callback',
+    requiredForNativePublishing: true
   },
   meta: {
     label: 'Meta',
     requiredKeys: ['META_APP_ID', 'META_APP_SECRET'],
     redirectKey: 'META_REDIRECT_URI',
-    redirectPath: '/integrations/social/meta/callback'
+    redirectPath: '/integrations/social/meta/callback',
+    featureKey: 'SOCIAL_ENABLE_META',
+    enabledByDefault: false,
+    requiredForNativePublishing: false
+  },
+  threads: {
+    label: 'Threads',
+    requiredKeys: ['THREADS_APP_ID', 'THREADS_APP_SECRET'],
+    redirectKey: 'THREADS_REDIRECT_URI',
+    redirectPath: '/integrations/social/threads/callback',
+    featureKey: 'SOCIAL_ENABLE_THREADS',
+    enabledByDefault: false,
+    requiredForNativePublishing: false
+  },
+  tiktok: {
+    label: 'TikTok',
+    requiredKeys: ['TIKTOK_CLIENT_KEY', 'TIKTOK_CLIENT_SECRET'],
+    redirectKey: 'TIKTOK_REDIRECT_URI',
+    redirectPath: '/integrations/social/tiktok/callback',
+    featureKey: 'SOCIAL_ENABLE_TIKTOK',
+    enabledByDefault: false,
+    requiredForNativePublishing: false
+  },
+  youtube: {
+    label: 'YouTube',
+    requiredKeys: ['YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET'],
+    redirectKey: 'YOUTUBE_REDIRECT_URI',
+    redirectPath: '/integrations/social/youtube/callback',
+    featureKey: 'SOCIAL_ENABLE_YOUTUBE',
+    enabledByDefault: false,
+    requiredForNativePublishing: false
   }
 };
 
@@ -108,6 +148,18 @@ const env = {
   contentImageStoragePath: path.resolve(
     process.env.CONTENT_IMAGE_STORAGE_PATH || path.join(__dirname, '../storage/content-images')
   ),
+  mediaStorageProvider: process.env.MEDIA_STORAGE_PROVIDER || process.env.CONTENT_IMAGE_STORAGE_PROVIDER || 'machine',
+  mediaStoragePath: path.resolve(
+    process.env.MEDIA_STORAGE_PATH || path.join(__dirname, '../storage/social-media')
+  ),
+  mediaUploadTempPath: path.resolve(
+    process.env.MEDIA_UPLOAD_TEMP_PATH || path.join(__dirname, '../storage/media-uploads')
+  ),
+  mediaMaxUploadBytes: numberFromEnv(process.env.MEDIA_MAX_UPLOAD_MB, 512) * 1024 * 1024,
+  mediaPublicUrlTtlSeconds: numberFromEnv(process.env.MEDIA_PUBLIC_URL_TTL_SECONDS, 24 * 60 * 60),
+  ffmpegPath: process.env.FFMPEG_PATH || 'ffmpeg',
+  ffprobePath: process.env.FFPROBE_PATH || 'ffprobe',
+  mediaWorkerConcurrency: numberFromEnv(process.env.MEDIA_WORKER_CONCURRENCY, 1),
   s3Bucket: process.env.S3_BUCKET || '',
   s3Region: process.env.S3_REGION || 'eu-west-1',
   s3Endpoint: process.env.S3_ENDPOINT || '',
@@ -117,7 +169,10 @@ const env = {
   googleClientId: process.env.GOOGLE_CLIENT_ID || '',
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
   googleRedirectUri: process.env.GOOGLE_REDIRECT_URI || '',
+  blueskyPrivateJwk: process.env.BLUESKY_PRIVATE_JWK || '',
+  blueskyRedirectUri: process.env.BLUESKY_REDIRECT_URI || '',
   linkedinClientId: process.env.LINKEDIN_CLIENT_ID || '',
+  linkedinApiVersion: process.env.LINKEDIN_API_VERSION || '202607',
   linkedinClientSecret: process.env.LINKEDIN_CLIENT_SECRET || '',
   linkedinRedirectUri: process.env.LINKEDIN_REDIRECT_URI || '',
   twitterClientId: process.env.TWITTER_CLIENT_ID || '',
@@ -126,6 +181,23 @@ const env = {
   metaAppId: process.env.META_APP_ID || '',
   metaAppSecret: process.env.META_APP_SECRET || '',
   metaRedirectUri: process.env.META_REDIRECT_URI || '',
+  metaGraphVersion: process.env.META_GRAPH_VERSION || 'v25.0',
+  threadsAppId: process.env.THREADS_APP_ID || '',
+  threadsAppSecret: process.env.THREADS_APP_SECRET || '',
+  threadsRedirectUri: process.env.THREADS_REDIRECT_URI || '',
+  threadsGraphVersion: process.env.THREADS_GRAPH_VERSION || 'v1.0',
+  tiktokClientKey: process.env.TIKTOK_CLIENT_KEY || '',
+  tiktokClientSecret: process.env.TIKTOK_CLIENT_SECRET || '',
+  tiktokRedirectUri: process.env.TIKTOK_REDIRECT_URI || '',
+  tiktokAppAudited: booleanFromEnv(process.env.TIKTOK_APP_AUDITED, false),
+  youtubeClientId: process.env.YOUTUBE_CLIENT_ID || '',
+  youtubeClientSecret: process.env.YOUTUBE_CLIENT_SECRET || '',
+  youtubeRedirectUri: process.env.YOUTUBE_REDIRECT_URI || '',
+  youtubeApiAudited: booleanFromEnv(process.env.YOUTUBE_API_AUDITED, false),
+  socialEnableMeta: booleanFromEnv(process.env.SOCIAL_ENABLE_META, false),
+  socialEnableThreads: booleanFromEnv(process.env.SOCIAL_ENABLE_THREADS, false),
+  socialEnableTiktok: booleanFromEnv(process.env.SOCIAL_ENABLE_TIKTOK, false),
+  socialEnableYoutube: booleanFromEnv(process.env.SOCIAL_ENABLE_YOUTUBE, false),
   stripeSecretKey: process.env.STRIPE_SECRET_KEY || '',
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
   stripeStarterPriceId: process.env.STRIPE_STARTER_PRICE_ID || '',
@@ -166,7 +238,10 @@ function runtimeConfigProblems(target = env) {
     process.env.MONGODB_URI || (process.env.MONGODB_USER && process.env.MONGODB_PASSWORD && process.env.MONGODB_HOST)
   );
   const rawContentImageStoragePath = String(process.env.CONTENT_IMAGE_STORAGE_PATH || '').trim();
+  const rawMediaStoragePath = String(process.env.MEDIA_STORAGE_PATH || '').trim();
+  const rawMediaUploadTempPath = String(process.env.MEDIA_UPLOAD_TEMP_PATH || '').trim();
   const storageProvider = String(target.contentImageStorageProvider || '').trim();
+  const mediaStorageProvider = String(target.mediaStorageProvider || '').trim();
 
   if (!target.appUrlObject) {
     problems.push('APP_URL must be a valid absolute URL.');
@@ -232,6 +307,30 @@ function runtimeConfigProblems(target = env) {
     if (storageProvider === 's3' && !(target.s3Bucket && target.s3Region && target.s3AccessKeyId && target.s3SecretAccessKey)) {
       problems.push('S3 storage requires S3_BUCKET, S3_REGION, S3_ACCESS_KEY_ID, and S3_SECRET_ACCESS_KEY.');
     }
+
+    if (!['machine', 's3'].includes(mediaStorageProvider)) {
+      problems.push('MEDIA_STORAGE_PROVIDER must be machine or s3.');
+    }
+
+    if (mediaStorageProvider === 'machine' && !process.env.MEDIA_STORAGE_PATH) {
+      problems.push('MEDIA_STORAGE_PATH must point to a persistent writable volume in production.');
+    } else if (mediaStorageProvider === 'machine' && !path.isAbsolute(rawMediaStoragePath)) {
+      problems.push('MEDIA_STORAGE_PATH must be an absolute path in production.');
+    } else if (mediaStorageProvider === 'machine' && ['/', '/var', '/var/www', '/var/www/'].includes(rawMediaStoragePath)) {
+      problems.push('MEDIA_STORAGE_PATH is too broad. Use a dedicated writable directory such as /var/lib/moyi/social-media.');
+    }
+
+    if (mediaStorageProvider === 's3' && !(target.s3Bucket && target.s3Region && target.s3AccessKeyId && target.s3SecretAccessKey)) {
+      problems.push('S3/R2 media storage requires the S3_BUCKET, S3_REGION, S3_ACCESS_KEY_ID, and S3_SECRET_ACCESS_KEY values.');
+    }
+
+    if (!process.env.MEDIA_UPLOAD_TEMP_PATH) {
+      problems.push('MEDIA_UPLOAD_TEMP_PATH must point to a dedicated writable processing directory in production.');
+    } else if (!path.isAbsolute(rawMediaUploadTempPath)) {
+      problems.push('MEDIA_UPLOAD_TEMP_PATH must be an absolute path in production.');
+    } else if (['/', '/tmp', '/var', '/var/www', '/var/www/'].includes(rawMediaUploadTempPath)) {
+      problems.push('MEDIA_UPLOAD_TEMP_PATH is too broad. Use a dedicated writable directory such as /var/lib/moyi/media-uploads.');
+    }
   }
 
   if (target.crawlTimeoutMs < 1000) {
@@ -248,6 +347,14 @@ function runtimeConfigProblems(target = env) {
 
   if (target.workerConcurrency < 1) {
     problems.push('WORKER_CONCURRENCY must be at least 1.');
+  }
+
+  if (target.mediaWorkerConcurrency < 1 || target.mediaWorkerConcurrency > 4) {
+    problems.push('MEDIA_WORKER_CONCURRENCY must be between 1 and 4.');
+  }
+
+  if (target.mediaMaxUploadBytes < 1024 * 1024) {
+    problems.push('MEDIA_MAX_UPLOAD_MB must be at least 1.');
   }
 
   if (target.smtpPort < 1 || target.smtpPort > 65535) {
@@ -274,6 +381,13 @@ function runtimeConfigProblems(target = env) {
     problems.push('OPENAI_IMAGE_SIZE must use WIDTHxHEIGHT format or auto.');
   }
 
+  const socialReadiness = socialProviderReadiness(target);
+  Object.values(socialReadiness.providers).forEach((provider) => {
+    if (provider.enabled && provider.missingKeys.length === 0 && provider.callbackProblems.length) {
+      problems.push(...provider.callbackProblems);
+    }
+  });
+
   return problems;
 }
 
@@ -282,16 +396,47 @@ function configuredSocialRedirectUri(target, providerKey) {
   if (!provider) return '';
 
   const configured = process.env[provider.redirectKey] || target[
-    providerKey === 'linkedin'
+    providerKey === 'bluesky'
+      ? 'blueskyRedirectUri'
+      : providerKey === 'linkedin'
       ? 'linkedinRedirectUri'
       : providerKey === 'x'
         ? 'twitterRedirectUri'
-        : 'metaRedirectUri'
+        : providerKey === 'meta'
+          ? 'metaRedirectUri'
+          : providerKey === 'threads'
+            ? 'threadsRedirectUri'
+            : providerKey === 'tiktok'
+              ? 'tiktokRedirectUri'
+              : 'youtubeRedirectUri'
   ];
 
   if (configured) return configured;
   const baseUrl = String(target.appUrl || 'http://localhost:3000').replace(/\/$/, '');
   return baseUrl + provider.redirectPath;
+}
+
+function socialCallbackProblems(target, providerKey, callbackUrl) {
+  const provider = SOCIAL_PROVIDER_CONFIG[providerKey];
+  if (!provider) return ['The social provider is not recognized.'];
+  const callback = validUrl(callbackUrl);
+  const app = validUrl(target.appUrl);
+  if (!callback) return [`${provider.redirectKey} must be a valid absolute URL.`];
+
+  const problems = [];
+  if (callback.pathname !== provider.redirectPath) {
+    problems.push(`${provider.redirectKey} must use the path ${provider.redirectPath}.`);
+  }
+  if (app && callback.origin !== app.origin) {
+    problems.push(`${provider.redirectKey} must use the same origin as APP_URL (${app.origin}).`);
+  }
+  if (target.isProduction && callback.protocol !== 'https:') {
+    problems.push(`${provider.redirectKey} must use HTTPS in production.`);
+  }
+  if (callback.search || callback.hash) {
+    problems.push(`${provider.redirectKey} cannot include query parameters or a fragment.`);
+  }
+  return problems;
 }
 
 function socialProviderReadiness(target = env) {
@@ -301,21 +446,31 @@ function socialProviderReadiness(target = env) {
 
   Object.entries(SOCIAL_PROVIDER_CONFIG).forEach(([key, provider]) => {
     const requiredKeys = [...provider.requiredKeys, provider.redirectKey];
+    if (key === 'bluesky' && target.isProduction) requiredKeys.push('BLUESKY_PRIVATE_JWK');
     const missingKeys = requiredKeys.filter((envKey) => !String(process.env[envKey] || '').trim());
-    const optionalMissingKeys = (provider.optionalKeys || []).filter((envKey) => !String(process.env[envKey] || '').trim());
+    const optionalMissingKeys = (provider.optionalKeys || []).filter((envKey) => (
+      !requiredKeys.includes(envKey) && !String(process.env[envKey] || '').trim()
+    ));
     const callbackUrl = configuredSocialRedirectUri(target, key);
-    const ready = missingKeys.length === 0;
+    const callbackProblems = socialCallbackProblems(target, key, callbackUrl);
+    const enabled = provider.featureKey
+      ? booleanFromEnv(process.env[provider.featureKey], provider.enabledByDefault)
+      : true;
+    const ready = enabled && missingKeys.length === 0 && callbackProblems.length === 0;
 
     providers[key] = {
       label: provider.label,
+      enabled,
       ready,
+      required: provider.requiredForNativePublishing,
       missingKeys,
       optionalMissingKeys,
-      callbackUrl
+      callbackUrl,
+      callbackProblems
     };
 
     if (ready) configuredProviders.push(key);
-    else missingProviders.push(key);
+    else if (provider.requiredForNativePublishing) missingProviders.push(key);
   });
 
   return {

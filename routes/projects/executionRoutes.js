@@ -1,6 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const { body, param } = require('express-validator');
 const { buildPublishReadiness } = require('../../services/socialPublisherService');
+const { publishableProjectIds } = require('../../services/projectAccessService');
 
 function registerExecutionRoutes(router, context, services = {}) {
   const {
@@ -41,7 +42,7 @@ function registerExecutionRoutes(router, context, services = {}) {
     body('cadence').isIn(['single', 'weekly', 'monthly']).withMessage('Choose a valid plan length.'),
     body('name').trim().notEmpty().withMessage('Campaign name is required.').isLength({ max: 160 }),
     body('goal').trim().notEmpty().withMessage('Describe what this campaign should achieve.').isLength({ max: 500 }),
-    body('channel').isIn(['linkedin', 'facebook', 'x', 'instagram', 'email', 'multi']).withMessage('Choose a valid channel.'),
+    body('channel').isIn(['bluesky', 'linkedin', 'facebook', 'x', 'instagram', 'threads', 'tiktok', 'youtube', 'email', 'multi']).withMessage('Choose a valid channel.'),
     body('startDate').isISO8601().withMessage('Choose a valid start date.'),
     context.handleValidation
   ], context.loadProject, asyncHandler(async (req, res) => {
@@ -87,18 +88,46 @@ function registerExecutionRoutes(router, context, services = {}) {
           status: { $in: ['queued', 'running'] }
         }
       : null;
-    const [campaigns, socialDrafts, socialAccounts, imageJob] = await Promise.all([
+    const destinationProjectIds = res.locals.canPublishProject
+      ? await publishableProjectIds(req.user._id, { sourceProject: req.project })
+      : [req.project._id];
+    const [campaigns, socialDrafts, socialAccounts, destinationProjects, imageJob] = await Promise.all([
       context.Campaign.find({ projectId: req.project._id }).sort({ startDate: 1 }),
       context.SocialDraft.find({ projectId: req.project._id }).sort({ scheduledFor: 1 }).populate('campaignId'),
-      context.SocialAccount.find({ projectId: req.project._id, status: 'connected' }).sort({ platform: 1, updatedAt: -1 }),
+      context.SocialAccount.find({ projectId: { $in: destinationProjectIds }, status: 'connected' })
+        .select('-accessToken -refreshToken -webhookSecret')
+        .sort({ platform: 1, updatedAt: -1 }),
+      context.Project.find({ _id: { $in: destinationProjectIds } }).select('name').lean(),
       imageJobQuery ? context.ProjectJob.findOne(imageJobQuery) : null
     ]);
+    const accountProjectNames = Object.fromEntries(destinationProjects.map((item) => [String(item._id), item.name]));
     const socialDraftIds = socialDrafts.map((draft) => draft._id);
+    const publishJobs = socialDraftIds.length
+      ? await context.PublishJob.find({
+        projectId: req.project._id,
+        draftId: { $in: socialDraftIds }
+      }).sort({ createdAt: -1 })
+      : [];
+    const latestBatchByDraftId = new Map();
+    const publishJobsByDraftId = publishJobs.reduce((grouped, job) => {
+      const key = String(job.draftId);
+      if (!latestBatchByDraftId.has(key)) latestBatchByDraftId.set(key, String(job.batchId));
+      if (latestBatchByDraftId.get(key) !== String(job.batchId)) return grouped;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(job);
+      return grouped;
+    }, {});
     const socialImages = socialDraftIds.length
       ? await context.ContentImage.find({
         projectId: req.project._id,
         draftId: { $in: socialDraftIds }
       }).sort({ status: 1, createdAt: -1 })
+      : [];
+    const mediaAssets = socialDraftIds.length
+      ? await context.MediaAsset.find({
+        projectId: req.project._id,
+        draftId: { $in: socialDraftIds }
+      }).sort({ createdAt: 1 })
       : [];
     const socialDraftImagesByDraftId = socialImages.reduce((grouped, image) => {
       const key = String(image.draftId);
@@ -106,10 +135,17 @@ function registerExecutionRoutes(router, context, services = {}) {
       grouped[key].push(image);
       return grouped;
     }, {});
+    const mediaAssetsByDraftId = mediaAssets.reduce((grouped, asset) => {
+      const key = String(asset.draftId);
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(asset);
+      return grouped;
+    }, {});
     const publishReadiness = buildPublishReadiness({
       socialDrafts,
       connectedAccounts: socialAccounts,
-      imagesByDraftId: socialDraftImagesByDraftId
+      imagesByDraftId: socialDraftImagesByDraftId,
+      mediaAssetsByDraftId
     });
 
     res.render('projects/calendar', {
@@ -117,7 +153,10 @@ function registerExecutionRoutes(router, context, services = {}) {
       campaigns,
       socialDrafts,
       socialAccounts,
+      accountProjectNames,
       socialDraftImagesByDraftId,
+      mediaAssetsByDraftId,
+      publishJobsByDraftId,
       publishReadiness,
       successMessage: req.query.success || '',
       errorMessage: req.query.error || '',

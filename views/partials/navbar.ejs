@@ -13,6 +13,7 @@
     <% if (typeof currentUser !== 'undefined' && currentUser) { %>
       <a href="/dashboard">Dashboard</a>
       <a href="/projects">Projects</a>
+      <a href="/organizations">Agency</a>
       <% if (currentUser.role === 'admin') { %>
         <a href="/admin">Operator</a>
       <% } %>
@@ -33,6 +34,7 @@
     <% if (typeof currentUser !== 'undefined' && currentUser) { %>
       <a href="/dashboard">Dashboard</a>
       <a href="/projects">Projects</a>
+      <a href="/organizations">Agency</a>
       <a href="/projects/new">Add Project</a>
       <a href="/integrations">Integrations</a>
       <a href="/billing">Billing</a>

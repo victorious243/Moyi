@@ -1,0 +1,155 @@
+<%- include('../partials/header') %>
+
+<%
+  const formatNumber = (value) => Number(value || 0).toLocaleString();
+  const formatMetricNumber = (value) => value === null || value === undefined ? 'Unavailable' : Number(value).toLocaleString();
+  const formatRate = (value) => value === null || value === undefined ? 'Unavailable' : `${(Number(value) * 100).toFixed(2)}%`;
+  const label = (value) => String(value || '').replace(/_/g, ' ');
+%>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong><%= project.name %></strong>
+    <a href="/projects/<%= project._id %>">CMO Overview</a>
+    <a href="/projects/<%= project._id %>/content">Content Studio</a>
+    <a href="/projects/<%= project._id %>/calendar">Content Calendar</a>
+    <a href="/projects/<%= project._id %>/campaigns">Campaigns</a>
+    <a class="active" href="/projects/<%= project._id %>/social-performance">Social Performance</a>
+    <a href="/projects/<%= project._id %>/integrations/social">Social Accounts</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow"><%= project.name %></p>
+        <h1>Social Performance</h1>
+        <p>Engagement returned by connected platforms, organized around published posts and account health.</p>
+      </div>
+      <div class="row-actions">
+        <% [7, 30, 90].forEach((days) => { %>
+          <a class="button <%= dashboard.days === days ? 'button-primary' : '' %>" href="/projects/<%= project._id %>/social-performance?days=<%= days %>"><%= days %> days</a>
+        <% }) %>
+      </div>
+    </div>
+
+    <% if (successMessage) { %><div class="image-success-message"><%= successMessage %></div><% } %>
+    <% if (errorMessage) { %><div class="form-error"><%= errorMessage %></div><% } %>
+
+    <section class="studio-summary" aria-label="Social performance summary">
+      <div><span>Published</span><strong><%= formatNumber(dashboard.totals.posts) %></strong></div>
+      <div><span>Measured</span><strong><%= formatNumber(dashboard.totals.measuredPosts) %></strong></div>
+      <div><span>Exposure</span><strong><%= formatMetricNumber(dashboard.totals.exposure) %></strong></div>
+      <div><span>Engagements</span><strong><%= formatMetricNumber(dashboard.totals.engagements) %></strong></div>
+    </section>
+
+    <% if (dashboard.reliability.reconnectRequired || dashboard.reliability.deadLetter) { %>
+      <section class="panel notice-panel">
+        <div class="panel-title">
+          <div>
+            <h2>Publishing needs attention</h2>
+            <p><%= dashboard.reliability.reconnectRequired %> account<%= dashboard.reliability.reconnectRequired === 1 ? '' : 's' %> need reconnection and <%= dashboard.reliability.deadLetter %> job<%= dashboard.reliability.deadLetter === 1 ? '' : 's' %> need review.</p>
+          </div>
+          <div class="row-actions">
+            <a class="button" href="/projects/<%= project._id %>/integrations/social">Review accounts</a>
+            <a class="button" href="/projects/<%= project._id %>/calendar">Review jobs</a>
+          </div>
+        </div>
+      </section>
+    <% } %>
+
+    <section class="panel">
+      <div class="panel-title">
+        <div>
+          <h2>Platform comparison</h2>
+          <p>Exposure uses impressions, reach, views, or video views, in that order, depending on what each platform returns.</p>
+        </div>
+        <span class="status"><%= formatRate(dashboard.totals.engagementRate) %> engagement rate</span>
+      </div>
+      <% if (!dashboard.platformRows.length) { %>
+        <p class="empty">No published social posts were found in this period.</p>
+      <% } else { %>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Platform</th><th>Posts</th><th>Measured</th><th>Exposure</th><th>Engagements</th><th>Clicks</th><th>Rate</th></tr></thead>
+            <tbody>
+              <% dashboard.platformRows.forEach((row) => { %>
+                <tr>
+                  <td><strong><%= row.platform %></strong></td>
+                  <td><%= formatNumber(row.posts) %></td>
+                  <td><%= formatNumber(row.measuredPosts) %></td>
+                  <td><%= formatMetricNumber(row.exposure) %></td>
+                  <td><%= formatMetricNumber(row.engagements) %></td>
+                  <td><%= formatMetricNumber(row.clicks) %></td>
+                  <td><%= formatRate(row.engagementRate) %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <div>
+          <h2>Published posts</h2>
+          <p>Latest metrics are snapshots; providers can revise counters after a post is published.</p>
+        </div>
+        <% if (dashboard.lastMetricsSyncAt) { %><span class="status">Updated <%= new Date(dashboard.lastMetricsSyncAt).toLocaleString() %></span><% } %>
+      </div>
+      <% if (!dashboard.recentPosts.length) { %>
+        <p class="empty">Published posts will appear here after Moyi sends them to a connected account.</p>
+      <% } else { %>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Post</th><th>Account</th><th>Published</th><th>Exposure</th><th>Engagements</th><th>Metrics</th><th></th></tr></thead>
+            <tbody>
+              <% dashboard.recentPosts.forEach((post) => { %>
+                <tr>
+                  <td><strong><%= post.title || `${post.platform} post` %></strong><br><small><%= post.platform %></small></td>
+                  <td><%= post.accountName %></td>
+                  <td><%= post.publishedAt ? new Date(post.publishedAt).toLocaleString() : '' %></td>
+                  <td><%= post.exposureField ? `${formatNumber(post.exposure)} ${label(post.exposureField)}` : 'Unavailable' %></td>
+                  <td><%= formatMetricNumber(post.engagements) %></td>
+                  <td>
+                    <span class="status <%= post.metricsStatus === 'active' ? 'status-success' : '' %>"><%= label(post.metricsStatus) %></span>
+                    <% if (post.availableFields.length) { %><br><small><%= post.availableFields.map(label).join(', ') %></small><% } %>
+                  </td>
+                  <td><% if (post.platformUrl) { %><a class="button button-small" href="<%= post.platformUrl %>" target="_blank" rel="noopener">View post</a><% } %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <div><h2>Collection health</h2><p>Metrics refresh automatically using an age-based schedule that slows down as posts mature.</p></div>
+      </div>
+      <% if (!dashboard.accounts.length) { %>
+        <p class="empty">Connect a social account to begin publishing and collecting performance.</p>
+      <% } else { %>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Platform</th><th>Account</th><th>Connection</th><th>Metrics</th><th>Last sync</th></tr></thead>
+            <tbody>
+              <% dashboard.accounts.forEach((account) => { %>
+                <tr>
+                  <td><strong><%= account.platform %></strong></td>
+                  <td><%= account.accountName %></td>
+                  <td><span class="status <%= account.status === 'connected' ? 'status-success' : 'publish-status-failed' %>"><%= label(account.status) %></span></td>
+                  <td><span class="status <%= account.metricsStatus === 'active' ? 'status-success' : '' %>"><%= label(account.metricsStatus) %></span><% if (account.metricsStatusMessage) { %><br><small><%= account.metricsStatusMessage %></small><% } %></td>
+                  <td><%= account.lastMetricsSyncAt ? new Date(account.lastMetricsSyncAt).toLocaleString() : 'Not collected yet' %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+  </section>
+</div>
+
+<%- include('../partials/footer') %>

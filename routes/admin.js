@@ -8,6 +8,9 @@ const { buildAdminDashboard } = require('../services/adminDashboardService');
 const { recordAuditEvent } = require('../services/auditLogService');
 const { sendCustomerEmail, sendNewsletterEmail } = require('../services/emailService');
 const { retryPublishAction } = require('../services/publishRetryService');
+const { retryPublishJob } = require('../services/contentDistributionEngineService');
+const { collectMetricsForJob } = require('../services/engagementMetricsService');
+const PublishJob = require('../models/PublishJob');
 const { retryWebhookDelivery } = require('../services/webhookService');
 const AppError = require('../utils/appError');
 const handleValidation = require('../utils/validate');
@@ -61,6 +64,42 @@ router.post('/publish-actions/:id/retry', [param('id').isMongoId(), handleValida
     projectId: retry.projectId,
     eventType: 'admin_publish_retry_queued',
     metadata: { sourceActionId: req.params.id, retryActionId: retry._id, integrationType: retry.integrationType },
+    req
+  });
+  res.redirect('/admin');
+}));
+
+router.post('/publish-jobs/:id/retry', [param('id').isMongoId(), handleValidation], asyncHandler(async (req, res, next) => {
+  const existing = await PublishJob.findById(req.params.id).lean();
+  if (!existing) return next(new AppError('Publish job not found.', 404));
+  const job = await retryPublishJob(existing._id);
+  await recordAuditEvent({
+    user: req.user,
+    projectId: existing.projectId,
+    eventType: 'admin_native_publish_retry_queued',
+    severity: existing.errorCode === 'provider_outcome_unknown' ? 'warning' : 'info',
+    metadata: {
+      publishJobId: job._id,
+      platform: job.platform,
+      previousErrorCode: existing.errorCode,
+      providerOutcomeWasUnknown: existing.errorCode === 'provider_outcome_unknown'
+    },
+    req
+  });
+  res.redirect('/admin');
+}));
+
+router.post('/publish-jobs/:id/metrics', [param('id').isMongoId(), handleValidation], asyncHandler(async (req, res, next) => {
+  const existing = await PublishJob.findById(req.params.id).lean();
+  if (!existing) return next(new AppError('Publish job not found.', 404));
+  if (existing.status !== 'published') return next(new AppError('Metrics can only be collected for a published job.', 422));
+  const result = await collectMetricsForJob(existing._id);
+  await recordAuditEvent({
+    user: req.user,
+    projectId: existing.projectId,
+    eventType: 'admin_social_metrics_collection_requested',
+    status: result.success ? 'success' : 'failed',
+    metadata: { publishJobId: existing._id, platform: existing.platform, error: result.error || '' },
     req
   });
   res.redirect('/admin');

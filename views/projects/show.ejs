@@ -80,7 +80,7 @@
           <% } %>
           <a class="button" href="/projects/<%= project._id %>/content">Content Studio</a>
           <a class="button" href="/projects/<%= project._id %>/calendar">Calendar</a>
-          <a class="button" href="/projects/<%= project._id %>/edit">Edit project</a>
+          <% if (canManageProject) { %><a class="button" href="/projects/<%= project._id %>/edit">Edit project</a><% } %>
         </div>
       </div>
     </section>

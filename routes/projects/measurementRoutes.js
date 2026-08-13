@@ -5,6 +5,11 @@ const { buildAnalyticsDashboard } = require('../../services/trackingService');
 const { auditTelemetry } = require('../../services/telemetryAuditor');
 const { buildAttributionDashboard } = require('../../services/attributionService');
 const {
+  buildSocialPerformanceDashboard,
+  normalizeAnalyticsDays,
+  socialPerformanceApiPayload
+} = require('../../services/socialAnalyticsService');
+const {
   buildPerformanceDashboard,
   calculateGscOpportunities,
   getIntegration,
@@ -24,6 +29,23 @@ function registerMeasurementRoutes(router, context, services = {}) {
     queueSearchConsoleSync,
     upgradeRedirect
   } = services;
+
+  router.get('/:id/social-performance', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
+    const days = normalizeAnalyticsDays(req.query.days);
+    const dashboard = await buildSocialPerformanceDashboard({ projectId: req.project._id, days });
+    res.render('projects/social-performance', {
+      title: `${req.project.name} social performance`,
+      dashboard,
+      successMessage: req.query.success || '',
+      errorMessage: req.query.error || ''
+    });
+  }));
+
+  router.get('/:id/social-performance/data', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
+    const days = normalizeAnalyticsDays(req.query.days);
+    const dashboard = await buildSocialPerformanceDashboard({ projectId: req.project._id, days });
+    res.json(socialPerformanceApiPayload(dashboard));
+  }));
 
   router.get('/:id/search-console/connect', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
     const [integration, connectedProperty] = await Promise.all([

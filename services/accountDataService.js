@@ -10,6 +10,7 @@ const ProjectJob = require('../models/ProjectJob');
 const Recommendation = require('../models/Recommendation');
 const ContentDraft = require('../models/ContentDraft');
 const ContentImage = require('../models/ContentImage');
+const MediaAsset = require('../models/MediaAsset');
 const ProjectSearchProperty = require('../models/ProjectSearchProperty');
 const SearchMetric = require('../models/SearchMetric');
 const Competitor = require('../models/Competitor');
@@ -19,19 +20,30 @@ const WordPressIntegration = require('../models/WordPressIntegration');
 const WebflowIntegration = require('../models/WebflowIntegration');
 const ShopifyIntegration = require('../models/ShopifyIntegration');
 const PublishAction = require('../models/PublishAction');
+const PublishBatch = require('../models/PublishBatch');
+const PublishJob = require('../models/PublishJob');
+const PublishJobEvent = require('../models/PublishJobEvent');
+const EngagementSnapshot = require('../models/EngagementSnapshot');
+const GrowthSignal = require('../models/GrowthSignal');
 const WebhookDelivery = require('../models/WebhookDelivery');
 const ConversionGoal = require('../models/ConversionGoal');
 const TrackingEvent = require('../models/TrackingEvent');
 const Campaign = require('../models/Campaign');
 const SocialDraft = require('../models/SocialDraft');
+const SocialAccount = require('../models/SocialAccount');
+const SocialOAuthSession = require('../models/SocialOAuthSession');
 const AnalyticsSnapshot = require('../models/AnalyticsSnapshot');
 const AuditLog = require('../models/AuditLog');
+const Organization = require('../models/Organization');
+const OrganizationMember = require('../models/OrganizationMember');
+const ApiCredential = require('../models/ApiCredential');
 const { deleteContentImagesForProject } = require('./contentImageService');
+const { deleteMediaAssetsForProject } = require('./mediaAssetCleanupService');
 
 function redactIntegration(integration) {
   if (!integration) return integration;
   const copy = integration.toObject ? integration.toObject() : { ...integration };
-  ['accessToken', 'apiToken', 'appPassword', 'accessTokenEncrypted', 'apiTokenEncrypted', 'appPasswordEncrypted'].forEach((key) => {
+  ['accessToken', 'refreshToken', 'webhookSecret', 'encryptedPayload', 'apiToken', 'appPassword', 'accessTokenEncrypted', 'apiTokenEncrypted', 'appPasswordEncrypted'].forEach((key) => {
     if (copy[key]) copy[key] = '[encrypted credential redacted]';
   });
   return copy;
@@ -51,6 +63,7 @@ function createAccountDataService(deps = {}) {
     Recommendation,
     ContentDraft,
     ContentImage,
+    MediaAsset,
     ProjectSearchProperty,
     SearchMetric,
     Competitor,
@@ -60,14 +73,25 @@ function createAccountDataService(deps = {}) {
     WebflowIntegration,
     ShopifyIntegration,
     PublishAction,
+    PublishBatch,
+    PublishJob,
+    PublishJobEvent,
+    EngagementSnapshot,
+    GrowthSignal,
     WebhookDelivery,
     ConversionGoal,
     TrackingEvent,
     Campaign,
     SocialDraft,
+    SocialAccount,
+    SocialOAuthSession,
     AnalyticsSnapshot,
     AuditLog,
+    Organization,
+    OrganizationMember,
+    ApiCredential,
     deleteContentImagesForProject,
+    deleteMediaAssetsForProject,
     ...deps
   };
 
@@ -86,6 +110,7 @@ function createAccountDataService(deps = {}) {
       recommendations,
       contentDrafts,
       contentImages,
+      mediaAssets,
       searchProperties,
       searchMetrics,
       competitors,
@@ -95,14 +120,23 @@ function createAccountDataService(deps = {}) {
       webflowIntegrations,
       shopifyIntegrations,
       publishActions,
+      publishBatches,
+      publishJobs,
       webhookDeliveries,
       conversionGoals,
       trackingEvents,
       campaigns,
       socialDrafts,
+      socialAccounts,
       analyticsSnapshots,
       projectMemberships,
-      auditLogs
+      auditLogs,
+      publishJobEvents,
+      engagementSnapshots,
+      growthSignals,
+      organizations,
+      organizationMemberships,
+      apiCredentials
     ] = await Promise.all([
       models.Scan.find({ projectId: { $in: projectIds } }).lean(),
       models.Page.find({ projectId: { $in: projectIds } }).lean(),
@@ -113,6 +147,7 @@ function createAccountDataService(deps = {}) {
       models.Recommendation.find({ projectId: { $in: projectIds } }).lean(),
       models.ContentDraft.find({ projectId: { $in: projectIds } }).lean(),
       models.ContentImage.find({ projectId: { $in: projectIds } }).select('-storageKey').lean(),
+      models.MediaAsset.find({ projectId: { $in: projectIds } }).select('-storageKey').lean(),
       models.ProjectSearchProperty.find({ projectId: { $in: projectIds } }).lean(),
       models.SearchMetric.find({ projectId: { $in: projectIds } }).lean(),
       models.Competitor.find({ projectId: { $in: projectIds } }).lean(),
@@ -122,14 +157,29 @@ function createAccountDataService(deps = {}) {
       models.WebflowIntegration.find({ projectId: { $in: projectIds } }),
       models.ShopifyIntegration.find({ projectId: { $in: projectIds } }),
       models.PublishAction.find({ projectId: { $in: projectIds } }).lean(),
+      models.PublishBatch.find({ projectId: { $in: projectIds } }).lean(),
+      models.PublishJob.find({ projectId: { $in: projectIds } }).lean(),
       models.WebhookDelivery.find({ projectId: { $in: projectIds } }).lean(),
       models.ConversionGoal.find({ projectId: { $in: projectIds } }).lean(),
       models.TrackingEvent.find({ projectId: { $in: projectIds } }).limit(5000).lean(),
       models.Campaign.find({ projectId: { $in: projectIds } }).lean(),
       models.SocialDraft.find({ projectId: { $in: projectIds } }).lean(),
+      models.SocialAccount.find({ projectId: { $in: projectIds } }),
       models.AnalyticsSnapshot.find({ project: { $in: projectIds } }).lean(),
       models.ProjectMember.find({ $or: [{ userId }, { projectId: { $in: projectIds } }] }).lean(),
-      models.AuditLog.find({ actorUserId: userId }).sort({ createdAt: -1 }).limit(500).lean()
+      models.AuditLog.find({ actorUserId: userId }).sort({ createdAt: -1 }).limit(500).lean(),
+      models.PublishJobEvent.find({
+        $or: [{ projectId: { $in: projectIds } }, { destinationProjectId: { $in: projectIds } }]
+      }).lean(),
+      models.EngagementSnapshot.find({
+        $or: [{ projectId: { $in: projectIds } }, { sourceProjectId: { $in: projectIds } }]
+      }).lean(),
+      models.GrowthSignal.find({
+        $or: [{ projectId: { $in: projectIds } }, { sourceProjectId: { $in: projectIds } }]
+      }).lean(),
+      models.Organization.find({ ownerId: userId }).lean(),
+      models.OrganizationMember.find({ userId }).populate('organizationId', 'name slug status').lean(),
+      models.ApiCredential.find({ userId }).select('+prefix').populate('projectIds', 'name').lean()
     ]);
 
     return {
@@ -145,6 +195,7 @@ function createAccountDataService(deps = {}) {
       recommendations,
       contentDrafts,
       contentImages,
+      mediaAssets,
       searchConsole: {
         properties: searchProperties,
         metrics: searchMetrics
@@ -158,19 +209,39 @@ function createAccountDataService(deps = {}) {
         shopify: shopifyIntegrations.map(redactIntegration)
       },
       publishActions,
+      publishBatches,
+      publishJobs,
+      publishJobEvents,
+      engagementSnapshots,
+      growthSignals,
       webhookDeliveries,
       conversionGoals,
       trackingEvents,
       campaigns,
       socialDrafts,
+      socialAccounts: socialAccounts.map(redactIntegration),
       analyticsSnapshots,
       projectMemberships,
+      organizations,
+      organizationMemberships,
+      apiCredentials,
       auditLogs
     };
   }
 
   async function deleteProjectOwnedData({ projectId }) {
-    await models.deleteContentImagesForProject(projectId);
+    const publishJobIds = await models.PublishJob.find({
+      $or: [{ projectId }, { destinationProjectId: projectId }]
+    }).distinct('_id');
+    const blueskyAccounts = await models.SocialAccount.find({ projectId, platform: 'bluesky' }).select('metadata').lean();
+    const sessionKeys = blueskyAccounts
+      .map((account) => account.metadata && account.metadata.oauthSessionKey)
+      .filter(Boolean)
+      .map(String);
+    await Promise.all([
+      models.deleteContentImagesForProject(projectId),
+      models.deleteMediaAssetsForProject(projectId)
+    ]);
     await Promise.all([
       models.Page.deleteMany({ projectId }),
       models.Scan.deleteMany({ projectId }),
@@ -189,20 +260,54 @@ function createAccountDataService(deps = {}) {
       models.WebflowIntegration.deleteMany({ projectId }),
       models.ShopifyIntegration.deleteMany({ projectId }),
       models.PublishAction.deleteMany({ projectId }),
+      models.PublishBatch.deleteMany({ projectId }),
+      models.PublishJob.deleteMany({ _id: { $in: publishJobIds } }),
+      models.PublishJobEvent.deleteMany({
+        $or: [
+          { publishJobId: { $in: publishJobIds } },
+          { projectId },
+          { destinationProjectId: projectId }
+        ]
+      }),
+      models.EngagementSnapshot.deleteMany({
+        $or: [{ publishJobId: { $in: publishJobIds } }, { projectId }, { sourceProjectId: projectId }]
+      }),
+      models.GrowthSignal.deleteMany({
+        $or: [{ publishJobId: { $in: publishJobIds } }, { projectId }, { sourceProjectId: projectId }]
+      }),
       models.WebhookDelivery.deleteMany({ projectId }),
       models.ConversionGoal.deleteMany({ projectId }),
       models.TrackingEvent.deleteMany({ projectId }),
       models.Campaign.deleteMany({ projectId }),
       models.SocialDraft.deleteMany({ projectId }),
+      models.SocialAccount.deleteMany({ projectId }),
+      sessionKeys.length
+        ? models.SocialOAuthSession.deleteMany({ platform: 'bluesky', kind: 'session', key: { $in: sessionKeys } })
+        : Promise.resolve(),
       models.AnalyticsSnapshot.deleteMany({ project: projectId }),
       models.ProjectMember.deleteMany({ projectId })
     ]);
+    await models.ApiCredential.updateMany({ projectIds: projectId }, { $pull: { projectIds: projectId } });
+    await models.ApiCredential.updateMany({ projectIds: { $size: 0 } }, { $set: { status: 'revoked' } });
   }
 
   async function deleteAccountData(userId) {
     const projects = await models.Project.find({ owner: userId }).select('_id').lean();
+    const ownedOrganizations = await models.Organization.find({ ownerId: userId }).select('_id').lean();
+    const ownedOrganizationIds = ownedOrganizations.map((organization) => organization._id);
     await Promise.all(projects.map((project) => deleteProjectOwnedData({ projectId: project._id })));
-    await models.ProjectMember.deleteMany({ userId });
+    await Promise.all([
+      models.ProjectMember.deleteMany({ userId }),
+      models.OrganizationMember.deleteMany({
+        $or: [{ userId }, { organizationId: { $in: ownedOrganizationIds } }]
+      }),
+      models.ApiCredential.deleteMany({ userId }),
+      models.Project.updateMany(
+        { organizationId: { $in: ownedOrganizationIds }, owner: { $ne: userId } },
+        { $set: { organizationId: null } }
+      )
+    ]);
+    await models.Organization.deleteMany({ _id: { $in: ownedOrganizationIds } });
     await models.Project.deleteMany({ owner: userId });
     await models.User.deleteOne({ _id: userId });
     return { deletedProjects: projects.length };

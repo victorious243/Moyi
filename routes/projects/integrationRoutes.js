@@ -277,11 +277,11 @@ function registerIntegrationRoutes(router, context, services = {}) {
     const accounts = await listProjectSocialAccounts(req.project._id);
     const recentActions = await context.PublishAction.find({
       projectId: req.project._id,
-      integrationType: { $in: ['linkedin', 'x', 'facebook', 'instagram', 'youtube', 'tiktok', 'ayrshare', 'buffer', 'webhook'] }
+      integrationType: { $in: ['bluesky', 'linkedin', 'x', 'facebook', 'instagram', 'threads', 'youtube', 'tiktok', 'ayrshare', 'buffer', 'webhook'] }
     }).sort({ createdAt: -1 }).limit(10);
 
     res.render('projects/integrations/social', {
-      title: `${req.project.name} Multi-Platform Social Accounts`,
+      title: `${req.project.name} Connected Social Accounts`,
       accounts,
       recentActions,
       socialReadiness: env.socialProviderReadiness(),
@@ -296,7 +296,7 @@ function registerIntegrationRoutes(router, context, services = {}) {
       param('id').isMongoId(),
       body('accountName').trim().notEmpty().withMessage('Account name is required.'),
       body('webhookUrl').trim().isURL({ require_protocol: true, protocols: ['http', 'https'] }).withMessage('Webhook URL must be a valid http or https URL.'),
-      body('platform').optional().isIn(['linkedin', 'x', 'facebook', 'instagram', 'youtube', 'tiktok', 'webhook', 'ayrshare']),
+      body('platform').optional().isIn(['webhook']),
       context.handleValidation
     ],
     context.loadProject,
@@ -305,7 +305,7 @@ function registerIntegrationRoutes(router, context, services = {}) {
         await connectSocialWebhook({
           projectId: req.project._id,
           userId: req.user._id,
-          platform: req.body.platform || 'webhook',
+          platform: 'webhook',
           accountName: req.body.accountName,
           webhookUrl: req.body.webhookUrl,
           webhookSecret: req.body.webhookSecret || ''

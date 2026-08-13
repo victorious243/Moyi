@@ -10,8 +10,8 @@ module.exports = {
       { id: 'strategy', title: 'AI CMO planning', body: 'Turn recorded project evidence into ranked opportunities, business risks, quick wins, and a practical weekly operating plan.', bullets: ['Recommendations include reasons, impact, effort, and target pages.', 'Accept, reject, restore, and completion states keep the queue controlled.', 'Missing evidence is reported instead of replaced with guesses.'] },
       { id: 'content', title: 'Content Studio', body: 'Generate website assets, articles, and campaign posts using the project’s audience, offer, goal, brand tone, and available evidence.', bullets: ['SEO strategist, copywriter, and editor stages for long-form drafts', 'Comparison, alternatives, and product-led templates', 'Single-post, weekly, and monthly campaign planning'] },
       { id: 'visuals', title: 'Visual review', body: 'Generate or upload post images, compare candidates with the actual copy, edit accessibility details, and select the final image before approval.', bullets: ['Machine or object-storage files instead of image binaries in MongoDB', 'Candidate, selected, rejected, and restored states', 'Combined image and post preview'] },
-      { id: 'operations', title: 'Campaign operations', body: 'Use the content calendar to edit, schedule, approve, copy, remove, and record publication of campaign posts.', bullets: ['Posts remain grouped under campaign objectives.', 'Nothing is automatically posted.', 'CMS connections create drafts or unpublished items only.'] },
-      { id: 'measurement', title: 'Measurement and reporting', body: 'Connect supported data sources, monitor search opportunities and conversions, and prepare recurring decision reports.', bullets: ['Google Search Console query and page opportunities', 'First-party event and conversion-goal tracking', 'Weekly and monthly evidence-based reporting'] }
+      { id: 'operations', title: 'Campaign operations', body: 'Use the content calendar to edit, schedule, approve, and publish campaign posts to connected social accounts.', bullets: ['Posts remain grouped under campaign objectives.', 'Only approved drafts can be published.', 'Each connected account receives its own visible job status.'] },
+      { id: 'measurement', title: 'Measurement and reporting', body: 'Connect supported data sources, monitor search and social performance, and prepare recurring decision reports.', bullets: ['Social engagement snapshots from supported providers', 'Google Search Console and first-party conversion signals', 'Weekly and monthly evidence-based reporting'] }
     ]
   },
   'how-it-works': {
@@ -110,13 +110,13 @@ module.exports = {
           { title: 'Write', body: 'Review the brief, keyword, title, business goal, persona, search intent, CTA, proof points, and draft body.' },
           { title: 'Visual', body: 'Generate or upload candidate images, preview them with the actual post, edit alt text/caption, and select one final image.' },
           { title: 'Review', body: 'Check claims, tone, formatting, image, CTA, and source recommendation. Approve, request changes, or reject.' },
-          { title: 'Distribute', body: 'Copy, export, create CMS drafts, create social drafts, plan campaigns, or record manual publication.' }
+          { title: 'Distribute', body: 'Copy, export, create CMS drafts, or publish an approved social draft now or on a schedule.' }
         ],
         steps: [
           { title: 'Open Execution Queue', body: 'Find generated assets for the project in the project workspace or Content section.' },
           { title: 'Edit before approval', body: 'AI output is a draft. Adjust anything that is inaccurate, weak, or off-brand.' },
           { title: 'Add the final visual', body: 'Use the project logo reference when you want branded content, or upload your own image as a candidate.' },
-          { title: 'Approve only when ready', body: 'Approval unlocks distribution controls. It does not publish live by itself.' }
+          { title: 'Approve only when ready', body: 'Approval unlocks distribution controls. A separate publish command or schedule is still required.' }
         ]
       },
       {
@@ -154,31 +154,32 @@ module.exports = {
       {
         id: 'campaigns',
         title: 'Campaigns and calendar',
-        body: 'The campaign tools organize content work over time. They do not auto-post to social platforms or send email campaigns.',
+        body: 'The campaign tools organize content work over time. Approved social drafts can be explicitly published now or scheduled; email campaigns are not sent automatically.',
         options: [
           { title: 'Single post', body: 'Creates one draft for a specific message or announcement.' },
           { title: 'Weekly plan', body: 'Creates five scheduled posts across a week.' },
           { title: 'Monthly plan', body: 'Creates twelve scheduled posts across about thirty days.' },
           { title: 'Create social drafts', body: 'Turns an approved content asset into channel-ready drafts.' },
-          { title: 'Mark as published', body: 'Records that the work was manually published somewhere else.' }
+          { title: 'Publish panel', body: 'Select connected accounts, media, platform options, and an immediate or scheduled publish time.' }
         ],
         steps: [
           { title: 'Create or choose a campaign', body: 'Give it a goal, audience, and date window.' },
           { title: 'Generate drafts', body: 'Use approved content or campaign planning to create posts.' },
           { title: 'Review each post', body: 'Edit the message, channel, date, status, and image link if available.' },
-          { title: 'Publish manually', body: 'Copy/export the post or use a connected CMS draft. Then mark it as published in Moyi.' }
+          { title: 'Publish after approval', body: 'Choose connected accounts and publish now or schedule the approved draft. Moyi shows each destination result independently.' }
         ]
       },
       {
         id: 'integrations',
         title: 'Integrations and publishing',
-        body: 'Integrations are project-specific. Moyi is intentionally conservative: it creates drafts or sends approved payloads, but does not silently publish live content.',
+        body: 'Integrations are project-specific. Moyi publishes only after human approval and an explicit publish command or schedule, and reports each provider result.',
         options: [
           { title: 'Google Search Console', body: 'Connects readonly search performance so Moyi can identify CTR, page two, query, page, country, and device opportunities.' },
           { title: 'WordPress', body: 'Creates draft posts from approved article-style content.' },
           { title: 'Webflow', body: 'Creates draft or unpublished CMS items when the Webflow collection mapping is configured.' },
           { title: 'Shopify', body: 'Creates blog article drafts through the Shopify Admin API.' },
-          { title: 'Outgoing webhook', body: 'Sends approved content to custom frontends such as Next.js, Framer, Ghost, or internal systems.' }
+          { title: 'Outgoing webhook', body: 'Sends approved content to custom frontends such as Next.js, Framer, Ghost, or internal systems.' },
+          { title: 'Native social accounts', body: 'Connect Bluesky, X, LinkedIn, Facebook, Instagram, Threads, TikTok, and YouTube for approved publishing and engagement pull-back.' }
         ],
         steps: [
           { title: 'Open Project Integrations', body: 'Connect only the platforms this business actually uses.' },
@@ -186,6 +187,24 @@ module.exports = {
           { title: 'Use test buttons', body: 'Test the connection before relying on publishing workflows.' },
           { title: 'Approve content first', body: 'Distribution options appear only when the draft status allows it.' }
         ]
+      },
+      {
+        id: 'content-distribution-api',
+        title: 'Content distribution and API',
+        body: 'Moyi owns the social publishing queue, token storage, recovery state, and engagement data. Agency workspaces can publish approved drafts across separated client projects.',
+        options: [
+          { title: 'Social Performance', body: 'Shows available exposure, engagement, post links, account health, retries, and reconnect requirements for 7, 30, or 90 days.' },
+          { title: 'Agency roles', body: 'Owners and admins manage accounts; publishers can publish approved drafts; analysts have read-only access.' },
+          { title: 'Public API keys', body: 'Create a one-time project-scoped key in Account settings for connected accounts, approved publishing jobs, status, or analytics.' },
+          { title: 'Recovery', body: 'Transient failures retry with platform-aware delays. Permanent or unknown-outcome jobs wait for operator review in dead-letter state.' }
+        ],
+        steps: [
+          { title: 'Connect and approve', body: 'Connect social accounts in the client project and approve a draft before attempting publication.' },
+          { title: 'Publish or schedule', body: 'Select one or more permitted destination accounts in the Calendar publish panel.' },
+          { title: 'Watch status', body: 'Review queued, publishing, retry, published, reconnect, and dead-letter states for every account.' },
+          { title: 'Close the loop', body: 'Use Social Performance and future Growth Brain recommendations after metrics have been collected.' }
+        ],
+        note: 'Provider metrics vary by platform and approved scopes. A missing metric is unavailable evidence, not a measured zero.'
       },
       {
         id: 'measurement',

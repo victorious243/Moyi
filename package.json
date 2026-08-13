@@ -6,14 +6,27 @@
     "node": ">=20.19.0"
   },
   "scripts": {
+    "build:distribution": "tsc -p tsconfig.distribution.json",
+    "typecheck": "tsc -p tsconfig.distribution.json --noEmit",
+    "prestart": "npm run build:distribution",
     "start": "node ./bin/supervisor",
+    "preweb": "npm run build:distribution",
     "web": "node ./bin/www",
-    "dev": "DISABLE_QUEUE=true nodemon ./bin/www",
+    "predev": "npm run build:distribution",
+    "dev": "DISABLE_QUEUE=true nodemon --ext js,mts,ejs ./bin/www",
+    "preworker": "npm run build:distribution",
     "worker": "node ./workers/scanWorker.js",
     "check:social": "node ./scripts/check-social-readiness.js",
+    "migrate:distribution": "node ./scripts/migrate-content-distribution.js",
+    "generate:bluesky-key": "node ./scripts/generate-bluesky-key.mjs",
+    "pretest": "npm run build:distribution",
     "test": "node --test tests/*.test.js"
   },
   "dependencies": {
+    "@atproto/api": "^0.20.39",
+    "@atproto/oauth-client-node": "^0.5.3",
+    "@aws-sdk/client-s3": "^3.1109.0",
+    "@aws-sdk/lib-storage": "^3.1109.0",
     "axios": "^1.17.0",
     "bcryptjs": "^3.0.3",
     "bullmq": "^5.78.0",
@@ -44,6 +57,8 @@
     "stripe": "^22.2.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "@types/node": "^26.2.0",
+    "nodemon": "^3.1.14",
+    "typescript": "^7.0.2"
   }
 }

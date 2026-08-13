@@ -5,6 +5,8 @@ const mongoose = require('mongoose');
 const SocialAccount = require('../models/SocialAccount');
 const SocialDraft = require('../models/SocialDraft');
 const PublishAction = require('../models/PublishAction');
+const PublishBatch = require('../models/PublishBatch');
+const PublishJob = require('../models/PublishJob');
 const Project = require('../models/Project');
 
 const {
@@ -24,6 +26,9 @@ const {
   selectConnectedSocialAccount,
   targetPlatformsForChannel
 } = require('../services/socialPublisherService');
+const {
+  createPublishBatch
+} = require('../services/contentDistributionEngineService');
 
 const {
   buildLinkedInAuthUrl,
@@ -85,8 +90,9 @@ test('socialOauthService: Meta sandbox returns separate Facebook and Instagram p
 });
 
 test('socialPublisherService: channel target platform order is explicit', () => {
-  assert.deepEqual(targetPlatformsForChannel('instagram'), ['instagram', 'ayrshare', 'webhook']);
-  assert.deepEqual(targetPlatformsForChannel('facebook'), ['facebook', 'ayrshare', 'webhook']);
+  assert.deepEqual(targetPlatformsForChannel('instagram'), ['instagram']);
+  assert.deepEqual(targetPlatformsForChannel('facebook'), ['facebook']);
+  assert.deepEqual(targetPlatformsForChannel('youtube'), ['youtube']);
   assert.deepEqual(targetPlatformsForChannel('email'), ['webhook']);
 });
 
@@ -162,7 +168,7 @@ test('socialPublisherService: publish readiness explains one-click blockers', ()
 
   const instagram = readiness.posts.find((post) => post.channel === 'instagram');
   assert.equal(instagram.ready, false);
-  assert.ok(instagram.blockers.includes('Instagram needs an image'));
+  assert.ok(instagram.blockers.includes('Instagram needs media'));
 });
 
 test('SocialAccount model validation and schema defaults', () => {
@@ -199,6 +205,46 @@ test('SocialDraft multi-platform publishing schema fields', () => {
 
   draft.publishStatus = 'invalid_status';
   assert.ok(draft.validateSync().errors.publishStatus);
+});
+
+test('Content Distribution Engine schema tracks batches and per-platform jobs', () => {
+  const projectId = new mongoose.Types.ObjectId();
+  const userId = new mongoose.Types.ObjectId();
+  const draftId = new mongoose.Types.ObjectId();
+  const accountId = new mongoose.Types.ObjectId();
+
+  const batch = new PublishBatch({
+    projectId,
+    userId,
+    draftIds: [draftId],
+    platforms: ['linkedin', 'x'],
+    scheduledAt: new Date(),
+    status: 'queued',
+    summary: { total: 2, successCount: 0, failedCount: 0 }
+  });
+
+  assert.equal(batch.validateSync(), undefined);
+
+  const job = new PublishJob({
+    batchId: batch._id,
+    projectId,
+    userId,
+    draftId,
+    accountId,
+    platform: 'linkedin',
+    content: {
+      title: 'Launch update',
+      body: 'Approved post copy',
+      imageUrl: '/social-drafts/image/file',
+      imageAlt: 'Product screenshot'
+    },
+    status: 'queued',
+    attempts: 0
+  });
+
+  assert.equal(job.validateSync(), undefined);
+  job.status = 'not_a_real_state';
+  assert.ok(job.validateSync().errors.status);
 });
 
 test('socialPublisherService: enforces human approval gate', () => {
@@ -282,10 +328,58 @@ test('socialAccountService: connects and encrypts webhook and API account creden
 
   // Disconnect
   await disconnectSocialAccount({ projectId, accountId: apiAcc._id });
-  const disconnected = await SocialAccount.findById(apiAcc._id);
+  const disconnected = await SocialAccount.findById(apiAcc._id).select('+accessToken');
   assert.equal(disconnected.status, 'disconnected');
   assert.equal(disconnected.accessToken, '');
 
+  await SocialAccount.deleteMany({ projectId });
+});
+
+test('contentDistributionEngineService: creates a publish batch with one job per target account', async () => {
+  if (mongoose.connection.readyState !== 1) return; // Skip DB integration test if offline
+
+  const projectId = new mongoose.Types.ObjectId();
+  const userId = new mongoose.Types.ObjectId();
+  const campaignId = new mongoose.Types.ObjectId();
+
+  const draft = await SocialDraft.create({
+    projectId,
+    campaignId,
+    channel: 'linkedin',
+    title: 'Approved launch post',
+    body: 'Ready for the distribution engine.',
+    status: 'approved',
+    publishStatus: 'approved',
+    scheduledFor: new Date()
+  });
+
+  const account = await connectSocialApiAccount({
+    projectId,
+    userId,
+    platform: 'linkedin',
+    accountName: 'Acme LinkedIn',
+    externalAccountId: 'urn:li:organization:123',
+    accessToken: 'sandbox_linkedin_access_token'
+  });
+
+  const { batch, jobs } = await createPublishBatch({
+    projectId,
+    userId,
+    draftIds: [draft._id],
+    accountIds: [account._id]
+  });
+
+  assert.equal(batch.summary.total, 1);
+  assert.equal(batch.platforms[0], 'linkedin');
+  assert.equal(jobs.length, 1);
+  assert.equal(String(jobs[0].draftId), String(draft._id));
+  assert.equal(String(jobs[0].accountId), String(account._id));
+  assert.equal(jobs[0].status, 'queued');
+  assert.equal(jobs[0].content.body, 'Ready for the distribution engine.');
+
+  await PublishJob.deleteMany({ projectId });
+  await PublishBatch.deleteMany({ projectId });
+  await SocialDraft.deleteMany({ projectId });
   await SocialAccount.deleteMany({ projectId });
 });
 

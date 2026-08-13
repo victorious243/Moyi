@@ -34,7 +34,7 @@ const socialDraftSchema = new mongoose.Schema(
     },
     channel: {
       type: String,
-      enum: ['linkedin', 'facebook', 'x', 'instagram', 'youtube', 'tiktok', 'email', 'webhook'],
+      enum: ['bluesky', 'linkedin', 'facebook', 'x', 'instagram', 'threads', 'youtube', 'tiktok', 'email', 'webhook'],
       required: true,
       index: true
     },
@@ -55,7 +55,7 @@ const socialDraftSchema = new mongoose.Schema(
     },
     publishStatus: {
       type: String,
-      enum: ['draft', 'pending_approval', 'approved', 'publishing', 'published', 'failed'],
+      enum: ['draft', 'pending_approval', 'approved', 'queued', 'publishing', 'published', 'failed'],
       default: 'draft',
       index: true
     },

@@ -8,9 +8,19 @@ console.log('Moyi one-click social publishing readiness');
 console.log('');
 
 Object.entries(readiness.providers).forEach(([key, provider]) => {
-  const status = provider.ready ? 'READY' : 'MISSING';
+  const status = !provider.enabled
+    ? 'DISABLED'
+    : provider.callbackProblems.length
+      ? 'INVALID'
+      : provider.ready
+        ? 'READY'
+        : 'MISSING';
   console.log(`${provider.label} (${key}): ${status}`);
   console.log(`  Callback URL: ${provider.callbackUrl}`);
+
+  provider.callbackProblems.forEach((problem) => {
+    console.log(`  Callback issue: ${problem}`);
+  });
 
   if (provider.missingKeys.length) {
     console.log(`  Required env: ${provider.missingKeys.join(', ')}`);

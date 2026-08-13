@@ -1,0 +1,118 @@
+<%- include('../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong><%= organization.name %></strong>
+    <a href="/organizations">Agency Workspaces</a>
+    <a class="active" href="/organizations/<%= organization._id %>">Clients & Team</a>
+    <a href="/projects">All Projects</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div><p class="eyebrow"><%= organizationRole %> access</p><h1><%= organization.name %></h1><p>Client workspaces, social destinations, and publishing permissions stay separated inside this portfolio.</p></div>
+    </div>
+
+    <% if (message) { %><div class="image-success-message"><%= message %></div><% } %>
+    <% if (errorMessage) { %><div class="form-error"><%= errorMessage %></div><% } %>
+
+    <section class="studio-summary" aria-label="Agency summary">
+      <div><span>Clients</span><strong><%= projects.length %></strong></div>
+      <div><span>Team</span><strong><%= members.length %></strong></div>
+      <div><span>Your role</span><strong><%= organizationRole %></strong></div>
+      <div><span>Publishing</span><strong><%= ['owner', 'admin', 'publisher'].includes(organizationRole) ? 'Enabled' : 'Read only' %></strong></div>
+    </section>
+
+    <% if (canManageOrganization && assignableProjects.length) { %>
+      <section class="panel">
+        <div class="panel-title"><div><h2>Add client project</h2><p>Only projects you own and that are not already assigned can be added.</p></div></div>
+        <form class="form" action="/organizations/<%= organization._id %>/projects" method="post">
+          <label>Project
+            <select name="projectId" required>
+              <% assignableProjects.forEach((project) => { %><option value="<%= project._id %>"><%= project.name %> · <%= project.websiteUrl %></option><% }) %>
+            </select>
+          </label>
+          <button class="button button-primary" type="submit">Add Client Project</button>
+        </form>
+      </section>
+    <% } %>
+
+    <section class="panel">
+      <div class="panel-title"><div><h2>Client workspaces</h2><p>Connected accounts and engagement data remain attached to each client project.</p></div><span class="status"><%= projects.length %></span></div>
+      <% if (!projects.length) { %>
+        <p class="empty">No client projects are assigned yet.</p>
+      <% } else { %>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Client</th><th>Website</th><th>Publishing</th><th>Performance</th><% if (canManageOrganization) { %><th></th><% } %></tr></thead>
+            <tbody>
+              <% projects.forEach((project) => { %>
+                <tr>
+                  <td><strong><a href="/projects/<%= project._id %>"><%= project.name %></a></strong></td>
+                  <td><%= project.websiteUrl %></td>
+                  <td><a class="button button-small" href="/projects/<%= project._id %>/calendar">Calendar</a></td>
+                  <td><a class="button button-small" href="/projects/<%= project._id %>/social-performance">Analytics</a></td>
+                  <% if (canManageOrganization) { %>
+                    <td>
+                      <% if (String(project.owner) === String(currentUserId)) { %>
+                        <form action="/organizations/<%= organization._id %>/projects/<%= project._id %>/remove" method="post" onsubmit="return confirm('Remove this client project from the agency workspace?');">
+                          <button class="button button-small" type="submit">Remove</button>
+                        </form>
+                      <% } %>
+                    </td>
+                  <% } %>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+
+    <% if (canManageOrganization) { %>
+      <section class="panel">
+        <div class="panel-title"><div><h2>Add team member</h2><p>Publishers can send approved drafts. Analysts can view clients and analytics without changing them.</p></div></div>
+        <form class="form" action="/organizations/<%= organization._id %>/members" method="post">
+          <label>Email <input type="email" name="email" autocomplete="email" required></label>
+          <label>Role
+            <select name="role" required>
+              <option value="analyst">Analyst · read only</option>
+              <option value="publisher">Publisher · publish approved drafts</option>
+              <option value="admin">Admin · manage clients and team</option>
+            </select>
+          </label>
+          <button class="button button-primary" type="submit">Add Team Member</button>
+        </form>
+      </section>
+    <% } %>
+
+    <section class="panel">
+      <div class="panel-title"><div><h2>Portfolio team</h2><p>These roles apply to every client project in this agency workspace.</p></div><span class="status"><%= members.length %></span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>User</th><th>Role</th><th>Joined</th><% if (canManageOrganization) { %><th></th><% } %></tr></thead>
+          <tbody>
+            <% members.forEach((member) => { %>
+              <tr>
+                <td><%= member.userId ? `${member.userId.name} (${member.userId.email})` : 'Unknown user' %></td>
+                <td><span class="status"><%= member.role %></span></td>
+                <td><%= member.joinedAt ? new Date(member.joinedAt).toLocaleString() : '' %></td>
+                <% if (canManageOrganization) { %>
+                  <td>
+                    <% if (member.role !== 'owner') { %>
+                      <form action="/organizations/<%= organization._id %>/members/<%= member._id %>/remove" method="post" onsubmit="return confirm('Remove this person from the agency workspace?');">
+                        <button class="button button-small" type="submit">Remove</button>
+                      </form>
+                    <% } %>
+                  </td>
+                <% } %>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+</div>
+
+<%- include('../partials/footer') %>

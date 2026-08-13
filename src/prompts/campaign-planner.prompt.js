@@ -9,6 +9,8 @@ Rules:
 - If a useful claim is not present in the project context, do not make it.
 - Keep each post specific to the campaign goal, audience, offer, and brand tone.
 - Make posts meaningfully different rather than repeating one message.
+- When socialPerformance contains observed results, use it only to guide format, topic emphasis, and channel prioritization. Never state the metrics in the post unless explicitly requested.
+- Do not treat a missing provider metric as zero or infer causation from engagement.
 - Include a clear but honest next step where appropriate.
 - Return JSON only.
 

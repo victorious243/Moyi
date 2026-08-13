@@ -468,6 +468,10 @@ test('social draft routes support calendar editing and removal', () => {
   assert.ok(routes.some((route) => route.path === '/:id/images/generate' && route.methods.includes('post')));
   assert.ok(routes.some((route) => route.path === '/:id/images/:imageId/file' && route.methods.includes('get')));
   assert.ok(routes.some((route) => route.path === '/:id/images/:imageId/select' && route.methods.includes('post')));
+  assert.ok(routes.some((route) => route.path === '/:id/media/upload' && route.methods.includes('post')));
+  assert.ok(routes.some((route) => route.path === '/:id/media-status' && route.methods.includes('get')));
+  assert.ok(routes.some((route) => route.path === '/:id/media/:assetId/file' && route.methods.includes('get')));
+  assert.ok(routes.some((route) => route.path === '/:id/tiktok-creator-info' && route.methods.includes('get')));
 });
 
 test('platform admin middleware blocks non-admin users', () => {

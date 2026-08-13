@@ -141,15 +141,42 @@ test('production runtime config requires S3 credentials when S3 storage is enabl
   });
 });
 
+test('production runtime config requires persistent media and dedicated upload paths', () => {
+  withEnv({
+    NODE_ENV: 'production',
+    APP_URL: 'https://moyi.example',
+    DISABLE_QUEUE: 'false',
+    JWT_SECRET: 'a'.repeat(32),
+    TOKEN_ENCRYPTION_SECRET: 'b'.repeat(32),
+    MONGODB_URI: 'mongodb://127.0.0.1:27017/moyi',
+    REDIS_URL: 'redis://127.0.0.1:6379',
+    TRUST_PROXY_HOPS: '1',
+    SMTP_HOST: 'smtp.example.com',
+    SMTP_USER: 'user',
+    SMTP_PASS: 'pass',
+    SMTP_FROM: 'Moyi <no-reply@example.com>',
+    CONTENT_IMAGE_STORAGE_PROVIDER: 'machine',
+    CONTENT_IMAGE_STORAGE_PATH: '/var/lib/moyi/content-images',
+    MEDIA_STORAGE_PROVIDER: 'machine',
+    MEDIA_STORAGE_PATH: '',
+    MEDIA_UPLOAD_TEMP_PATH: '/tmp'
+  }, () => {
+    const env = freshEnvModule();
+    const problems = env.runtimeConfigProblems().join('\n');
+    assert.match(problems, /MEDIA_STORAGE_PATH must point to a persistent writable volume/);
+    assert.match(problems, /MEDIA_UPLOAD_TEMP_PATH is too broad/);
+  });
+});
+
 test('social provider readiness reports missing keys and callback URLs', () => {
   withEnv({
     APP_URL: 'https://moyi.example',
     LINKEDIN_CLIENT_ID: 'linkedin-client',
     LINKEDIN_CLIENT_SECRET: 'linkedin-secret',
     LINKEDIN_REDIRECT_URI: 'https://moyi.example/integrations/social/linkedin/callback',
-    TWITTER_CLIENT_ID: undefined,
-    TWITTER_CLIENT_SECRET: undefined,
-    TWITTER_REDIRECT_URI: undefined,
+    TWITTER_CLIENT_ID: '',
+    TWITTER_CLIENT_SECRET: '',
+    TWITTER_REDIRECT_URI: '',
     META_APP_ID: '',
     META_APP_SECRET: '',
     META_REDIRECT_URI: ''
@@ -159,10 +186,28 @@ test('social provider readiness reports missing keys and callback URLs', () => {
 
     assert.equal(readiness.ready, false);
     assert.equal(readiness.providers.linkedin.ready, true);
+    assert.deepEqual(readiness.providers.linkedin.callbackProblems, []);
     assert.equal(readiness.providers.x.ready, false);
     assert.deepEqual(readiness.providers.x.missingKeys, ['TWITTER_CLIENT_ID', 'TWITTER_REDIRECT_URI']);
     assert.equal(readiness.providers.meta.callbackUrl, 'https://moyi.example/integrations/social/meta/callback');
     assert.match(env.runtimeConfigWarnings().join('\n'), /One-click social publishing is not fully configured/);
+  });
+});
+
+test('social provider readiness rejects callbacks outside the exact Moyi route and origin', () => {
+  withEnv({
+    NODE_ENV: 'production',
+    APP_URL: 'https://moyi.example',
+    TWITTER_CLIENT_ID: 'twitter-client',
+    TWITTER_REDIRECT_URI: 'https://auth.example/integrations/x/callback'
+  }, () => {
+    const env = freshEnvModule();
+    const provider = env.socialProviderReadiness().providers.x;
+
+    assert.equal(provider.ready, false);
+    assert.match(provider.callbackProblems.join('\n'), /integrations\/social\/x\/callback/);
+    assert.match(provider.callbackProblems.join('\n'), /same origin as APP_URL/);
+    assert.match(env.runtimeConfigProblems().join('\n'), /TWITTER_REDIRECT_URI/);
   });
 });
 
@@ -189,7 +234,7 @@ test('runtime health reports ready only when database and queue are healthy', as
       connection: { readyState: 1 }
     },
     pingRedis: async () => 'PONG',
-    queueWorkerCounts: async () => ({ scans: 1, projectTasks: 1 })
+    queueWorkerCounts: async () => ({ scans: 1, projectTasks: 1, socialPublishing: 1, socialMedia: 1 })
   });
 
   const payload = await health.readinessPayload();
@@ -221,7 +266,7 @@ test('runtime health fails queue readiness when workers are not running', async 
       connection: { readyState: 1 }
     },
     pingRedis: async () => 'PONG',
-    queueWorkerCounts: async () => ({ scans: 0, projectTasks: 0 })
+    queueWorkerCounts: async () => ({ scans: 0, projectTasks: 0, socialPublishing: 0, socialMedia: 0 })
   });
 
   const payload = await health.readinessPayload();

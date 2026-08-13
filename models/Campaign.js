@@ -21,7 +21,7 @@ const campaignSchema = new mongoose.Schema(
     },
     channel: {
       type: String,
-      enum: ['linkedin', 'facebook', 'x', 'instagram', 'email', 'multi'],
+      enum: ['bluesky', 'linkedin', 'facebook', 'x', 'instagram', 'threads', 'tiktok', 'youtube', 'email', 'multi'],
       default: 'multi',
       index: true
     },

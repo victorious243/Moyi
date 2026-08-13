@@ -2,7 +2,9 @@ const crypto = require('crypto');
 const express = require('express');
 const asyncHandler = require('express-async-handler');
 const env = require('../config/env');
+const Project = require('../models/Project');
 const { requireAuth } = require('../middleware/auth');
+const { canChangeProjectRole, projectAccessRole } = require('../services/projectAccessService');
 const {
   buildGoogleAuthUrl,
   exchangeCodeForTokens,
@@ -102,14 +104,9 @@ router.get('/google/callback', asyncHandler(async (req, res) => {
 // 1-CLICK SOCIAL OAUTH CONNECT ROUTES (NON-TECHNICAL)
 // ------------------------------------------
 const {
-  buildLinkedInAuthUrl,
-  buildMetaAuthUrl,
-  buildTwitterAuthUrl,
-  exchangeLinkedInCode,
-  exchangeMetaCode,
-  exchangeTwitterCode,
-  generateTwitterPkcePair
-} = require('../services/socialOauthService');
+  connectProvider,
+  getAuthorizationRequest
+} = require('../services/socialProviderService');
 
 const { connectSocialApiAccount } = require('../services/socialAccountService');
 
@@ -118,29 +115,51 @@ function clearSocialOauthCookies(res) {
   res.clearCookie('social_oauth_project', oauthCookieOptions());
   res.clearCookie('social_oauth_platform', oauthCookieOptions());
   res.clearCookie('social_oauth_code_verifier', oauthCookieOptions());
+  res.clearCookie('social_oauth_handle', oauthCookieOptions());
 }
 
-router.get('/social/:platform/connect', (req, res) => {
-  const platform = req.params.platform;
+function normalizeSocialPlatform(value) {
+  return value === 'twitter' ? 'x' : value;
+}
+
+async function requireManageableOAuthProject(projectId, userId) {
+  if (!projectId || !/^[a-f0-9]{24}$/i.test(String(projectId))) {
+    const error = new Error('Open Social Accounts from a project before connecting an account.');
+    error.statusCode = 400;
+    throw error;
+  }
+  const project = await Project.findById(projectId);
+  const role = project ? await projectAccessRole({ project, userId }) : null;
+  if (!project || !canChangeProjectRole(role)) {
+    const error = new Error('You do not have permission to connect accounts to this project.');
+    error.statusCode = 403;
+    throw error;
+  }
+  return project;
+}
+
+router.get('/social/:platform/connect', asyncHandler(async (req, res) => {
+  const platform = normalizeSocialPlatform(req.params.platform);
   const state = crypto.randomBytes(24).toString('hex');
   const projectId = req.query.projectId || '';
-
-  res.cookie('social_oauth_state', state, oauthCookieOptions());
-  res.cookie('social_oauth_platform', platform, oauthCookieOptions());
-  if (projectId) {
-    res.cookie('social_oauth_project', String(projectId), oauthCookieOptions());
-  }
+  const redirectPath = projectId ? `/projects/${projectId}/integrations/social` : '/integrations';
 
   try {
+    await requireManageableOAuthProject(projectId, req.user._id);
+    res.cookie('social_oauth_state', state, oauthCookieOptions());
+    res.cookie('social_oauth_platform', platform, oauthCookieOptions());
+    res.cookie('social_oauth_project', String(projectId), oauthCookieOptions());
+
     let authUrl = '';
-    if (platform === 'linkedin') {
-      authUrl = buildLinkedInAuthUrl({ state });
-    } else if (platform === 'x' || platform === 'twitter') {
-      const pkce = generateTwitterPkcePair();
-      res.cookie('social_oauth_code_verifier', pkce.verifier, oauthCookieOptions());
-      authUrl = buildTwitterAuthUrl({ state, codeChallenge: pkce.challenge });
-    } else if (platform === 'meta' || platform === 'facebook' || platform === 'instagram') {
-      authUrl = buildMetaAuthUrl({ state });
+    const providerPlatform = platform === 'meta' ? 'facebook' : platform;
+    if (['bluesky', 'linkedin', 'x', 'facebook', 'instagram', 'threads', 'tiktok', 'youtube'].includes(providerPlatform)) {
+      const handle = String(req.query.handle || '').trim();
+      const request = await getAuthorizationRequest(providerPlatform, { state, handle });
+      if (request.codeVerifier) {
+        res.cookie('social_oauth_code_verifier', request.codeVerifier, oauthCookieOptions());
+      }
+      if (handle) res.cookie('social_oauth_handle', handle, oauthCookieOptions());
+      authUrl = request.url;
     } else {
       throw new Error(`Unsupported 1-click OAuth platform: ${platform}`);
     }
@@ -148,10 +167,9 @@ router.get('/social/:platform/connect', (req, res) => {
     res.redirect(authUrl);
   } catch (error) {
     clearSocialOauthCookies(res);
-    const redirectPath = projectId ? `/projects/${projectId}/integrations/social` : '/integrations';
     res.redirect(`${redirectPath}?error=${encodeURIComponent(error.message)}`);
   }
-});
+}));
 
 router.get('/social/:platform/callback', asyncHandler(async (req, res) => {
   const platform = req.params.platform;
@@ -159,6 +177,7 @@ router.get('/social/:platform/callback', asyncHandler(async (req, res) => {
   const projectId = req.cookies.social_oauth_project;
   const requestedPlatform = req.cookies.social_oauth_platform;
   const codeVerifier = req.cookies.social_oauth_code_verifier;
+  const blueskyHandle = req.cookies.social_oauth_handle;
   clearSocialOauthCookies(res);
 
   const redirectPath = projectId ? `/projects/${projectId}/integrations/social` : '/integrations';
@@ -167,12 +186,12 @@ router.get('/social/:platform/callback', asyncHandler(async (req, res) => {
     return res.redirect(`${redirectPath}?error=${encodeURIComponent(`Connection canceled: ${req.query.error_description || req.query.error}`)}`);
   }
 
-  if (!expectedState || req.query.state !== expectedState) {
+  if (!expectedState || (platform !== 'bluesky' && req.query.state !== expectedState)) {
     return res.redirect(`${redirectPath}?error=${encodeURIComponent('Social connection state verification failed. Please try again.')}`);
   }
 
-  const callbackPlatform = platform === 'twitter' ? 'x' : platform;
-  const expectedPlatform = requestedPlatform === 'twitter' ? 'x' : requestedPlatform;
+  const callbackPlatform = normalizeSocialPlatform(platform);
+  const expectedPlatform = normalizeSocialPlatform(requestedPlatform);
   const isMetaFamily = ['meta', 'facebook', 'instagram'].includes(callbackPlatform) && ['meta', 'facebook', 'instagram'].includes(expectedPlatform);
   if (expectedPlatform && callbackPlatform !== expectedPlatform && !isMetaFamily) {
     return res.redirect(`${redirectPath}?error=${encodeURIComponent('Social connection platform verification failed. Please try again.')}`);
@@ -183,23 +202,32 @@ router.get('/social/:platform/callback', asyncHandler(async (req, res) => {
   }
 
   try {
-    let tokenPayload = null;
-    if (platform === 'linkedin') {
-      tokenPayload = await exchangeLinkedInCode(req.query.code);
-    } else if (platform === 'x' || platform === 'twitter') {
-      tokenPayload = await exchangeTwitterCode(req.query.code, { codeVerifier });
-    } else if (platform === 'meta' || platform === 'facebook' || platform === 'instagram') {
-      tokenPayload = await exchangeMetaCode(req.query.code);
+    await requireManageableOAuthProject(projectId, req.user._id);
+    let accounts = [];
+    const providerPlatform = callbackPlatform === 'meta' ? 'facebook' : callbackPlatform;
+    if (['bluesky', 'linkedin', 'x', 'facebook', 'instagram', 'threads', 'tiktok', 'youtube'].includes(providerPlatform)) {
+      const callbackUrl = new URL(req.originalUrl, env.appUrl);
+      accounts = await connectProvider(providerPlatform, String(req.query.code), {
+        callbackParams: callbackUrl.searchParams,
+        codeVerifier,
+        handle: blueskyHandle
+      });
+      if (providerPlatform === 'bluesky') {
+        const returnedState = accounts[0] && accounts[0].metadata
+          ? String(accounts[0].metadata.appState || '')
+          : '';
+        if (!returnedState || returnedState !== expectedState) {
+          throw new Error('Bluesky connection state verification failed. Please try again.');
+        }
+      }
     } else {
       throw new Error('Invalid platform callback');
     }
 
-    if (projectId && /^[a-f0-9]{24}$/i.test(projectId)) {
-      const accounts = Array.isArray(tokenPayload.accounts) && tokenPayload.accounts.length
-        ? tokenPayload.accounts
-        : [tokenPayload];
-
-      await Promise.all(accounts.map((account) => connectSocialApiAccount({
+    await Promise.all(accounts.map((account) => {
+      const metadata = { ...(account.metadata || {}) };
+      delete metadata.appState;
+      return connectSocialApiAccount({
         projectId,
         userId: req.user._id,
         platform: account.platform,
@@ -207,17 +235,49 @@ router.get('/social/:platform/callback', asyncHandler(async (req, res) => {
         externalAccountId: account.externalAccountId,
         accessToken: account.accessToken,
         refreshToken: account.refreshToken,
-        expiresInSeconds: account.expiresInSeconds
-      })));
-    }
+        expiresInSeconds: account.expiresInSeconds,
+        expiresAt: account.expiresAt,
+        scopes: account.scopes,
+        metadata
+      });
+    }));
 
-    const accountCount = Array.isArray(tokenPayload.accounts) && tokenPayload.accounts.length
-      ? tokenPayload.accounts.length
-      : 1;
+    const accountCount = accounts.length;
     res.redirect(`${redirectPath}?success=${encodeURIComponent(`Connected ${accountCount} social account${accountCount === 1 ? '' : 's'} successfully.`)}`);
   } catch (error) {
     res.redirect(`${redirectPath}?error=${encodeURIComponent(error.message)}`);
   }
+}));
+
+// ------------------------------------------
+// MODEL CONTEXT PROTOCOL (MCP) SERVER API ENDPOINTS
+// ------------------------------------------
+const { listMcpTools, handleMcpToolCall } = require('../services/mcpServerService');
+
+router.get('/api/mcp/tools', (req, res) => {
+  res.json({
+    success: true,
+    protocol: 'mcp-v1',
+    tools: listMcpTools()
+  });
+});
+
+router.post('/api/mcp', asyncHandler(async (req, res) => {
+  const { tool, params } = req.body;
+  if (!tool) {
+    return res.status(400).json({ error: 'Tool name is required.' });
+  }
+
+  const result = await handleMcpToolCall({
+    toolName: tool,
+    params: params || {},
+    userId: req.user._id
+  });
+
+  res.json({
+    jsonrpc: '2.0',
+    result
+  });
 }));
 
 module.exports = router;

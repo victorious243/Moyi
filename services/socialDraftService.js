@@ -4,9 +4,11 @@ const Campaign = require('../models/Campaign');
 const SocialDraft = require('../models/SocialDraft');
 const buildSocialDraftsPrompt = require('../src/prompts/social-drafts.prompt');
 const buildCampaignPlannerPrompt = require('../src/prompts/campaign-planner.prompt');
+const { buildGrowthBrainSocialContext } = require('./socialAnalyticsService');
 
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-const CHANNELS = ['linkedin', 'facebook', 'x', 'instagram', 'email'];
+const CHANNELS = ['bluesky', 'linkedin', 'facebook', 'x', 'instagram', 'threads', 'tiktok', 'youtube', 'email'];
+const MULTI_CHANNEL_SEQUENCE = ['linkedin', 'facebook', 'x', 'instagram', 'email', 'threads', 'tiktok', 'youtube', 'bluesky'];
 const CADENCE_COUNTS = { single: 1, weekly: 5, monthly: 12 };
 
 function parseJson(content) {
@@ -38,7 +40,7 @@ function scheduleDate(index) {
 
 function campaignSchedule({ cadence, channel, startDate }) {
   const count = CADENCE_COUNTS[cadence] || CADENCE_COUNTS.single;
-  const channelSequence = channel === 'multi' ? CHANNELS : [channel];
+  const channelSequence = channel === 'multi' ? MULTI_CHANNEL_SEQUENCE : [channel];
   const start = new Date(startDate);
   start.setHours(9, 0, 0, 0);
 
@@ -108,6 +110,12 @@ async function createCampaignContentPlan({ project, campaign, cadence }) {
     startDate: campaign.startDate
   });
   const fallback = campaignFallbackDrafts({ project, campaign, schedule });
+  const socialPerformance = await buildGrowthBrainSocialContext(project._id).catch(() => ({
+    source: 'Moyi Content Distribution Engine engagement snapshots',
+    sampleSize: 0,
+    strongestObservedPosts: [],
+    platforms: []
+  }));
   const context = {
     project: projectContext(project),
     campaign: {
@@ -119,7 +127,8 @@ async function createCampaignContentPlan({ project, campaign, cadence }) {
     schedule: schedule.map((slot) => ({
       channel: slot.channel,
       scheduledFor: slot.scheduledFor.toISOString()
-    }))
+    })),
+    socialPerformance
   };
 
   let parsed = null;
@@ -162,6 +171,26 @@ function fallbackDrafts({ project, draft }) {
       channel: 'x',
       title: `X: ${title}`,
       body: `${title}\n\nA practical resource for ${audience}. No fluff, just useful points to help with ${goal}.\n${draft.targetUrl || project.websiteUrl}`
+    },
+    {
+      channel: 'instagram',
+      title: `Instagram: ${title}`,
+      body: `${title}\n\nA visual summary for ${audience}, with practical next steps to help with ${goal}.\n\nLearn more through the link in our profile.`
+    },
+    {
+      channel: 'threads',
+      title: `Threads: ${title}`,
+      body: `${title}\n\nA practical thought for ${audience}: useful progress starts with clear next steps, not hype. What would help you most with ${goal}?`
+    },
+    {
+      channel: 'tiktok',
+      title: `TikTok: ${title}`,
+      body: `${title}\n\nA concise video explanation for ${audience}, focused on practical next steps for ${goal}.`
+    },
+    {
+      channel: 'youtube',
+      title: `YouTube: ${title}`,
+      body: `${title}\n\nThis video helps ${audience} understand practical next steps for ${goal}.\n\nMore information: ${draft.targetUrl || project.websiteUrl}`
     },
     {
       channel: 'email',
@@ -238,6 +267,12 @@ async function createSocialDraftsFromContent({ project, draft, campaignId = '' }
   }
 
   const fallback = fallbackDrafts({ project, draft });
+  const socialPerformance = await buildGrowthBrainSocialContext(project._id).catch(() => ({
+    source: 'Moyi Content Distribution Engine engagement snapshots',
+    sampleSize: 0,
+    strongestObservedPosts: [],
+    platforms: []
+  }));
   const context = {
     project: projectContext(project),
     campaign: {
@@ -252,7 +287,8 @@ async function createSocialDraftsFromContent({ project, draft, campaignId = '' }
       type: draft.type,
       targetUrl: draft.targetUrl,
       body: draft.body.slice(0, 5000)
-    }
+    },
+    socialPerformance
   };
 
   let parsed = null;

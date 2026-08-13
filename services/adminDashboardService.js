@@ -3,6 +3,8 @@ const Project = require('../models/Project');
 const Usage = require('../models/Usage');
 const ProjectJob = require('../models/ProjectJob');
 const PublishAction = require('../models/PublishAction');
+const PublishJob = require('../models/PublishJob');
+const SocialAccount = require('../models/SocialAccount');
 const WebhookDelivery = require('../models/WebhookDelivery');
 const AuditLog = require('../models/AuditLog');
 const AppLog = require('../models/AppLog');
@@ -22,7 +24,9 @@ async function buildAdminDashboard() {
     recentAuditLogs,
     recentAppLogs,
     usageRows,
-    health
+    health,
+    failedPublishJobs,
+    reconnectAccounts
   ] = await Promise.all([
     User.countDocuments(),
     Project.countDocuments(),
@@ -34,7 +38,22 @@ async function buildAdminDashboard() {
     AuditLog.find().sort({ createdAt: -1 }).limit(20).populate('projectId', 'name').lean(),
     AppLog.find().sort({ createdAt: -1 }).limit(20).populate('userId', 'email name').lean(),
     Usage.find({ periodStart, periodEnd }).sort({ updatedAt: -1 }).populate('userId', 'email name plan').lean(),
-    readinessPayload()
+    readinessPayload(),
+    PublishJob.find({ status: { $in: ['retry_wait', 'dead_letter', 'failed'] } })
+      .sort({ deadLetteredAt: -1, nextRetryAt: 1, updatedAt: -1 })
+      .limit(25)
+      .populate('projectId', 'name')
+      .populate('destinationProjectId', 'name')
+      .populate('accountId', 'accountName platform status')
+      .populate('userId', 'email name')
+      .lean(),
+    SocialAccount.find({ status: 'reconnect_required' })
+      .sort({ reconnectRequiredAt: -1 })
+      .limit(25)
+      .populate('projectId', 'name')
+      .populate('userId', 'email name')
+      .select('-accessToken -refreshToken -webhookSecret')
+      .lean()
   ]);
 
   const usageTotals = usageRows.reduce((totals, row) => {
@@ -58,6 +77,7 @@ async function buildAdminDashboard() {
     activeUsers,
     failedJobs,
     failedPublishActions,
+    failedPublishJobs,
     failedWebhookDeliveries,
     health,
     periodEnd,
@@ -65,6 +85,7 @@ async function buildAdminDashboard() {
     projectCount,
     recentAuditLogs,
     recentAppLogs,
+    reconnectAccounts,
     runningJobs,
     usageRows,
     usageTotals,

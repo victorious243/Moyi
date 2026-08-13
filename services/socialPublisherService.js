@@ -5,7 +5,7 @@ const SocialAccount = require('../models/SocialAccount');
 const PublishAction = require('../models/PublishAction');
 const ContentImage = require('../models/ContentImage');
 const { getDecryptedSocialAccountCredentials } = require('./socialAccountService');
-const appLogger = require('./appLogger');
+const { recordAppLog } = require('./appLogger');
 const { publishFacebookPagePost, publishInstagramBusinessPost } = require('./metaMcpService');
 
 function absoluteAppUrl(pathOrUrl) {
@@ -124,36 +124,6 @@ async function dispatchWebhook({ credentials, payload }) {
 }
 
 /**
- * Dispatches post to Ayrshare API aggregator if configured.
- */
-async function dispatchAggregator({ credentials, payload }) {
-  if (!credentials.accessToken) {
-    throw new Error(`API access token is missing for ${credentials.platform}.`);
-  }
-
-  // Example dispatch structure for social API aggregator
-  const response = await axios.post(
-    'https://api.ayrshare.com/api/post',
-    {
-      post: `${payload.title ? `${payload.title}\n\n` : ''}${payload.body}`,
-      platforms: [payload.channel],
-      mediaUrls: payload.imageUrl ? [absoluteAppUrl(payload.imageUrl)] : []
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${credentials.accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      timeout: 12000
-    }
-  );
-
-  return {
-    externalId: response.data && response.data.id ? String(response.data.id) : `aggregator-${Date.now()}`
-  };
-}
-
-/**
  * Dispatches direct post to LinkedIn API.
  */
 async function dispatchLinkedIn({ credentials, payload }) {
@@ -231,26 +201,34 @@ async function dispatchTwitter({ credentials, payload }) {
 
 function targetPlatformsForChannel(channel) {
   const targetPlatformsByChannel = {
-    linkedin: ['linkedin', 'ayrshare', 'webhook'],
-    x: ['x', 'ayrshare', 'webhook'],
-    facebook: ['facebook', 'ayrshare', 'webhook'],
-    instagram: ['instagram', 'ayrshare', 'webhook'],
+    bluesky: ['bluesky'],
+    linkedin: ['linkedin'],
+    x: ['x'],
+    facebook: ['facebook'],
+    instagram: ['instagram'],
+    threads: ['threads'],
     webhook: ['webhook'],
-    youtube: ['ayrshare', 'webhook'],
-    tiktok: ['ayrshare', 'webhook'],
+    youtube: ['youtube'],
+    tiktok: ['tiktok'],
     email: ['webhook']
   };
 
-  return targetPlatformsByChannel[channel] || [channel, 'ayrshare', 'webhook'];
+  return targetPlatformsByChannel[channel] || [channel];
 }
 
-function hasPublishableImage(draft, imagesByDraftId = {}) {
-  if (draft.contentImageId) return true;
+function publishableMediaForDraft(draft, imagesByDraftId = {}, mediaAssetsByDraftId = {}) {
+  if (draft.contentImageId) return { hasImage: true, hasVideo: false };
   const images = imagesByDraftId[String(draft._id)] || [];
-  return images.some((image) => image.status === 'selected');
+  const hasLegacyImage = images.some((image) => image.status === 'selected');
+  const mediaAssets = (mediaAssetsByDraftId[String(draft._id)] || [])
+    .filter((asset) => asset.status !== 'failed');
+  return {
+    hasImage: hasLegacyImage || mediaAssets.some((asset) => asset.kind === 'image'),
+    hasVideo: mediaAssets.some((asset) => asset.kind === 'video')
+  };
 }
 
-function describePublishReadiness({ draft, connectedAccounts = [], imagesByDraftId = {} }) {
+function describePublishReadiness({ draft, connectedAccounts = [], imagesByDraftId = {}, mediaAssetsByDraftId = {} }) {
   const supportedPlatforms = targetPlatformsForChannel(draft.channel);
   const targets = connectedAccounts.filter((account) => (
     account.status === 'connected' && supportedPlatforms.includes(account.platform)
@@ -272,6 +250,21 @@ function describePublishReadiness({ draft, connectedAccounts = [], imagesByDraft
     };
   }
 
+  if (['queued', 'preparing_media', 'publishing', 'provider_processing'].includes(draft.publishStatus)) {
+    return {
+      draftId: String(draft._id),
+      channel: draft.channel,
+      supportedPlatforms,
+      targets,
+      selectedTarget,
+      blockers: ['Publishing in progress'],
+      ready: false,
+      inFlight: true
+    };
+  }
+
+  if (draft.publishStatus === 'failed') blockers.push('Publishing failed');
+
   if (draft.status !== 'approved') {
     blockers.push('Needs approval');
   }
@@ -280,9 +273,10 @@ function describePublishReadiness({ draft, connectedAccounts = [], imagesByDraft
     blockers.push(`Connect ${draft.channel}`);
   }
 
-  if (draft.channel === 'instagram' && !hasPublishableImage(draft, imagesByDraftId)) {
-    blockers.push('Instagram needs an image');
-  }
+  const media = publishableMediaForDraft(draft, imagesByDraftId, mediaAssetsByDraftId);
+  if (draft.channel === 'instagram' && !media.hasImage && !media.hasVideo) blockers.push('Instagram needs media');
+  if (draft.channel === 'tiktok' && !media.hasImage && !media.hasVideo) blockers.push('TikTok needs media');
+  if (draft.channel === 'youtube' && !media.hasVideo) blockers.push('YouTube needs a video');
 
   return {
     draftId: String(draft._id),
@@ -295,15 +289,17 @@ function describePublishReadiness({ draft, connectedAccounts = [], imagesByDraft
   };
 }
 
-function buildPublishReadiness({ socialDrafts = [], connectedAccounts = [], imagesByDraftId = {} }) {
+function buildPublishReadiness({ socialDrafts = [], connectedAccounts = [], imagesByDraftId = {}, mediaAssetsByDraftId = {} }) {
   const posts = socialDrafts.map((draft) => describePublishReadiness({
     draft,
     connectedAccounts,
-    imagesByDraftId
+    imagesByDraftId,
+    mediaAssetsByDraftId
   }));
   const readyPosts = posts.filter((post) => post.ready);
   const blockedPosts = posts.filter((post) => !post.ready && !post.blockers.includes('Already published'));
   const publishedPosts = posts.filter((post) => post.blockers.includes('Already published'));
+  const inFlightPosts = posts.filter((post) => post.inFlight);
   const missingConnections = [...new Set(blockedPosts
     .flatMap((post) => post.blockers)
     .filter((blocker) => blocker.startsWith('Connect '))
@@ -312,7 +308,8 @@ function buildPublishReadiness({ socialDrafts = [], connectedAccounts = [], imag
   return {
     posts,
     readyCount: readyPosts.length,
-    blockedCount: blockedPosts.length,
+    blockedCount: blockedPosts.filter((post) => !post.inFlight).length,
+    inFlightCount: inFlightPosts.length,
     publishedCount: publishedPosts.length,
     missingConnections
   };
@@ -384,9 +381,6 @@ async function publishSocialDraft({ socialDraftId, userId, socialAccountId = nul
         integrationType = 'webhook';
         actionType = 'webhook_dispatch';
         publishResult = await dispatchWebhook({ credentials, payload });
-      } else if (account.platform === 'ayrshare') {
-        integrationType = account.platform;
-        publishResult = await dispatchAggregator({ credentials, payload });
       } else if (account.platform === 'linkedin') {
         integrationType = 'linkedin';
         publishResult = await dispatchLinkedIn({ credentials, payload });
@@ -397,7 +391,7 @@ async function publishSocialDraft({ socialDraftId, userId, socialAccountId = nul
         integrationType = account.platform;
         publishResult = await dispatchMeta({ credentials, payload, draft });
       } else {
-        throw new Error(`${account.platform} direct publishing is not implemented yet. Connect LinkedIn, X, Facebook/Instagram, Ayrshare, or a webhook.`);
+        throw new Error(`${account.platform} direct publishing is handled by the Content Distribution Engine. Queue this approved draft from the calendar.`);
       }
     }
 
@@ -421,11 +415,15 @@ async function publishSocialDraft({ socialDraftId, userId, socialAccountId = nul
       status: 'success'
     });
 
-    appLogger.info(`[MultiPlatformPublish] Published social draft ${draft._id} to ${draft.channel}`, {
-      projectId: draft.projectId,
-      channel: draft.channel,
-      externalId: publishResult.externalId
-    });
+    recordAppLog({
+      level: 'info',
+      message: `[MultiPlatformPublish] Published social draft ${draft._id} to ${draft.channel}`,
+      metadata: {
+        projectId: draft.projectId,
+        channel: draft.channel,
+        externalId: publishResult.externalId
+      }
+    }).catch(() => null);
 
     return {
       success: true,
@@ -452,11 +450,15 @@ async function publishSocialDraft({ socialDraftId, userId, socialAccountId = nul
       errorMessage: errorMsg
     });
 
-    appLogger.error(`[MultiPlatformPublish] Failed to publish social draft ${draft._id}`, {
-      error: errorMsg,
-      projectId: draft.projectId,
-      channel: draft.channel
-    });
+    recordAppLog({
+      level: 'error',
+      message: `[MultiPlatformPublish] Failed to publish social draft ${draft._id}`,
+      metadata: {
+        error: errorMsg,
+        projectId: draft.projectId,
+        channel: draft.channel
+      }
+    }).catch(() => null);
 
     throw error;
   }

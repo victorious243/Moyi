@@ -34,7 +34,7 @@ const publishActionSchema = new mongoose.Schema(
     },
     integrationType: {
       type: String,
-      enum: ['wordpress', 'webflow', 'shopify', 'linkedin', 'x', 'facebook', 'instagram', 'youtube', 'tiktok', 'ayrshare', 'buffer', 'webhook', 'manual'],
+      enum: ['wordpress', 'webflow', 'shopify', 'bluesky', 'linkedin', 'x', 'facebook', 'instagram', 'threads', 'youtube', 'tiktok', 'ayrshare', 'buffer', 'webhook', 'manual'],
       default: 'wordpress'
     },
     actionType: {

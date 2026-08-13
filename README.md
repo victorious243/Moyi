@@ -17,6 +17,7 @@ It is designed to avoid generic or hallucinated marketing advice. The system sta
 - [Content Workspace Tutorial](#content-workspace-tutorial)
 - [Image And Logo Workflow](#image-and-logo-workflow)
 - [Campaigns And Calendar](#campaigns-and-calendar)
+- [Content Distribution Engine](#content-distribution-engine)
 - [Measurement And Reports](#measurement-and-reports)
 - [Integrations](#integrations)
 - [Email Setup](#email-setup)
@@ -40,7 +41,8 @@ Moyi combines these product areas:
 - High-intent SaaS templates such as comparison, alternatives, and product-led guides.
 - Content image generation and manual image uploads.
 - Project-level official logo storage for branded visuals.
-- Manual content calendar and campaign planning.
+- Human-approved native social publishing, scheduling, and engagement analytics.
+- Agency workspaces for publishing across separated client projects.
 - Google Search Console query/page opportunity analysis.
 - WordPress, Webflow, Shopify draft publishing.
 - Outgoing approved-content webhooks.
@@ -48,7 +50,7 @@ Moyi combines these product areas:
 - Stripe billing with monthly and yearly plan options.
 - Production health/readiness checks.
 
-Moyi does not auto-publish live content, auto-post social media, scrape private competitor data, guarantee rankings, or invent missing metrics.
+Moyi does not publish unapproved content, take live action without an explicit publish command or schedule, scrape private competitor data, guarantee rankings, or invent missing metrics.
 
 ## How The Product Workflow Works
 
@@ -65,8 +67,8 @@ The main workflow is:
 9. Review copy in the Write step.
 10. Generate or upload visuals in the Visual step.
 11. Approve, request changes, or reject in the Review step.
-12. Export, create CMS drafts, create social drafts, or mark manual publication in the Distribute step.
-13. Use the calendar and reports to keep the work organized.
+12. Export, create CMS drafts, or publish an approved social draft now or on a schedule.
+13. Use social performance, the calendar, and reports to feed observed results into the next planning cycle.
 
 ## Local Setup Tutorial
 
@@ -256,18 +258,53 @@ Configure the same redirect URI in Google Cloud OAuth settings.
 ### One-Click Social Publishing
 
 ```env
+APP_URL=http://localhost:3000
+TOKEN_ENCRYPTION_SECRET=replace-with-at-least-32-random-characters
+BLUESKY_REDIRECT_URI=http://localhost:3000/integrations/social/bluesky/callback
+BLUESKY_PRIVATE_JWK=
 LINKEDIN_CLIENT_ID=
 LINKEDIN_CLIENT_SECRET=
 LINKEDIN_REDIRECT_URI=http://localhost:3000/integrations/social/linkedin/callback
+LINKEDIN_API_VERSION=202607
 TWITTER_CLIENT_ID=
 TWITTER_CLIENT_SECRET=
 TWITTER_REDIRECT_URI=http://localhost:3000/integrations/social/x/callback
 META_APP_ID=
 META_APP_SECRET=
 META_REDIRECT_URI=http://localhost:3000/integrations/social/meta/callback
+SOCIAL_ENABLE_META=false
+THREADS_APP_ID=
+THREADS_APP_SECRET=
+THREADS_REDIRECT_URI=http://localhost:3000/integrations/social/threads/callback
+SOCIAL_ENABLE_THREADS=false
+TIKTOK_CLIENT_KEY=
+TIKTOK_CLIENT_SECRET=
+TIKTOK_REDIRECT_URI=http://localhost:3000/integrations/social/tiktok/callback
+SOCIAL_ENABLE_TIKTOK=false
+YOUTUBE_CLIENT_ID=
+YOUTUBE_CLIENT_SECRET=
+YOUTUBE_REDIRECT_URI=http://localhost:3000/integrations/social/youtube/callback
+SOCIAL_ENABLE_YOUTUBE=false
+MEDIA_STORAGE_PROVIDER=machine
+MEDIA_STORAGE_PATH=./storage/social-media
+MEDIA_UPLOAD_TEMP_PATH=./storage/media-uploads
+FFMPEG_PATH=ffmpeg
+FFPROBE_PATH=ffprobe
+REDIS_URL=redis://127.0.0.1:6379
+DISABLE_QUEUE=false
 ```
 
-Configure these exact callback URLs in the LinkedIn, X, and Meta developer apps. Users connect from `Social Accounts`, approve the provider OAuth screen, and Moyi stores encrypted tokens on the project. Calendar publishing requires an approved social draft and a connected account for that channel.
+This is Moyi's own publishing layer. It does not use Postiz, Ayrshare, or a scheduler API key. MongoDB stores the account, batch, job, and media records; BullMQ and Redis execute immediate and delayed work. OAuth access and refresh tokens are AES-GCM encrypted with `TOKEN_ENCRYPTION_SECRET` and are never sent to the browser.
+
+Create the indexes, build the TypeScript adapters, and run the web and worker processes:
+
+```bash
+npm run migrate:distribution
+npm run build:distribution
+npm start
+```
+
+`npm start` supervises both processes when `DISABLE_QUEUE=false`. For separate local terminals, run `npm run web` and `npm run worker`. `npm run dev` deliberately disables Redis and executes due-now jobs inline; delayed schedules require the worker.
 
 Run this before a live posting test:
 
@@ -277,10 +314,30 @@ npm run check:social
 
 Provider setup checklist:
 
-- LinkedIn: enable OAuth 2.0 and products/scopes that allow member posting, including `openid`, `profile`, `email`, and `w_member_social`. Add the exact LinkedIn callback URL printed by `npm run check:social`.
-- X: create an OAuth 2.0 app with read/write permissions, enable PKCE, add the exact X callback URL printed by `npm run check:social`, then set `TWITTER_CLIENT_ID`. Set `TWITTER_CLIENT_SECRET` too when the app type provides one.
-- Meta: create a Meta app with Facebook Login, request page posting and Instagram content publishing permissions, connect a Facebook Page and Instagram Business account, and add the exact Meta callback URL printed by `npm run check:social`.
+- Bluesky: localhost uses the [AT Protocol OAuth loopback client](https://atproto.com/guides/oauth-tutorial) automatically. For production, run `npm run generate:bluesky-key`, store the one-line JSON result as the secret `BLUESKY_PRIVATE_JWK`, and expose `/oauth-client-metadata.json` plus `/.well-known/jwks.json` on the public HTTPS domain. Users connect by entering their Bluesky handle.
+- X: create an [OAuth 2.0 app](https://docs.x.com/fundamentals/authentication/oauth-2-0/authorization-code) with read/write permissions and PKCE. Register the exact X callback, then set `TWITTER_CLIENT_ID` and, for a confidential client, `TWITTER_CLIENT_SECRET`. Moyi requests `tweet.read`, `tweet.write`, `users.read`, `media.write`, and `offline.access` and uses X's current [media upload endpoint](https://docs.x.com/x-api/media/upload-media).
+- LinkedIn: add Sign In with LinkedIn using OpenID Connect and Share on LinkedIn. Personal publishing needs `w_member_social`. Organization discovery and publishing also need approved access to `rw_organization_admin` and `w_organization_social`. Publishing uses LinkedIn's versioned [Posts API](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api) and [Images API](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/images-api). Some LinkedIn apps do not receive refresh tokens; those accounts are marked for reconnection before expiry instead of retaining an expired credential.
+- Meta: one OAuth flow discovers manageable Facebook Pages and linked Instagram professional accounts. Request advanced access to Page publishing/engagement plus Instagram basic, content publishing, and comment permissions. Keep `SOCIAL_ENABLE_META=false` until review and live tests are complete.
+- Threads: configure the Threads API use case and its separate callback, request basic/content-publish/reply permissions, then enable `SOCIAL_ENABLE_THREADS` after review.
+- TikTok: add Login Kit and Content Posting API with `user.info.basic` and `video.publish`. Moyi queries creator choices before each post and polls processing status. Unaudited apps are private-only.
+- YouTube: enable YouTube Data API v3 and create a Web OAuth client with upload/read scopes. Moyi uses resumable video uploads; unaudited API projects may have uploads forced private.
 - Production: use the public HTTPS domain in `APP_URL` and in every provider callback, for example `https://moyi-cmo.com/integrations/social/x/callback`.
+
+Phase 2 requires Redis plus a running worker and FFmpeg/FFprobe on the media-worker host. Full OAuth permissions, S3/R2 setup, platform review notes, and per-provider test steps are in [the Phase 2 distribution guide](docs/content-distribution-phase-2.md).
+
+### Content Distribution Engine
+
+Phase 3 collects rate-limit-friendly engagement snapshots after publication, adds provider-aware retries and dead-letter recovery, supports agency client workspaces, feeds normalized performance signals into the Growth Brain, and exposes an optional project-scoped API. The complete role matrix, collection cadence, recovery behavior, provider metrics permissions, migration sequence, and API examples are in [the Phase 3 closed-loop guide](docs/content-distribution-phase-3.md).
+
+End-to-end test for each provider:
+
+1. Open a project's `Social Accounts` page and connect the provider.
+2. Create a social draft, select or upload one JPEG, PNG, or WebP image, and approve it.
+3. Select one or more connected accounts in the calendar publish panel.
+4. Choose `Now` or `Schedule`, submit, and watch each job move through `queued`, `publishing`, then `published`; recoverable failures move through `retry_wait` and permanent failures move to `dead_letter`.
+5. Open `View post`, then review collected metrics on Social Performance. Reconnect an expired account or retry a dead-letter job only after correcting its account, content, or media.
+
+Run the automated adapter, model, approval-gate, and queue contract tests with `npm test`. Live provider tests still require real developer credentials and provider approval; the test suite never makes a real social post.
 
 ### Stripe
 
@@ -696,19 +753,28 @@ Requires Shopify shop domain, blog ID, API version, and access token.
 Routes:
 
 - `GET /projects/:id/integrations/social`
+- `GET /integrations/social/bluesky/connect`
 - `GET /integrations/social/linkedin/connect`
 - `GET /integrations/social/x/connect`
 - `GET /integrations/social/meta/connect`
+- `GET /integrations/social/threads/connect`
+- `GET /integrations/social/tiktok/connect`
+- `GET /integrations/social/youtube/connect`
+- `POST /social-drafts/:id/media/upload`
+- `GET /social-drafts/:id/media-status`
 - `POST /social-drafts/:id/approve-and-publish`
+- `GET /social-drafts/:id/publish-status`
+- `POST /social-drafts/:id/publish-jobs/:jobId/retry`
 - `POST /social-drafts/publish-all-connected`
 
 Rules:
 
-- Users connect LinkedIn, X, or Meta with one OAuth click.
-- Tokens are encrypted before storage.
+- Users connect Bluesky, X, LinkedIn, Facebook, Instagram, Threads, TikTok, or YouTube with OAuth.
+- Tokens and Bluesky OAuth sessions are encrypted before storage.
 - Drafts must pass the human approval gate before live publishing.
-- Publishing fails with a clear connect-first message when the matching social account is missing.
-- Instagram publishing requires an image URL on the draft.
+- One `PublishBatch` creates one durable `PublishJob` per selected account.
+- The native adapters support platform-appropriate text, image, video, carousel, first-comment, immediate, and scheduled publishing.
+- Images and videos are processed asynchronously into 1:1, 4:5, 9:16, and 16:9 variants before a waiting job is released.
 
 ### Outgoing Webhook
 

@@ -2,7 +2,15 @@
 
 <%
   const readiness = typeof socialReadiness !== 'undefined' ? socialReadiness : { providers: {} };
+  const userCanManageProject = typeof canManageProject !== 'undefined' ? canManageProject : true;
   const providerCards = [
+    {
+      key: 'bluesky',
+      label: 'Bluesky',
+      body: 'Connect with your Bluesky handle through the AT Protocol OAuth flow.',
+      href: `/integrations/social/bluesky/connect?projectId=${project._id}`,
+      needsHandle: true
+    },
     {
       key: 'linkedin',
       label: 'LinkedIn',
@@ -17,12 +25,36 @@
     },
     {
       key: 'meta',
-      label: 'Facebook and Instagram',
-      body: 'Connect Meta once. Moyi stores Facebook Page and Instagram Business targets separately when both are available.',
+      label: 'Facebook + Instagram',
+      body: 'Connect Facebook Pages and their linked Instagram Business or Creator accounts through Meta.',
       href: `/integrations/social/meta/connect?projectId=${project._id}`
+    },
+    {
+      key: 'threads',
+      label: 'Threads',
+      body: 'Connect a Threads profile for text, image, video, and carousel publishing.',
+      href: `/integrations/social/threads/connect?projectId=${project._id}`
+    },
+    {
+      key: 'tiktok',
+      label: 'TikTok',
+      body: 'Connect an approved Content Posting API app for video and photo posts.',
+      href: `/integrations/social/tiktok/connect?projectId=${project._id}`
+    },
+    {
+      key: 'youtube',
+      label: 'YouTube',
+      body: 'Connect a YouTube channel for regular videos and Shorts.',
+      href: `/integrations/social/youtube/connect?projectId=${project._id}`
     }
   ];
+  const nativeProviderKeys = providerCards.map((provider) => provider.key);
+  const readyNativeProviders = nativeProviderKeys.filter((key) => readiness.providers && readiness.providers[key] && readiness.providers[key].ready);
   const connectedByPlatform = (platforms) => accounts.filter((account) => platforms.includes(account.platform) && account.status === 'connected');
+  const reconnectHref = (account) => {
+    const key = ['facebook', 'instagram'].includes(account.platform) ? 'meta' : account.platform;
+    return `/integrations/social/${key}/connect?projectId=${project._id}`;
+  };
 %>
 
 <div class="app-layout">
@@ -38,6 +70,7 @@
     <a href="/projects/<%= project._id %>/integrations/webhook">Webhook</a>
     <a href="/projects/<%= project._id %>/content">Approval Queue</a>
     <a href="/projects/<%= project._id %>/calendar">Calendar</a>
+    <a href="/projects/<%= project._id %>/social-performance">Social Performance</a>
   </aside>
 
   <section class="app-main">
@@ -57,11 +90,12 @@
 
     <section class="studio-summary" aria-label="Social publishing summary">
       <div><span>Connected</span><strong><%= accounts.filter((account) => account.status === 'connected').length %></strong></div>
-      <div><span>OAuth ready</span><strong><%= (readiness.configuredProviders || []).length %>/3</strong></div>
+      <div><span>OAuth ready</span><strong><%= readyNativeProviders.length %>/<%= nativeProviderKeys.length %></strong></div>
       <div><span>Publish actions</span><strong><%= recentActions.length %></strong></div>
       <div><span>Human approval</span><strong>On</strong></div>
     </section>
 
+    <% if (userCanManageProject) { %>
     <section class="panel">
       <div class="panel-title">
         <div>
@@ -79,7 +113,7 @@
           %>
           <article class="social-connect-card">
             <div>
-              <span class="status <%= platformAccounts.length ? 'status-success' : '' %>"><%= platformAccounts.length ? 'Connected' : 'Not connected' %></span>
+              <span class="status <%= platformAccounts.length ? 'status-success' : '' %>"><%= platformAccounts.length ? 'Connected' : (providerInfo && !providerInfo.enabled ? 'Disabled' : 'Not connected') %></span>
               <h3><%= provider.label %></h3>
               <p><%= provider.body %></p>
             </div>
@@ -91,14 +125,26 @@
               </ul>
             <% } %>
             <% if (providerInfo && !providerInfo.ready) { %>
-              <p class="empty">Missing env: <%= providerInfo.missingKeys.join(', ') %></p>
+              <% if (!providerInfo.enabled) { %><p class="empty">Enable this provider after its OAuth app and review are ready.</p><% } %>
+              <% if (providerInfo.missingKeys.length) { %><p class="empty">Missing env: <%= providerInfo.missingKeys.join(', ') %></p><% } %>
               <p class="empty">Callback: <code><%= providerInfo.callbackUrl %></code></p>
             <% } %>
-            <a class="button button-primary" href="<%= provider.href %>"><%= platformAccounts.length ? 'Reconnect' : `Connect ${provider.label}` %></a>
+            <% if (providerInfo && !providerInfo.ready) { %>
+              <span class="button" aria-disabled="true">Setup required</span>
+            <% } else if (provider.needsHandle) { %>
+              <form class="form social-handle-connect" action="/integrations/social/bluesky/connect" method="get">
+                <input type="hidden" name="projectId" value="<%= project._id %>">
+                <label>Bluesky handle <input name="handle" placeholder="name.bsky.social" autocomplete="username" required></label>
+                <button class="button button-primary" type="submit"><%= platformAccounts.length ? 'Reconnect' : 'Connect Bluesky' %></button>
+              </form>
+            <% } else { %>
+              <a class="button button-primary" href="<%= provider.href %>"><%= platformAccounts.length ? 'Reconnect' : `Connect ${provider.label}` %></a>
+            <% } %>
           </article>
         <% }) %>
       </div>
     </section>
+    <% } %>
 
     <section class="panel">
       <div class="panel-title">
@@ -111,27 +157,29 @@
         <p class="empty">No social accounts connected yet.</p>
       <% } else { %>
         <div class="table-wrap">
-          <table>
+          <table class="connected-social-table">
             <thead>
               <tr>
                 <th>Platform</th>
                 <th>Account</th>
-                <th>External ID</th>
                 <th>Status</th>
-                <th>Last sync</th>
+                <th>Token renewal</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               <% accounts.forEach((account) => { %>
                 <tr>
-                  <td><strong><%= account.platform %></strong></td>
-                  <td><%= account.accountName %></td>
-                  <td><%= account.externalAccountId || account.webhookUrl || 'Stored securely' %></td>
-                  <td><span class="status <%= account.status === 'connected' ? 'status-success' : '' %>"><%= account.status %></span></td>
-                  <td><%= account.lastSyncAt ? account.lastSyncAt.toLocaleString() : 'Not synced' %></td>
-                  <td>
-                    <% if (account.status === 'connected') { %>
+                  <td data-label="Platform"><strong><%= account.platform %></strong></td>
+                  <td data-label="Account"><%= account.accountName %></td>
+                  <td data-label="Status">
+                    <span class="status <%= account.status === 'connected' ? 'status-success' : 'publish-status-failed' %>"><%= account.status %></span>
+                    <% if (account.statusMessage && account.status !== 'connected') { %><small class="connection-status-message"><%= account.statusMessage %></small><% } %>
+                  </td>
+                  <td data-label="Token renewal"><%= account.tokenExpiresAt ? account.tokenExpiresAt.toLocaleString() : (account.platform === 'bluesky' ? 'Managed session' : 'No expiry reported') %></td>
+                  <td data-label="Actions">
+                    <% if (userCanManageProject && account.status === 'reconnect_required') { %><a class="button button-primary button-small" href="<%= reconnectHref(account) %>">Reconnect</a><% } %>
+                    <% if (userCanManageProject && account.status !== 'disconnected') { %>
                       <form action="/projects/<%= project._id %>/integrations/social/<%= account.id %>/disconnect" method="post">
                         <button class="button button-small" type="submit">Disconnect</button>
                       </form>
@@ -145,51 +193,6 @@
       <% } %>
     </section>
 
-    <section class="panel social-setup-grid">
-      <div>
-        <h2>Manual API or aggregator token</h2>
-        <p class="empty">Use this for server-side tokens or Ayrshare. Tokens are encrypted before storage.</p>
-        <form class="form" action="/projects/<%= project._id %>/integrations/social/api/connect" method="post">
-          <label>Platform
-            <select name="platform" required>
-              <option value="linkedin">LinkedIn</option>
-              <option value="x">X</option>
-              <option value="facebook">Facebook Page</option>
-              <option value="instagram">Instagram Business</option>
-              <option value="ayrshare">Ayrshare</option>
-            </select>
-          </label>
-          <label>Account label <input name="accountName" maxlength="140" placeholder="Company LinkedIn page" required></label>
-          <label>External account ID <input name="externalAccountId" maxlength="220" placeholder="Page ID, Instagram Business ID, author URN, or user ID"></label>
-          <label>Access token <input name="accessToken" type="password" autocomplete="off" required></label>
-          <label>Refresh token <input name="refreshToken" type="password" autocomplete="off"></label>
-          <button class="button button-primary" type="submit">Save API Account</button>
-        </form>
-      </div>
-
-      <div>
-        <h2>Webhook publishing target</h2>
-        <p class="empty">Use this for Make, Zapier, n8n, a custom frontend, or any platform Moyi should send approved post payloads to.</p>
-        <form class="form" action="/projects/<%= project._id %>/integrations/social/webhook/connect" method="post">
-          <label>Route as
-            <select name="platform">
-              <option value="webhook">Custom webhook</option>
-              <option value="linkedin">LinkedIn automation</option>
-              <option value="x">X automation</option>
-              <option value="facebook">Facebook automation</option>
-              <option value="instagram">Instagram automation</option>
-              <option value="youtube">YouTube automation</option>
-              <option value="tiktok">TikTok automation</option>
-            </select>
-          </label>
-          <label>Account label <input name="accountName" maxlength="140" placeholder="Make social router" required></label>
-          <label>Webhook URL <input name="webhookUrl" type="url" placeholder="https://hook.example.com/moyi-social" required></label>
-          <label>Signing secret <input name="webhookSecret" type="password" autocomplete="off" placeholder="Optional HMAC secret"></label>
-          <button class="button" type="submit">Save Webhook Target</button>
-        </form>
-      </div>
-    </section>
-
     <section class="panel">
       <div class="panel-title">
         <div>
@@ -201,7 +204,7 @@
         <p class="empty">No social publishing actions recorded yet.</p>
       <% } else { %>
         <div class="table-wrap">
-          <table>
+          <table class="social-history-table">
             <thead>
               <tr>
                 <th>When</th>
@@ -214,11 +217,11 @@
             <tbody>
               <% recentActions.forEach((action) => { %>
                 <tr>
-                  <td><%= action.createdAt.toLocaleString() %></td>
-                  <td><%= action.integrationType %></td>
-                  <td><%= action.actionType.replace(/_/g, ' ') %></td>
-                  <td><span class="status <%= action.status === 'success' ? 'status-success' : '' %>"><%= action.status %></span></td>
-                  <td><%= action.externalId || action.errorMessage || 'Recorded' %></td>
+                  <td data-label="When"><%= action.createdAt.toLocaleString() %></td>
+                  <td data-label="Target"><%= action.integrationType %></td>
+                  <td data-label="Action"><%= action.actionType.replace(/_/g, ' ') %></td>
+                  <td data-label="Status"><span class="status <%= action.status === 'success' ? 'status-success' : '' %>"><%= action.status %></span></td>
+                  <td data-label="Result"><%= action.externalId || action.errorMessage || 'Recorded' %></td>
                 </tr>
               <% }) %>
             </tbody>

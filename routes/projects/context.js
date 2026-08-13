@@ -11,6 +11,7 @@ const ProjectJob = require('../../models/ProjectJob');
 const Recommendation = require('../../models/Recommendation');
 const ContentDraft = require('../../models/ContentDraft');
 const ContentImage = require('../../models/ContentImage');
+const MediaAsset = require('../../models/MediaAsset');
 const ProjectSearchProperty = require('../../models/ProjectSearchProperty');
 const SearchMetric = require('../../models/SearchMetric');
 const Competitor = require('../../models/Competitor');
@@ -20,12 +21,19 @@ const WordPressIntegration = require('../../models/WordPressIntegration');
 const WebflowIntegration = require('../../models/WebflowIntegration');
 const ShopifyIntegration = require('../../models/ShopifyIntegration');
 const PublishAction = require('../../models/PublishAction');
+const PublishBatch = require('../../models/PublishBatch');
+const PublishJob = require('../../models/PublishJob');
+const PublishJobEvent = require('../../models/PublishJobEvent');
+const EngagementSnapshot = require('../../models/EngagementSnapshot');
+const GrowthSignal = require('../../models/GrowthSignal');
+const ApiCredential = require('../../models/ApiCredential');
 const WebhookDelivery = require('../../models/WebhookDelivery');
 const ConversionGoal = require('../../models/ConversionGoal');
 const TrackingEvent = require('../../models/TrackingEvent');
 const Campaign = require('../../models/Campaign');
 const SocialDraft = require('../../models/SocialDraft');
 const SocialAccount = require('../../models/SocialAccount');
+const SocialOAuthSession = require('../../models/SocialOAuthSession');
 const AnalyticsSnapshot = require('../../models/AnalyticsSnapshot');
 const AppError = require('../../utils/appError');
 const handleValidation = require('../../utils/validate');
@@ -34,6 +42,7 @@ const { normalizeShopDomain } = require('../../services/shopifyService');
 const { summarizeIssues } = require('../../services/auditService');
 const { recordAuditEvent } = require('../../services/auditLogService');
 const { deleteContentImagesForProject } = require('../../services/contentImageService');
+const { deleteMediaAssetsForProject } = require('../../services/mediaAssetCleanupService');
 const {
   hasProjectLogo,
   openDownloadStream: openProjectLogoStream,
@@ -41,7 +50,7 @@ const {
   saveProjectLogo
 } = require('../../services/projectLogoService');
 const { retryFailedJob } = require('../../services/projectTaskService');
-const { canManageProjectRole, isUnsafeMethod, projectAccessRole } = require('../../services/projectAccessService');
+const { canChangeProjectRole, canManageProjectRole, canPublishProjectRole, isUnsafeMethod, projectAccessRole } = require('../../services/projectAccessService');
 
 function buildProjectsContext(overrides = {}) {
   const deps = {
@@ -57,6 +66,7 @@ function buildProjectsContext(overrides = {}) {
     Recommendation,
     ContentDraft,
     ContentImage,
+    MediaAsset,
     ProjectSearchProperty,
     SearchMetric,
     Competitor,
@@ -66,12 +76,19 @@ function buildProjectsContext(overrides = {}) {
     WebflowIntegration,
     ShopifyIntegration,
     PublishAction,
+    PublishBatch,
+    PublishJob,
+    PublishJobEvent,
+    EngagementSnapshot,
+    GrowthSignal,
+    ApiCredential,
     WebhookDelivery,
     ConversionGoal,
     TrackingEvent,
     Campaign,
     SocialDraft,
     SocialAccount,
+    SocialOAuthSession,
     AnalyticsSnapshot,
     AppError,
     handleValidation,
@@ -80,12 +97,15 @@ function buildProjectsContext(overrides = {}) {
     summarizeIssues,
     recordAuditEvent,
     deleteContentImagesForProject,
+    deleteMediaAssetsForProject,
     hasProjectLogo,
     openProjectLogoStream,
     removeProjectLogo,
     saveProjectLogo,
     retryFailedJob,
     canManageProjectRole,
+    canChangeProjectRole,
+    canPublishProjectRole,
     isUnsafeMethod,
     projectAccessRole,
     ...overrides
@@ -105,7 +125,6 @@ function buildProjectsContext(overrides = {}) {
 
   function projectPayload(req) {
     return {
-      owner: req.user._id,
       name: req.body.name,
       websiteUrl: deps.normalizeUrl(req.body.websiteUrl),
       industry: req.body.industry || '',
@@ -125,7 +144,7 @@ function buildProjectsContext(overrides = {}) {
         if (!project) return next(new deps.AppError('Project not found.', 404));
         const role = await deps.projectAccessRole({ project, userId: req.user._id });
         if (!role) return next(new deps.AppError('Project not found.', 404));
-        if (deps.isUnsafeMethod(req.method) && !deps.canManageProjectRole(role)) {
+        if (deps.isUnsafeMethod(req.method) && !deps.canChangeProjectRole(role)) {
           return next(new deps.AppError('You do not have permission to change this project.', 403));
         }
 
@@ -133,7 +152,8 @@ function buildProjectsContext(overrides = {}) {
         req.projectAccessRole = role;
         res.locals.project = project;
         res.locals.projectAccessRole = role;
-        res.locals.canManageProject = deps.canManageProjectRole(role);
+        res.locals.canManageProject = deps.canChangeProjectRole(role);
+        res.locals.canPublishProject = deps.canPublishProjectRole(role);
         next();
       })
       .catch(next);
@@ -258,7 +278,20 @@ function buildProjectsContext(overrides = {}) {
   }
 
   async function deleteProjectOwnedData({ project, userId }) {
-    await deps.deleteContentImagesForProject(project._id);
+    const publishJobIds = await deps.PublishJob.find({
+      $or: [{ projectId: project._id }, { destinationProjectId: project._id }]
+    }).distinct('_id');
+    const blueskyAccounts = await deps.SocialAccount.find({ projectId: project._id, platform: 'bluesky' })
+      .select('metadata')
+      .lean();
+    const sessionKeys = blueskyAccounts
+      .map((account) => account.metadata && account.metadata.oauthSessionKey)
+      .filter(Boolean)
+      .map(String);
+    await Promise.all([
+      deps.deleteContentImagesForProject(project._id),
+      deps.deleteMediaAssetsForProject(project._id)
+    ]);
     if (deps.hasProjectLogo(project)) {
       await deps.removeProjectLogo(project);
     }
@@ -280,14 +313,43 @@ function buildProjectsContext(overrides = {}) {
       deps.WebflowIntegration.deleteMany({ projectId: project._id }),
       deps.ShopifyIntegration.deleteMany({ projectId: project._id }),
       deps.PublishAction.deleteMany({ projectId: project._id }),
+      deps.PublishBatch.deleteMany({ projectId: project._id }),
+      deps.PublishJob.deleteMany({ _id: { $in: publishJobIds } }),
+      deps.PublishJobEvent.deleteMany({
+        $or: [
+          { publishJobId: { $in: publishJobIds } },
+          { projectId: project._id },
+          { destinationProjectId: project._id }
+        ]
+      }),
+      deps.EngagementSnapshot.deleteMany({
+        $or: [
+          { publishJobId: { $in: publishJobIds } },
+          { projectId: project._id },
+          { sourceProjectId: project._id }
+        ]
+      }),
+      deps.GrowthSignal.deleteMany({
+        $or: [
+          { publishJobId: { $in: publishJobIds } },
+          { projectId: project._id },
+          { sourceProjectId: project._id }
+        ]
+      }),
       deps.WebhookDelivery.deleteMany({ projectId: project._id }),
       deps.ConversionGoal.deleteMany({ projectId: project._id }),
       deps.TrackingEvent.deleteMany({ projectId: project._id }),
       deps.Campaign.deleteMany({ projectId: project._id }),
       deps.SocialDraft.deleteMany({ projectId: project._id }),
+      deps.SocialAccount.deleteMany({ projectId: project._id }),
+      sessionKeys.length
+        ? deps.SocialOAuthSession.deleteMany({ platform: 'bluesky', kind: 'session', key: { $in: sessionKeys } })
+        : Promise.resolve(),
       deps.AnalyticsSnapshot.deleteMany({ project: project._id }),
       deps.ProjectMember.deleteMany({ projectId: project._id })
     ]);
+    await deps.ApiCredential.updateMany({ projectIds: project._id }, { $pull: { projectIds: project._id } });
+    await deps.ApiCredential.updateMany({ projectIds: { $size: 0 } }, { $set: { status: 'revoked' } });
 
     await deps.Project.deleteOne({ _id: project._id, owner: userId });
   }
@@ -393,7 +455,7 @@ function buildProjectsContext(overrides = {}) {
     campaignValidation: [
       body('name').trim().notEmpty().withMessage('Campaign name is required.').isLength({ max: 160 }).withMessage('Campaign name is too long.'),
       body('goal').optional({ checkFalsy: true }).trim().isLength({ max: 500 }).withMessage('Campaign goal is too long.'),
-      body('channel').isIn(['linkedin', 'facebook', 'x', 'instagram', 'email', 'multi']).withMessage('Campaign channel is invalid.'),
+      body('channel').isIn(['bluesky', 'linkedin', 'facebook', 'x', 'instagram', 'threads', 'tiktok', 'youtube', 'email', 'multi']).withMessage('Campaign channel is invalid.'),
       body('startDate').isISO8601().withMessage('Start date is required.'),
       body('endDate').isISO8601().withMessage('End date is required.'),
       body('status').optional({ checkFalsy: true }).isIn(['planned', 'active', 'completed', 'paused']).withMessage('Campaign status is invalid.'),

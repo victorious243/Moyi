@@ -13,6 +13,8 @@ var mongoose = require('mongoose');
 var closeSharedRedis = require('../services/redisService').closeSharedRedis;
 var closeQueue = require('../queues/scanQueue').closeQueue;
 var closeProjectTaskQueue = require('../queues/projectTaskQueue').closeProjectTaskQueue;
+var closePublishQueue = require('../queues/publishQueue').closePublishQueue;
+var closeMediaQueue = require('../queues/mediaQueue').closeMediaQueue;
 
 /**
  * Get port from environment and store in Express.
@@ -139,6 +141,8 @@ async function gracefulShutdown(signal) {
     });
     await closeQueue();
     await closeProjectTaskQueue();
+    await closePublishQueue();
+    await closeMediaQueue();
     await closeSharedRedis();
     await mongoose.connection.close(false);
     clearTimeout(forceExitTimer);

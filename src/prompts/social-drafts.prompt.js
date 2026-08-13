@@ -23,8 +23,23 @@ Platform-Specific Directives:
    - Emojis used functionally as bullet points.
    - Strong call-to-action inviting clicks or shares.
 
+4. Threads:
+   - Conversational, concise, and complete without depending on a link preview.
+   - End with a natural prompt for discussion when appropriate.
+
+5. TikTok:
+   - Write a caption for a short vertical video or photo post.
+   - Lead with the viewer benefit and avoid invented trends or sounds.
+
+6. YouTube:
+   - Write a clear video title and a useful description with an honest next step.
+   - Do not imply footage, demonstrations, or results that are absent from context.
+
 General Rules:
 ${RULES.join('\n')}
+- If socialPerformance contains observed results, adapt hooks, formats, and themes from the strongest relevant posts without copying them verbatim.
+- Never claim that engagement caused a business result, and never treat an unavailable provider metric as zero.
+- Do not mention internal scores, platform post IDs, or performance telemetry in customer-facing copy.
 
 JSON shape:
 {
@@ -43,6 +58,21 @@ JSON shape:
       "channel": "facebook",
       "title": "short internal title",
       "body": "post copy"
+    },
+    {
+      "channel": "threads",
+      "title": "short internal title",
+      "body": "post copy"
+    },
+    {
+      "channel": "tiktok",
+      "title": "short video title",
+      "body": "video caption"
+    },
+    {
+      "channel": "youtube",
+      "title": "video title",
+      "body": "video description"
     }
   ]
 }

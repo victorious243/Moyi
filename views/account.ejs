@@ -1,10 +1,18 @@
 <%- include('partials/header') %>
 
+<%
+  const availableApiCredentials = typeof apiCredentials !== 'undefined' ? apiCredentials : [];
+  const availableApiProjects = typeof apiProjects !== 'undefined' ? apiProjects : [];
+  const availableApiScopes = typeof apiScopes !== 'undefined' ? apiScopes : [];
+  const newApiKey = typeof oneTimeApiKey !== 'undefined' ? oneTimeApiKey : '';
+%>
+
 <div class="app-layout">
   <aside class="app-sidebar">
     <strong>Workspace</strong>
     <a href="/dashboard">Dashboard</a>
     <a href="/projects">Projects</a>
+    <a href="/organizations">Agency Workspaces</a>
     <a href="/billing">Billing</a>
     <a href="/account">Account</a>
   </aside>
@@ -46,6 +54,58 @@
       <a class="button" href="/account/export">Download Account Export</a>
     </section>
 
+    <section class="panel">
+      <div class="panel-title">
+        <div><h2>Public API Keys</h2><p>Create a project-scoped key for approved publishing jobs, account status, and social analytics.</p></div>
+        <a class="button" href="/docs#content-distribution-api">API documentation</a>
+      </div>
+      <% if (newApiKey) { %>
+        <div class="image-success-message">
+          <strong>New API key</strong>
+          <input id="one-time-api-key" value="<%= newApiKey %>" readonly autocomplete="off" spellcheck="false">
+          <button class="button button-small" type="button" data-copy-api-key>Copy</button>
+        </div>
+      <% } %>
+      <form class="form" action="/account/api-keys" method="post">
+        <label>Name <input name="name" maxlength="120" placeholder="Production automation" required></label>
+        <fieldset>
+          <legend>Scopes</legend>
+          <% availableApiScopes.forEach((scope) => { %><label><input type="checkbox" name="scopes" value="<%= scope %>"> <%= scope %></label><% }) %>
+        </fieldset>
+        <fieldset>
+          <legend>Projects</legend>
+          <% availableApiProjects.forEach((project) => { %><label><input type="checkbox" name="projectIds" value="<%= project._id %>"> <%= project.name %></label><% }) %>
+        </fieldset>
+        <button class="button button-primary" type="submit">Create API Key</button>
+      </form>
+      <% if (availableApiCredentials.length) { %>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Prefix</th><th>Scopes</th><th>Projects</th><th>Last used</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              <% availableApiCredentials.forEach((credential) => { %>
+                <tr>
+                  <td><strong><%= credential.name %></strong></td>
+                  <td><code>moyi_live_<%= credential.prefix %>_...</code></td>
+                  <td><%= (credential.scopes || []).join(', ') %></td>
+                  <td><%= (credential.projectIds || []).map((project) => project.name || project).join(', ') %></td>
+                  <td><%= credential.lastUsedAt ? new Date(credential.lastUsedAt).toLocaleString() : 'Never' %></td>
+                  <td><span class="status <%= credential.status === 'active' ? 'status-success' : '' %>"><%= credential.status %></span></td>
+                  <td>
+                    <% if (credential.status === 'active') { %>
+                      <form action="/account/api-keys/<%= credential._id %>/revoke" method="post" onsubmit="return confirm('Revoke this API key?');">
+                        <button class="button button-small" type="submit">Revoke</button>
+                      </form>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+
     <section class="panel notice-panel">
       <h2>Delete Account & Data</h2>
       <p class="empty">This permanently deletes your user account, projects, scans, reports, recommendations, drafts, tracking events, integrations, campaigns, and social drafts. Audit records are retained for security and compliance evidence.</p>
@@ -85,5 +145,14 @@
     </section>
   </section>
 </div>
+
+<script>
+  document.querySelector('[data-copy-api-key]')?.addEventListener('click', async (event) => {
+    const input = document.getElementById('one-time-api-key');
+    if (!input) return;
+    await navigator.clipboard.writeText(input.value);
+    event.currentTarget.textContent = 'Copied';
+  });
+</script>
 
 <%- include('partials/footer') %>

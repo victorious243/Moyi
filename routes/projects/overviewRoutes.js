@@ -53,7 +53,10 @@ function registerProjectCollectionRoutes(router, context, services = {}) {
       return res.redirect(`/projects/new?logoError=${encodeURIComponent('Upload a transparent PNG logo before creating this project.')}`);
     }
 
-    const project = await context.Project.create(context.projectPayload(req));
+    const project = await context.Project.create({
+      owner: req.user._id,
+      ...context.projectPayload(req)
+    });
     if (req.file) {
       try {
         await context.saveProjectLogo({ project, file: req.file });
@@ -179,6 +182,7 @@ function registerProjectDetailRoutes(router, context) {
   }));
 
   router.get('/:id/edit', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
+    if (!res.locals.canManageProject) return res.redirect(`/projects/${req.project._id}`);
     if (!req.project.webhookSigningSecret) {
       req.project.webhookSigningSecret = crypto.randomBytes(32).toString('hex');
       await req.project.save();
@@ -276,7 +280,6 @@ function registerProjectDetailRoutes(router, context) {
 
   router.post('/:id', [param('id').isMongoId(), context.handleValidation], context.loadProject, uploadSingleLogo, context.projectValidation, asyncHandler(async (req, res) => {
     Object.assign(req.project, context.projectPayload(req));
-    req.project.owner = req.user._id;
     await req.project.save();
     if (req.file) {
       try {
@@ -299,6 +302,9 @@ function registerProjectDetailRoutes(router, context) {
   );
 
   router.post('/:id/delete', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
+    if (String(req.project.owner) !== String(req.user._id)) {
+      throw new context.AppError('Only the project owner can permanently delete this workspace.', 403);
+    }
     await context.recordAuditEvent({
       user: req.user,
       projectId: req.project._id,

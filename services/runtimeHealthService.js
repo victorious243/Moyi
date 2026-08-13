@@ -3,6 +3,8 @@ const env = require('../config/env');
 const { pingRedis } = require('./redisService');
 const { countScanWorkers } = require('../queues/scanQueue');
 const { countProjectTaskWorkers } = require('../queues/projectTaskQueue');
+const { countPublishWorkers } = require('../queues/publishQueue');
+const { countMediaWorkers } = require('../queues/mediaQueue');
 
 const READY_STATE_LABELS = {
   0: 'disconnected',
@@ -98,7 +100,7 @@ function createRuntimeHealthService(deps = {}) {
           queueCheck.status = missingWorkers.length ? 'failed' : 'ready';
           queueCheck.detail = missingWorkers.length
             ? `Redis is healthy, but no worker is registered for: ${missingWorkers.join(', ')}. Run npm start or add an npm run worker process.`
-            : `Redis queue connection is healthy. Active workers: scans=${workers.scans}, projectTasks=${workers.projectTasks}.`;
+            : `Redis queue connection is healthy. Active workers: scans=${workers.scans}, projectTasks=${workers.projectTasks}, socialPublishing=${workers.socialPublishing}, socialMedia=${workers.socialMedia}.`;
         }
       } catch (error) {
         queueCheck.status = 'failed';
@@ -141,14 +143,18 @@ function createRuntimeHealthService(deps = {}) {
 }
 
 async function queueWorkerCounts() {
-  const [scanWorkers, projectTaskWorkers] = await Promise.all([
+  const [scanWorkers, projectTaskWorkers, publishWorkers, mediaWorkers] = await Promise.all([
     countScanWorkers(),
-    countProjectTaskWorkers()
+    countProjectTaskWorkers(),
+    countPublishWorkers(),
+    countMediaWorkers()
   ]);
 
   return {
     scans: scanWorkers,
-    projectTasks: projectTaskWorkers
+    projectTasks: projectTaskWorkers,
+    socialPublishing: publishWorkers,
+    socialMedia: mediaWorkers
   };
 }
 

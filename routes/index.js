@@ -7,6 +7,7 @@ const Scan = require('../models/Scan');
 const Report = require('../models/Report');
 const ContentDraft = require('../models/ContentDraft');
 const AuditLog = require('../models/AuditLog');
+const ApiCredential = require('../models/ApiCredential');
 const { requireAuth } = require('../middleware/auth');
 const { clearAuthCookie } = require('../middleware/auth');
 const { requirePlatformAdmin } = require('../middleware/platformAdmin');
@@ -17,7 +18,13 @@ const { recordAuditEvent } = require('../services/auditLogService');
 const { sendCustomerEmail, sendGoodbyeEmail, verifyEmailTransport } = require('../services/emailService');
 const { DEFAULT_TEST_URL, fetchMetaOembed, missingMetaOembedKeys, normalizeOembedUrl } = require('../services/metaOembedService');
 const { findAccessibleProjects } = require('../services/projectAccessService');
+const {
+  canPublishProjectRole,
+  projectAccessRole
+} = require('../services/projectAccessService');
+const { API_SCOPES, createApiCredential } = require('../services/apiCredentialService');
 const { runPublicQuickScan } = require('../services/publicQuickScanService');
+const AppError = require('../utils/appError');
 const handleValidation = require('../utils/validate');
 const publicPages = require('../config/publicPages');
 
@@ -340,15 +347,85 @@ async function openLatestContentWorkspace(req, res) {
 router.get('/workspace', requireAuth, asyncHandler(openLatestContentWorkspace));
 router.get('/show', requireAuth, asyncHandler(openLatestContentWorkspace));
 
-router.get('/account', requireAuth, asyncHandler(async (req, res) => {
-  const auditLogs = await AuditLog.find({ actorUserId: req.user._id }).sort({ createdAt: -1 }).limit(12).lean();
+async function renderAccountSettings(req, res, additions = {}) {
+  const [auditLogs, apiCredentials, apiProjects] = await Promise.all([
+    AuditLog.find({ actorUserId: req.user._id }).sort({ createdAt: -1 }).limit(12).lean(),
+    ApiCredential.find({ userId: req.user._id }).select('+prefix').sort({ createdAt: -1 }).populate('projectIds', 'name').lean(),
+    findAccessibleProjects(req.user._id, { select: 'name organizationId', sort: { name: 1 } })
+  ]);
   res.render('account', {
     title: 'Account Settings',
     plan: planFor(req.user),
     auditLogs,
+    apiCredentials,
+    apiProjects,
+    apiScopes: API_SCOPES,
+    oneTimeApiKey: '',
     accountMessage: req.query.message || '',
-    accountError: req.query.error || ''
+    accountError: req.query.error || '',
+    ...additions
   });
+}
+
+router.get('/account', requireAuth, asyncHandler(async (req, res) => {
+  await renderAccountSettings(req, res);
+}));
+
+router.post('/account/api-keys', requireAuth, [
+  body('name').trim().notEmpty().isLength({ max: 120 }).withMessage('API key name is required.'),
+  body('scopes').custom((value) => {
+    const values = Array.isArray(value) ? value : value ? [value] : [];
+    return values.length > 0 && values.every((scope) => API_SCOPES.includes(scope));
+  }).withMessage('Choose at least one valid API scope.'),
+  body('projectIds').custom((value) => {
+    const values = Array.isArray(value) ? value : value ? [value] : [];
+    return values.length > 0 && values.every((id) => /^[a-f\d]{24}$/i.test(String(id)));
+  }).withMessage('Choose at least one valid API project.'),
+  handleValidation
+], asyncHandler(async (req, res) => {
+  const scopes = [...new Set((Array.isArray(req.body.scopes) ? req.body.scopes : [req.body.scopes]).map(String))];
+  const projectIds = [...new Set((Array.isArray(req.body.projectIds) ? req.body.projectIds : [req.body.projectIds]).map(String))];
+  const projects = await Project.find({ _id: { $in: projectIds } });
+  if (projects.length !== projectIds.length) throw new AppError('One or more selected API projects are unavailable.', 422);
+  for (const project of projects) {
+    const role = await projectAccessRole({ project, userId: req.user._id });
+    if (!role || scopes.includes('publish:write') && !canPublishProjectRole(role)) {
+      throw new AppError('Your current project role does not allow all selected API scopes.', 403);
+    }
+  }
+  const { credential, apiKey } = await createApiCredential({
+    userId: req.user._id,
+    name: req.body.name,
+    scopes,
+    projectIds
+  });
+  await recordAuditEvent({
+    user: req.user,
+    eventType: 'api_credential_created',
+    metadata: { apiCredentialId: credential._id, prefix: credential.prefix, scopes, projectIds },
+    req
+  });
+  await renderAccountSettings(req, res, {
+    oneTimeApiKey: apiKey,
+    accountMessage: 'API key created. This is the only time Moyi will show the secret.'
+  });
+}));
+
+router.post('/account/api-keys/:id/revoke', requireAuth, asyncHandler(async (req, res) => {
+  if (!/^[a-f\d]{24}$/i.test(String(req.params.id || ''))) throw new AppError('API key not found.', 404);
+  const credential = await ApiCredential.findOneAndUpdate(
+    { _id: req.params.id, userId: req.user._id, status: 'active' },
+    { $set: { status: 'revoked' } },
+    { new: true }
+  );
+  if (!credential) throw new AppError('Active API key not found.', 404);
+  await recordAuditEvent({
+    user: req.user,
+    eventType: 'api_credential_revoked',
+    metadata: { apiCredentialId: credential._id, name: credential.name },
+    req
+  });
+  res.redirect(`/account?message=${encodeURIComponent('API key revoked.')}`);
 }));
 
 router.post('/account/test-email', requireAuth, requirePlatformAdmin, asyncHandler(async (req, res) => {

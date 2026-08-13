@@ -1,0 +1,45 @@
+<%- include('../partials/header') %>
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <strong>Agency</strong>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/projects">Client Projects</a>
+    <a class="active" href="/organizations">Agency Workspaces</a>
+    <a href="/account">Account</a>
+  </aside>
+
+  <section class="app-main">
+    <div class="page-heading">
+      <div><p class="eyebrow">Portfolio Access</p><h1>Agency Workspaces</h1><p>Group client projects and give operators the access they need across the portfolio.</p></div>
+    </div>
+
+    <% if (message) { %><div class="image-success-message"><%= message %></div><% } %>
+    <% if (errorMessage) { %><div class="form-error"><%= errorMessage %></div><% } %>
+
+    <section class="panel">
+      <div class="panel-title"><div><h2>Create workspace</h2><p>Projects remain owned by their current owners when they join an agency workspace.</p></div></div>
+      <form class="form" action="/organizations" method="post">
+        <label>Name <input name="name" maxlength="160" placeholder="Agency or portfolio name" required></label>
+        <button class="button button-primary" type="submit">Create Workspace</button>
+      </form>
+    </section>
+
+    <% if (!organizations.length) { %>
+      <section class="panel"><p class="empty">No agency workspaces yet.</p></section>
+    <% } else { %>
+      <section class="project-card-grid">
+        <% organizations.forEach((organization) => { const count = counts[String(organization._id)] || { projects: 0, members: 0 }; %>
+          <a class="project-card" href="/organizations/<%= organization._id %>">
+            <span><%= organization.accessRole %></span>
+            <strong><%= organization.name %></strong>
+            <small><%= count.projects %> client project<%= count.projects === 1 ? '' : 's' %></small>
+            <p><%= count.members %> team member<%= count.members === 1 ? '' : 's' %> with portfolio access.</p>
+          </a>
+        <% }) %>
+      </section>
+    <% } %>
+  </section>
+</div>
+
+<%- include('../partials/footer') %>

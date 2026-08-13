@@ -12,6 +12,7 @@ const csrfProtection = require('./middleware/csrf');
 const { recordAppLog, requestIdMiddleware } = require('./services/appLogger');
 
 const healthRouter = require('./routes/health');
+const socialOAuthPublicRouter = require('./routes/socialOAuthPublic');
 const indexRouter = require('./routes/index');
 const authRouter = require('./routes/auth');
 const projectsRouter = require('./routes/projects');
@@ -23,6 +24,8 @@ const stripeWebhookRouter = require('./routes/stripeWebhook');
 const trackingRouter = require('./routes/tracking');
 const socialDraftsRouter = require('./routes/socialDrafts');
 const adminRouter = require('./routes/admin');
+const organizationsRouter = require('./routes/organizations');
+const publicApiRouter = require('./routes/publicApi');
 
 const app = express();
 app.disable('x-powered-by');
@@ -50,11 +53,19 @@ app.use(helmet({
   }
 }));
 app.use(compression());
-app.use(logger('dev'));
+app.use(logger('dev', {
+  skip: (req) => (
+    Boolean(req.query && req.query._csrf) ||
+    req.path.startsWith('/social-media/public/') ||
+    /^\/integrations\/(?:google|social\/[^/]+)\/callback\/?$/.test(req.path)
+  )
+}));
 app.use(healthRouter);
+app.use(socialOAuthPublicRouter);
 app.use(stripeWebhookRouter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use('/api/v1', publicApiRouter);
 app.use(cookieParser());
 app.use(attachUser);
 app.use(csrfProtection);
@@ -108,6 +119,7 @@ app.use('/integrations', integrationsRouter);
 app.use('/', billingRouter);
 app.use('/social-drafts', socialDraftsRouter);
 app.use('/admin', adminRouter);
+app.use('/organizations', organizationsRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

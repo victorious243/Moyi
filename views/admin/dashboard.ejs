@@ -1,5 +1,10 @@
 <%- include('../partials/header') %>
 
+<%
+  const nativePublishFailures = typeof failedPublishJobs !== 'undefined' ? failedPublishJobs : [];
+  const socialReconnectAccounts = typeof reconnectAccounts !== 'undefined' ? reconnectAccounts : [];
+%>
+
 <div class="app-layout">
   <aside class="app-sidebar">
     <strong>Operator</strong>
@@ -22,6 +27,67 @@
       <article><span>Projects</span><strong><%= projectCount %></strong></article>
       <article><span>AI ops</span><strong><%= usageTotals.aiOperationsUsed %></strong></article>
       <article><span>AI failures</span><strong><%= usageTotals.aiOperationFailures %></strong></article>
+    </section>
+
+    <section class="panel notice-panel">
+      <div class="panel-title">
+        <div><h2>Native Publishing Recovery</h2><p>Jobs waiting for an automatic retry or held for operator review.</p></div>
+        <span class="status"><%= nativePublishFailures.length %></span>
+      </div>
+      <% if (!nativePublishFailures.length) { %>
+        <p class="empty">No native publishing jobs need recovery.</p>
+      <% } else { %>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Platform</th><th>Client</th><th>Account</th><th>Status</th><th>Attempts</th><th>Error</th><th>Action</th></tr></thead>
+            <tbody>
+              <% nativePublishFailures.forEach((job) => { %>
+                <tr>
+                  <td><strong><%= job.platform %></strong></td>
+                  <td><%= job.destinationProjectId ? job.destinationProjectId.name : (job.projectId ? job.projectId.name : '') %></td>
+                  <td><%= job.accountId ? job.accountId.accountName : '' %></td>
+                  <td><span class="status publish-status-<%= job.status %>"><%= job.status.replace(/_/g, ' ') %></span><% if (job.nextRetryAt) { %><br><small><%= new Date(job.nextRetryAt).toLocaleString() %></small><% } %></td>
+                  <td><%= job.attempts %>/<%= job.maxAttempts %></td>
+                  <td><strong><%= job.failureKind || job.errorCode %></strong><br><small><%= job.errorMessage %></small></td>
+                  <td>
+                    <% if (['dead_letter', 'failed'].includes(job.status)) { %>
+                      <form action="/admin/publish-jobs/<%= job._id %>/retry" method="post" onsubmit="return confirm('<%= job.errorCode === 'provider_outcome_unknown' ? 'The provider outcome is unknown. Check the live account first because retrying could create a duplicate. Continue?' : 'Retry this failed publishing job?' %>');">
+                        <button class="button button-small" type="submit">Retry</button>
+                      </form>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="panel notice-panel">
+      <div class="panel-title"><div><h2>Reconnect Required</h2><p>Publishing and metrics stay paused for these accounts until OAuth is completed again.</p></div><span class="status"><%= socialReconnectAccounts.length %></span></div>
+      <% if (!socialReconnectAccounts.length) { %>
+        <p class="empty">No social accounts need reconnection.</p>
+      <% } else { %>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Platform</th><th>Account</th><th>Client</th><th>User</th><th>Detected</th><th>Reason</th><th></th></tr></thead>
+            <tbody>
+              <% socialReconnectAccounts.forEach((account) => { %>
+                <tr>
+                  <td><strong><%= account.platform %></strong></td>
+                  <td><%= account.accountName %></td>
+                  <td><%= account.projectId ? account.projectId.name : '' %></td>
+                  <td><%= account.userId ? account.userId.email : '' %></td>
+                  <td><%= account.reconnectRequiredAt ? new Date(account.reconnectRequiredAt).toLocaleString() : '' %></td>
+                  <td><%= account.statusMessage %></td>
+                  <td><% if (account.projectId) { %><a class="button button-small" href="/projects/<%= account.projectId._id %>/integrations/social">Open</a><% } %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
     </section>
 
     <section class="panel">
