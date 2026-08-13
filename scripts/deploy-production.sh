@@ -41,12 +41,15 @@ if [ "$RUN_GIT_PULL" = "true" ] && [ -d ".git" ]; then
   git pull --ff-only origin "$current_branch"
 fi
 
-log "Installing production dependencies"
+log "Installing dependencies for build and validation"
 if [ -f "package-lock.json" ]; then
-  npm ci --omit=dev
+  npm ci
 else
-  npm install --omit=dev
+  npm install
 fi
+
+log "Building distribution adapters"
+npm run build:distribution
 
 log "Validating production runtime configuration"
 NODE_ENV=production node -e "require('./config/env').assertRuntimeConfig(); console.log('Runtime configuration is valid.');"
@@ -79,6 +82,9 @@ if [ "$RUN_TESTS" = "true" ]; then
   log "Running test suite"
   npm test
 fi
+
+log "Pruning development dependencies for production runtime"
+npm prune --omit=dev
 
 if command -v systemctl >/dev/null 2>&1 && [ "$(id -u)" -eq 0 ]; then
   log "Installing or updating systemd service: $SERVICE_NAME"

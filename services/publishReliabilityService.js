@@ -32,7 +32,8 @@ const PERMANENT_CODES = new Set([
   'provider_disabled',
   'provider_not_configured',
   'human_approval_required',
-  'post_not_found'
+  'post_not_found',
+  'x_api_credits_depleted'
 ]);
 
 function platformPolicy(platform) {
@@ -53,6 +54,9 @@ function classifyPublishError(error) {
     statusCode === 403 && /(token|oauth|authorization|permission|scope|reconnect|expired)/i.test(message)
   );
   if (reconnectRequired) return { failureKind: 'authentication', reconnectRequired: true, retryable: false };
+  if (code === 'x_api_credits_depleted' || /credits?\s+depleted|insufficient\s+credits?|usage\s+cap(?:ped)?|usage-capped|credit\s+balance|billing/i.test(message)) {
+    return { failureKind: 'billing', reconnectRequired: false, retryable: false };
+  }
   if (statusCode === 429 || /rate.?limit|too many requests|throttl/i.test(`${code} ${message}`)) {
     return { failureKind: 'rate_limit', reconnectRequired: false, retryable: true };
   }
