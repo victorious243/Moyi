@@ -629,6 +629,20 @@ router.get('/privacy', (req, res) => {
   });
 });
 
+router.get('/data-deletion', (req, res) => {
+  res.render('legal', {
+    title: 'Data Deletion',
+    heading: 'Data Deletion Instructions',
+    body: `
+      <p>Moyi-CMO lets users disconnect social integrations and request deletion of account, project, publishing, analytics, and integration data associated with their workspace.</p>
+      <p>To request deletion, sign in to your Moyi-CMO account and remove connected integrations from the project Social Accounts page where available. You can also submit a privacy request through the contact page using the email address connected to your Moyi-CMO account.</p>
+      <p>When we receive a verified deletion request, we remove or schedule removal of active workspace data, connected social account credentials, publishing records, uploaded media, and related analytics data, except where limited retention is required for billing, security, fraud prevention, legal compliance, or audit obligations.</p>
+      <p>For Meta, Facebook, Instagram, or Threads data deletion requests, include the connected Meta account name, Page, Instagram, or Threads profile so we can verify and process the request safely.</p>
+      <p><a href="/contact">Submit a privacy request</a></p>
+    `
+  });
+});
+
 router.get('/cookies', (req, res) => {
   res.render('legal', {
     title: 'Cookies',
