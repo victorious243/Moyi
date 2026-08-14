@@ -56,7 +56,7 @@ function buildLinkedInAuthUrl({ state }) {
     client_id: env.linkedinClientId,
     redirect_uri: redirectUri,
     state,
-    scope: 'openid profile email w_member_social'
+    scope: env.linkedinScopes || 'openid profile email w_member_social'
   });
 
   return `https://www.linkedin.com/oauth/v2/authorization?${params.toString()}`;

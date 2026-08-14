@@ -16,18 +16,23 @@ import type {
 } from '../types.mjs';
 import type { EngagementMetricsResult, PublishedPostReference } from '../types.mjs';
 
-const LINKEDIN_SCOPES = [
+const LINKEDIN_DEFAULT_SCOPES = [
   'openid',
   'profile',
   'email',
-  'w_member_social',
-  'w_organization_social',
-  'rw_organization_admin',
-  'w_member_social_feed',
-  'w_organization_social_feed',
-  'r_organization_social_feed',
-  'r_member_social_feed'
+  'w_member_social'
 ];
+
+function linkedinScopes(): string[] {
+  return String(distributionConfig.linkedinScopes || LINKEDIN_DEFAULT_SCOPES.join(' '))
+    .split(/\s+/)
+    .map((scope) => scope.trim())
+    .filter(Boolean);
+}
+
+function canDiscoverOrganizations(scopes: string[]): boolean {
+  return scopes.includes('rw_organization_admin') || scopes.includes('r_organization_admin');
+}
 
 function apiHeaders(accessToken: string): Record<string, string> {
   return {
@@ -88,6 +93,8 @@ async function organizationName(accessToken: string, urn: string): Promise<strin
 }
 
 async function organizationAccounts(accessToken: string, memberUrn: string): Promise<ConnectedAccount[]> {
+  const requestedScopes = linkedinScopes();
+  if (!canDiscoverOrganizations(requestedScopes)) return [];
   try {
     const response = await axios.get('https://api.linkedin.com/rest/organizationAcls', {
       params: { q: 'roleAssignee', state: 'APPROVED', count: 100 },
@@ -108,7 +115,7 @@ async function organizationAccounts(accessToken: string, memberUrn: string): Pro
       accessToken,
       refreshToken: '',
       expiresInSeconds: null,
-      scopes: LINKEDIN_SCOPES,
+      scopes: requestedScopes,
       metadata: { accountType: 'organization', memberUrn, organizationUrn: urn }
     })));
   } catch {
@@ -229,7 +236,7 @@ export class LinkedInProvider implements SocialProvider {
       client_id: clientId,
       redirect_uri: distributionConfig.linkedinRedirectUri,
       state: input.state,
-      scope: LINKEDIN_SCOPES.join(' ')
+      scope: linkedinScopes().join(' ')
     });
     return { url: `https://www.linkedin.com/oauth/v2/authorization?${params.toString()}` };
   }
@@ -254,7 +261,7 @@ export class LinkedInProvider implements SocialProvider {
       });
       const memberUrn = personUrn(String(profile.data?.sub || ''));
       const expiresInSeconds = Number(response.data.expires_in || 5184000);
-      const grantedScopes = String(response.data.scope || LINKEDIN_SCOPES.join(' ')).split(/\s+/).filter(Boolean);
+      const grantedScopes = String(response.data.scope || linkedinScopes().join(' ')).split(/\s+/).filter(Boolean);
       const member: ConnectedAccount = {
         platform: 'linkedin',
         accountName: String(profile.data?.name || profile.data?.given_name || 'LinkedIn member'),
@@ -457,4 +464,4 @@ export class LinkedInProvider implements SocialProvider {
   }
 }
 
-export { LINKEDIN_SCOPES };
+export { LINKEDIN_DEFAULT_SCOPES, linkedinScopes };

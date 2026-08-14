@@ -8,6 +8,7 @@ export const distributionConfig = {
   linkedinClientId: process.env.LINKEDIN_CLIENT_ID || '',
   linkedinClientSecret: process.env.LINKEDIN_CLIENT_SECRET || '',
   linkedinRedirectUri: process.env.LINKEDIN_REDIRECT_URI || `${appUrl}/integrations/social/linkedin/callback`,
+  linkedinScopes: process.env.LINKEDIN_SCOPES || 'openid profile email w_member_social',
   twitterClientId: process.env.TWITTER_CLIENT_ID || '',
   twitterClientSecret: process.env.TWITTER_CLIENT_SECRET || '',
   twitterRedirectUri: process.env.TWITTER_REDIRECT_URI || `${appUrl}/integrations/social/x/callback`,

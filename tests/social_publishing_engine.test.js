@@ -58,6 +58,7 @@ test.after(async () => {
 
 test('socialOauthService: generates 1-click OAuth URLs for platforms', () => {
   env.linkedinClientId = 'test-linkedin-client-id';
+  env.linkedinScopes = 'openid profile email w_member_social';
   env.twitterClientId = 'test-twitter-client-id';
   env.metaAppId = 'test-meta-app-id';
 
@@ -65,6 +66,10 @@ test('socialOauthService: generates 1-click OAuth URLs for platforms', () => {
   assert.match(linkedinUrl, /linkedin.com\/oauth\/v2\/authorization/);
   assert.match(linkedinUrl, /client_id=test-linkedin-client-id/);
   assert.match(linkedinUrl, /state=state123/);
+  const linkedinScope = new URL(linkedinUrl).searchParams.get('scope') || '';
+  assert.match(linkedinScope, /\bw_member_social\b/);
+  assert.doesNotMatch(linkedinScope, /\bw_organization_social\b/);
+  assert.doesNotMatch(linkedinScope, /\brw_organization_admin\b/);
 
   const pkce = generateTwitterPkcePair();
   assert.ok(pkce.verifier);

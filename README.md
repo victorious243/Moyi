@@ -266,6 +266,7 @@ LINKEDIN_CLIENT_ID=
 LINKEDIN_CLIENT_SECRET=
 LINKEDIN_REDIRECT_URI=http://localhost:3000/integrations/social/linkedin/callback
 LINKEDIN_API_VERSION=202607
+LINKEDIN_SCOPES=openid profile email w_member_social
 TWITTER_CLIENT_ID=
 TWITTER_CLIENT_SECRET=
 TWITTER_REDIRECT_URI=http://localhost:3000/integrations/social/x/callback
