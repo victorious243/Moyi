@@ -106,7 +106,16 @@ app.use((req, res, next) => {
   };
   next();
 });
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  etag: true,
+  maxAge: env.isProduction ? '1h' : 0,
+  setHeaders(res, filePath) {
+    if (!env.isProduction) return;
+    if (/\.(?:png|jpg|jpeg|gif|webp|avif|ico|svg|woff2?)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=2592000');
+    }
+  }
+}));
 app.use('/', trackingRouter);
 
 app.use('/', authRouter);

@@ -70,9 +70,22 @@
   <script src="/js/interface-polish.js" defer></script>
   <script src="/js/saas-interactions.js" defer></script>
   <script src="/js/loading-state.js" defer></script>
-  <script src="/js/terminal-scan.js" defer></script>
-  <script src="/js/scan-status.js" defer></script>
-  <script src="/js/project-job-status.js" defer></script>
-  <script src="/js/overflow-audit.js" defer></script>
+  <script>
+    (() => {
+      const loadScript = (src) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.defer = true;
+        document.body.appendChild(script);
+      };
+
+      if (document.querySelector('[data-terminal-scan]')) loadScript('/js/terminal-scan.js');
+      if (document.querySelector('[data-live-scan]')) loadScript('/js/scan-status.js');
+      if (document.querySelector('[data-live-job]')) loadScript('/js/project-job-status.js');
+      if (new URLSearchParams(window.location.search).get('overflowAudit') === '1' || window.localStorage.getItem('moyiOverflowAudit') === '1') {
+        loadScript('/js/overflow-audit.js');
+      }
+    })();
+  </script>
 </body>
 </html>

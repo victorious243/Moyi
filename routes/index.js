@@ -420,20 +420,29 @@ router.post('/contact', [
 }));
 
 router.get('/dashboard', requireAuth, asyncHandler(async (req, res) => {
-  const projects = await findAccessibleProjects(req.user._id, { sort: { updatedAt: -1 }, limit: 6 });
-  const allProjects = await findAccessibleProjects(req.user._id, { select: 'name', sort: { updatedAt: -1 } });
+  const [projects, allProjects, usage] = await Promise.all([
+    findAccessibleProjects(req.user._id, { sort: { updatedAt: -1 }, limit: 6 }),
+    findAccessibleProjects(req.user._id, { select: 'name', sort: { updatedAt: -1 } }),
+    getCurrentUsage(req.user._id)
+  ]);
   const projectCount = allProjects.length;
   const projectIds = allProjects.map((project) => project._id);
-  const recentScans = await Scan.find({ projectId: { $in: projectIds } }).sort({ createdAt: -1 }).limit(8);
-  const recentReports = await Report.find({ projectId: { $in: projectIds } }).sort({ createdAt: -1 }).limit(5);
-  const [socialAccountCount, reconnectAccountCount, approvalQueueCount, workspaceSetup] = await Promise.all([
+  const [
+    recentScans,
+    recentReports,
+    socialAccountCount,
+    reconnectAccountCount,
+    approvalQueueCount,
+    workspaceSetup
+  ] = await Promise.all([
+    Scan.find({ projectId: { $in: projectIds } }).sort({ createdAt: -1 }).limit(8),
+    Report.find({ projectId: { $in: projectIds } }).sort({ createdAt: -1 }).limit(5),
     SocialAccount.countDocuments({ projectId: { $in: projectIds }, status: 'connected' }),
     SocialAccount.countDocuments({ projectId: { $in: projectIds }, status: 'reconnect_required' }),
     ContentDraft.countDocuments({ projectId: { $in: projectIds }, status: 'approved', publishStatus: { $ne: 'published' } }),
     buildWorkspaceSetupSummary(allProjects)
   ]);
   const scanProjectMap = new Map(allProjects.map((project) => [project._id.toString(), project]));
-  const usage = await getCurrentUsage(req.user._id);
   const plan = planFor(req.user);
   const socialPostLimit = socialPostAllowance(plan, usage);
 

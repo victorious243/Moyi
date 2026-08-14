@@ -1,6 +1,5 @@
 (() => {
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   const fieldSelector = [
     'input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"])',
     'textarea',
@@ -59,47 +58,26 @@
     });
   });
 
-  const controls = Array.from(document.querySelectorAll('.button, .icon-button'));
-  controls.forEach((control) => {
+  document.querySelectorAll('.button, .icon-button').forEach((control) => {
     control.classList.add('ui-interactive');
+  });
 
-    if (finePointer && !reduceMotion) {
-      control.addEventListener('pointermove', (event) => {
-        const bounds = control.getBoundingClientRect();
-        const x = event.clientX - bounds.left;
-        const y = event.clientY - bounds.top;
-        const magneticX = ((x / bounds.width) - 0.5) * 4;
-        const magneticY = ((y / bounds.height) - 0.5) * 3;
+  document.addEventListener('click', (event) => {
+    if (reduceMotion) return;
 
-        control.style.setProperty('--ui-pointer-x', `${x}px`);
-        control.style.setProperty('--ui-pointer-y', `${y}px`);
+    const control = event.target.closest('.button, .icon-button');
+    if (!control || control.matches(':disabled, [aria-disabled="true"]')) return;
 
-        if (control.classList.contains('button-primary')) {
-          control.style.setProperty('--ui-shift-x', `${magneticX.toFixed(2)}px`);
-          control.style.setProperty('--ui-shift-y', `${magneticY.toFixed(2)}px`);
-        }
-      });
-
-      control.addEventListener('pointerleave', () => {
-        control.style.setProperty('--ui-shift-x', '0px');
-        control.style.setProperty('--ui-shift-y', '0px');
-      });
-    }
-
-    control.addEventListener('click', (event) => {
-      if (reduceMotion || control.matches(':disabled, [aria-disabled="true"]')) return;
-
-      const bounds = control.getBoundingClientRect();
-      const diameter = Math.max(bounds.width, bounds.height) * 1.35;
-      const ripple = document.createElement('span');
-      ripple.className = 'ui-ripple';
-      ripple.style.width = `${diameter}px`;
-      ripple.style.height = `${diameter}px`;
-      ripple.style.left = `${event.clientX - bounds.left - diameter / 2}px`;
-      ripple.style.top = `${event.clientY - bounds.top - diameter / 2}px`;
-      control.appendChild(ripple);
-      ripple.addEventListener('animationend', () => ripple.remove(), { once: true });
-    });
+    const bounds = control.getBoundingClientRect();
+    const diameter = Math.max(bounds.width, bounds.height) * 1.35;
+    const ripple = document.createElement('span');
+    ripple.className = 'ui-ripple';
+    ripple.style.width = `${diameter}px`;
+    ripple.style.height = `${diameter}px`;
+    ripple.style.left = `${event.clientX - bounds.left - diameter / 2}px`;
+    ripple.style.top = `${event.clientY - bounds.top - diameter / 2}px`;
+    control.appendChild(ripple);
+    ripple.addEventListener('animationend', () => ripple.remove(), { once: true });
   });
 
   if (reduceMotion || !('IntersectionObserver' in window)) return;
