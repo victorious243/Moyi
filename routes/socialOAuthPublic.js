@@ -1,5 +1,6 @@
 const express = require('express');
 const asyncHandler = require('express-async-handler');
+const env = require('../config/env');
 const MediaAsset = require('../models/MediaAsset');
 const { openMediaDownloadStream } = require('../services/mediaStorageService');
 const { verifyPublicMediaSignature } = require('../services/mediaPublicUrlService');
@@ -10,6 +11,16 @@ const {
 
 const router = express.Router();
 
+function verifyMetaWebhookRequest(query, verifyToken) {
+  const mode = String(query && query['hub.mode'] || '');
+  const token = String(query && query['hub.verify_token'] || '');
+  const challenge = String(query && query['hub.challenge'] || '');
+  if (mode === 'subscribe' && verifyToken && token === verifyToken) {
+    return { ok: true, challenge };
+  }
+  return { ok: false, challenge: '' };
+}
+
 router.get('/oauth-client-metadata.json', asyncHandler(async (req, res) => {
   res.set('Cache-Control', 'public, max-age=300');
   res.json(await getBlueskyClientMetadata());
@@ -19,6 +30,18 @@ router.get('/.well-known/jwks.json', asyncHandler(async (req, res) => {
   res.set('Cache-Control', 'public, max-age=300');
   res.json(await getBlueskyJwks());
 }));
+
+router.get('/webhooks/meta', (req, res) => {
+  const verification = verifyMetaWebhookRequest(req.query, env.metaWebhookVerifyToken);
+  if (verification.ok) {
+    return res.status(200).type('text/plain').send(verification.challenge);
+  }
+  return res.status(403).type('text/plain').send('Meta webhook verification failed.');
+});
+
+router.post('/webhooks/meta', express.json({ type: '*/*' }), (req, res) => {
+  res.status(200).json({ received: true });
+});
 
 router.get('/social-media/public/:assetId/:variantKey', asyncHandler(async (req, res, next) => {
   const { assetId, variantKey } = req.params;
@@ -68,3 +91,4 @@ router.get('/social-media/public/:assetId/:variantKey', asyncHandler(async (req,
 }));
 
 module.exports = router;
+module.exports.verifyMetaWebhookRequest = verifyMetaWebhookRequest;

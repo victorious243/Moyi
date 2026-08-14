@@ -182,6 +182,7 @@ const env = {
   metaAppSecret: process.env.META_APP_SECRET || '',
   metaRedirectUri: process.env.META_REDIRECT_URI || '',
   metaGraphVersion: process.env.META_GRAPH_VERSION || 'v25.0',
+  metaWebhookVerifyToken: process.env.META_WEBHOOK_VERIFY_TOKEN || '',
   threadsAppId: process.env.THREADS_APP_ID || '',
   threadsAppSecret: process.env.THREADS_APP_SECRET || '',
   threadsRedirectUri: process.env.THREADS_REDIRECT_URI || '',

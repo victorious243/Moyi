@@ -163,6 +163,26 @@ test('CSRF Middleware: bypasses stripe webhook and tracking requests', () => {
   assert.ok(nextCalled);
 });
 
+test('Meta webhook verification only echoes challenges for matching tokens', () => {
+  const { verifyMetaWebhookRequest } = require('../routes/socialOAuthPublic');
+  assert.deepEqual(
+    verifyMetaWebhookRequest({
+      'hub.mode': 'subscribe',
+      'hub.verify_token': 'moyi-meta-webhook',
+      'hub.challenge': 'challenge-123'
+    }, 'moyi-meta-webhook'),
+    { ok: true, challenge: 'challenge-123' }
+  );
+  assert.deepEqual(
+    verifyMetaWebhookRequest({
+      'hub.mode': 'subscribe',
+      'hub.verify_token': 'wrong',
+      'hub.challenge': 'challenge-123'
+    }, 'moyi-meta-webhook'),
+    { ok: false, challenge: '' }
+  );
+});
+
 test('AI CMO Plan Fallback: generates report and recommendations when OpenAI key is missing', async () => {
   const project = {
     _id: '60c72b2f9b1d8b2e5c8b4567',

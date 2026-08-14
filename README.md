@@ -272,6 +272,7 @@ TWITTER_REDIRECT_URI=http://localhost:3000/integrations/social/x/callback
 META_APP_ID=
 META_APP_SECRET=
 META_REDIRECT_URI=http://localhost:3000/integrations/social/meta/callback
+META_WEBHOOK_VERIFY_TOKEN=
 SOCIAL_ENABLE_META=false
 THREADS_APP_ID=
 THREADS_APP_SECRET=
