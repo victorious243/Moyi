@@ -160,6 +160,79 @@ function publicPublishOptions(value = {}) {
   };
 }
 
+function publicApiRouteCatalog(credential) {
+  const scopeSet = new Set((credential && credential.scopes) || []);
+  const routes = [
+    {
+      method: 'GET',
+      path: '/api/v1',
+      scope: null,
+      description: 'Inspect the current API key, allowed projects, and supported routes.'
+    }
+  ];
+
+  if (scopeSet.has('accounts:read')) {
+    routes.push({
+      method: 'GET',
+      path: '/api/v1/accounts?projectId=...',
+      scope: 'accounts:read',
+      description: 'List connected publishing accounts visible to this key.'
+    });
+  }
+
+  if (scopeSet.has('publish:write')) {
+    routes.push({
+      method: 'POST',
+      path: '/api/v1/publish-jobs',
+      scope: 'publish:write',
+      description: 'Queue approved drafts for immediate or scheduled publishing.'
+    });
+  }
+
+  if (scopeSet.has('jobs:read')) {
+    routes.push(
+      {
+        method: 'GET',
+        path: '/api/v1/publish-jobs/:id',
+        scope: 'jobs:read',
+        description: 'Read one publish job and its current platform result.'
+      },
+      {
+        method: 'GET',
+        path: '/api/v1/publish-batches/:id',
+        scope: 'jobs:read',
+        description: 'Read one publish batch and the jobs that belong to it.'
+      }
+    );
+  }
+
+  if (scopeSet.has('analytics:read')) {
+    routes.push({
+      method: 'GET',
+      path: '/api/v1/projects/:id/social-performance?days=30',
+      scope: 'analytics:read',
+      description: 'Read social performance and Growth Brain-ready signals for one project.'
+    });
+  }
+
+  return routes;
+}
+
+router.get('/', (req, res) => {
+  res.json({
+    data: {
+      apiKey: {
+        name: req.apiCredential.name,
+        organizationId: req.apiCredential.organizationId || null,
+        projectIds: req.apiCredential.projectIds,
+        scopes: req.apiCredential.scopes,
+        lastUsedAt: req.apiCredential.lastUsedAt || null
+      },
+      routes: publicApiRouteCatalog(req.apiCredential)
+    }
+  });
+});
+
 router.get('/accounts', requireApiScope('accounts:read'), asyncHandler(async (req, res) => {
   const requestedProjectId = req.query.projectId ? objectId(req.query.projectId, 'Project ID') : '';
   const projectIds = requestedProjectId ? [requestedProjectId] : req.apiCredential.projectIds;
@@ -273,6 +346,7 @@ router.use((error, req, res, next) => {
 });
 
 module.exports = router;
+module.exports.publicApiRouteCatalog = publicApiRouteCatalog;
 module.exports.publishJobPayload = publishJobPayload;
 module.exports.visibleBatchSummary = visibleBatchSummary;
 module.exports.visibleBatchStatus = visibleBatchStatus;

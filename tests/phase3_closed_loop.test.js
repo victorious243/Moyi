@@ -408,7 +408,12 @@ test('Growth Brain upgrade identifies best times, platforms, hooks, topics, form
 });
 
 test('public API batch summaries include only jobs visible to the API key', () => {
-  const { publishJobPayload, visibleBatchStatus, visibleBatchSummary } = require('../routes/publicApi');
+  const {
+    publishJobPayload,
+    publicApiRouteCatalog,
+    visibleBatchStatus,
+    visibleBatchSummary
+  } = require('../routes/publicApi');
   const sourceProjectId = new mongoose.Types.ObjectId();
   const visibleProjectId = new mongoose.Types.ObjectId();
   const hiddenProjectId = new mongoose.Types.ObjectId();
@@ -440,6 +445,15 @@ test('public API batch summaries include only jobs visible to the API key', () =
   assert.equal(visibleBatchStatus([visibleJob, { ...visibleJob, status: 'dead_letter' }]), 'partial');
   assert.equal(visibleBatchStatus([{ ...visibleJob, status: 'retry_wait' }]), 'queued');
   assert.equal(credential.projectIds.includes(String(hiddenProjectId)), false);
+  const catalog = publicApiRouteCatalog({
+    name: 'Production agent',
+    organizationId: null,
+    projectIds: credential.projectIds,
+    scopes: ['accounts:read', 'publish:write', 'jobs:read', 'analytics:read'],
+    lastUsedAt: null
+  });
+  assert.equal(catalog[0].path, '/api/v1');
+  assert.ok(catalog.some((route) => route.path === '/api/v1/publish-jobs'));
 });
 
 test('API key parser accepts only the exact Moyi format and hashes secrets deterministically', () => {
@@ -581,6 +595,7 @@ test('public API and agency management expose the expected route contracts', () 
   const organizations = require('../routes/organizations');
   const publicRoutes = publicApi.stack.filter((layer) => layer.route).map((layer) => layer.route.path);
   const organizationRoutes = organizations.stack.filter((layer) => layer.route).map((layer) => layer.route.path);
+  assert.ok(publicRoutes.includes('/'));
   assert.ok(publicRoutes.includes('/accounts'));
   assert.ok(publicRoutes.includes('/publish-jobs'));
   assert.ok(publicRoutes.includes('/publish-jobs/:id'));

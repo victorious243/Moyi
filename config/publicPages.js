@@ -193,6 +193,7 @@ module.exports = {
         title: 'Content distribution and API',
         body: 'Moyi owns the social publishing queue, token storage, recovery state, and engagement data. Agency workspaces can publish approved drafts across separated client projects.',
         options: [
+          { title: 'API root', body: 'Start with GET /api/v1 to inspect the key, allowed projects, and supported routes before wiring automation.' },
           { title: 'Social Performance', body: 'Shows available exposure, engagement, post links, account health, retries, and reconnect requirements for 7, 30, or 90 days.' },
           { title: 'Agency roles', body: 'Owners and admins manage accounts; publishers can publish approved drafts; analysts have read-only access.' },
           { title: 'Public API keys', body: 'Create a one-time project-scoped key in Account settings for connected accounts, approved publishing jobs, status, or analytics.' },

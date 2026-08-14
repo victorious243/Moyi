@@ -138,12 +138,20 @@ Authorization: Bearer moyi_live_PREFIX_SECRET
 Content-Type: application/json
 ```
 
+Start with the API root to inspect what the key can do:
+
+```bash
+curl -H "Authorization: Bearer $MOYI_API_KEY" \
+  "https://YOUR_DOMAIN/api/v1"
+```
+
 Every request checks both the key's project allowlist and the key owner's current workspace role. Removing a user from an agency therefore removes their API access even if the key has not yet been revoked.
 
 Available scopes:
 
 | Scope | Routes |
 | --- | --- |
+| none | `GET /api/v1` |
 | `accounts:read` | `GET /api/v1/accounts?projectId=...` |
 | `publish:write` | `POST /api/v1/publish-jobs` |
 | `jobs:read` | `GET /api/v1/publish-jobs/:id`, `GET /api/v1/publish-batches/:id` |
