@@ -106,9 +106,31 @@ test('public documentation and contact pages render real destinations', async ()
   );
 
   assert.match(infoHtml, /Use Moyi from evidence to execution/);
-  assert.match(infoHtml, /Gather website evidence/);
+  assert.match(infoHtml, /How the product fits together/);
+  assert.match(infoHtml, /Configuration tutorials/);
+  assert.match(infoHtml, /Website evidence/);
   assert.match(contactHtml, /action="\/contact" method="post"/);
   assert.match(contactHtml, /support@example\.com/);
+  assert.deepEqual(
+    publicPages.docs.sections.map((section) => section.id),
+    [
+      'product-map',
+      'setup-tutorials',
+      'first-run',
+      'project-setup',
+      'scans',
+      'recommendations',
+      'content-workspace',
+      'content-types',
+      'images',
+      'campaigns',
+      'integrations',
+      'content-distribution-api',
+      'measurement',
+      'account-billing',
+      'troubleshooting'
+    ]
+  );
 });
 
 test('footer product links use standalone routes for authenticated users', async () => {

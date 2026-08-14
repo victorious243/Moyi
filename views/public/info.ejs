@@ -43,6 +43,24 @@
             <% }) %>
           </div>
         <% } %>
+        <% if (section.tutorials && section.tutorials.length) { %>
+          <div class="docs-option-grid docs-tutorial-grid">
+            <% section.tutorials.forEach((tutorial) => { %>
+              <article>
+                <strong><%= tutorial.title %></strong>
+                <p><%= tutorial.summary %></p>
+                <a class="button button-small" href="<%= tutorial.href %>">Open setup</a>
+                <ol class="docs-step-list">
+                  <% tutorial.steps.forEach((step) => { %>
+                    <li>
+                      <span><%= step %></span>
+                    </li>
+                  <% }) %>
+                </ol>
+              </article>
+            <% }) %>
+          </div>
+        <% } %>
         <% if (section.note) { %>
           <aside class="docs-note"><%= section.note %></aside>
         <% } %>

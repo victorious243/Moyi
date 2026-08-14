@@ -133,6 +133,39 @@
       </div>
     </section>
 
+    <section class="panel workspace-panel">
+      <div class="panel-title">
+        <div>
+          <p class="eyebrow">Tutorials</p>
+          <h2>Configure the essentials</h2>
+          <p class="empty">Short guides for the setup steps users usually need help with first.</p>
+        </div>
+        <a class="button" href="/docs#setup-tutorials">Open full guide</a>
+      </div>
+      <div class="docs-option-grid docs-tutorial-grid">
+        <article>
+          <strong>Search Console</strong>
+          <p>Verify the property and connect the right Google account so Moyi can read search performance.</p>
+          <a class="button button-small" href="/projects/<%= project._id %>/search-console/connect">Open setup</a>
+        </article>
+        <article>
+          <strong>Tracking</strong>
+          <p>Add the tracking snippet and create conversion goals for the events that matter.</p>
+          <a class="button button-small" href="/projects/<%= project._id %>/tracking/setup">Open setup</a>
+        </article>
+        <article>
+          <strong>Social accounts</strong>
+          <p>Connect LinkedIn, X, Meta, Threads, Bluesky, TikTok, or YouTube before scheduling posts.</p>
+          <a class="button button-small" href="/projects/<%= project._id %>/integrations/social">Open setup</a>
+        </article>
+        <article>
+          <strong>Billing</strong>
+          <p>Review the plan, current usage, and upgrade options before you let more people use the workspace.</p>
+          <a class="button button-small" href="/billing">Open setup</a>
+        </article>
+      </div>
+    </section>
+
     <section class="metrics project-info-grid workspace-scorecard-grid">
       <% workspace.scorecards.forEach((card) => { %>
         <article class="project-info-card workspace-score-card">

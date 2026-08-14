@@ -31,14 +31,79 @@ module.exports = {
   docs: {
     eyebrow: 'Product documentation',
     title: 'Use Moyi from evidence to execution',
-    intro: 'A practical tutorial for using Moyi as an AI CMO workspace: create a project, scan the website, approve evidence-backed recommendations, generate content, create visuals, plan campaigns, publish safely, and measure the results.',
+    intro: 'A structured guide to Moyi. The sections follow the same order as the product flow: set up the workspace, collect evidence, decide what matters, create content, attach visuals, plan campaigns, connect channels, publish safely, measure results, manage billing, and troubleshoot when needed.',
     primaryAction: { label: 'Open Dashboard', href: '/dashboard' },
     secondaryAction: { label: 'Create Account', href: '/register' },
     sections: [
       {
+        id: 'product-map',
+        title: 'How the product fits together',
+        body: 'Use Moyi in the same order every time so each feature receives the right inputs and produces the right output. The workflow below is the shortest path from a website URL to measured marketing work.',
+        steps: [
+          { title: '1. Set up the project', body: 'Create the workspace, add the website, and save the brand context.' },
+          { title: '2. Collect evidence', body: 'Run scans and connect measurement sources so Moyi can work from facts.' },
+          { title: '3. Decide the work', body: 'Review the AI CMO plan and accept only recommendations worth executing.' },
+          { title: '4. Create the asset', body: 'Generate content, edit the copy, and attach a final visual.' },
+          { title: '5. Distribute safely', body: 'Use the calendar, integrations, or API only after human approval.' },
+          { title: '6. Measure and improve', body: 'Read social and search performance, then feed the results into the next plan.' }
+        ],
+        note: 'If a step is missing data, fix the missing source first. Moyi is designed to show incomplete evidence instead of guessing.'
+      },
+      {
+        id: 'setup-tutorials',
+        title: 'Configuration tutorials',
+        body: 'Use these short guides when you only need to configure one part of the workspace. Each tutorial focuses on one setup task and points to the exact place to finish it.',
+        tutorials: [
+          {
+            title: 'Connect Search Console',
+            href: '/integrations',
+            summary: 'Connect Google Search Console so Moyi can read real search evidence and surface CTR, query, and page opportunities.',
+            steps: [
+              'Open Integrations from the workspace.',
+              'Sign in with the same Google account that owns or can view the property.',
+              'Choose the verified Search Console property.',
+              'Confirm the connection and refresh the workspace.'
+            ]
+          },
+          {
+            title: 'Set up social accounts',
+            href: '/projects/new',
+            summary: 'Connect the platforms you want to publish to, then reconnect any account that needs new scopes or expired access.',
+            steps: [
+              'Open Social Accounts from a project.',
+              'Connect LinkedIn, X, Bluesky, Meta, Threads, TikTok, or YouTube.',
+              'Grant the requested publishing and insights permissions.',
+              'Return to the calendar and confirm the connected targets.'
+            ]
+          },
+          {
+            title: 'Enable tracking',
+            href: '/integrations',
+            summary: 'Install the tracking script and define conversion goals so Moyi can measure outcomes instead of guessing.',
+            steps: [
+              'Open Tracking setup inside the project.',
+              'Copy the tracking snippet into the website.',
+              'Create conversion goals for the events that matter.',
+              'Check the dashboard until telemetry is healthy.'
+            ]
+          },
+          {
+            title: 'Review billing and limits',
+            href: '/billing',
+            summary: 'Check the current plan, usage, and monthly limits before handing the workspace to a customer or team.',
+            steps: [
+              'Open Billing from the main menu.',
+              'Review the current plan and monthly usage counters.',
+              'Upgrade only when the team is ready for more volume.',
+              'Use the account page for API keys and data export if needed.'
+            ]
+          }
+        ]
+      },
+      {
         id: 'first-run',
         title: 'Quick start: first useful result',
-        body: 'Use this path when you want to understand Moyi quickly and get from a website URL to a real action queue.',
+        body: 'Use this path when you want the first end-to-end run without reading every section first.',
         steps: [
           { title: 'Create an account', body: 'Register, sign in, and open the dashboard.' },
           { title: 'Run a quick scan or create a project', body: 'Use the homepage terminal for a public preview, or go to Projects and scan your business website.' },
@@ -52,7 +117,7 @@ module.exports = {
       },
       {
         id: 'project-setup',
-        title: 'Project setup options',
+        title: 'Project setup',
         body: 'A project is the business workspace. It stores the website URL, brand profile, recommendations, content drafts, campaigns, integrations, reports, and measurement configuration.',
         options: [
           { title: 'Scan and prefill', body: 'Best for a new customer. Moyi crawls the website, discovers visible brand context, and opens calibration before activation.' },
@@ -69,7 +134,7 @@ module.exports = {
       },
       {
         id: 'scans',
-        title: 'Gather website evidence',
+        title: 'Website evidence',
         body: 'A scan collects factual page data from the project website. It powers recommendations, AI CMO plans, reports, and content briefs.',
         options: [
           { title: 'Run Again', body: 'Starts a fresh scan. Use it after website changes, new pages, fixes, or campaign launches.' },
@@ -87,8 +152,8 @@ module.exports = {
       },
       {
         id: 'recommendations',
-        title: 'Recommendations and AI CMO plan',
-        body: 'Recommendations are the decision queue. They should explain what Moyi found, why it matters, which page or issue supports it, and what action can be taken.',
+        title: 'Recommendations and planning',
+        body: 'Recommendations are the decision queue. They explain what Moyi found, why it matters, which page or issue supports it, and what action can be taken.',
         options: [
           { title: 'Accept', body: 'Moves a recommendation into the active execution workflow.' },
           { title: 'Reject', body: 'Removes it from the active queue without deleting the history. Use this when the action is irrelevant or not worth doing.' },
@@ -104,8 +169,8 @@ module.exports = {
       },
       {
         id: 'content-workspace',
-        title: 'Content workspace tutorial',
-        body: 'Every generated asset moves through four steps: Write, Visual, Review, and Distribute. This makes Moyi easier to operate than a loose chat prompt.',
+        title: 'Content workspace',
+        body: 'Every generated asset moves through four steps: Write, Visual, Review, and Distribute. This keeps the work understandable instead of letting it become a loose prompt thread.',
         options: [
           { title: 'Write', body: 'Review the brief, keyword, title, business goal, persona, search intent, CTA, proof points, and draft body.' },
           { title: 'Visual', body: 'Generate or upload candidate images, preview them with the actual post, edit alt text/caption, and select one final image.' },
@@ -121,7 +186,7 @@ module.exports = {
       },
       {
         id: 'content-types',
-        title: 'Content templates and when to use them',
+        title: 'Content templates',
         body: 'Choose the draft style based on the business goal. Moyi should help create assets that convert, not generic articles.',
         options: [
           { title: 'Blog article', body: 'Use for educational SEO pages and informational search demand.' },
@@ -134,7 +199,7 @@ module.exports = {
       },
       {
         id: 'images',
-        title: 'Images, logos, and brand control',
+        title: 'Images and logos',
         body: 'Moyi supports generated images and user uploads. Images are stored as private files, while MongoDB stores only metadata and workflow state.',
         options: [
           { title: 'Project logo', body: 'Transparent PNG with no background. Stored once at project level and used as the official brand reference.' },
@@ -190,7 +255,7 @@ module.exports = {
       },
       {
         id: 'content-distribution-api',
-        title: 'Content distribution and API',
+        title: 'Publishing, recovery, and API',
         body: 'Moyi owns the social publishing queue, token storage, recovery state, and engagement data. Agency workspaces can publish approved drafts across separated client projects.',
         options: [
           { title: 'API root', body: 'Start with GET /api/v1 to inspect the key, allowed projects, and supported routes before wiring automation.' },
