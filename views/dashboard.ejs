@@ -3,6 +3,7 @@
 <%
   const latestProject = projects[0];
   const hasProjects = projects.length > 0;
+  const latestProjectBase = latestProject ? `/projects/${latestProject._id}` : '/projects/new';
   const hasScans = recentScans.length > 0;
   const hasReports = recentReports.length > 0;
   const scanPct = Math.min((usage.scansUsed / Math.max(plan.scansPerMonth, 1)) * 100, 100);
@@ -44,7 +45,14 @@
     <a class="active" href="/dashboard">Dashboard</a>
     <a href="/projects">Projects</a>
     <a href="/projects/new">Add Project</a>
-    <a href="/integrations">Integrations</a>
+    <span class="sidebar-divider"></span>
+    <a href="<%= latestProject ? `${latestProjectBase}/integrations/social` : '/projects/new' %>">Social Accounts</a>
+    <a href="<%= latestProject ? `${latestProjectBase}/content` : '/projects/new' %>">Approval Queue</a>
+    <a href="<%= latestProject ? `${latestProjectBase}/calendar` : '/projects/new' %>">Content Calendar</a>
+    <a href="<%= latestProject ? `${latestProjectBase}/social-performance` : '/projects/new' %>">Performance</a>
+    <a href="<%= latestProject ? `${latestProjectBase}/tracking/setup` : '/projects/new' %>">Tracking Setup</a>
+    <span class="sidebar-divider"></span>
+    <a href="/integrations">Search Console</a>
     <a href="/billing">Billing</a>
     <a href="/account">Account</a>
   </aside>
@@ -68,6 +76,7 @@
       <div><span>Projects</span><strong><%= projectCount %>/<%= plan.projectLimit %></strong></div>
       <div><span>Recent scans</span><strong><%= recentScans.length %></strong></div>
       <div><span>AI reports</span><strong><%= recentReports.length %></strong></div>
+      <div><span>Social accounts</span><strong><%= socialAccountCount %></strong></div>
       <div><span>Plan</span><strong><%= plan.name %></strong></div>
       <div><span>Signal coverage</span><strong><%= workspaceScore %>%</strong></div>
     </section>
@@ -117,9 +126,25 @@
             <strong><%= nextAction.label %></strong>
             <span><%= nextAction.detail %></span>
           </a>
+          <a href="<%= latestProject ? `${latestProjectBase}/integrations/social` : '/projects/new' %>">
+            <strong>Social Accounts</strong>
+            <span><%= socialAccountCount %> connected<%= reconnectAccountCount ? `, ${reconnectAccountCount} need reconnecting` : '' %>. Manage LinkedIn, X, Threads, Meta, YouTube, TikTok, and Bluesky publishing access.</span>
+          </a>
+          <a href="<%= latestProject ? `${latestProjectBase}/content` : '/projects/new' %>">
+            <strong>Approval Queue</strong>
+            <span><%= approvalQueueCount %> approved post<%= approvalQueueCount === 1 ? '' : 's' %> waiting to be scheduled or published.</span>
+          </a>
+          <a href="<%= latestProject ? `${latestProjectBase}/calendar` : '/projects/new' %>">
+            <strong>Content Calendar</strong>
+            <span>Review scheduled posts, retry failed jobs, and confirm live publishing status.</span>
+          </a>
+          <a href="<%= latestProject ? `${latestProjectBase}/social-performance` : '/projects/new' %>">
+            <strong>Social Performance</strong>
+            <span>Track published-post results once engagement collection is active.</span>
+          </a>
           <a href="/integrations">
-            <strong>Integrations</strong>
-            <span>Connect Search Console and publishing tools when the workspace has enough evidence to make them useful.</span>
+            <strong>Search Console</strong>
+            <span>Connect organic search evidence for recommendations and reporting.</span>
           </a>
         </section>
 

@@ -6,6 +6,7 @@ const Project = require('../models/Project');
 const Scan = require('../models/Scan');
 const Report = require('../models/Report');
 const ContentDraft = require('../models/ContentDraft');
+const SocialAccount = require('../models/SocialAccount');
 const AuditLog = require('../models/AuditLog');
 const ApiCredential = require('../models/ApiCredential');
 const { requireAuth } = require('../middleware/auth');
@@ -312,6 +313,11 @@ router.get('/dashboard', requireAuth, asyncHandler(async (req, res) => {
   const projectIds = allProjects.map((project) => project._id);
   const recentScans = await Scan.find({ projectId: { $in: projectIds } }).sort({ createdAt: -1 }).limit(8);
   const recentReports = await Report.find({ projectId: { $in: projectIds } }).sort({ createdAt: -1 }).limit(5);
+  const [socialAccountCount, reconnectAccountCount, approvalQueueCount] = await Promise.all([
+    SocialAccount.countDocuments({ projectId: { $in: projectIds }, status: 'connected' }),
+    SocialAccount.countDocuments({ projectId: { $in: projectIds }, status: 'reconnect_required' }),
+    ContentDraft.countDocuments({ projectId: { $in: projectIds }, status: 'approved', publishStatus: { $ne: 'published' } })
+  ]);
   const scanProjectMap = new Map(allProjects.map((project) => [project._id.toString(), project]));
   const usage = await getCurrentUsage(req.user._id);
   const plan = planFor(req.user);
@@ -323,6 +329,9 @@ router.get('/dashboard', requireAuth, asyncHandler(async (req, res) => {
     recentScans,
     recentReports,
     scanProjectMap,
+    socialAccountCount,
+    reconnectAccountCount,
+    approvalQueueCount,
     usage,
     plan
   });

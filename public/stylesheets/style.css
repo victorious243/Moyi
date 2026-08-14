@@ -6572,7 +6572,7 @@ input[type="file"]::file-selector-button {
 
 .dashboard-kpi-strip {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   border: 1px solid var(--app-border);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.035);
