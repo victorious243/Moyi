@@ -495,6 +495,99 @@ function buildThisWeekPlan({ project, latestScan, latestReport, connectedPropert
   return steps.slice(0, 4);
 }
 
+function checklistItem({ key, label, detail, href, complete, cta }) {
+  return {
+    key,
+    label,
+    detail,
+    href,
+    complete: Boolean(complete),
+    cta
+  };
+}
+
+function buildOnboardingChecklist({
+  project,
+  latestScan,
+  latestReport,
+  connectedProperty,
+  telemetry = {},
+  conversionGoalCount = 0,
+  socialAccountCount = 0,
+  draftCounts = {}
+}) {
+  const projectBase = `/projects/${project._id}`;
+  const approvedDrafts = Number(draftCounts.approved || 0);
+  const awaitingDrafts = Number(draftCounts.awaitingReview || 0) + Number(draftCounts.needsRevision || 0);
+  const items = [
+    checklistItem({
+      key: 'project',
+      label: 'Create project profile',
+      detail: project.websiteUrl ? `${project.name} is linked to ${project.websiteUrl}.` : 'Add the website and business context Moyi should work from.',
+      href: `${projectBase}/edit`,
+      complete: Boolean(project.websiteUrl && project.name),
+      cta: 'Review Profile'
+    }),
+    checklistItem({
+      key: 'scan',
+      label: 'Run website scan',
+      detail: latestScan ? `${titleCase(latestScan.status)} scan captured ${latestScan.pagesScanned || 0} pages.` : 'Collect factual website evidence before generating strategy.',
+      href: projectBase,
+      complete: Boolean(latestScan && latestScan.status === 'completed'),
+      cta: latestScan ? 'Open Workspace' : 'Run Scan'
+    }),
+    checklistItem({
+      key: 'strategy',
+      label: 'Generate AI CMO plan',
+      detail: latestReport && latestReport.status !== 'failed' ? 'Strategy brief is ready for weekly priorities.' : 'Turn scan evidence into recommendations, risks, and campaign direction.',
+      href: `${projectBase}/ai-report/latest`,
+      complete: Boolean(latestReport && latestReport.status !== 'failed'),
+      cta: 'Open Strategy'
+    }),
+    checklistItem({
+      key: 'search-console',
+      label: 'Connect Search Console property',
+      detail: connectedProperty ? `${connectedProperty.siteUrl} is selected for search performance.` : 'Select a verified Google Search Console property for this project.',
+      href: `${projectBase}/search-console/connect`,
+      complete: Boolean(connectedProperty),
+      cta: connectedProperty ? 'Open Property' : 'Select Property'
+    }),
+    checklistItem({
+      key: 'tracking',
+      label: 'Install tracking and goals',
+      detail: Number(telemetry.score || 0) >= 85 && conversionGoalCount ? 'Tracking quality is healthy and conversion goals are defined.' : `${telemetry.score || 0}% tracking health with ${conversionGoalCount || 0} conversion goal${conversionGoalCount === 1 ? '' : 's'}.`,
+      href: `${projectBase}/tracking/setup`,
+      complete: Number(telemetry.score || 0) >= 85 && Number(conversionGoalCount || 0) > 0,
+      cta: 'Review Tracking'
+    }),
+    checklistItem({
+      key: 'social-accounts',
+      label: 'Connect publishing accounts',
+      detail: socialAccountCount ? `${socialAccountCount} social publishing account${socialAccountCount === 1 ? '' : 's'} connected.` : 'Connect LinkedIn, X, Threads, Bluesky, or Meta before scheduling approved posts.',
+      href: `${projectBase}/integrations/social`,
+      complete: Number(socialAccountCount || 0) > 0,
+      cta: socialAccountCount ? 'Manage Accounts' : 'Connect Accounts'
+    }),
+    checklistItem({
+      key: 'approval',
+      label: 'Approve first content',
+      detail: approvedDrafts ? `${approvedDrafts} approved draft${approvedDrafts === 1 ? '' : 's'} ready to publish.` : `${awaitingDrafts} draft${awaitingDrafts === 1 ? '' : 's'} waiting for review or revision.`,
+      href: `${projectBase}/content`,
+      complete: approvedDrafts > 0,
+      cta: 'Open Queue'
+    })
+  ];
+  const completed = items.filter((item) => item.complete).length;
+  const next = items.find((item) => !item.complete) || items[items.length - 1];
+  return {
+    completed,
+    total: items.length,
+    percent: Math.round((completed / Math.max(items.length, 1)) * 100),
+    next,
+    items
+  };
+}
+
 function buildWorkspaceSummary({
   project,
   latestScan,
@@ -506,7 +599,8 @@ function buildWorkspaceSummary({
   telemetry = {},
   competitorCount = 0,
   conversionGoalCount = 0,
-  recentCmoReports = []
+  recentCmoReports = [],
+  socialAccountCount = 0
 }) {
   const recommendationCounts = buildRecommendationCounts(recommendations);
   const draftCounts = buildDraftCounts(drafts);
@@ -520,9 +614,20 @@ function buildWorkspaceSummary({
     draftCounts
   });
   const overallScore = Math.round(scorecards.reduce((sum, item) => sum + item.score, 0) / scorecards.length);
+  const onboarding = buildOnboardingChecklist({
+    project,
+    latestScan,
+    latestReport,
+    connectedProperty,
+    telemetry,
+    conversionGoalCount,
+    socialAccountCount,
+    draftCounts
+  });
 
   return {
     overallScore,
+    onboarding,
     scorecards,
     recommendationCounts,
     draftCounts,
@@ -585,6 +690,7 @@ function buildWorkspaceSummary({
 }
 
 module.exports = {
+  buildOnboardingChecklist,
   buildWorkspaceSummary,
   buildDraftCounts,
   buildRecommendationCounts

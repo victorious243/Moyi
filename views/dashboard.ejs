@@ -81,6 +81,49 @@
       <div><span>Signal coverage</span><strong><%= workspaceScore %>%</strong></div>
     </section>
 
+    <section class="panel dashboard-panel workspace-setup-summary dashboard-reveal">
+      <div class="panel-title">
+        <div>
+          <p class="eyebrow">Activation</p>
+          <h2>Workspace setup</h2>
+          <p class="empty"><%= workspaceSetup.readyProjects %>/<%= workspaceSetup.totalProjects %> project<%= workspaceSetup.totalProjects === 1 ? '' : 's' %> have every launch foundation complete.</p>
+        </div>
+        <a class="button" href="/projects">Open Projects</a>
+      </div>
+      <div class="workspace-setup-grid">
+        <div class="readiness-panel workspace-setup-score">
+          <div class="readiness-meter" style="--score:<%= workspaceSetup.averagePercent %>%">
+            <strong><%= workspaceSetup.averagePercent %></strong>
+            <span>Setup</span>
+          </div>
+          <p><%= workspaceSetup.averagePercent >= 85 ? 'Most foundations are in place. Keep clearing the remaining project-specific gaps.' : 'The portfolio still has setup gaps that can slow first customer value.' %></p>
+        </div>
+        <div class="workspace-blocker-list">
+          <strong>Most common gaps</strong>
+          <% if (!workspaceSetup.blockers.length) { %>
+            <p class="empty">No setup gaps detected.</p>
+          <% } else { %>
+            <% workspaceSetup.blockers.slice(0, 4).forEach((blocker) => { %>
+              <span><%= blocker.count %> missing <%= blocker.label %></span>
+            <% }) %>
+          <% } %>
+        </div>
+        <div class="workspace-attention-list">
+          <strong>Needs attention</strong>
+          <% if (!workspaceSetup.projectsNeedingAttention.length) { %>
+            <p class="empty">All active projects have the launch foundations complete.</p>
+          <% } else { %>
+            <% workspaceSetup.projectsNeedingAttention.forEach((item) => { %>
+              <a href="<%= item.nextHref %>">
+                <span><%= item.name %></span>
+                <small><%= item.percent %>% ready / next: <%= item.nextLabel %></small>
+              </a>
+            <% }) %>
+          <% } %>
+        </div>
+      </div>
+    </section>
+
     <section class="dashboard-ops-grid dashboard-reveal">
       <section class="dashboard-ledger" aria-labelledby="active-projects-title">
         <div class="ledger-header">

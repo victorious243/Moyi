@@ -128,7 +128,8 @@ function registerProjectDetailRoutes(router, context) {
       latestCompetitorInsights,
       recommendations,
       drafts,
-      conversionGoalCount
+      conversionGoalCount,
+      socialAccountCount
     ] = await Promise.all([
       context.Scan.findOne({ projectId: req.project._id }).sort({ createdAt: -1 }),
       context.Scan.find({ projectId: req.project._id }).sort({ createdAt: -1 }).limit(5),
@@ -140,7 +141,8 @@ function registerProjectDetailRoutes(router, context) {
       context.CompetitorInsight.find({ projectId: req.project._id }).sort({ priority: 1, createdAt: -1 }).limit(4),
       context.Recommendation.find({ projectId: req.project._id }).sort({ status: 1, priority: 1, createdAt: -1 }).limit(12),
       context.ContentDraft.find({ projectId: req.project._id }).sort({ updatedAt: -1 }).limit(12),
-      context.ConversionGoal.countDocuments({ projectId: req.project._id })
+      context.ConversionGoal.countDocuments({ projectId: req.project._id }),
+      context.SocialAccount.countDocuments({ projectId: req.project._id, status: 'connected' })
     ]);
     const telemetry = await auditTelemetry(req.project);
     const latestCompletedScan = recentScans.find((scan) => scan.status === 'completed') || (latestScan && latestScan.status === 'completed' ? latestScan : null);
@@ -158,6 +160,7 @@ function registerProjectDetailRoutes(router, context) {
       telemetry,
       competitorCount,
       conversionGoalCount,
+      socialAccountCount,
       recentCmoReports
     });
 
@@ -172,6 +175,7 @@ function registerProjectDetailRoutes(router, context) {
       latestCompetitorInsights,
       wordpressIntegration,
       telemetry,
+      socialAccountCount,
       workspace,
       recommendations,
       drafts,

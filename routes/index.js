@@ -7,6 +7,8 @@ const Scan = require('../models/Scan');
 const Report = require('../models/Report');
 const ContentDraft = require('../models/ContentDraft');
 const SocialAccount = require('../models/SocialAccount');
+const ProjectSearchProperty = require('../models/ProjectSearchProperty');
+const ConversionGoal = require('../models/ConversionGoal');
 const AuditLog = require('../models/AuditLog');
 const ApiCredential = require('../models/ApiCredential');
 const { requireAuth } = require('../middleware/auth');
@@ -60,6 +62,105 @@ function sitemapUrl(pathname, priority = '0.7', changefreq = 'weekly') {
     loc: `${publicBaseUrl()}${pathname}`,
     priority,
     changefreq
+  };
+}
+
+function idKey(value) {
+  return String(value && value._id ? value._id : value);
+}
+
+async function countByProject(Model, match) {
+  const rows = await Model.aggregate([
+    { $match: match },
+    { $group: { _id: '$projectId', count: { $sum: 1 } } }
+  ]);
+  return new Map(rows.map((row) => [String(row._id), row.count]));
+}
+
+async function buildWorkspaceSetupSummary(projects) {
+  const projectIds = projects.map((project) => project._id);
+  if (!projectIds.length) {
+    return {
+      readyProjects: 0,
+      totalProjects: 0,
+      averagePercent: 0,
+      projectsNeedingAttention: [],
+      blockers: []
+    };
+  }
+
+  const [
+    scanCounts,
+    reportCounts,
+    searchPropertyCounts,
+    conversionGoalCounts,
+    socialAccountCounts,
+    approvedDraftCounts
+  ] = await Promise.all([
+    countByProject(Scan, { projectId: { $in: projectIds }, status: 'completed' }),
+    countByProject(Report, { projectId: { $in: projectIds }, status: { $ne: 'failed' } }),
+    countByProject(ProjectSearchProperty, { projectId: { $in: projectIds } }),
+    countByProject(ConversionGoal, { projectId: { $in: projectIds } }),
+    countByProject(SocialAccount, { projectId: { $in: projectIds }, status: 'connected' }),
+    countByProject(ContentDraft, { projectId: { $in: projectIds }, status: 'approved', publishStatus: { $ne: 'published' } })
+  ]);
+
+  const labels = {
+    scan: 'website scan',
+    report: 'AI CMO plan',
+    search: 'Search Console property',
+    goals: 'conversion goal',
+    social: 'social account',
+    content: 'approved content'
+  };
+  const projectRows = projects.map((project) => {
+    const key = idKey(project);
+    const checks = {
+      scan: scanCounts.has(key),
+      report: reportCounts.has(key),
+      search: searchPropertyCounts.has(key),
+      goals: conversionGoalCounts.has(key),
+      social: socialAccountCounts.has(key),
+      content: approvedDraftCounts.has(key)
+    };
+    const completed = Object.values(checks).filter(Boolean).length;
+    const missing = Object.keys(checks).filter((check) => !checks[check]);
+    return {
+      id: project._id,
+      name: project.name,
+      href: `/projects/${project._id}`,
+      completed,
+      total: Object.keys(checks).length,
+      percent: Math.round((completed / Object.keys(checks).length) * 100),
+      missing,
+      nextLabel: missing.length ? labels[missing[0]] : 'weekly review',
+      nextHref: missing[0] === 'search'
+        ? `/projects/${project._id}/search-console/connect`
+        : missing[0] === 'goals'
+          ? `/projects/${project._id}/tracking/setup`
+          : missing[0] === 'social'
+            ? `/projects/${project._id}/integrations/social`
+            : missing[0] === 'content'
+              ? `/projects/${project._id}/content`
+              : `/projects/${project._id}`
+    };
+  });
+  const blockerCounts = Object.keys(labels).map((key) => ({
+    key,
+    label: labels[key],
+    count: projectRows.filter((project) => project.missing.includes(key)).length
+  })).filter((item) => item.count > 0);
+  const averagePercent = Math.round(projectRows.reduce((sum, project) => sum + project.percent, 0) / projectRows.length);
+
+  return {
+    readyProjects: projectRows.filter((project) => project.percent === 100).length,
+    totalProjects: projectRows.length,
+    averagePercent,
+    projectsNeedingAttention: projectRows
+      .filter((project) => project.percent < 100)
+      .sort((a, b) => a.percent - b.percent)
+      .slice(0, 4),
+    blockers: blockerCounts
   };
 }
 
@@ -313,10 +414,11 @@ router.get('/dashboard', requireAuth, asyncHandler(async (req, res) => {
   const projectIds = allProjects.map((project) => project._id);
   const recentScans = await Scan.find({ projectId: { $in: projectIds } }).sort({ createdAt: -1 }).limit(8);
   const recentReports = await Report.find({ projectId: { $in: projectIds } }).sort({ createdAt: -1 }).limit(5);
-  const [socialAccountCount, reconnectAccountCount, approvalQueueCount] = await Promise.all([
+  const [socialAccountCount, reconnectAccountCount, approvalQueueCount, workspaceSetup] = await Promise.all([
     SocialAccount.countDocuments({ projectId: { $in: projectIds }, status: 'connected' }),
     SocialAccount.countDocuments({ projectId: { $in: projectIds }, status: 'reconnect_required' }),
-    ContentDraft.countDocuments({ projectId: { $in: projectIds }, status: 'approved', publishStatus: { $ne: 'published' } })
+    ContentDraft.countDocuments({ projectId: { $in: projectIds }, status: 'approved', publishStatus: { $ne: 'published' } }),
+    buildWorkspaceSetupSummary(allProjects)
   ]);
   const scanProjectMap = new Map(allProjects.map((project) => [project._id.toString(), project]));
   const usage = await getCurrentUsage(req.user._id);
@@ -332,6 +434,7 @@ router.get('/dashboard', requireAuth, asyncHandler(async (req, res) => {
     socialAccountCount,
     reconnectAccountCount,
     approvalQueueCount,
+    workspaceSetup,
     usage,
     plan
   });

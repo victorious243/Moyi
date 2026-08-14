@@ -86,3 +86,26 @@ test('project workspace prefers open recommendations and execution queue once st
   assert.ok(workspace.executionQueue.some((item) => item.title.includes('draft')));
   assert.equal(workspace.primaryAction.title, 'Review drafts waiting in the queue');
 });
+
+test('project workspace exposes a launch checklist from real setup state', () => {
+  const workspace = buildWorkspaceSummary({
+    project: baseProject(),
+    latestScan: { status: 'completed', pagesScanned: 12 },
+    latestReport: { status: 'ready', topPriorities: [], quickWins: [] },
+    recommendations: [],
+    drafts: [{ status: 'draft' }],
+    issues: [],
+    connectedProperty: null,
+    telemetry: { score: 40 },
+    competitorCount: 0,
+    conversionGoalCount: 0,
+    socialAccountCount: 1,
+    recentCmoReports: []
+  });
+
+  assert.equal(workspace.onboarding.total, 7);
+  assert.equal(workspace.onboarding.items.find((item) => item.key === 'social-accounts').complete, true);
+  assert.equal(workspace.onboarding.items.find((item) => item.key === 'search-console').complete, false);
+  assert.equal(workspace.onboarding.next.key, 'search-console');
+  assert.ok(workspace.onboarding.percent > 0);
+});

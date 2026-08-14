@@ -6604,6 +6604,70 @@ input[type="file"]::file-selector-button {
   align-items: start;
 }
 
+.workspace-setup-summary {
+  padding: 18px;
+}
+
+.workspace-setup-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(220px, 0.7fr) minmax(280px, 1fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.workspace-setup-score,
+.workspace-blocker-list,
+.workspace-attention-list {
+  min-height: 132px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.workspace-blocker-list,
+.workspace-attention-list {
+  display: grid;
+  gap: 8px;
+}
+
+.workspace-blocker-list > strong,
+.workspace-attention-list > strong {
+  color: #ffffff;
+}
+
+.workspace-blocker-list span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #d8d1e6;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.workspace-attention-list a {
+  display: grid;
+  gap: 2px;
+  padding: 9px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.workspace-attention-list a:first-of-type {
+  border-top: 0;
+}
+
+.workspace-attention-list span {
+  color: #ffffff;
+  font-weight: 850;
+}
+
+.workspace-attention-list small {
+  color: #bdb3d2;
+}
+
 .dashboard-ledger,
 .dashboard-side-rail > section {
   border: 1px solid var(--app-border);
@@ -7178,6 +7242,81 @@ input[type="file"]::file-selector-button {
   font-size: 32px;
 }
 
+.onboarding-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.onboarding-progress {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.onboarding-progress span {
+  display: block;
+  width: var(--p);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--green), var(--accent));
+  box-shadow: 0 0 28px rgba(202, 255, 88, 0.2);
+}
+
+.onboarding-checklist {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.onboarding-step {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  grid-template-areas:
+    "status title"
+    "status detail";
+  gap: 4px 10px;
+  min-height: 88px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.onboarding-step:hover {
+  border-color: rgba(202, 255, 88, 0.32);
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.onboarding-step span {
+  grid-area: status;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  color: #101214;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.onboarding-step.complete span {
+  border-color: transparent;
+  background: var(--green);
+}
+
+.onboarding-step strong {
+  grid-area: title;
+  color: #ffffff;
+}
+
+.onboarding-step small {
+  grid-area: detail;
+  color: #bdb3d2;
+  line-height: 1.4;
+}
+
 .workspace-grid,
 .workspace-focus-grid {
   display: grid;
@@ -7453,6 +7592,7 @@ input[type="file"]::file-selector-button {
   .operations-grid,
   .workspace-grid,
   .workspace-focus-grid,
+  .onboarding-checklist,
   .workspace-hero-signals {
     grid-template-columns: 1fr;
   }
@@ -7468,6 +7608,10 @@ input[type="file"]::file-selector-button {
 
   .dashboard-console-header,
   .dashboard-ops-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-setup-grid {
     grid-template-columns: 1fr;
   }
 
