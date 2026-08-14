@@ -66,6 +66,32 @@
         <% } %>
       </section>
     <% }) %>
+    <% if (page.faqs && page.faqs.length) { %>
+      <section id="faq">
+        <h2>Frequently asked questions</h2>
+        <div class="docs-option-grid">
+          <% page.faqs.forEach((faq) => { %>
+            <article>
+              <strong><%= faq.question %></strong>
+              <p><%= faq.answer %></p>
+            </article>
+          <% }) %>
+        </div>
+      </section>
+    <% } %>
+    <% if (page.related && page.related.length) { %>
+      <section id="related">
+        <h2>Related Moyi pages</h2>
+        <div class="docs-option-grid">
+          <% page.related.forEach((item) => { %>
+            <article>
+              <strong><a href="<%= item.href %>"><%= item.label %></a></strong>
+              <p><%= item.body %></p>
+            </article>
+          <% }) %>
+        </div>
+      </section>
+    <% } %>
   </div>
 </div>
 

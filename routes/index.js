@@ -67,6 +67,42 @@ function sitemapUrl(pathname, priority = '0.7', changefreq = 'weekly') {
   };
 }
 
+function publicPageSchema(slug, page) {
+  const url = `${publicBaseUrl()}/${slug}`;
+  const schemas = [
+    {
+      '@context': 'https://schema.org',
+      '@type': 'WebPage',
+      name: page.title,
+      url,
+      description: page.seoDescription || page.intro,
+      isPartOf: {
+        '@type': 'WebSite',
+        name: 'Moyi-CMO',
+        url: publicBaseUrl()
+      },
+      about: page.schemaAbout || page.title
+    }
+  ];
+
+  if (page.faqs && page.faqs.length) {
+    schemas.push({
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: page.faqs.map((faq) => ({
+        '@type': 'Question',
+        name: faq.question,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: faq.answer
+        }
+      }))
+    });
+  }
+
+  return schemas;
+}
+
 function idKey(value) {
   return String(value && value._id ? value._id : value);
 }
@@ -169,15 +205,19 @@ async function buildWorkspaceSetupSummary(projects) {
 router.get('/sitemap.xml', (req, res) => {
   const urls = [
     sitemapUrl('/', '1.0', 'weekly'),
-    sitemapUrl('/features', '0.9', 'monthly'),
-    sitemapUrl('/how-it-works', '0.9', 'monthly'),
     sitemapUrl('/pricing', '0.9', 'monthly'),
-    sitemapUrl('/docs', '0.8', 'monthly'),
-    sitemapUrl('/demo', '0.8', 'monthly'),
-    sitemapUrl('/reports', '0.8', 'monthly'),
-    sitemapUrl('/roadmap', '0.7', 'monthly'),
+    ...Object.keys(publicPages).map((slug) => {
+      const highIntent = [
+        'ai-cmo-software',
+        'seo-growth-software',
+        'google-search-console-reporting-tool',
+        'ai-content-marketing-platform',
+        'social-media-publishing-tool',
+        'agency-seo-reporting-software'
+      ].includes(slug);
+      return sitemapUrl(`/${slug}`, highIntent ? '0.9' : '0.8', 'monthly');
+    }),
     sitemapUrl('/status', '0.7', 'daily'),
-    sitemapUrl('/about', '0.7', 'monthly'),
     sitemapUrl('/contact', '0.6', 'monthly'),
     sitemapUrl('/privacy', '0.5', 'yearly'),
     sitemapUrl('/terms', '0.5', 'yearly'),
@@ -237,6 +277,12 @@ router.get('/llms.txt', (req, res) => {
     `- Documentation: ${publicBaseUrl()}/docs`,
     `- Reports guide: ${publicBaseUrl()}/reports`,
     `- Pricing: ${publicBaseUrl()}/pricing`,
+    `- AI CMO software: ${publicBaseUrl()}/ai-cmo-software`,
+    `- SEO growth software: ${publicBaseUrl()}/seo-growth-software`,
+    `- Search Console reporting tool: ${publicBaseUrl()}/google-search-console-reporting-tool`,
+    `- AI content marketing platform: ${publicBaseUrl()}/ai-content-marketing-platform`,
+    `- Social media publishing tool: ${publicBaseUrl()}/social-media-publishing-tool`,
+    `- Agency SEO reporting software: ${publicBaseUrl()}/agency-seo-reporting-software`,
     `- Privacy policy: ${publicBaseUrl()}/privacy`,
     `- Terms: ${publicBaseUrl()}/terms`,
     `- Contact: ${publicBaseUrl()}/contact`,
@@ -346,7 +392,12 @@ router.post('/meta-review/oembed', [
 
 Object.entries(publicPages).forEach(([slug, page]) => {
   router.get(`/${slug}`, (req, res) => {
-    res.render('public/info', { title: page.title, seoDescription: page.intro, page });
+    res.render('public/info', {
+      title: page.seoTitle || page.title,
+      seoDescription: page.seoDescription || page.intro,
+      additionalSchemas: publicPageSchema(slug, page),
+      page
+    });
   });
 });
 

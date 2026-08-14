@@ -38,6 +38,11 @@
   <% if (typeof softwareSchema !== 'undefined' && softwareSchema) { %>
     <script type="application/ld+json"><%- JSON.stringify(softwareSchema) %></script>
   <% } %>
+  <% if (typeof additionalSchemas !== 'undefined' && additionalSchemas && additionalSchemas.length) { %>
+    <% additionalSchemas.forEach((schema) => { %>
+      <script type="application/ld+json"><%- JSON.stringify(schema) %></script>
+    <% }) %>
+  <% } %>
   <link rel="stylesheet" href="/stylesheets/style.css">
   <link rel="stylesheet" href="/stylesheets/saas-ui.css">
 </head>

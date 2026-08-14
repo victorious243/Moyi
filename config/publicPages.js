@@ -349,6 +349,191 @@ module.exports = {
       { id: 'interpretation', title: 'How to interpret a report', body: 'Treat a report as a decision document, not proof of causation. Confirm the measurement window, source health, sample size, and business context before changing spend or publishing strategy.', bullets: ['Measured facts and recommendations serve different purposes.', 'Correlation does not prove that one marketing action caused an outcome.', 'Human approval remains required for consequential actions.'] }
     ]
   },
+  'ai-cmo-software': {
+    eyebrow: 'AI CMO software',
+    title: 'AI CMO software for evidence-led SEO growth',
+    seoTitle: 'AI CMO Software for SEO Growth and Content Distribution',
+    seoDescription: 'Moyi-CMO is AI CMO software that turns website scans, Google Search Console data, approved drafts, social publishing, and engagement signals into a repeatable growth workflow.',
+    schemaAbout: 'AI CMO software for SEO, content marketing, social publishing, and growth reporting',
+    intro: 'Moyi-CMO helps teams move from scattered marketing ideas to a controlled operating system: discover evidence, decide priorities, create assets, approve work, distribute content, and learn from performance.',
+    primaryAction: { label: 'Start Free', href: '/register' },
+    secondaryAction: { label: 'See How It Works', href: '/how-it-works' },
+    sections: [
+      {
+        id: 'what-it-does',
+        title: 'What an AI CMO should actually do',
+        body: 'A useful AI CMO should not only write copy. It should connect facts, priorities, execution, approvals, publishing, and measurement so the business can make better marketing decisions every week.',
+        bullets: ['Scan the website and preserve crawl evidence.', 'Use Search Console data when the project connects it.', 'Rank SEO and content opportunities by impact and effort.', 'Generate drafts and social posts from approved business context.', 'Require human approval before external publishing.', 'Collect performance signals for the next recommendation cycle.']
+      },
+      {
+        id: 'workflow',
+        title: 'The Moyi operating loop',
+        body: 'Moyi is structured around a closed loop rather than a one-off prompt. Each stage has a clear owner, state, and next action.',
+        steps: [
+          { title: 'Discover', body: 'Run website scans and connect readonly search data.' },
+          { title: 'Decide', body: 'Review the AI CMO plan and accept only the work that matters.' },
+          { title: 'Create', body: 'Generate website content, campaign posts, visuals, and execution briefs.' },
+          { title: 'Approve', body: 'Keep a human review step before publishing or exporting anything.' },
+          { title: 'Distribute', body: 'Publish approved social drafts to connected accounts or create CMS drafts.' },
+          { title: 'Learn', body: 'Use search, social, and conversion signals to improve future recommendations.' }
+        ]
+      },
+      {
+        id: 'fit',
+        title: 'Who Moyi is built for',
+        body: 'Moyi is strongest for teams that need accountable marketing operations, not just more generated text.',
+        bullets: ['SaaS founders who need clear growth priorities.', 'Marketing managers who need SEO and content execution in one place.', 'Agencies managing multiple client workspaces.', 'Operators who need weekly reports, campaign plans, and publishing status.']
+      }
+    ],
+    faqs: [
+      { question: 'Is Moyi-CMO only a content generator?', answer: 'No. Moyi generates content, but the core product connects website evidence, Search Console data, recommendations, approvals, publishing, metrics, and reports.' },
+      { question: 'Does Moyi publish automatically?', answer: 'No. Publishing requires human approval and an explicit publish or schedule action.' },
+      { question: 'Can Moyi replace a marketing team?', answer: 'Moyi is designed to support owners, marketers, and agencies by organizing evidence and execution. Human strategy, approval, and judgment remain part of the workflow.' }
+    ],
+    related: [
+      { label: 'SEO Growth Software', href: '/seo-growth-software', body: 'See how Moyi turns website and search evidence into growth recommendations.' },
+      { label: 'AI Content Marketing Platform', href: '/ai-content-marketing-platform', body: 'Create approved drafts, visuals, campaign posts, and content workflows.' },
+      { label: 'Social Media Publishing Tool', href: '/social-media-publishing-tool', body: 'Publish approved drafts to connected social accounts.' }
+    ]
+  },
+  'seo-growth-software': {
+    eyebrow: 'SEO growth software',
+    title: 'SEO growth software that turns evidence into action',
+    seoTitle: 'SEO Growth Software for Website Scans and Search Console Insights',
+    seoDescription: 'Moyi-CMO helps teams turn website scans, Search Console data, SEO issues, and content opportunities into prioritized recommendations and execution workflows.',
+    schemaAbout: 'SEO growth software for website scans, recommendations, Search Console insights, and content execution',
+    intro: 'Moyi gives SEO work a practical operating rhythm: scan the site, identify opportunities, accept the right priorities, create the assets, and measure whether visibility improves.',
+    primaryAction: { label: 'Run Moyi', href: '/register' },
+    secondaryAction: { label: 'Read Documentation', href: '/docs#scans' },
+    sections: [
+      { id: 'evidence', title: 'Start with crawlable evidence', body: 'Moyi scans public website pages and records observable page structure, metadata, headings, status, content depth, links, image-alt signals, and supported technical findings.', bullets: ['Page-level evidence stays traceable.', 'Recommendations are connected to recorded scans.', 'Missing data is shown instead of guessed.'] },
+      { id: 'priorities', title: 'Prioritize the SEO work that matters', body: 'The AI CMO plan turns scan findings into ranked work so teams can avoid chasing every possible task at once.', bullets: ['Critical fixes and quick wins', 'Content expansion opportunities', 'Title, meta, heading, and internal link improvements', 'Evidence-backed next actions'] },
+      { id: 'execution', title: 'Move from SEO issue to finished asset', body: 'Accepted recommendations can feed content briefs, articles, metadata drafts, campaign posts, visual workflows, and reports.', bullets: ['SEO strategist, copywriter, and editor stages', 'Human review before publishing', 'Weekly and monthly reporting'] }
+    ],
+    faqs: [
+      { question: 'Does Moyi replace SEO tools like Ahrefs or Semrush?', answer: 'Moyi focuses on evidence-led workflow and execution. It can complement keyword and backlink tools by turning website and Search Console evidence into reviewed work.' },
+      { question: 'Does Moyi use private competitor data?', answer: 'No. Competitor comparison uses public website evidence and should be treated as directional, not as market traffic or ranking proof.' }
+    ],
+    related: [
+      { label: 'Search Console Reporting Tool', href: '/google-search-console-reporting-tool', body: 'Analyze clicks, impressions, CTR, average position, queries, and pages.' },
+      { label: 'AI CMO Software', href: '/ai-cmo-software', body: 'Connect SEO recommendations with content and publishing.' }
+    ]
+  },
+  'google-search-console-reporting-tool': {
+    eyebrow: 'Search Console reporting',
+    title: 'Google Search Console reporting tool for marketing action',
+    seoTitle: 'Google Search Console Reporting Tool for SEO Recommendations',
+    seoDescription: 'Moyi-CMO connects to Google Search Console with readonly access and turns queries, pages, CTR, clicks, impressions, and position into SEO recommendations and reports.',
+    schemaAbout: 'Google Search Console reporting tool for SEO opportunities and marketing recommendations',
+    intro: 'Search Console has valuable data, but most teams need help turning it into next actions. Moyi reads Search Console evidence and organizes it into opportunities, dashboards, and reports.',
+    primaryAction: { label: 'Connect Search Console', href: '/register' },
+    secondaryAction: { label: 'Read Setup Guide', href: '/docs#setup-tutorials' },
+    sections: [
+      { id: 'readonly', title: 'Readonly search evidence', body: 'Moyi requests readonly Search Console access so it can analyze the property without modifying it.', bullets: ['Queries and pages', 'Clicks and impressions', 'Average CTR and position', 'Countries and devices where available'] },
+      { id: 'opportunities', title: 'Opportunities Moyi can surface', body: 'Search performance becomes useful when it points to a clear decision.', bullets: ['High impressions with low CTR', 'Page-two queries close to page one', 'Pages gaining or losing visibility', 'Queries that need stronger content coverage'] },
+      { id: 'reports', title: 'Search data inside weekly reporting', body: 'Moyi uses Search Console data in performance views and recurring reports so teams can discuss what changed and what to do next.', bullets: ['Weekly review rhythm', 'Data-quality notes', 'Next recommended actions'] }
+    ],
+    faqs: [
+      { question: 'Does Moyi need write access to Search Console?', answer: 'No. Moyi requests readonly access for Search Console analysis.' },
+      { question: 'Why does Moyi say no property is connected if Google is connected?', answer: 'The Google account can be connected while no verified Search Console property is available for that project. The account must own or have view access to the property.' }
+    ],
+    related: [
+      { label: 'SEO Growth Software', href: '/seo-growth-software', body: 'Turn search evidence into prioritized SEO execution.' },
+      { label: 'Reports Guide', href: '/reports', body: 'Understand how Moyi uses evidence in recurring reports.' }
+    ]
+  },
+  'ai-content-marketing-platform': {
+    eyebrow: 'AI content marketing platform',
+    title: 'AI content marketing platform with human approval',
+    seoTitle: 'AI Content Marketing Platform for SEO Drafts and Campaign Posts',
+    seoDescription: 'Moyi-CMO creates SEO content drafts, social posts, campaign plans, visuals, and publishing workflows from website evidence and approved business context.',
+    schemaAbout: 'AI content marketing platform for SEO content, campaign planning, visuals, and social posts',
+    intro: 'Moyi helps teams create marketing assets from real project context instead of isolated prompts. Drafts move through writing, visual review, approval, and distribution.',
+    primaryAction: { label: 'Create Content', href: '/register' },
+    secondaryAction: { label: 'View Features', href: '/features#content' },
+    sections: [
+      { id: 'drafts', title: 'Create drafts from evidence', body: 'Accepted recommendations and campaign objectives can become articles, landing page copy, metadata, FAQs, social posts, and execution briefs.', bullets: ['Blog articles and product-led guides', 'Vs and alternatives pages', 'FAQ and metadata drafts', 'Campaign social posts'] },
+      { id: 'visuals', title: 'Review visuals before approval', body: 'Users can generate or upload candidate images, edit alt text, select a final image, and keep the official logo as a project asset.', bullets: ['Image candidates', 'Selected and rejected states', 'Brand logo reference', 'Accessible alt text'] },
+      { id: 'approval', title: 'Human approval protects quality', body: 'Moyi keeps content as a draft until a person approves it. Approval unlocks publishing and export actions, but does not publish by itself.', bullets: ['Review copy and claims', 'Check image and CTA', 'Publish or schedule only when ready'] }
+    ],
+    faqs: [
+      { question: 'Can Moyi create social posts from approved content?', answer: 'Yes. Approved content can be turned into channel-ready social drafts and scheduled in the content calendar.' },
+      { question: 'Can users upload their own images?', answer: 'Yes. Users can upload image candidates and select the final image used with a draft.' }
+    ],
+    related: [
+      { label: 'Social Media Publishing Tool', href: '/social-media-publishing-tool', body: 'Send approved drafts to connected channels.' },
+      { label: 'AI CMO Software', href: '/ai-cmo-software', body: 'See the full evidence-to-execution workflow.' }
+    ]
+  },
+  'social-media-publishing-tool': {
+    eyebrow: 'Social media publishing',
+    title: 'Social media publishing tool for approved marketing drafts',
+    seoTitle: 'Social Media Publishing Tool for Approved AI Marketing Drafts',
+    seoDescription: 'Moyi-CMO lets users connect social accounts, approve drafts, publish or schedule posts, attach media, track status, and collect engagement metrics.',
+    schemaAbout: 'Social media publishing tool for approved drafts, scheduling, connected accounts, and engagement metrics',
+    intro: 'Moyi owns the publishing layer so teams can move approved content into distribution without depending on a third-party scheduler.',
+    primaryAction: { label: 'Connect Channels', href: '/register' },
+    secondaryAction: { label: 'Read Publishing Docs', href: '/docs#content-distribution-api' },
+    sections: [
+      { id: 'channels', title: 'Connect publishing accounts', body: 'Moyi supports native social account connections for approved publishing workflows as platform access and app review allow.', bullets: ['LinkedIn, X, Bluesky, Facebook, Instagram, Threads, TikTok, and YouTube architecture', 'Encrypted token storage', 'Reconnect states and status visibility'] },
+      { id: 'approval', title: 'Publish only reviewed work', body: 'A draft must be reviewed before it can be published. Users choose accounts and publish now or schedule a time.', bullets: ['One publish batch per approved action', 'One publish job per selected account', 'Queued, publishing, published, failed, and dead-letter states'] },
+      { id: 'metrics', title: 'Close the loop with engagement', body: 'Published posts can receive engagement snapshots where platforms and scopes make metrics available.', bullets: ['Impressions where available', 'Likes, comments, shares, reposts, and clicks where available', 'Growth Brain-ready performance inputs'] }
+    ],
+    faqs: [
+      { question: 'Does Moyi require a third-party scheduler API key?', answer: 'No. Moyi owns the publishing layer and stores provider connections directly.' },
+      { question: 'Can posts be scheduled?', answer: 'Yes. Approved drafts can be published immediately or scheduled through the content calendar.' }
+    ],
+    related: [
+      { label: 'AI Content Marketing Platform', href: '/ai-content-marketing-platform', body: 'Create the approved drafts that enter publishing.' },
+      { label: 'AI CMO Software', href: '/ai-cmo-software', body: 'Connect publishing with evidence and analytics.' }
+    ]
+  },
+  'agency-seo-reporting-software': {
+    eyebrow: 'Agency SEO reporting',
+    title: 'Agency SEO reporting software for client workspaces',
+    seoTitle: 'Agency SEO Reporting Software for Client Workspaces',
+    seoDescription: 'Moyi-CMO helps agencies manage client projects, SEO evidence, recommendations, approved content, publishing, usage, and reporting in separated workspaces.',
+    schemaAbout: 'Agency SEO reporting software for client projects, roles, publishing, and growth reports',
+    intro: 'Moyi gives agencies a controlled workspace for each client, with clear setup status, roles, connected accounts, recommendations, content, publishing, and reporting.',
+    primaryAction: { label: 'Start Agency Workspace', href: '/register' },
+    secondaryAction: { label: 'See Roadmap', href: '/roadmap' },
+    sections: [
+      { id: 'clients', title: 'Separate client projects', body: 'Each client can have its own website, scans, Search Console property, social accounts, campaigns, drafts, reports, and usage state.', bullets: ['Project-level evidence', 'Client-specific connected accounts', 'Clear setup status'] },
+      { id: 'roles', title: 'Roles and approvals', body: 'Agency workflows need control. Moyi supports organization and project roles so the right people can manage, publish, analyze, or approve work.', bullets: ['Owner and admin management', 'Publisher roles for approved drafts', 'Analyst-style read access'] },
+      { id: 'reporting', title: 'Reports clients can understand', body: 'Reports focus on evidence, what changed, and what needs review next instead of generic SEO scorecards.', bullets: ['Weekly and monthly reports', 'Search and social performance inputs', 'Data-quality notes and limitations'] }
+    ],
+    faqs: [
+      { question: 'Can one agency user manage multiple clients?', answer: 'Yes. Moyi includes organization and project structures for managing multiple client workspaces.' },
+      { question: 'Can the same draft publish to accounts from different clients?', answer: 'Moyi is structured to keep accounts separated by project or workspace, so cross-client publishing requires explicit permission and selected destinations.' }
+    ],
+    related: [
+      { label: 'Search Console Reporting Tool', href: '/google-search-console-reporting-tool', body: 'Connect readonly search data for each client project.' },
+      { label: 'Social Media Publishing Tool', href: '/social-media-publishing-tool', body: 'Publish approved client posts to connected accounts.' }
+    ]
+  },
+  'marketing-automation-for-startups': {
+    eyebrow: 'Startup marketing automation',
+    title: 'Marketing automation for startups that need focus',
+    seoTitle: 'Marketing Automation for Startups Using SEO and Content Evidence',
+    seoDescription: 'Moyi-CMO helps startups prioritize SEO work, create content, schedule approved social posts, and report progress without building a full marketing team first.',
+    schemaAbout: 'Marketing automation for startups, SEO recommendations, content planning, and social publishing',
+    intro: 'Early teams do not need more disconnected marketing tasks. They need a simple loop that shows what to do next, creates usable drafts, and measures what happened.',
+    primaryAction: { label: 'Try Moyi Free', href: '/register' },
+    secondaryAction: { label: 'See Pricing', href: '/pricing' },
+    sections: [
+      { id: 'focus', title: 'Turn uncertainty into a short queue', body: 'Moyi uses website and search evidence to create a manageable list of growth actions instead of a long, vague backlog.', bullets: ['Website scan findings', 'Search Console opportunities', 'Accepted recommendations only'] },
+      { id: 'content', title: 'Create enough content to learn', body: 'Startups can turn the best opportunities into pages, posts, visuals, and campaign drafts without losing human review.', bullets: ['SEO drafts', 'Social posts', 'Weekly plans', 'Approval before distribution'] },
+      { id: 'measure', title: 'Learn before scaling spend', body: 'Moyi helps track search, publishing, and conversion signals so founders can see what deserves more investment.', bullets: ['Recurring reports', 'Engagement pull-back', 'Growth Brain inputs'] }
+    ],
+    faqs: [
+      { question: 'Is there a free plan?', answer: 'Yes. Moyi includes a free entry point so teams can test the workflow before committing to a paid plan.' },
+      { question: 'Why should a startup use Moyi instead of hiring immediately?', answer: 'Moyi helps founders organize evidence, priorities, content, publishing, and reports while they are still learning which channels work.' }
+    ],
+    related: [
+      { label: 'AI CMO Software', href: '/ai-cmo-software', body: 'Understand the full AI CMO workflow.' },
+      { label: 'SEO Growth Software', href: '/seo-growth-software', body: 'Start with organic growth evidence.' }
+    ]
+  },
   roadmap: {
     eyebrow: 'Product direction',
     title: 'What Moyi supports and what comes next',
