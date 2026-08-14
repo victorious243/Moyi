@@ -8,6 +8,8 @@ const PublishAction = require('../models/PublishAction');
 const PublishBatch = require('../models/PublishBatch');
 const PublishJob = require('../models/PublishJob');
 const Project = require('../models/Project');
+const Usage = require('../models/Usage');
+const User = require('../models/User');
 
 const {
   connectSocialApiAccount,
@@ -29,6 +31,7 @@ const {
 const {
   createPublishBatch
 } = require('../services/contentDistributionEngineService');
+const { currentPeriod } = require('../services/usageService');
 
 const {
   buildLinkedInAuthUrl,
@@ -388,6 +391,61 @@ test('contentDistributionEngineService: creates a publish batch with one job per
   await PublishBatch.deleteMany({ projectId });
   await SocialDraft.deleteMany({ projectId });
   await SocialAccount.deleteMany({ projectId });
+});
+
+test('contentDistributionEngineService: enforces monthly social post limits before creating jobs', async () => {
+  if (mongoose.connection.readyState !== 1) return; // Skip DB integration test if offline
+
+  const projectId = new mongoose.Types.ObjectId();
+  const user = await User.create({
+    name: 'Limit Tester',
+    email: `limit-${Date.now()}@example.com`,
+    passwordHash: 'not-used',
+    plan: 'free'
+  });
+  const campaignId = new mongoose.Types.ObjectId();
+  const { periodStart, periodEnd } = currentPeriod();
+
+  await Usage.create({
+    userId: user._id,
+    periodStart,
+    periodEnd,
+    socialPostsUsed: 5
+  });
+  const draft = await SocialDraft.create({
+    projectId,
+    campaignId,
+    channel: 'linkedin',
+    title: 'Approved launch post',
+    body: 'Ready for the distribution engine.',
+    status: 'approved',
+    publishStatus: 'approved',
+    scheduledFor: new Date()
+  });
+  const account = await connectSocialApiAccount({
+    projectId,
+    userId: user._id,
+    platform: 'linkedin',
+    accountName: 'Acme LinkedIn',
+    externalAccountId: 'urn:li:organization:123',
+    accessToken: 'sandbox_linkedin_access_token'
+  });
+
+  await assert.rejects(
+    () => createPublishBatch({
+      projectId,
+      userId: user._id,
+      draftIds: [draft._id],
+      accountIds: [account._id]
+    }),
+    /You've used 5\/5 social posts this month/
+  );
+  assert.equal(await PublishJob.countDocuments({ projectId }), 0);
+
+  await Usage.deleteMany({ userId: user._id });
+  await SocialDraft.deleteMany({ projectId });
+  await SocialAccount.deleteMany({ projectId });
+  await User.deleteOne({ _id: user._id });
 });
 
 test('socialPublisherService: selects Instagram account before fallback targets', async () => {

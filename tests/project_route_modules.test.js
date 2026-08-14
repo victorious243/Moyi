@@ -26,6 +26,21 @@ test('content operations expose the campaign planning route', () => {
   assert.ok(findRoute(router, 'get', '/:id/calendar'));
 });
 
+test('projects measurement routes expose social performance collection controls', () => {
+  const router = express.Router();
+  const context = {
+    handleValidation: noop,
+    loadProject: noop,
+    gscOpportunityDraftValidation: [],
+    conversionGoalValidation: []
+  };
+  registerMeasurementRoutes(router, context, {});
+
+  assert.ok(findRoute(router, 'get', '/:id/social-performance'));
+  assert.ok(findRoute(router, 'get', '/:id/social-performance/data'));
+  assert.ok(findRoute(router, 'post', '/:id/social-performance/jobs/:jobId/metrics'));
+});
+
 async function runRoute(router, { method, path, req }) {
   const handlers = findRoute(router, method, path);
   const res = {

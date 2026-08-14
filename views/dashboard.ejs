@@ -9,6 +9,7 @@
   const scanPct = Math.min((usage.scansUsed / Math.max(plan.scansPerMonth, 1)) * 100, 100);
   const reportPct = Math.min((usage.aiReportsUsed / Math.max(plan.aiReportsPerMonth, 1)) * 100, 100);
   const contentPct = Math.min((usage.contentDraftsUsed / Math.max(plan.contentDraftsPerMonth, 1)) * 100, 100);
+  const socialPct = Math.min(((usage.socialPostsUsed || 0) / Math.max(socialPostLimit, 1)) * 100, 100);
   const workspaceScore = hasReports ? 82 : (hasScans ? 58 : (hasProjects ? 36 : 12));
   const nextAction = !hasProjects
     ? {
@@ -199,6 +200,7 @@
           <div class="usage-line"><span>Scans</span><strong><%= usage.scansUsed %>/<%= plan.scansPerMonth %></strong><b style="--p:<%= scanPct %>%"></b></div>
           <div class="usage-line"><span>AI reports</span><strong><%= usage.aiReportsUsed %>/<%= plan.aiReportsPerMonth %></strong><b style="--p:<%= reportPct %>%"></b></div>
           <div class="usage-line"><span>Content drafts</span><strong><%= usage.contentDraftsUsed %>/<%= plan.contentDraftsPerMonth %></strong><b style="--p:<%= contentPct %>%"></b></div>
+          <div class="usage-line"><span>Social posts</span><strong><%= usage.socialPostsUsed || 0 %>/<%= socialPostLimit %></strong><b style="--p:<%= socialPct %>%"></b></div>
           <div class="usage-line"><span>GSC syncs</span><strong><%= usage.searchConsoleSyncsUsed %></strong><b style="--p:18%"></b></div>
         </section>
       </aside>

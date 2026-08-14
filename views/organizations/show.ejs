@@ -1,5 +1,14 @@
 <%- include('../partials/header') %>
 
+<%
+  const agency = typeof agencyDashboard !== 'undefined' ? agencyDashboard : { usagePool: {}, totals: {}, clients: [], roleCapabilities: [] };
+  const pool = agency.usagePool || {};
+  const socialPool = pool.socialPosts || { used: 0, allowed: 0, remaining: 0, extraCredits: 0 };
+  const agencyTotals = agency.totals || {};
+  const formatNumber = (value) => Number(value || 0).toLocaleString();
+  const formatPool = (item) => item && item.allowed ? `${formatNumber(item.used)} / ${formatNumber(item.allowed)}` : 'Unavailable';
+%>
+
 <div class="app-layout">
   <aside class="app-sidebar">
     <strong><%= organization.name %></strong>
@@ -19,8 +28,25 @@
     <section class="studio-summary" aria-label="Agency summary">
       <div><span>Clients</span><strong><%= projects.length %></strong></div>
       <div><span>Team</span><strong><%= members.length %></strong></div>
-      <div><span>Your role</span><strong><%= organizationRole %></strong></div>
+      <div><span>Connected Accounts</span><strong><%= formatNumber(agencyTotals.connectedAccounts) %></strong></div>
       <div><span>Publishing</span><strong><%= ['owner', 'admin', 'publisher'].includes(organizationRole) ? 'Enabled' : 'Read only' %></strong></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <div>
+          <h2>Agency usage pool</h2>
+          <p>Usage is pooled under the agency owner plan for this workspace.</p>
+        </div>
+        <span class="status"><%= pool.planName || 'Free' %></span>
+      </div>
+      <div class="studio-summary" aria-label="Agency usage pool">
+        <div><span>Social posts</span><strong><%= formatPool(socialPool) %></strong></div>
+        <div><span>Remaining</span><strong><%= formatNumber(socialPool.remaining) %></strong></div>
+        <div><span>Content drafts</span><strong><%= formatPool(pool.contentDrafts) %></strong></div>
+        <div><span>AI reports</span><strong><%= formatPool(pool.aiReports) %></strong></div>
+      </div>
+      <p class="empty">Owner: <%= pool.owner ? `${pool.owner.name || pool.owner.email} (${pool.owner.email})` : 'Unknown' %><% if (socialPool.extraCredits) { %> - includes <%= formatNumber(socialPool.extraCredits) %> extra social post credit<%= socialPool.extraCredits === 1 ? '' : 's' %><% } %></p>
     </section>
 
     <% if (canManageOrganization && assignableProjects.length) { %>
@@ -29,7 +55,7 @@
         <form class="form" action="/organizations/<%= organization._id %>/projects" method="post">
           <label>Project
             <select name="projectId" required>
-              <% assignableProjects.forEach((project) => { %><option value="<%= project._id %>"><%= project.name %> · <%= project.websiteUrl %></option><% }) %>
+              <% assignableProjects.forEach((project) => { %><option value="<%= project._id %>"><%= project.name %> - <%= project.websiteUrl %></option><% }) %>
             </select>
           </label>
           <button class="button button-primary" type="submit">Add Client Project</button>
@@ -69,6 +95,47 @@
       <% } %>
     </section>
 
+    <section class="panel">
+      <div class="panel-title">
+        <div>
+          <h2>Client reporting dashboard</h2>
+          <p>Portfolio health across approvals, publishing, connected accounts, and engagement collection.</p>
+        </div>
+        <span class="status"><%= formatNumber(agencyTotals.measuredPosts) %> measured</span>
+      </div>
+      <% if (!agency.clients.length) { %>
+        <p class="empty">Client reporting appears after projects are added to this agency workspace.</p>
+      <% } else { %>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Client</th><th>Accounts</th><th>Approval Queue</th><th>Published 30d</th><th>Measured</th><th>Issues</th><th>Reports</th></tr></thead>
+            <tbody>
+              <% agency.clients.forEach((client) => { %>
+                <tr>
+                  <td><strong><a href="/projects/<%= client.projectId %>"><%= client.name %></a></strong><br><small><%= client.websiteUrl %></small></td>
+                  <td>
+                    <%= formatNumber(client.connectedAccounts) %>
+                    <% if (client.platforms.length) { %><br><small><%= client.platforms.join(', ') %></small><% } %>
+                  </td>
+                  <td><%= formatNumber(client.approvedDrafts) %></td>
+                  <td><%= formatNumber(client.publishedPosts) %></td>
+                  <td><%= formatNumber(client.measuredPosts) %></td>
+                  <td>
+                    <% if (client.reconnectRequired || client.failedJobs) { %>
+                      <span class="status publish-status-failed"><%= formatNumber(client.reconnectRequired + client.failedJobs) %> issue<%= client.reconnectRequired + client.failedJobs === 1 ? '' : 's' %></span>
+                    <% } else { %>
+                      <span class="status status-success">Clear</span>
+                    <% } %>
+                  </td>
+                  <td><a class="button button-small" href="/projects/<%= client.projectId %>/social-performance">Dashboard</a></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+
     <% if (canManageOrganization) { %>
       <section class="panel">
         <div class="panel-title"><div><h2>Add team member</h2><p>Publishers can send approved drafts. Analysts can view clients and analytics without changing them.</p></div></div>
@@ -76,9 +143,9 @@
           <label>Email <input type="email" name="email" autocomplete="email" required></label>
           <label>Role
             <select name="role" required>
-              <option value="analyst">Analyst · read only</option>
-              <option value="publisher">Publisher · publish approved drafts</option>
-              <option value="admin">Admin · manage clients and team</option>
+              <option value="analyst">Analyst - read only</option>
+              <option value="publisher">Publisher - publish approved drafts</option>
+              <option value="admin">Admin - manage clients and team</option>
             </select>
           </label>
           <button class="button button-primary" type="submit">Add Team Member</button>
@@ -106,6 +173,27 @@
                     <% } %>
                   </td>
                 <% } %>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title"><div><h2>Approval and access roles</h2><p>Use roles to separate client reporting, approval, publishing, account management, and billing access.</p></div></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Role</th><th>Approve</th><th>Publish</th><th>Accounts</th><th>Reports</th><th>Billing pool</th></tr></thead>
+          <tbody>
+            <% agency.roleCapabilities.forEach((role) => { %>
+              <tr>
+                <td><strong><%= role.role %></strong></td>
+                <td><%= role.approval ? 'Yes' : 'No' %></td>
+                <td><%= role.publishing ? 'Yes' : 'No' %></td>
+                <td><%= role.accounts ? 'Yes' : 'No' %></td>
+                <td><%= role.reporting ? 'Yes' : 'No' %></td>
+                <td><%= role.billing ? 'Owner only' : 'No' %></td>
               </tr>
             <% }) %>
           </tbody>

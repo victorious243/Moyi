@@ -63,6 +63,11 @@
           <strong><%= usage.contentDraftsUsed %> / <%= plan.contentDraftsPerMonth %></strong>
           <small style="color: var(--text-muted); font-size: 0.85rem;"><%= Math.round((usage.contentDraftsUsed / (plan.contentDraftsPerMonth || 1)) * 100) %>% used</small>
         </article>
+        <article>
+          <span>Social Posts</span>
+          <strong><%= usage.socialPostsUsed || 0 %> / <%= socialPostAllowance %></strong>
+          <small style="color: var(--text-muted); font-size: 0.85rem;"><%= Math.round(((usage.socialPostsUsed || 0) / (socialPostAllowance || 1)) * 100) %>% used across all platforms<%= usage.extraSocialPostCredits ? `, including ${usage.extraSocialPostCredits} extra credit${usage.extraSocialPostCredits === 1 ? '' : 's'}` : '' %></small>
+        </article>
         <article><span>Search Console Syncs</span><strong><%= usage.searchConsoleSyncsUsed %></strong></article>
       </div>
     </section>
@@ -95,6 +100,7 @@
                 <li>✓ <%= target.projectLimit %> Projects</li>
                 <li>✓ <%= target.scansPerMonth %> Scans / mo</li>
                 <li>✓ <%= target.contentDraftsPerMonth %> AI Drafts / mo</li>
+                <li>✓ <%= target.socialPostsPerMonth %> Social posts / mo</li>
                 <li><%= target.wordpress ? '✓ CMS Publishing (WP/Webflow/Shopify)' : '✗ CMS Publishing' %></li>
                 <li><%= target.competitors ? '✓ Competitor Intelligence' : '✗ Competitor Intelligence' %></li>
               </ul>

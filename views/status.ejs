@@ -1,0 +1,48 @@
+<%- include('partials/header') %>
+
+<%
+  const statusCopy = {
+    operational: 'All systems operational',
+    degraded: 'Some systems degraded',
+    incident: 'Service incident',
+    maintenance: 'Maintenance in progress'
+  };
+  const badgeClass = status.status === 'operational' ? 'status-success' : (status.status === 'incident' ? 'publish-status-failed' : '');
+%>
+
+<section class="public-info-section">
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">Moyi-CMO Status</p>
+      <h1>System Status</h1>
+      <p class="page-subtitle">Live operational status for the application, background jobs, integrations, and publishing layer.</p>
+    </div>
+    <span class="status <%= badgeClass %>"><%= statusCopy[status.status] || status.status %></span>
+  </div>
+
+  <section class="panel status-page-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Current Components</h2>
+        <p>Last checked <%= status.checkedAt ? new Date(status.checkedAt).toLocaleString() : '' %></p>
+      </div>
+      <a class="button" href="/status.json">JSON</a>
+    </div>
+    <div class="content-card-grid">
+      <% status.components.forEach((component) => { %>
+        <% const componentClass = component.status === 'operational' ? 'status-success' : (component.status === 'outage' ? 'publish-status-failed' : ''); %>
+        <article class="content-card">
+          <span class="status <%= componentClass %>"><%= component.status.replace(/_/g, ' ') %></span>
+          <strong><%= component.label %></strong>
+        </article>
+      <% }) %>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Incident Communication</h2>
+    <p>When a customer-facing incident is confirmed, Moyi-CMO will update this page and customer support channels with the impact, workaround, and resolution notes.</p>
+  </section>
+</section>
+
+<%- include('partials/footer') %>

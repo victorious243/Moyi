@@ -1,4 +1,5 @@
 const env = require('../config/env');
+const { recordAppLog } = require('../services/appLogger');
 const { getSharedRedis } = require('../services/redisService');
 
 const memoryAttempts = new Map();
@@ -52,6 +53,19 @@ function createRateLimit({ windowMs, max, message, keyPrefix = 'rate-limit', key
       error.statusCode = 429;
       const retryAfterSeconds = Math.max(1, Math.ceil((bucket.resetAt - Date.now()) / 1000));
       res.set('Retry-After', String(retryAfterSeconds));
+      recordAppLog({
+        level: 'warning',
+        message: 'Rate limit exceeded',
+        req,
+        statusCode: 429,
+        metadata: {
+          count: bucket.count,
+          keyPrefix,
+          limit: max,
+          retryAfterSeconds,
+          windowMs
+        }
+      });
       return next(error);
     }
 

@@ -84,7 +84,22 @@
     </div>
 
     <% if (successMessage) { %><div class="image-success-message"><%= successMessage %></div><% } %>
-    <% if (typeof errorMessage !== 'undefined' && errorMessage) { %><div class="form-error"><%= errorMessage %></div><% } %>
+    <% if (typeof errorMessage !== 'undefined' && errorMessage) { %>
+      <% if (typeof limitType !== 'undefined' && limitType === 'social_posts') { %>
+        <section class="panel notice-panel limit-notice-panel">
+          <div>
+            <h2>Social post limit reached</h2>
+            <p class="empty"><%= errorMessage %></p>
+          </div>
+          <div class="row-actions">
+            <a class="button button-primary" href="/billing">Upgrade Plan</a>
+            <a class="button" href="/contact">Request Credits</a>
+          </div>
+        </section>
+      <% } else { %>
+        <div class="form-error"><%= errorMessage %></div>
+      <% } %>
+    <% } %>
 
     <% if (currentImageJob && (currentImageJob.status === 'queued' || currentImageJob.status === 'running')) { %>
       <section class="panel live-job-panel">

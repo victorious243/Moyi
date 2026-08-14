@@ -31,6 +31,68 @@
 
     <section class="panel notice-panel">
       <div class="panel-title">
+        <div>
+          <h2>Incident Command</h2>
+          <p>Fast operator view for current platform risk.</p>
+        </div>
+        <span class="status <%= incidentSummary.severity === 'normal' ? 'status-success' : (incidentSummary.severity === 'incident' ? 'publish-status-failed' : '') %>"><%= incidentSummary.severity %></span>
+      </div>
+      <div class="metric-grid compact-metric-grid">
+        <article><span>Open items</span><strong><%= incidentSummary.openItemCount %></strong></article>
+        <article><span>Blocking checks</span><strong><%= incidentSummary.blockingChecks.length %></strong></article>
+        <article><span>Recent errors</span><strong><%= incidentSummary.recentErrorCount %></strong></article>
+        <article><span>Public status</span><strong><%= enterpriseHardening.statusPage.status %></strong></article>
+      </div>
+      <% if (!incidentSummary.openItems.length) { %>
+        <p class="empty">No active incident signals.</p>
+      <% } else { %>
+        <div class="content-card-grid">
+          <% incidentSummary.openItems.forEach((item) => { %>
+            <article class="content-card">
+              <span class="status"><%= item.type.replace(/_/g, ' ') %></span>
+              <strong><%= item.label %></strong>
+            </article>
+          <% }) %>
+        </div>
+      <% } %>
+    </section>
+
+    <div class="dashboard-grid">
+      <section class="panel">
+        <div class="panel-title">
+          <div><h2>Security Review</h2><p>Phase 8 trust controls and remaining operator work.</p></div>
+          <span class="status"><%= enterpriseHardening.securityReview.needsReviewCount %> review</span>
+        </div>
+        <div class="content-card-grid">
+          <% enterpriseHardening.securityReview.items.forEach((item) => { %>
+            <article class="content-card">
+              <span class="status <%= item.status === 'implemented' ? 'status-success' : '' %>"><%= item.status.replace(/_/g, ' ') %></span>
+              <strong><%= item.title %></strong>
+              <p><%= item.detail %></p>
+            </article>
+          <% }) %>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">
+          <div><h2>Backups & Monitoring</h2><p>Enterprise readiness checklist for operations.</p></div>
+          <span class="status"><%= enterpriseHardening.backupMonitoring.needsSetupCount %> setup</span>
+        </div>
+        <div class="content-card-grid">
+          <% enterpriseHardening.backupMonitoring.items.forEach((item) => { %>
+            <article class="content-card">
+              <span class="status <%= ['configured', 'documented'].includes(item.status) ? 'status-success' : '' %>"><%= item.status.replace(/_/g, ' ') %></span>
+              <strong><%= item.title %></strong>
+              <p><%= item.detail %></p>
+            </article>
+          <% }) %>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel notice-panel">
+      <div class="panel-title">
         <div><h2>Native Publishing Recovery</h2><p>Jobs waiting for an automatic retry or held for operator review.</p></div>
         <span class="status"><%= nativePublishFailures.length %></span>
       </div>
@@ -116,6 +178,11 @@
                     </select>
                     <input name="subscriptionStatus" value="<%= user.subscriptionStatus || 'inactive' %>">
                     <button class="button" type="submit">Update</button>
+                  </form>
+                  <form class="inline-form" action="/admin/users/<%= user._id %>/social-post-credits" method="post">
+                    <input type="number" name="credits" min="1" max="10000" placeholder="Extra posts" required>
+                    <input name="reason" placeholder="Reason">
+                    <button class="button" type="submit">Add Credits</button>
                   </form>
                 </td>
               </tr>
@@ -288,7 +355,7 @@
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>User</th><th>Plan</th><th>Scans</th><th>Reports</th><th>Drafts</th><th>AI ops</th><th>AI failures</th></tr></thead>
+          <thead><tr><th>User</th><th>Plan</th><th>Scans</th><th>Reports</th><th>Drafts</th><th>Social posts</th><th>Extra credits</th><th>AI ops</th><th>AI failures</th></tr></thead>
           <tbody>
             <% usageRows.forEach((row) => { %>
               <tr>
@@ -297,6 +364,8 @@
                 <td><%= row.scansUsed || 0 %></td>
                 <td><%= row.aiReportsUsed || 0 %></td>
                 <td><%= row.contentDraftsUsed || 0 %></td>
+                <td><%= row.socialPostsUsed || 0 %></td>
+                <td><%= row.extraSocialPostCredits || 0 %></td>
                 <td><%= row.aiOperationsUsed || 0 %></td>
                 <td><%= row.aiOperationFailures || 0 %></td>
               </tr>

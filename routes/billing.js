@@ -5,7 +5,7 @@ const { PLANS, planFor } = require('../config/plans');
 const { requireAuth } = require('../middleware/auth');
 const handleValidation = require('../utils/validate');
 const { createCheckoutSession, createPortalSession } = require('../services/stripeService');
-const { getCurrentUsage } = require('../services/usageService');
+const { getCurrentUsage, socialPostAllowance } = require('../services/usageService');
 
 const router = express.Router();
 
@@ -21,11 +21,13 @@ router.get('/pricing', (req, res) => {
 
 router.get('/billing', requireAuth, asyncHandler(async (req, res) => {
   const usage = await getCurrentUsage(req.user._id);
+  const plan = planFor(req.user);
   res.render('billing/index', {
     title: 'Billing',
-    plan: planFor(req.user),
+    plan,
     publicPlans: PLANS,
     usage,
+    socialPostAllowance: socialPostAllowance(plan, usage),
     successMessage: req.query.success ? 'Billing updated.' : '',
     errorMessage: req.query.error || ''
   });

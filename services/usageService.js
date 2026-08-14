@@ -1,5 +1,6 @@
 const Project = require('../models/Project');
 const Usage = require('../models/Usage');
+const User = require('../models/User');
 const env = require('../config/env');
 const { planFor } = require('../config/plans');
 
@@ -33,6 +34,31 @@ function limitError(message, upgradePlan = 'starter') {
   return error;
 }
 
+function socialPostAllowance(plan, usage = {}) {
+  return Number(plan.socialPostsPerMonth || 0) + Number(usage.extraSocialPostCredits || 0);
+}
+
+function socialPublishLimitError(plan, usage = {}, amount = 1, allowance = null) {
+  const requested = Math.max(Number(amount || 0), 0);
+  const totalAllowed = allowance == null ? socialPostAllowance(plan, usage) : Number(allowance || 0);
+  const used = Number(usage.socialPostsUsed || 0);
+  const remaining = Math.max(totalAllowed - used, 0);
+  const error = limitError(
+    `You've used ${used}/${totalAllowed} social posts this month. This publish would use ${requested}, but you only have ${remaining} left. Upgrade your plan or request extra credits.`,
+    'starter'
+  );
+  error.code = 'social_posts_limit_reached';
+  error.details = {
+    used,
+    allowance: totalAllowed,
+    remaining,
+    requested,
+    extraCredits: Number(usage.extraSocialPostCredits || 0),
+    plan: plan.key || String(plan.name || '').toLowerCase()
+  };
+  return error;
+}
+
 async function ensureProjectLimit(user) {
   const plan = planFor(user);
   const count = await Project.countDocuments({ owner: user._id });
@@ -44,6 +70,20 @@ async function ensureProjectLimit(user) {
 async function ensureMonthlyLimit(user, field, limit, message, upgradePlan = 'starter') {
   const usage = await getCurrentUsage(user._id);
   if ((usage[field] || 0) >= limit) {
+    throw limitError(message, upgradePlan);
+  }
+  return usage;
+}
+
+async function resolveUsageUser(userOrId) {
+  if (userOrId && userOrId._id) return userOrId;
+  return User.findById(userOrId).select('_id plan');
+}
+
+async function ensureMonthlyCapacity(user, field, limit, amount, message, upgradePlan = 'starter') {
+  const usage = await getCurrentUsage(user._id);
+  const requested = Math.max(Number(amount || 0), 0);
+  if ((usage[field] || 0) + requested > limit) {
     throw limitError(message, upgradePlan);
   }
   return usage;
@@ -102,6 +142,57 @@ async function ensureImageGenerationAllowed(user) {
   return plan;
 }
 
+async function ensureSocialPublishAllowed(userOrId, amount = 1) {
+  const user = await resolveUsageUser(userOrId);
+  const plan = planFor(user);
+  const usageUser = user || { _id: userOrId };
+  const usage = await getCurrentUsage(usageUser._id);
+  const allowance = socialPostAllowance(plan, usage);
+  const requested = Math.max(Number(amount || 0), 0);
+  if (Number(usage.socialPostsUsed || 0) + requested > allowance) {
+    throw socialPublishLimitError(plan, usage, requested, allowance);
+  }
+  return plan;
+}
+
+async function reserveSocialPublishUsage(userOrId, amount = 1) {
+  const user = await resolveUsageUser(userOrId);
+  const usageUser = user || { _id: userOrId };
+  const plan = planFor(user);
+  const requested = Math.max(Number(amount || 0), 0);
+  const { periodStart, periodEnd } = currentPeriod();
+  const existingUsage = await getCurrentUsage(usageUser._id);
+  const allowance = socialPostAllowance(plan, existingUsage);
+  const usage = await Usage.findOneAndUpdate(
+    {
+      userId: usageUser._id,
+      periodStart,
+      periodEnd,
+      $expr: {
+        $lte: [
+          { $add: [{ $ifNull: ['$socialPostsUsed', 0] }, requested] },
+          allowance
+        ]
+      }
+    },
+    { $inc: { socialPostsUsed: requested } },
+    { returnDocument: 'after' }
+  );
+  if (!usage) {
+    throw socialPublishLimitError(plan, existingUsage, requested, allowance);
+  }
+  return usage;
+}
+
+async function addSocialPostCredits(userId, amount = 0) {
+  const credits = Math.max(Math.floor(Number(amount || 0)), 0);
+  if (!credits) return getCurrentUsage(userId);
+  const usage = await getCurrentUsage(userId);
+  usage.extraSocialPostCredits = Number(usage.extraSocialPostCredits || 0) + credits;
+  await usage.save();
+  return usage;
+}
+
 function ensureFeature(user, feature, message, upgradePlan = 'pro') {
   const plan = planFor(user);
   if (!plan[feature]) {
@@ -144,6 +235,7 @@ function budgetBoundaryStatus(campaign) {
 
 module.exports = {
   currentPeriod,
+  addSocialPostCredits,
   budgetBoundaryStatus,
   ensureAiReportAllowed,
   ensureContentDraftAllowed,
@@ -152,10 +244,14 @@ module.exports = {
   ensureAiOperationAllowed,
   ensureProjectLimit,
   ensureScanAllowed,
+  ensureSocialPublishAllowed,
   getCurrentUsage,
   incrementUsage,
   limitError,
   recordAiOperation,
   recordAiOperationFailure,
+  reserveSocialPublishUsage,
+  socialPostAllowance,
+  socialPublishLimitError,
   upgradeRedirect
 };

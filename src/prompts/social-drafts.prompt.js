@@ -38,6 +38,8 @@ Platform-Specific Directives:
 General Rules:
 ${RULES.join('\n')}
 - If socialPerformance contains observed results, adapt hooks, formats, and themes from the strongest relevant posts without copying them verbatim.
+- If socialPerformance.growthBrainUpgrade is present, use its best platforms, posting times, winning hooks, topics, formats, and low-performing warnings to improve the drafts.
+- Prefer suggested improvements from socialPerformance.growthBrainUpgrade.improvedDraftSuggestions when they fit the campaign and content draft.
 - Never claim that engagement caused a business result, and never treat an unavailable provider metric as zero.
 - Do not mention internal scores, platform post IDs, or performance telemetry in customer-facing copy.
 

@@ -1,6 +1,13 @@
 const Organization = require('../models/Organization');
 const OrganizationMember = require('../models/OrganizationMember');
 const Project = require('../models/Project');
+const User = require('../models/User');
+const Usage = require('../models/Usage');
+const SocialAccount = require('../models/SocialAccount');
+const SocialDraft = require('../models/SocialDraft');
+const PublishJob = require('../models/PublishJob');
+const { planFor } = require('../config/plans');
+const { currentPeriod, socialPostAllowance } = require('./usageService');
 
 const ORGANIZATION_ROLE_RANK = {
   analyst: 1,
@@ -8,6 +15,41 @@ const ORGANIZATION_ROLE_RANK = {
   admin: 3,
   owner: 4
 };
+
+const AGENCY_ROLE_CAPABILITIES = [
+  {
+    role: 'owner',
+    approval: true,
+    publishing: true,
+    accounts: true,
+    reporting: true,
+    billing: true
+  },
+  {
+    role: 'admin',
+    approval: true,
+    publishing: true,
+    accounts: true,
+    reporting: true,
+    billing: false
+  },
+  {
+    role: 'publisher',
+    approval: false,
+    publishing: true,
+    accounts: false,
+    reporting: true,
+    billing: false
+  },
+  {
+    role: 'analyst',
+    approval: false,
+    publishing: false,
+    accounts: false,
+    reporting: true,
+    billing: false
+  }
+];
 
 function canPublishOrganizationRole(role) {
   return (ORGANIZATION_ROLE_RANK[role] || 0) >= ORGANIZATION_ROLE_RANK.publisher;
@@ -74,13 +116,166 @@ async function manageableDestinationProjectIds(userId) {
   return Project.distinct('_id', { organizationId: { $in: publishableIds } });
 }
 
+function projectKey(value) {
+  return String(value && value._id ? value._id : value);
+}
+
+function summarizeAgencyUsagePool({ owner, usage }) {
+  const plan = planFor(owner);
+  const socialPostsAllowed = socialPostAllowance(plan, usage);
+  return {
+    owner: owner ? { id: String(owner._id), name: owner.name, email: owner.email } : null,
+    planKey: plan.key,
+    planName: plan.name,
+    socialPosts: {
+      used: Number(usage.socialPostsUsed || 0),
+      allowed: socialPostsAllowed,
+      remaining: Math.max(socialPostsAllowed - Number(usage.socialPostsUsed || 0), 0),
+      extraCredits: Number(usage.extraSocialPostCredits || 0)
+    },
+    projects: {
+      allowed: Number(plan.projectLimit || 0)
+    },
+    scans: {
+      used: Number(usage.scansUsed || 0),
+      allowed: Number(plan.scansPerMonth || 0)
+    },
+    contentDrafts: {
+      used: Number(usage.contentDraftsUsed || 0),
+      allowed: Number(plan.contentDraftsPerMonth || 0)
+    },
+    aiReports: {
+      used: Number(usage.aiReportsUsed || 0),
+      allowed: Number(plan.aiReportsPerMonth || 0)
+    }
+  };
+}
+
+function summarizeAgencyClientReports({ projects = [], accounts = [], publishJobs = [], approvedDraftCounts = new Map() }) {
+  const accountGroups = new Map();
+  const jobGroups = new Map();
+  accounts.forEach((account) => {
+    const key = projectKey(account.projectId);
+    if (!accountGroups.has(key)) accountGroups.set(key, []);
+    accountGroups.get(key).push(account);
+  });
+  publishJobs.forEach((job) => {
+    const key = projectKey(job.destinationProjectId || job.projectId);
+    if (!jobGroups.has(key)) jobGroups.set(key, []);
+    jobGroups.get(key).push(job);
+  });
+
+  return projects.map((project) => {
+    const key = projectKey(project);
+    const projectAccounts = accountGroups.get(key) || [];
+    const jobs = jobGroups.get(key) || [];
+    const publishedJobs = jobs.filter((job) => job.status === 'published');
+    const measuredJobs = publishedJobs.filter((job) => ['active', 'limited', 'complete'].includes(job.metricsStatus));
+    const failedJobs = jobs.filter((job) => ['dead_letter', 'failed'].includes(job.status));
+    const reconnectAccounts = projectAccounts.filter((account) => account.status === 'reconnect_required');
+    const platforms = [...new Set(projectAccounts.map((account) => account.platform))].sort();
+    const lastMetricsSyncAt = projectAccounts
+      .map((account) => account.lastMetricsSyncAt)
+      .filter(Boolean)
+      .sort((left, right) => new Date(right) - new Date(left))[0] || null;
+
+    return {
+      projectId: project._id,
+      name: project.name,
+      websiteUrl: project.websiteUrl,
+      owner: project.owner,
+      connectedAccounts: projectAccounts.length,
+      reconnectRequired: reconnectAccounts.length,
+      platforms,
+      approvedDrafts: Number(approvedDraftCounts.get(key) || 0),
+      publishedPosts: publishedJobs.length,
+      measuredPosts: measuredJobs.length,
+      failedJobs: failedJobs.length,
+      lastMetricsSyncAt
+    };
+  });
+}
+
+async function buildAgencyWorkspaceDashboard({ organization, projects }) {
+  const projectIds = projects.map((project) => project._id);
+  const { periodStart, periodEnd } = currentPeriod();
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const [owner, usage, accounts, publishJobs, approvedDrafts] = await Promise.all([
+    User.findById(organization.ownerId).select('name email plan').lean(),
+    Usage.findOne({ userId: organization.ownerId, periodStart, periodEnd }).lean(),
+    projectIds.length
+      ? SocialAccount.find({ projectId: { $in: projectIds } })
+        .select('projectId platform status metricsStatus lastMetricsSyncAt')
+        .lean()
+      : [],
+    projectIds.length
+      ? PublishJob.find({
+        $or: [
+          { destinationProjectId: { $in: projectIds } },
+          { projectId: { $in: projectIds }, destinationProjectId: null },
+          { projectId: { $in: projectIds }, destinationProjectId: { $exists: false } }
+        ],
+        createdAt: { $gte: since }
+      })
+        .select('projectId destinationProjectId status metricsStatus createdAt')
+        .lean()
+      : [],
+    projectIds.length
+      ? SocialDraft.aggregate([
+        {
+          $match: {
+            projectId: { $in: projectIds },
+            status: 'approved',
+            publishStatus: { $in: ['approved', 'failed'] }
+          }
+        },
+        { $group: { _id: '$projectId', count: { $sum: 1 } } }
+      ])
+      : []
+  ]);
+  const usageDoc = usage || {
+    userId: organization.ownerId,
+    periodStart,
+    periodEnd,
+    scansUsed: 0,
+    aiReportsUsed: 0,
+    contentDraftsUsed: 0,
+    socialPostsUsed: 0,
+    extraSocialPostCredits: 0
+  };
+  const approvedDraftCounts = new Map(approvedDrafts.map((row) => [String(row._id), row.count]));
+  const clients = summarizeAgencyClientReports({
+    projects,
+    accounts,
+    publishJobs,
+    approvedDraftCounts
+  });
+  return {
+    usagePool: summarizeAgencyUsagePool({ owner, usage: usageDoc }),
+    clients,
+    totals: {
+      connectedAccounts: clients.reduce((total, client) => total + client.connectedAccounts, 0),
+      reconnectRequired: clients.reduce((total, client) => total + client.reconnectRequired, 0),
+      approvedDrafts: clients.reduce((total, client) => total + client.approvedDrafts, 0),
+      publishedPosts: clients.reduce((total, client) => total + client.publishedPosts, 0),
+      measuredPosts: clients.reduce((total, client) => total + client.measuredPosts, 0),
+      failedJobs: clients.reduce((total, client) => total + client.failedJobs, 0)
+    },
+    roleCapabilities: AGENCY_ROLE_CAPABILITIES
+  };
+}
+
 module.exports = {
+  AGENCY_ROLE_CAPABILITIES,
   ORGANIZATION_ROLE_RANK,
   accessibleOrganizationIds,
+  buildAgencyWorkspaceDashboard,
   canManageOrganizationRole,
   canPublishOrganizationRole,
   createOrganization,
   listAccessibleOrganizations,
   manageableDestinationProjectIds,
-  organizationRole
+  organizationRole,
+  summarizeAgencyClientReports,
+  summarizeAgencyUsagePool
 };

@@ -8,6 +8,7 @@ const User = require('../models/User');
 const { requireAuth } = require('../middleware/auth');
 const { recordAuditEvent } = require('../services/auditLogService');
 const {
+  buildAgencyWorkspaceDashboard,
   canManageOrganizationRole,
   createOrganization,
   listAccessibleOrganizations,
@@ -91,11 +92,16 @@ router.get('/:id', [param('id').isMongoId(), handleValidation], loadOrganization
       ? Project.find({ owner: req.user._id, organizationId: null }).select('name websiteUrl').sort({ name: 1 }).lean()
       : []
   ]);
+  const agencyDashboard = await buildAgencyWorkspaceDashboard({
+    organization: req.organization,
+    projects
+  });
   res.render('organizations/show', {
     title: req.organization.name,
     members,
     projects,
     assignableProjects,
+    agencyDashboard,
     currentUserId: req.user._id,
     message: req.query.message || '',
     errorMessage: req.query.error || ''

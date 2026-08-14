@@ -34,6 +34,10 @@ const {
   reenqueuePublishJob
 } = require('../queues/publishQueue');
 const { reenqueueMediaProcessing } = require('../queues/mediaQueue');
+const {
+  ensureSocialPublishAllowed,
+  reserveSocialPublishUsage
+} = require('./usageService');
 
 const VARIANT_REQUIRED_PLATFORMS = new Set(['facebook', 'instagram', 'threads', 'tiktok', 'youtube']);
 
@@ -198,6 +202,21 @@ async function createPublishBatch({
     throw error;
   }
 
+  const accountSelections = new Map();
+  let requestedJobCount = 0;
+  for (const draft of drafts) {
+    const accounts = await accountsForDraft({
+      draft,
+      accountIds,
+      allowedProjectIds: allowedDestinationProjectIds
+    });
+    accountSelections.set(String(draft._id), accounts);
+    requestedJobCount += accounts.length;
+  }
+  if (requestedJobCount > 0) {
+    await ensureSocialPublishAllowed(userId, requestedJobCount);
+  }
+
   const publishAt = normalizedSchedule(scheduledAt);
   const batch = await PublishBatch.create({
     projectId,
@@ -220,11 +239,7 @@ async function createPublishBatch({
 
   try {
     for (const draft of drafts) {
-      const accounts = await accountsForDraft({
-        draft,
-        accountIds,
-        allowedProjectIds: allowedDestinationProjectIds
-      });
+      const accounts = accountSelections.get(String(draft._id)) || [];
       if (!accounts.length) {
         draftsWithoutAccounts.push(draft);
         draft.publishStatus = 'failed';
@@ -329,6 +344,9 @@ async function createPublishBatch({
       batch.errorMessage = `${draftsWithoutAccounts.length} draft${draftsWithoutAccounts.length === 1 ? '' : 's'} had no compatible account.`;
     }
     await batch.save();
+    if (jobs.length) {
+      await reserveSocialPublishUsage(userId, jobs.length);
+    }
     return { batch, jobs };
   } catch (error) {
     await Promise.all([

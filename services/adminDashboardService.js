@@ -9,6 +9,10 @@ const WebhookDelivery = require('../models/WebhookDelivery');
 const AuditLog = require('../models/AuditLog');
 const AppLog = require('../models/AppLog');
 const { readinessPayload } = require('./runtimeHealthService');
+const {
+  buildEnterpriseHardeningSummary,
+  buildIncidentSummary
+} = require('./enterpriseHardeningService');
 const { currentPeriod } = require('./usageService');
 
 async function buildAdminDashboard() {
@@ -60,6 +64,8 @@ async function buildAdminDashboard() {
     totals.scansUsed += Number(row.scansUsed || 0);
     totals.aiReportsUsed += Number(row.aiReportsUsed || 0);
     totals.contentDraftsUsed += Number(row.contentDraftsUsed || 0);
+    totals.socialPostsUsed += Number(row.socialPostsUsed || 0);
+    totals.extraSocialPostCredits += Number(row.extraSocialPostCredits || 0);
     totals.searchConsoleSyncsUsed += Number(row.searchConsoleSyncsUsed || 0);
     totals.aiOperationsUsed += Number(row.aiOperationsUsed || 0);
     totals.aiOperationFailures += Number(row.aiOperationFailures || 0);
@@ -68,18 +74,31 @@ async function buildAdminDashboard() {
     scansUsed: 0,
     aiReportsUsed: 0,
     contentDraftsUsed: 0,
+    socialPostsUsed: 0,
+    extraSocialPostCredits: 0,
     searchConsoleSyncsUsed: 0,
     aiOperationsUsed: 0,
     aiOperationFailures: 0
   });
+  const incidentSummary = buildIncidentSummary({
+    failedJobs,
+    failedPublishJobs,
+    failedWebhookDeliveries,
+    health,
+    recentAppLogs,
+    reconnectAccounts
+  });
+  const enterpriseHardening = buildEnterpriseHardeningSummary({ health });
 
   return {
     activeUsers,
+    enterpriseHardening,
     failedJobs,
     failedPublishActions,
     failedPublishJobs,
     failedWebhookDeliveries,
     health,
+    incidentSummary,
     periodEnd,
     periodStart,
     projectCount,

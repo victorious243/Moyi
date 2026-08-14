@@ -12,6 +12,7 @@ const { retryPublishJob } = require('../services/contentDistributionEngineServic
 const { collectMetricsForJob } = require('../services/engagementMetricsService');
 const PublishJob = require('../models/PublishJob');
 const { retryWebhookDelivery } = require('../services/webhookService');
+const { addSocialPostCredits, currentPeriod } = require('../services/usageService');
 const AppError = require('../utils/appError');
 const handleValidation = require('../utils/validate');
 
@@ -52,6 +53,35 @@ router.post('/users/:id', [
     user: req.user,
     eventType: 'admin_user_updated',
     metadata: { targetUserId: user._id, targetEmail: user.email, role: user.role, plan: user.plan },
+    req
+  });
+  res.redirect('/admin');
+}));
+
+router.post('/users/:id/social-post-credits', [
+  param('id').isMongoId(),
+  body('credits').isInt({ min: 1, max: 10000 }).withMessage('Credits must be between 1 and 10000.'),
+  body('reason').optional({ checkFalsy: true }).trim().isLength({ max: 300 }).withMessage('Reason is too long.'),
+  handleValidation
+], asyncHandler(async (req, res, next) => {
+  const user = await User.findById(req.params.id);
+  if (!user) return next(new AppError('User not found.', 404));
+
+  const credits = Number(req.body.credits);
+  const usage = await addSocialPostCredits(user._id, credits);
+  const { periodStart, periodEnd } = currentPeriod();
+  await recordAuditEvent({
+    user: req.user,
+    eventType: 'admin_social_post_credits_added',
+    metadata: {
+      targetUserId: user._id,
+      targetEmail: user.email,
+      credits,
+      totalExtraSocialPostCredits: usage.extraSocialPostCredits || 0,
+      periodStart,
+      periodEnd,
+      reason: req.body.reason || ''
+    },
     req
   });
   res.redirect('/admin');

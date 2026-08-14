@@ -27,13 +27,22 @@ const {
   retryDecision
 } = require('../services/publishReliabilityService');
 const {
+  buildGrowthBrainUpgradeFromSignals,
+  buildRecommendationInputsFromSignals,
+  classifyContentType,
   normalizeAnalyticsDays,
   postPerformanceRow,
+  socialPerformanceApiPayload,
+  summarizeCampaigns,
+  summarizeContentTypes,
   summarizePlatforms
 } = require('../services/socialAnalyticsService');
 const {
+  AGENCY_ROLE_CAPABILITIES,
   canManageOrganizationRole,
-  canPublishOrganizationRole
+  canPublishOrganizationRole,
+  summarizeAgencyClientReports,
+  summarizeAgencyUsagePool
 } = require('../services/organizationService');
 const { getProviderMetrics } = require('../services/socialProviderService');
 
@@ -142,6 +151,7 @@ test('metric errors and provider metadata redact credentials before storage', ()
 });
 
 test('analytics rolls up only available exposure and interaction counters', () => {
+  const campaignId = new mongoose.Types.ObjectId();
   const posts = [
     postPerformanceRow({
       _id: new mongoose.Types.ObjectId(),
@@ -149,7 +159,8 @@ test('analytics rolls up only available exposure and interaction counters', () =
       destinationProjectId: null,
       platform: 'linkedin',
       accountId: { accountName: 'Moyi LinkedIn' },
-      draftId: { title: 'Observed post' },
+      draftId: { title: 'Observed post', campaignId: { _id: campaignId, name: 'Launch Campaign', goal: 'Pipeline', channel: 'linkedin' } },
+      mediaIds: [{ mimeType: 'image/png' }],
       metricsStatus: 'active',
       metricsAvailableFields: ['impressions', 'likes', 'comments'],
       metricsLatest: { impressions: 1000, likes: 40, comments: 10 }
@@ -161,6 +172,7 @@ test('analytics rolls up only available exposure and interaction counters', () =
       platform: 'youtube',
       accountId: { accountName: 'Moyi YouTube' },
       draftId: { title: 'Video' },
+      mediaIds: [{ mimeType: 'video/mp4' }],
       metricsStatus: 'active',
       metricsAvailableFields: ['views', 'likes'],
       metricsLatest: { views: 500, likes: 25 }
@@ -170,6 +182,13 @@ test('analytics rolls up only available exposure and interaction counters', () =
   assert.equal(platforms.find((row) => row.platform === 'linkedin').exposure, 1000);
   assert.equal(platforms.find((row) => row.platform === 'linkedin').engagementRate, 0.05);
   assert.equal(platforms.find((row) => row.platform === 'youtube').exposure, 500);
+  const campaigns = summarizeCampaigns(posts);
+  assert.equal(campaigns[0].campaignName, 'Launch Campaign');
+  assert.equal(campaigns[0].campaignGoal, 'Pipeline');
+  const contentTypes = summarizeContentTypes(posts);
+  assert.equal(contentTypes.find((row) => row.contentType === 'image').exposure, 1000);
+  assert.equal(contentTypes.find((row) => row.contentType === 'video').engagements, 25);
+  assert.equal(classifyContentType({ mediaIds: [{ mimeType: 'image/jpeg' }, { mimeType: 'image/png' }] }), 'carousel');
   assert.equal(normalizeAnalyticsDays(14), 30);
   const unavailable = postPerformanceRow({
     _id: new mongoose.Types.ObjectId(),
@@ -186,6 +205,206 @@ test('analytics rolls up only available exposure and interaction counters', () =
   assert.equal(unavailablePlatform.exposure, null);
   assert.equal(unavailablePlatform.engagements, null);
   assert.equal(unavailablePlatform.clicks, null);
+});
+
+test('social performance API includes Growth Brain-ready signals', () => {
+  const payload = socialPerformanceApiPayload({
+    days: 30,
+    since: new Date('2026-08-01T00:00:00.000Z'),
+    generatedAt: new Date('2026-08-14T00:00:00.000Z'),
+    lastMetricsSyncAt: new Date('2026-08-13T12:00:00.000Z'),
+    totals: { posts: 1, measuredPosts: 1, exposure: 1000, engagements: 50 },
+    reliability: { deadLetter: 0, reconnectRequired: 0 },
+    platformRows: [{ platform: 'linkedin', posts: 1, measuredPosts: 1 }],
+    campaignRows: [{ campaignName: 'Launch Campaign', posts: 1, measuredPosts: 1, exposure: 1000 }],
+    contentTypeRows: [{ contentType: 'image', posts: 1, measuredPosts: 1, exposure: 1000 }],
+    growthBrain: {
+      source: 'Moyi Content Distribution Engine engagement snapshots',
+      asOf: new Date('2026-08-13T12:00:00.000Z'),
+      windowDays: 30,
+      sampleSize: 1,
+      measurementNote: 'Provider metrics vary.',
+      platforms: [{ platform: 'linkedin', samples: 1, averageScore: 64 }],
+      growthBrainUpgrade: {
+        whatWorked: [{ platform: 'linkedin', pattern: 'proof-led angle', score: 64 }],
+        bestPostingTimes: [{ platform: 'linkedin', label: 'Thursday 11:00 UTC', averageScore: 64 }],
+        bestPlatforms: [{ platform: 'linkedin', averageScore: 64, samples: 1 }],
+        winningHooks: [{ platform: 'linkedin', hook: 'Observed post', score: 64 }],
+        winningTopics: [{ topic: 'observed', averageScore: 64 }],
+        winningFormats: [{ format: 'image - proof-led angle', averageScore: 64 }],
+        lowPerformingWarnings: [],
+        improvedDraftSuggestions: [{ platform: 'linkedin', direction: 'Prioritize LinkedIn.', hookTemplate: 'Open with proof.' }]
+      },
+      recommendationInputs: {
+        evidenceQuality: { confidence: 'early', sampleSize: 1, note: 'Use these signals directionally.' },
+        bestContentPatterns: [{ platform: 'linkedin', pattern: 'proof-led angle', samples: 1, averageScore: 64 }],
+        weakContentPatterns: [],
+        suggestedNextActions: [{ priority: 'high', action: 'Create two more proof-led angle posts for linkedin.', rationale: 'Strong signal.' }]
+      },
+      strongestObservedPosts: [{
+        platform: 'linkedin',
+        score: 64,
+        title: 'Observed post',
+        contentExcerpt: 'Short safe excerpt',
+        metrics: { impressions: 1000, likes: 50 },
+        engagementRate: 0.05
+      }]
+    },
+    recentPosts: [{
+      id: 'job-1',
+      platform: 'linkedin',
+      accountName: 'Moyi LinkedIn',
+      publishedAt: new Date('2026-08-13T11:00:00.000Z'),
+      platformUrl: 'https://linkedin.com/feed/update/123',
+      metricsStatus: 'active',
+      metricsCapturedAt: new Date('2026-08-13T12:00:00.000Z'),
+      availableFields: ['impressions', 'likes'],
+      campaignId: 'campaign-1',
+      campaignName: 'Launch Campaign',
+      contentType: 'image',
+      metrics: { impressions: 1000, likes: 50 },
+      engagementRate: 0.05
+    }]
+  });
+
+  assert.equal(payload.growthBrain.sampleSize, 1);
+  assert.equal(payload.growthBrain.platforms[0].platform, 'linkedin');
+  assert.equal(payload.growthBrain.recommendationInputs.bestContentPatterns[0].pattern, 'proof-led angle');
+  assert.equal(payload.growthBrain.recommendationInputs.suggestedNextActions[0].priority, 'high');
+  assert.equal(payload.growthBrain.growthBrainUpgrade.bestPlatforms[0].platform, 'linkedin');
+  assert.equal(payload.growthBrain.growthBrainUpgrade.improvedDraftSuggestions[0].platform, 'linkedin');
+  assert.equal(payload.growthBrain.strongestObservedPosts[0].contentExcerpt, 'Short safe excerpt');
+  assert.equal(payload.campaigns[0].campaignName, 'Launch Campaign');
+  assert.equal(payload.contentTypes[0].contentType, 'image');
+  assert.equal(payload.posts[0].campaignName, 'Launch Campaign');
+  assert.equal(payload.posts[0].contentType, 'image');
+  assert.equal(payload.posts[0].metrics.impressions, 1000);
+});
+
+test('Growth Brain recommendation inputs separate winning and weak content patterns', () => {
+  const projectId = new mongoose.Types.ObjectId();
+  const signals = [
+    {
+      projectId,
+      sourceProjectId: projectId,
+      platform: 'linkedin',
+      score: 82,
+      observedAt: new Date('2026-08-14T10:00:00.000Z'),
+      draftId: {
+        title: 'Growth data from Moyi',
+        body: 'Proof and data from a customer result. Visit Moyi to learn more.'
+      },
+      evidence: {
+        metrics: { impressions: 1200, likes: 80, comments: 12 },
+        engagementRate: 0.076
+      }
+    },
+    {
+      projectId,
+      sourceProjectId: projectId,
+      platform: 'linkedin',
+      score: 74,
+      observedAt: new Date('2026-08-13T10:00:00.000Z'),
+      draftId: {
+        title: 'Another result',
+        body: 'A benchmark with growth proof and data for marketing teams.'
+      },
+      evidence: {
+        metrics: { impressions: 900, likes: 44, comments: 8 },
+        engagementRate: 0.057
+      }
+    },
+    {
+      projectId,
+      sourceProjectId: projectId,
+      platform: 'x',
+      score: 22,
+      observedAt: new Date('2026-08-12T10:00:00.000Z'),
+      draftId: {
+        title: 'General update',
+        body: 'We launched a new dashboard for users today.'
+      },
+      evidence: {
+        metrics: { views: 90, likes: 1 },
+        engagementRate: 0.011
+      }
+    }
+  ];
+
+  const inputs = buildRecommendationInputsFromSignals(signals, projectId);
+  assert.equal(inputs.evidenceQuality.confidence, 'early');
+  assert.equal(inputs.bestContentPatterns[0].pattern, 'proof-led angle');
+  assert.equal(inputs.bestContentPatterns[0].platform, 'linkedin');
+  assert.equal(inputs.weakContentPatterns[0].platform, 'x');
+  assert.match(inputs.suggestedNextActions[0].action, /Create two more proof-led angle posts/);
+  assert.ok(inputs.suggestedNextActions.some((item) => /Collect at least five measured social posts/.test(item.action)));
+});
+
+test('Growth Brain upgrade identifies best times, platforms, hooks, topics, formats, and draft improvements', () => {
+  const projectId = new mongoose.Types.ObjectId();
+  const signals = [
+    {
+      projectId,
+      sourceProjectId: projectId,
+      platform: 'linkedin',
+      score: 91,
+      observedAt: new Date('2026-08-14T12:00:00.000Z'),
+      draftId: {
+        title: 'Proof: SEO wins from Moyi',
+        body: 'Proof from a campaign result: better SEO recommendations helped a startup prioritize demand capture.'
+      },
+      evidence: {
+        publishedAt: '2026-08-14T11:00:00.000Z',
+        contentType: 'image',
+        metrics: { impressions: 1500, likes: 120, comments: 18 },
+        engagementRate: 0.092
+      }
+    },
+    {
+      projectId,
+      sourceProjectId: projectId,
+      platform: 'linkedin',
+      score: 84,
+      observedAt: new Date('2026-08-07T12:00:00.000Z'),
+      draftId: {
+        title: 'Data-backed SEO prioritization',
+        body: 'Data and benchmark lessons for marketing teams deciding what to fix first.'
+      },
+      evidence: {
+        publishedAt: '2026-08-07T11:00:00.000Z',
+        contentType: 'image',
+        metrics: { impressions: 1200, likes: 88, comments: 10 },
+        engagementRate: 0.081
+      }
+    },
+    {
+      projectId,
+      sourceProjectId: projectId,
+      platform: 'x',
+      score: 18,
+      observedAt: new Date('2026-08-06T15:00:00.000Z'),
+      draftId: {
+        title: 'Generic update',
+        body: 'We added a dashboard today.'
+      },
+      evidence: {
+        publishedAt: '2026-08-06T15:00:00.000Z',
+        contentType: 'text',
+        metrics: { views: 70, likes: 1 },
+        engagementRate: 0.014
+      }
+    }
+  ];
+
+  const upgrade = buildGrowthBrainUpgradeFromSignals(signals, projectId);
+  assert.equal(upgrade.whatWorked[0].platform, 'linkedin');
+  assert.equal(upgrade.bestPostingTimes[0].label, 'Friday 11:00 UTC');
+  assert.equal(upgrade.bestPlatforms[0].platform, 'linkedin');
+  assert.match(upgrade.winningHooks[0].hook, /Proof/);
+  assert.equal(upgrade.winningTopics[0].topic, 'proof');
+  assert.equal(upgrade.winningFormats[0].format, 'image - proof-led angle');
+  assert.equal(upgrade.lowPerformingWarnings[0].platform, 'x');
+  assert.match(upgrade.improvedDraftSuggestions[0].direction, /Prioritize linkedin/);
 });
 
 test('public API batch summaries include only jobs visible to the API key', () => {
@@ -241,6 +460,48 @@ test('agency roles give publishers execution access while analysts stay read onl
   assert.equal(canPublishOrganizationRole('analyst'), false);
   assert.equal(canManageOrganizationRole('admin'), true);
   assert.equal(canManageOrganizationRole('publisher'), false);
+  assert.equal(AGENCY_ROLE_CAPABILITIES.find((role) => role.role === 'analyst').reporting, true);
+  assert.equal(AGENCY_ROLE_CAPABILITIES.find((role) => role.role === 'publisher').accounts, false);
+});
+
+test('agency dashboard summarizes pooled usage and client reporting health', () => {
+  const ownerId = new mongoose.Types.ObjectId();
+  const projectId = new mongoose.Types.ObjectId();
+  const pool = summarizeAgencyUsagePool({
+    owner: { _id: ownerId, name: 'Agency Owner', email: 'owner@example.com', plan: 'agency' },
+    usage: {
+      socialPostsUsed: 125,
+      extraSocialPostCredits: 25,
+      scansUsed: 12,
+      contentDraftsUsed: 40,
+      aiReportsUsed: 8
+    }
+  });
+
+  assert.equal(pool.planName, 'Agency');
+  assert.equal(pool.socialPosts.allowed, 1025);
+  assert.equal(pool.socialPosts.remaining, 900);
+
+  const reports = summarizeAgencyClientReports({
+    projects: [{ _id: projectId, name: 'Client A', websiteUrl: 'https://client.example', owner: ownerId }],
+    accounts: [
+      { projectId, platform: 'linkedin', status: 'connected', lastMetricsSyncAt: new Date('2026-08-14T10:00:00.000Z') },
+      { projectId, platform: 'x', status: 'reconnect_required' }
+    ],
+    publishJobs: [
+      { projectId, destinationProjectId: projectId, status: 'published', metricsStatus: 'active' },
+      { projectId, destinationProjectId: projectId, status: 'dead_letter', metricsStatus: 'error' }
+    ],
+    approvedDraftCounts: new Map([[String(projectId), 3]])
+  });
+
+  assert.equal(reports[0].connectedAccounts, 2);
+  assert.equal(reports[0].reconnectRequired, 1);
+  assert.deepEqual(reports[0].platforms, ['linkedin', 'x']);
+  assert.equal(reports[0].approvedDrafts, 3);
+  assert.equal(reports[0].publishedPosts, 1);
+  assert.equal(reports[0].measuredPosts, 1);
+  assert.equal(reports[0].failedJobs, 1);
 });
 
 test('Phase 3 models validate secure credentials, snapshots, growth signals, and recovery state', () => {

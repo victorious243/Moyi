@@ -1,5 +1,6 @@
 const express = require('express');
 const { livenessPayload, readinessPayload } = require('../services/runtimeHealthService');
+const { statusPagePayload } = require('../services/enterpriseHardeningService');
 
 function buildHealthRouter(deps = {}) {
   const router = express.Router();
@@ -17,6 +18,15 @@ function buildHealthRouter(deps = {}) {
     try {
       const payload = await health.readinessPayload();
       res.status(payload.status === 'ready' ? 200 : 503).json(payload);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get('/status.json', async (req, res, next) => {
+    try {
+      const payload = statusPagePayload(await health.readinessPayload());
+      res.status(payload.status === 'incident' ? 503 : 200).json(payload);
     } catch (error) {
       next(error);
     }

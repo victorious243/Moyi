@@ -568,6 +568,23 @@ function noCompatibleAccountsMessage(result) {
     : 'Select at least one connected social account.';
 }
 
+function projectCalendarUrl(projectId, params = {}) {
+  const query = new URLSearchParams(params);
+  return `/projects/${projectId}/calendar${query.toString() ? `?${query.toString()}` : ''}`;
+}
+
+function publishFailureParams(error) {
+  if (error && error.code === 'social_posts_limit_reached') {
+    return {
+      error: error.message,
+      limit: 'social_posts'
+    };
+  }
+  return {
+    error: `Publish failed: ${error.message}`
+  };
+}
+
 router.post('/publish-all-connected', [
   body('projectId').isMongoId().withMessage('Project ID is required.'),
   handleValidation
@@ -591,14 +608,19 @@ router.post('/publish-all-connected', [
   }
 
   const scheduledAt = new Date();
-  const results = await createAndQueuePublishBatch({
-    projectId: project._id,
-    userId: req.user._id,
-    draftIds: drafts.map((draft) => draft._id),
-    project,
-    allowedDestinationProjectIds: await publishableProjectIds(req.user._id, { sourceProject: project }),
-    scheduledAt
-  });
+  let results;
+  try {
+    results = await createAndQueuePublishBatch({
+      projectId: project._id,
+      userId: req.user._id,
+      draftIds: drafts.map((draft) => draft._id),
+      project,
+      allowedDestinationProjectIds: await publishableProjectIds(req.user._id, { sourceProject: project }),
+      scheduledAt
+    });
+  } catch (error) {
+    return res.redirect(projectCalendarUrl(project._id, publishFailureParams(error)));
+  }
   if (!results.total) {
     return res.redirect(`/projects/${project._id}/calendar?error=${encodeURIComponent(noCompatibleAccountsMessage(results))}`);
   }
@@ -659,7 +681,7 @@ router.post('/:id/approve-and-publish', [
     }
     res.redirect(`/projects/${req.project._id}/calendar?success=${encodeURIComponent(queueSuccessMessage(result, scheduledAt))}#post-${req.socialDraft._id}`);
   } catch (error) {
-    res.redirect(`/projects/${req.project._id}/calendar?error=${encodeURIComponent(`Publish failed: ${error.message}`)}#post-${req.socialDraft._id}`);
+    res.redirect(`${projectCalendarUrl(req.project._id, publishFailureParams(error))}#post-${req.socialDraft._id}`);
   }
 }));
 
@@ -678,14 +700,19 @@ router.post('/batch-publish', [
 
   const selectedDraftIds = Array.isArray(req.body.draftIds) ? req.body.draftIds : [req.body.draftIds];
   const scheduledAt = new Date();
-  const results = await createAndQueuePublishBatch({
-    projectId: project._id,
-    userId: req.user._id,
-    draftIds: selectedDraftIds,
-    project,
-    scheduledAt,
-    allowedDestinationProjectIds: await publishableProjectIds(req.user._id, { sourceProject: project })
-  });
+  let results;
+  try {
+    results = await createAndQueuePublishBatch({
+      projectId: project._id,
+      userId: req.user._id,
+      draftIds: selectedDraftIds,
+      project,
+      scheduledAt,
+      allowedDestinationProjectIds: await publishableProjectIds(req.user._id, { sourceProject: project })
+    });
+  } catch (error) {
+    return res.redirect(projectCalendarUrl(project._id, publishFailureParams(error)));
+  }
   if (!results.total) {
     return res.redirect(`/projects/${project._id}/calendar?error=${encodeURIComponent(noCompatibleAccountsMessage(results))}`);
   }

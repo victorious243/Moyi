@@ -450,6 +450,7 @@ test('admin router exposes operator dashboard and critical actions', () => {
 
   assert.ok(routes.some((route) => route.path === '/' && route.methods.includes('get')));
   assert.ok(routes.some((route) => route.path === '/users/:id' && route.methods.includes('post')));
+  assert.ok(routes.some((route) => route.path === '/users/:id/social-post-credits' && route.methods.includes('post')));
   assert.ok(routes.some((route) => route.path === '/publish-actions/:id/retry' && route.methods.includes('post')));
   assert.ok(routes.some((route) => route.path === '/webhook-deliveries/:id/retry' && route.methods.includes('post')));
   assert.ok(routes.some((route) => route.path === '/email/customer' && route.methods.includes('post')));

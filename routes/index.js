@@ -15,12 +15,14 @@ const { requireAuth } = require('../middleware/auth');
 const { clearAuthCookie } = require('../middleware/auth');
 const { requirePlatformAdmin } = require('../middleware/platformAdmin');
 const { planFor } = require('../config/plans');
-const { getCurrentUsage } = require('../services/usageService');
+const { getCurrentUsage, socialPostAllowance } = require('../services/usageService');
 const { exportAccountData, deleteAccountData } = require('../services/accountDataService');
 const { recordAuditEvent } = require('../services/auditLogService');
 const { sendCustomerEmail, sendGoodbyeEmail, verifyEmailTransport } = require('../services/emailService');
 const { DEFAULT_TEST_URL, fetchMetaOembed, missingMetaOembedKeys, normalizeOembedUrl } = require('../services/metaOembedService');
 const { findAccessibleProjects } = require('../services/projectAccessService');
+const { readinessPayload } = require('../services/runtimeHealthService');
+const { statusPagePayload } = require('../services/enterpriseHardeningService');
 const {
   canPublishProjectRole,
   projectAccessRole
@@ -174,6 +176,7 @@ router.get('/sitemap.xml', (req, res) => {
     sitemapUrl('/demo', '0.8', 'monthly'),
     sitemapUrl('/reports', '0.8', 'monthly'),
     sitemapUrl('/roadmap', '0.7', 'monthly'),
+    sitemapUrl('/status', '0.7', 'daily'),
     sitemapUrl('/about', '0.7', 'monthly'),
     sitemapUrl('/contact', '0.6', 'monthly'),
     sitemapUrl('/privacy', '0.5', 'yearly'),
@@ -205,6 +208,15 @@ router.get('/robots.txt', (req, res) => {
     `Llms: ${publicBaseUrl()}/llms.txt`
   ].join('\n'));
 });
+
+router.get('/status', asyncHandler(async (req, res) => {
+  const status = statusPagePayload(await readinessPayload());
+  res.status(status.status === 'incident' ? 503 : 200).render('status', {
+    title: 'System Status',
+    seoDescription: 'Current operational status for Moyi-CMO web application, background jobs, integrations, and social publishing.',
+    status
+  });
+}));
 
 router.get('/llms.txt', (req, res) => {
   res.type('text/plain').send([
@@ -423,6 +435,7 @@ router.get('/dashboard', requireAuth, asyncHandler(async (req, res) => {
   const scanProjectMap = new Map(allProjects.map((project) => [project._id.toString(), project]));
   const usage = await getCurrentUsage(req.user._id);
   const plan = planFor(req.user);
+  const socialPostLimit = socialPostAllowance(plan, usage);
 
   res.render('dashboard', {
     title: 'Dashboard',
@@ -436,7 +449,8 @@ router.get('/dashboard', requireAuth, asyncHandler(async (req, res) => {
     approvalQueueCount,
     workspaceSetup,
     usage,
-    plan
+    plan,
+    socialPostLimit
   });
 }));
 

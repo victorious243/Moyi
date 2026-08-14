@@ -12,6 +12,17 @@ test('annual plans charge ten months and report the correct saving', () => {
   });
 });
 
+test('plans include monthly social publishing allowances across all platforms', () => {
+  const { PLANS } = require('../config/plans');
+  const { socialPostAllowance } = require('../services/usageService');
+
+  assert.equal(PLANS.free.socialPostsPerMonth, 5);
+  assert.equal(PLANS.starter.socialPostsPerMonth, 50);
+  assert.equal(PLANS.pro.socialPostsPerMonth, 200);
+  assert.equal(PLANS.agency.socialPostsPerMonth, 1000);
+  assert.equal(socialPostAllowance(PLANS.free, { extraSocialPostCredits: 12 }), 17);
+});
+
 test('Stripe price mapping keeps monthly and annual prices separate', () => {
   const values = {
     STRIPE_STARTER_PRICE_ID: 'price_starter_month',

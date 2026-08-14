@@ -5,6 +5,9 @@
   const formatMetricNumber = (value) => value === null || value === undefined ? 'Unavailable' : Number(value).toLocaleString();
   const formatRate = (value) => value === null || value === undefined ? 'Unavailable' : `${(Number(value) * 100).toFixed(2)}%`;
   const label = (value) => String(value || '').replace(/_/g, ' ');
+  const growthBrain = dashboard.growthBrain || { sampleSize: 0, platforms: [], strongestObservedPosts: [], measurementNote: '' };
+  const recommendationInputs = growthBrain.recommendationInputs || { evidenceQuality: { confidence: 'none', note: '' }, bestContentPatterns: [], weakContentPatterns: [], suggestedNextActions: [] };
+  const growthBrainUpgrade = growthBrain.growthBrainUpgrade || { whatWorked: [], bestPostingTimes: [], bestPlatforms: [], winningHooks: [], winningTopics: [], winningFormats: [], lowPerformingWarnings: [], improvedDraftSuggestions: [] };
 %>
 
 <div class="app-layout">
@@ -40,6 +43,213 @@
       <div><span>Measured</span><strong><%= formatNumber(dashboard.totals.measuredPosts) %></strong></div>
       <div><span>Exposure</span><strong><%= formatMetricNumber(dashboard.totals.exposure) %></strong></div>
       <div><span>Engagements</span><strong><%= formatMetricNumber(dashboard.totals.engagements) %></strong></div>
+    </section>
+
+    <section class="panel social-growth-panel">
+      <div class="panel-title">
+        <div>
+          <h2>Growth Brain feedback</h2>
+          <p>Observed social signals that Moyi can use when drafting the next campaign.</p>
+        </div>
+        <span class="status"><%= formatNumber(growthBrain.sampleSize) %> signal<%= growthBrain.sampleSize === 1 ? '' : 's' %></span>
+      </div>
+      <% if (!growthBrain.sampleSize) { %>
+        <p class="empty">Moyi will summarize winning platforms and post patterns after engagement metrics are collected.</p>
+      <% } else { %>
+        <div class="social-growth-grid">
+          <div>
+            <h3>Best platform signals</h3>
+            <% if (!growthBrain.platforms.length) { %>
+              <p class="empty">No platform signal is available yet.</p>
+            <% } else { %>
+              <div class="signal-list">
+                <% growthBrain.platforms.slice(0, 4).forEach((platform) => { %>
+                  <article>
+                    <span><%= platform.platform %></span>
+                    <strong><%= formatNumber(platform.averageScore) %></strong>
+                    <small><%= formatNumber(platform.samples) %> sample<%= platform.samples === 1 ? '' : 's' %></small>
+                  </article>
+                <% }) %>
+              </div>
+            <% } %>
+          </div>
+          <div>
+            <h3>Strongest posts</h3>
+            <% if (!growthBrain.strongestObservedPosts.length) { %>
+              <p class="empty">No post-level signal is available yet.</p>
+            <% } else { %>
+              <ol class="insight-rank-list">
+                <% growthBrain.strongestObservedPosts.slice(0, 4).forEach((post) => { %>
+                  <li>
+                    <strong><%= post.title || `${post.platform} post` %></strong>
+                    <span><%= post.platform %> - score <%= formatNumber(post.score) %><% if (post.engagementRate !== null && post.engagementRate !== undefined) { %> - <%= formatRate(post.engagementRate) %><% } %></span>
+                  </li>
+                <% }) %>
+              </ol>
+            <% } %>
+          </div>
+        </div>
+        <% if (growthBrain.measurementNote) { %><p class="empty social-growth-note"><%= growthBrain.measurementNote %></p><% } %>
+        <div class="recommendation-input-grid">
+          <article>
+            <span>Evidence quality</span>
+            <strong><%= label(recommendationInputs.evidenceQuality && recommendationInputs.evidenceQuality.confidence) %></strong>
+            <% if (recommendationInputs.evidenceQuality && recommendationInputs.evidenceQuality.note) { %><p><%= recommendationInputs.evidenceQuality.note %></p><% } %>
+          </article>
+          <article>
+            <span>Best content patterns</span>
+            <% if (!recommendationInputs.bestContentPatterns.length) { %>
+              <p>No winning pattern has enough evidence yet.</p>
+            <% } else { %>
+              <ul class="pattern-list">
+                <% recommendationInputs.bestContentPatterns.slice(0, 3).forEach((pattern) => { %>
+                  <li><strong><%= pattern.platform %></strong> <%= pattern.pattern %> - score <%= formatNumber(pattern.averageScore) %></li>
+                <% }) %>
+              </ul>
+            <% } %>
+          </article>
+          <article>
+            <span>Weak patterns</span>
+            <% if (!recommendationInputs.weakContentPatterns.length) { %>
+              <p>No weak pattern has enough evidence yet.</p>
+            <% } else { %>
+              <ul class="pattern-list">
+                <% recommendationInputs.weakContentPatterns.slice(0, 3).forEach((pattern) => { %>
+                  <li><strong><%= pattern.platform %></strong> <%= pattern.pattern %> - score <%= formatNumber(pattern.averageScore) %></li>
+                <% }) %>
+              </ul>
+            <% } %>
+          </article>
+        </div>
+        <% if (recommendationInputs.suggestedNextActions.length) { %>
+          <div class="next-action-list">
+            <h3>Suggested next actions</h3>
+            <% recommendationInputs.suggestedNextActions.slice(0, 4).forEach((item) => { %>
+              <article>
+                <span><%= label(item.priority) %></span>
+                <strong><%= item.action %></strong>
+                <p><%= item.rationale %></p>
+              </article>
+            <% }) %>
+          </div>
+        <% } %>
+      <% } %>
+    </section>
+
+    <section class="panel growth-brain-upgrade-panel">
+      <div class="panel-title">
+        <div>
+          <h2>Growth Brain upgrade</h2>
+          <p>Real-result inputs for smarter recommendations and improved future drafts.</p>
+        </div>
+      </div>
+      <% if (!growthBrain.sampleSize) { %>
+        <p class="empty">Moyi will identify winning hooks, topics, formats, platforms, and posting times after engagement metrics are collected.</p>
+      <% } else { %>
+        <div class="phase-five-grid">
+          <article>
+            <span>What worked</span>
+            <% if (!growthBrainUpgrade.whatWorked.length) { %>
+              <p>No winning post signal is available yet.</p>
+            <% } else { %>
+              <ul class="pattern-list">
+                <% growthBrainUpgrade.whatWorked.slice(0, 3).forEach((item) => { %>
+                  <li><strong><%= item.platform %></strong> <%= item.pattern %> - score <%= formatNumber(item.score) %></li>
+                <% }) %>
+              </ul>
+            <% } %>
+          </article>
+          <article>
+            <span>Best posting times</span>
+            <% if (!growthBrainUpgrade.bestPostingTimes.length) { %>
+              <p>No time signal is available yet.</p>
+            <% } else { %>
+              <ul class="pattern-list">
+                <% growthBrainUpgrade.bestPostingTimes.slice(0, 3).forEach((item) => { %>
+                  <li><strong><%= item.platform %></strong> <%= item.label %> - score <%= formatNumber(item.averageScore) %></li>
+                <% }) %>
+              </ul>
+            <% } %>
+          </article>
+          <article>
+            <span>Best platforms</span>
+            <% if (!growthBrainUpgrade.bestPlatforms.length) { %>
+              <p>No platform signal is available yet.</p>
+            <% } else { %>
+              <ul class="pattern-list">
+                <% growthBrainUpgrade.bestPlatforms.slice(0, 3).forEach((item) => { %>
+                  <li><strong><%= item.platform %></strong> score <%= formatNumber(item.averageScore) %> from <%= formatNumber(item.samples) %> sample<%= item.samples === 1 ? '' : 's' %></li>
+                <% }) %>
+              </ul>
+            <% } %>
+          </article>
+        </div>
+        <div class="phase-five-grid">
+          <article>
+            <span>Winning hooks</span>
+            <% if (!growthBrainUpgrade.winningHooks.length) { %>
+              <p>No hook signal is available yet.</p>
+            <% } else { %>
+              <ul class="pattern-list">
+                <% growthBrainUpgrade.winningHooks.slice(0, 3).forEach((item) => { %>
+                  <li><strong><%= item.platform %></strong> <%= item.hook %></li>
+                <% }) %>
+              </ul>
+            <% } %>
+          </article>
+          <article>
+            <span>Winning topics</span>
+            <% if (!growthBrainUpgrade.winningTopics.length) { %>
+              <p>No topic signal is available yet.</p>
+            <% } else { %>
+              <ul class="pattern-list">
+                <% growthBrainUpgrade.winningTopics.slice(0, 5).forEach((item) => { %>
+                  <li><strong><%= item.topic %></strong> score <%= formatNumber(item.averageScore) %></li>
+                <% }) %>
+              </ul>
+            <% } %>
+          </article>
+          <article>
+            <span>Winning formats</span>
+            <% if (!growthBrainUpgrade.winningFormats.length) { %>
+              <p>No format signal is available yet.</p>
+            <% } else { %>
+              <ul class="pattern-list">
+                <% growthBrainUpgrade.winningFormats.slice(0, 3).forEach((item) => { %>
+                  <li><strong><%= label(item.format) %></strong> score <%= formatNumber(item.averageScore) %></li>
+                <% }) %>
+              </ul>
+            <% } %>
+          </article>
+        </div>
+        <% if (growthBrainUpgrade.lowPerformingWarnings.length || growthBrainUpgrade.improvedDraftSuggestions.length) { %>
+          <div class="phase-five-actions">
+            <% if (growthBrainUpgrade.lowPerformingWarnings.length) { %>
+              <div>
+                <h3>Low-performing content warnings</h3>
+                <% growthBrainUpgrade.lowPerformingWarnings.slice(0, 3).forEach((item) => { %>
+                  <article>
+                    <span><%= item.platform %></span>
+                    <strong><%= item.warning %></strong>
+                  </article>
+                <% }) %>
+              </div>
+            <% } %>
+            <% if (growthBrainUpgrade.improvedDraftSuggestions.length) { %>
+              <div>
+                <h3>Improved draft suggestions</h3>
+                <% growthBrainUpgrade.improvedDraftSuggestions.slice(0, 3).forEach((item) => { %>
+                  <article>
+                    <span><%= item.platform || 'cross-channel' %></span>
+                    <strong><%= item.direction %></strong>
+                    <p><%= item.hookTemplate %></p>
+                  </article>
+                <% }) %>
+              </div>
+            <% } %>
+          </div>
+        <% } %>
+      <% } %>
     </section>
 
     <% if (dashboard.reliability.reconnectRequired || dashboard.reliability.deadLetter) { %>
@@ -92,6 +302,68 @@
     <section class="panel">
       <div class="panel-title">
         <div>
+          <h2>Campaign comparison</h2>
+          <p>Performance grouped by the campaign that produced each published social draft.</p>
+        </div>
+      </div>
+      <% if (!dashboard.campaignRows || !dashboard.campaignRows.length) { %>
+        <p class="empty">Campaign performance will appear after published posts are linked to campaigns.</p>
+      <% } else { %>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Campaign</th><th>Channel</th><th>Posts</th><th>Measured</th><th>Exposure</th><th>Engagements</th><th>Rate</th></tr></thead>
+            <tbody>
+              <% dashboard.campaignRows.forEach((row) => { %>
+                <tr>
+                  <td><strong><%= row.campaignName %></strong><% if (row.campaignGoal) { %><br><small><%= row.campaignGoal %></small><% } %></td>
+                  <td><%= row.campaignChannel || 'multi' %></td>
+                  <td><%= formatNumber(row.posts) %></td>
+                  <td><%= formatNumber(row.measuredPosts) %></td>
+                  <td><%= formatMetricNumber(row.exposure) %></td>
+                  <td><%= formatMetricNumber(row.engagements) %></td>
+                  <td><%= formatRate(row.engagementRate) %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <div>
+          <h2>Content type comparison</h2>
+          <p>Compare text, image, video, and carousel formats across the selected window.</p>
+        </div>
+      </div>
+      <% if (!dashboard.contentTypeRows || !dashboard.contentTypeRows.length) { %>
+        <p class="empty">Content type performance will appear after posts collect engagement metrics.</p>
+      <% } else { %>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Type</th><th>Posts</th><th>Measured</th><th>Exposure</th><th>Engagements</th><th>Clicks</th><th>Rate</th></tr></thead>
+            <tbody>
+              <% dashboard.contentTypeRows.forEach((row) => { %>
+                <tr>
+                  <td><strong><%= label(row.contentType) %></strong></td>
+                  <td><%= formatNumber(row.posts) %></td>
+                  <td><%= formatNumber(row.measuredPosts) %></td>
+                  <td><%= formatMetricNumber(row.exposure) %></td>
+                  <td><%= formatMetricNumber(row.engagements) %></td>
+                  <td><%= formatMetricNumber(row.clicks) %></td>
+                  <td><%= formatRate(row.engagementRate) %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <div>
           <h2>Published posts</h2>
           <p>Latest metrics are snapshots; providers can revise counters after a post is published.</p>
         </div>
@@ -115,7 +387,15 @@
                     <span class="status <%= post.metricsStatus === 'active' ? 'status-success' : '' %>"><%= label(post.metricsStatus) %></span>
                     <% if (post.availableFields.length) { %><br><small><%= post.availableFields.map(label).join(', ') %></small><% } %>
                   </td>
-                  <td><% if (post.platformUrl) { %><a class="button button-small" href="<%= post.platformUrl %>" target="_blank" rel="noopener">View post</a><% } %></td>
+                  <td>
+                    <div class="row-actions">
+                      <% if (post.platformUrl) { %><a class="button button-small" href="<%= post.platformUrl %>" target="_blank" rel="noopener">View post</a><% } %>
+                      <form method="post" action="/projects/<%= project._id %>/social-performance/jobs/<%= post.id %>/metrics">
+                        <input type="hidden" name="days" value="<%= dashboard.days %>">
+                        <button class="button button-small" type="submit">Refresh metrics</button>
+                      </form>
+                    </div>
+                  </td>
                 </tr>
               <% }) %>
             </tbody>

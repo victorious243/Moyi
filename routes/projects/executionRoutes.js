@@ -160,6 +160,7 @@ function registerExecutionRoutes(router, context, services = {}) {
       publishReadiness,
       successMessage: req.query.success || '',
       errorMessage: req.query.error || '',
+      limitType: req.query.limit || '',
       imageJob
     });
   }));

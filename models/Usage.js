@@ -34,6 +34,15 @@ const usageSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    socialPostsUsed: {
+      type: Number,
+      default: 0
+    },
+    extraSocialPostCredits: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
     searchConsoleSyncsUsed: {
       type: Number,
       default: 0

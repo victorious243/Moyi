@@ -6,9 +6,11 @@ const { auditTelemetry } = require('../../services/telemetryAuditor');
 const { buildAttributionDashboard } = require('../../services/attributionService');
 const {
   buildSocialPerformanceDashboard,
+  destinationProjectFilter,
   normalizeAnalyticsDays,
   socialPerformanceApiPayload
 } = require('../../services/socialAnalyticsService');
+const { collectMetricsForJob } = require('../../services/engagementMetricsService');
 const {
   buildPerformanceDashboard,
   calculateGscOpportunities,
@@ -45,6 +47,31 @@ function registerMeasurementRoutes(router, context, services = {}) {
     const days = normalizeAnalyticsDays(req.query.days);
     const dashboard = await buildSocialPerformanceDashboard({ projectId: req.project._id, days });
     res.json(socialPerformanceApiPayload(dashboard));
+  }));
+
+  router.post('/:id/social-performance/jobs/:jobId/metrics', [
+    param('id').isMongoId(),
+    param('jobId').isMongoId(),
+    context.handleValidation
+  ], context.loadProject, asyncHandler(async (req, res) => {
+    const days = normalizeAnalyticsDays(req.body.days || req.query.days);
+    const redirectBase = `/projects/${req.project._id}/social-performance?days=${days}`;
+    const job = await context.PublishJob.findOne({
+      _id: req.params.jobId,
+      ...destinationProjectFilter(req.project._id),
+      status: 'published'
+    }).select('_id').lean();
+
+    if (!job) {
+      return res.redirect(`${redirectBase}&error=${encodeURIComponent('Metrics can only be refreshed for a published post in this project.')}`);
+    }
+
+    const result = await collectMetricsForJob(job._id);
+    if (!result.success) {
+      return res.redirect(`${redirectBase}&error=${encodeURIComponent(result.error || 'Metrics refresh failed.')}`);
+    }
+
+    res.redirect(`${redirectBase}&success=${encodeURIComponent(result.skipped ? 'Metrics refresh is already running for this post.' : 'Metrics refreshed for this post.')}`);
   }));
 
   router.get('/:id/search-console/connect', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {

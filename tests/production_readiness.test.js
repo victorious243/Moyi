@@ -3,6 +3,11 @@ const assert = require('node:assert/strict');
 const express = require('express');
 const { createRuntimeHealthService } = require('../services/runtimeHealthService');
 const { buildHealthRouter } = require('../routes/health');
+const {
+  buildBackupAndMonitoringPlan,
+  buildSecurityReview,
+  statusPagePayload
+} = require('../services/enterpriseHardeningService');
 const { createProjectWorkflowService } = require('../services/projectWorkflowService');
 
 function withEnv(overrides, run) {
@@ -288,6 +293,66 @@ test('health routes reflect readiness status codes', async () => {
   assert.equal(healthz.body.status, 'ok');
   assert.equal(readyz.statusCode, 503);
   assert.equal(readyz.body.status, 'not_ready');
+});
+
+test('public status route exposes safe component health without config details', async () => {
+  const router = buildHealthRouter({
+    livenessPayload: () => ({ status: 'ok', uptimeSeconds: 10 }),
+    readinessPayload: async () => ({
+      status: 'not_ready',
+      blockingChecks: ['queue'],
+      checkedAt: '2026-08-14T09:00:00.000Z',
+      problems: ['TOKEN_ENCRYPTION_SECRET is weak'],
+      warnings: ['Stripe billing configuration is incomplete.'],
+      checks: {
+        database: { status: 'ready', required: true },
+        queue: { status: 'failed', required: true },
+        integrations: {
+          stripe: { status: 'degraded', required: false }
+        }
+      }
+    })
+  });
+
+  const response = await runRoute(router, { method: 'get', path: '/status.json' });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.status, 'degraded');
+  assert.equal(response.body.components.find((component) => component.key === 'background_jobs').status, 'outage');
+  assert.equal(response.body.problems, undefined);
+  assert.equal(response.body.warnings, undefined);
+});
+
+test('enterprise status payload marks database outages as public incidents', () => {
+  const payload = statusPagePayload({
+    status: 'not_ready',
+    checks: {
+      database: { status: 'failed', required: true },
+      queue: { status: 'ready', required: true },
+      integrations: {}
+    }
+  });
+
+  assert.equal(payload.status, 'incident');
+  assert.equal(payload.components.find((component) => component.key === 'database').status, 'outage');
+});
+
+test('enterprise hardening review tracks security controls and deferred public API', () => {
+  const security = buildSecurityReview({
+    supportEmail: 'support@moyi-cmo.com',
+    tokenEncryptionSecret: 'a'.repeat(40)
+  });
+  const backup = buildBackupAndMonitoringPlan({
+    mediaStorageProvider: 's3',
+    mediaStoragePath: '',
+    supportEmail: 'support@moyi-cmo.com'
+  });
+
+  assert.equal(security.needsReviewCount, 0);
+  assert.equal(security.items.find((item) => item.key === 'rate_limits').status, 'implemented');
+  assert.equal(security.items.find((item) => item.key === 'public_api').status, 'deferred');
+  assert.equal(security.roleCapabilities.find((role) => role.role === 'analyst').publishing, false);
+  assert.equal(backup.items.find((item) => item.key === 'media_storage').status, 'configured');
 });
 
 test('project workflow marks scan as failed when queue scheduling fails', async () => {
