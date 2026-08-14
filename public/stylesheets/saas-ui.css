@@ -62,6 +62,21 @@ body::after {
   padding-bottom: 88px;
 }
 
+.js-soft-navigation .shell {
+  transition: opacity 140ms var(--saas-ease), transform 140ms var(--saas-ease);
+}
+
+.is-soft-navigating .shell {
+  opacity: 0.78;
+  transform: translateY(2px);
+  cursor: progress;
+}
+
+.is-soft-navigating a,
+.is-soft-navigating button {
+  cursor: progress;
+}
+
 .topbar {
   min-height: 72px;
   padding-inline: max(20px, calc((100vw - 1440px) / 2));

@@ -1,15 +1,4 @@
 (() => {
-  const overlay = document.querySelector('[data-loading-overlay]');
-  const title = document.querySelector('[data-loading-title]');
-  const domain = document.querySelector('[data-loading-domain]');
-  const copy = document.querySelector('[data-loading-copy]');
-  const stages = Array.from(document.querySelectorAll('[data-loading-stage]'));
-
-  if (!overlay || !title) return;
-
-  let active = false;
-  let stageTimer;
-
   const scanStages = [
     {
       title: 'Opening the public crawl',
@@ -29,7 +18,20 @@
     }
   ];
 
-  const showScanStage = (index) => {
+  let stageTimer;
+
+  const initLoadingState = () => {
+    const overlay = document.querySelector('[data-loading-overlay]');
+    const title = document.querySelector('[data-loading-title]');
+    const domain = document.querySelector('[data-loading-domain]');
+    const copy = document.querySelector('[data-loading-copy]');
+    const stages = Array.from(document.querySelectorAll('[data-loading-stage]'));
+
+    if (!overlay || !title) return;
+
+    let active = false;
+
+    const showScanStage = (index) => {
     const stage = scanStages[index];
     title.textContent = stage.title;
     if (copy) copy.textContent = stage.copy;
@@ -39,7 +41,7 @@
     });
   };
 
-  const applyCustomLoadingState = (form, message) => {
+    const applyCustomLoadingState = (form, message) => {
     title.textContent = message || 'Moyi is working';
     if (domain) domain.textContent = form.getAttribute('data-loading-domain') || 'your request';
     if (copy) {
@@ -72,7 +74,7 @@
     }
   };
 
-  const openOverlay = (message, form) => {
+    const openOverlay = (message, form) => {
     if (active) return;
     active = true;
     if (stageTimer) window.clearInterval(stageTimer);
@@ -100,7 +102,8 @@
     document.body.classList.add('loading-active');
   };
 
-  document.querySelectorAll('form[data-loading-state]').forEach((form) => {
+    document.querySelectorAll('form[data-loading-state]:not([data-loading-state-bound])').forEach((form) => {
+      form.dataset.loadingStateBound = 'true';
     form.addEventListener('submit', () => {
       const message = form.getAttribute('data-loading-state');
       openOverlay(message, form);
@@ -110,4 +113,8 @@
       });
     });
   });
+  };
+
+  initLoadingState();
+  document.addEventListener('moyi:page-load', initLoadingState);
 })();

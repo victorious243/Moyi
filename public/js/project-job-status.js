@@ -15,6 +15,7 @@
   let active = true;
   let dots = 0;
   let timerId = null;
+  let intervalId = null;
   let requestInFlight = false;
   let latestStatus = root.getAttribute('data-initial-job-status') || '';
   let redirected = false;
@@ -119,7 +120,13 @@
   };
 
   timerId = window.setTimeout(fetchStatus, 1200);
-  window.setInterval(updateRunningStatus, 500);
+  intervalId = window.setInterval(updateRunningStatus, 500);
+
+  document.addEventListener('moyi:before-page-swap', () => {
+    active = false;
+    window.clearTimeout(timerId);
+    window.clearInterval(intervalId);
+  }, { once: true });
 
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible' || !active || redirected) return;
