@@ -76,9 +76,15 @@
 
     <% if (!connectedProperty) { %>
       <section class="panel">
-        <h2>No Search Console property connected</h2>
-        <p class="empty">Connect a verified property before syncing search performance data.</p>
-        <a class="button button-primary" href="/projects/<%= project._id %>/search-console/connect">Connect Search Console</a>
+        <h2><%= integration ? 'Select a Search Console property' : 'Connect Google Search Console' %></h2>
+        <p class="empty">
+          <% if (integration) { %>
+            Google readonly access is connected, but this project still needs a verified Search Console property before performance data can sync.
+          <% } else { %>
+            Connect Google readonly access, then select the verified property for this project.
+          <% } %>
+        </p>
+        <a class="button button-primary" href="/projects/<%= project._id %>/search-console/connect"><%= integration ? 'Select Property' : 'Connect Search Console' %></a>
       </section>
     <% } else { %>
       <section class="panel">

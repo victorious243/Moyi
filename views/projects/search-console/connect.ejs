@@ -52,7 +52,7 @@
           <%= integration ? 'Reconnect Google' : 'Connect Google' %>
         </a>
       </div>
-      <p><span class="status"><%= integration ? 'connected' : 'not connected' %></span></p>
+      <p><span class="status"><%= integration ? 'Google connected' : 'Google not connected' %></span></p>
     </section>
 
     <% if (connectedProperty) { %>
@@ -74,7 +74,7 @@
       <% if (!integration) { %>
         <p class="empty">Connect Google before selecting a project property.</p>
       <% } else if (!properties.length) { %>
-        <p class="empty">No Search Console properties were found for this Google account. Open Google Search Console with this same account and verify the website property first.</p>
+        <p class="empty">Google readonly access is connected, but no verified Search Console properties were returned for this Google account. Open Google Search Console with this same account and verify the website property first.</p>
       <% } else { %>
         <form class="form" action="/projects/<%= project._id %>/search-console/property" method="post">
           <label>

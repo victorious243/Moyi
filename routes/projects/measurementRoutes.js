@@ -147,7 +147,10 @@ function registerMeasurementRoutes(router, context, services = {}) {
 
   router.get('/:id/search-console/performance', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
     const days = context.normalizeDays(req.query.days);
-    const connectedProperty = await context.ProjectSearchProperty.findOne({ projectId: req.project._id, userId: req.user._id });
+    const [integration, connectedProperty] = await Promise.all([
+      getIntegration(req.user._id),
+      context.ProjectSearchProperty.findOne({ projectId: req.project._id, userId: req.user._id })
+    ]);
     const syncJob = req.query.syncJob
       ? await findJobForProject({ jobId: req.query.syncJob, projectId: req.project._id, userId: req.user._id })
       : await findLatestJob({ projectId: req.project._id, userId: req.user._id, type: 'search_console_sync' });
@@ -161,6 +164,7 @@ function registerMeasurementRoutes(router, context, services = {}) {
     res.render('projects/search-console/performance', {
       title: `${req.project.name} Search Performance`,
       days,
+      integration,
       connectedProperty,
       dashboard,
       opportunities,
