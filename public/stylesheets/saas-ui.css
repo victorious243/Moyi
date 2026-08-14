@@ -126,6 +126,101 @@ body::after {
   opacity: 1;
 }
 
+.logout-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 40px;
+  padding: 0 14px !important;
+  border: 1px solid rgba(255, 125, 115, 0.22) !important;
+  border-radius: 10px !important;
+  background: rgba(255, 125, 115, 0.055) !important;
+  color: #f2b0aa !important;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  transition: color 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 220ms var(--saas-ease), transform 220ms var(--saas-ease) !important;
+}
+
+.logout-button:hover {
+  border-color: rgba(255, 125, 115, 0.54) !important;
+  background: rgba(255, 125, 115, 0.13) !important;
+  color: #ffd1cb !important;
+  box-shadow: 0 10px 24px rgba(255, 125, 115, 0.12), 0 0 0 1px rgba(255, 125, 115, 0.06) !important;
+  transform: translateY(-2px) !important;
+}
+
+.logout-button:active {
+  transform: translateY(0) scale(0.97) !important;
+}
+
+.logout-button:focus-visible {
+  outline: 2px solid rgba(255, 170, 163, 0.86);
+  outline-offset: 3px;
+}
+
+.logout-icon {
+  position: relative;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid currentColor;
+  border-right: 0;
+  border-radius: 4px 0 0 4px;
+  opacity: 0.9;
+}
+
+.logout-icon::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 4px;
+  width: 9px;
+  height: 1.5px;
+  border-radius: 99px;
+  background: currentColor;
+}
+
+.logout-icon::after {
+  content: "";
+  position: absolute;
+  top: 3.5px;
+  left: 9px;
+  width: 5px;
+  height: 5px;
+  border-top: 1.5px solid currentColor;
+  border-right: 1.5px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.desktop-nav .logout-button {
+  width: auto;
+  height: 40px;
+  min-height: 40px;
+  padding: 0 14px !important;
+  border: 1px solid rgba(255, 125, 115, 0.22) !important;
+  border-radius: 10px !important;
+  background: rgba(255, 125, 115, 0.055) !important;
+  color: #f2b0aa !important;
+  font-size: 12px;
+  transform: none;
+}
+
+.desktop-nav .logout-button::after,
+.desktop-nav .logout-button::before {
+  display: none;
+}
+
+.desktop-nav .logout-button:hover {
+  color: #ffd1cb !important;
+  transform: translateY(-2px) !important;
+}
+
 .app-layout {
   grid-template-columns: minmax(220px, 248px) minmax(0, 1fr);
   gap: 30px;
@@ -614,6 +709,14 @@ table code,
   .mobile-menu a:hover {
     background: rgba(255, 255, 255, 0.06);
     color: var(--saas-text);
+  }
+
+  .mobile-menu .logout-button {
+    width: 100%;
+    min-height: 44px;
+    justify-content: flex-start;
+    margin-top: 6px;
+    padding-inline: 14px !important;
   }
 
   .app-layout {

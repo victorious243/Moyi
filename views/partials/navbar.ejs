@@ -15,11 +15,14 @@
       <a href="/projects">Projects</a>
       <a href="/organizations">Agency</a>
       <% if (currentUser.role === 'admin') { %>
-        <a href="/admin">Operator</a>
+      <a href="/admin">Operator</a>
       <% } %>
       <a href="/account">Account</a>
       <form action="/logout" method="post">
-        <button class="icon-button" title="Sign out" aria-label="Sign out">Logout</button>
+        <button class="logout-button" type="submit" title="Sign out" aria-label="Sign out">
+          <span class="logout-icon" aria-hidden="true"></span>
+          <span>Sign out</span>
+        </button>
       </form>
     <% } else { %>
       <a href="/#features">Features</a>
@@ -43,7 +46,10 @@
       <% } %>
       <a href="/account">Account</a>
       <form action="/logout" method="post">
-        <button class="button" type="submit">Logout</button>
+        <button class="logout-button" type="submit">
+          <span class="logout-icon" aria-hidden="true"></span>
+          <span>Sign out</span>
+        </button>
       </form>
     <% } else { %>
       <a href="/#features">Features</a>
