@@ -42,9 +42,20 @@
     });
 
     form.addEventListener('submit', () => {
+      let isFormValid = true;
       fields.forEach((field) => {
-        if (!field.validity.valid) field.classList.add('is-touched');
+        if (!field.validity.valid) {
+          field.classList.add('is-touched');
+          isFormValid = false;
+        }
       });
+      if (isFormValid) {
+        form.classList.add('is-submitting');
+        const submitBtn = form.querySelector('button[type="submit"], .button-primary');
+        if (submitBtn) {
+          submitBtn.classList.add('is-loading');
+        }
+      }
     });
   });
 
