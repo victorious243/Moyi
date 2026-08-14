@@ -1,6 +1,7 @@
 const Project = require('../models/Project');
 const Scan = require('../models/Scan');
 const Page = require('../models/Page');
+const Competitor = require('../models/Competitor');
 const SeoIssue = require('../models/SeoIssue');
 const User = require('../models/User');
 const CompetitorPage = require('../models/CompetitorPage');
@@ -8,6 +9,7 @@ const { planFor } = require('../config/plans');
 const { crawlWebsite } = require('./crawlerService');
 const { auditPages } = require('./auditService');
 const { discoverCompetitorsForProject } = require('./competitorDiscoveryService');
+const { crawlCompetitor } = require('./competitorCrawlerService');
 const { generateCompetitorInsights } = require('./competitorInsightService');
 const { replaceScanRecommendations } = require('./scanRecommendationService');
 
@@ -26,6 +28,14 @@ function uniquePagesByUrl(pages) {
 
 async function ensureCompetitorIntelligence({ project, userId, projectPages }) {
   await discoverCompetitorsForProject({ project, userId, projectPages });
+
+  const competitors = await Competitor.find({ projectId: project._id, userId }).sort({ createdAt: -1 });
+  for (const competitor of competitors) {
+    const hasPages = await CompetitorPage.exists({ projectId: project._id, competitorId: competitor._id });
+    if (!hasPages) {
+      await crawlCompetitor({ projectId: project._id, competitor });
+    }
+  }
 
   const competitorPageCount = await CompetitorPage.countDocuments({ projectId: project._id });
   if (!competitorPageCount) return;

@@ -195,8 +195,30 @@ function registerDiscoveryRoutes(router, context, services = {}) {
       projectPages
     });
 
+    const competitors = await context.Competitor.find({
+      projectId: req.project._id,
+      userId: req.user._id
+    }).sort({ createdAt: -1 });
+
+    if (!competitors.length) {
+      return res.redirect(`/projects/${req.project._id}/competitors/insights?success=${encodeURIComponent('No competitor websites were available. Add at least one competitor, then generate the report again.')}`);
+    }
+
+    for (const competitor of competitors) {
+      const hasPages = await context.CompetitorPage.exists({
+        projectId: req.project._id,
+        competitorId: competitor._id
+      });
+      if (!hasPages) {
+        await crawlCompetitor({ projectId: req.project._id, competitor });
+      }
+    }
+
     const insights = await generateCompetitorInsights({ projectId: req.project._id, userId: req.user._id });
-    res.redirect(`/projects/${req.project._id}/competitors/insights?success=${encodeURIComponent(`${insights.length} competitor opportunities generated.`)}`);
+    const message = insights.length
+      ? `${insights.length} competitor opportunities generated.`
+      : 'Competitors were scanned, but the available public page evidence did not produce a comparison opportunity yet.';
+    res.redirect(`/projects/${req.project._id}/competitors/insights?success=${encodeURIComponent(message)}`);
   }));
 
   router.get('/:id/competitors/insights', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {

@@ -2,6 +2,23 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
 const { sanitizeInsights, systemInsights } = require('../services/competitorInsightService');
+const { configuredCompetitorCandidates } = require('../services/competitorDiscoveryService');
+
+test('configured competitors from calibration become crawlable website candidates', () => {
+  const candidates = configuredCompetitorCandidates({
+    competitors: [
+      { name: 'Rival One', websiteUrl: 'https://rival.example/' },
+      { name: 'Rival One duplicate', websiteUrl: 'https://rival.example' },
+      { name: 'Rival Two', websiteUrl: 'rival-two.example' },
+      { name: 'Not a URL', websiteUrl: 'not a url' }
+    ]
+  });
+
+  assert.deepEqual(candidates.map((candidate) => candidate.websiteUrl), [
+    'https://rival.example',
+    'https://rival-two.example'
+  ]);
+});
 
 test('competitor insight sanitization stamps provenance and bounded confidence', () => {
   const competitorId = new mongoose.Types.ObjectId();

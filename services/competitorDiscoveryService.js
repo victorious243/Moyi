@@ -1,6 +1,7 @@
 const Competitor = require('../models/Competitor');
 const CompetitorPage = require('../models/CompetitorPage');
 const { inferCompetitorsFromPages } = require('./discoveryService');
+const { normalizeUrl } = require('../utils/url');
 
 function competitorSummary(competitor) {
   return {
@@ -73,6 +74,58 @@ async function persistDiscoveredCompetitors({ project, userId, competitors }) {
   return created;
 }
 
+function configuredCompetitorCandidates(project) {
+  const configured = Array.isArray(project.competitors) ? project.competitors : [];
+  const seen = new Set();
+
+  return configured.map((candidate) => {
+    const value = typeof candidate === 'string' ? { name: candidate, websiteUrl: candidate } : (candidate || {});
+    let websiteUrl = '';
+    try {
+      websiteUrl = normalizeUrl(value.websiteUrl || value.url || value.name || '');
+    } catch (error) {
+      return null;
+    }
+
+    if (!websiteUrl || seen.has(websiteUrl)) return null;
+    seen.add(websiteUrl);
+    return {
+      name: value.name || websiteUrl,
+      websiteUrl,
+      confidence: value.confidence,
+      rationale: value.rationale || 'Configured during project calibration.'
+    };
+  }).filter(Boolean);
+}
+
+async function persistConfiguredCompetitors({ project, userId }) {
+  const candidates = configuredCompetitorCandidates(project);
+  const created = [];
+
+  for (const candidate of candidates) {
+    const existing = await Competitor.findOne({
+      projectId: project._id,
+      userId,
+      websiteUrl: candidate.websiteUrl
+    });
+    if (existing) {
+      created.push(existing);
+      continue;
+    }
+
+    const competitor = await Competitor.create({
+      projectId: project._id,
+      userId,
+      name: candidate.name,
+      websiteUrl: candidate.websiteUrl,
+      notes: candidate.rationale
+    });
+    created.push(competitor);
+  }
+
+  return created;
+}
+
 function competitorDiscoveryBrandProfile(project) {
   const profile = project.brand_profile || {};
   return {
@@ -89,8 +142,11 @@ function competitorDiscoveryBrandProfile(project) {
 }
 
 async function discoverCompetitorsForProject({ project, userId, projectPages }) {
-  const existingCompetitors = await Competitor.countDocuments({ projectId: project._id, userId });
-  if (existingCompetitors) return [];
+  const existingCompetitors = await Competitor.find({ projectId: project._id, userId }).sort({ createdAt: -1 });
+  if (existingCompetitors.length) return existingCompetitors;
+
+  const configuredCompetitors = await persistConfiguredCompetitors({ project, userId });
+  if (configuredCompetitors.length) return configuredCompetitors;
 
   const discoveredCompetitors = await inferCompetitorsFromPages(
     projectPages,
@@ -114,6 +170,8 @@ async function discoverCompetitorsForProject({ project, userId, projectPages }) 
 
 module.exports = {
   competitorSummary,
+  configuredCompetitorCandidates,
   discoverCompetitorsForProject,
+  persistConfiguredCompetitors,
   persistDiscoveredCompetitors
 };
