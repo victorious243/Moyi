@@ -230,7 +230,7 @@ const env = {
   smtpPass: process.env.SMTP_PASS || '',
   smtpFrom: process.env.SMTP_FROM || '',
   emailTestTo: process.env.EMAIL_TEST_TO || '',
-  supportEmail: process.env.SUPPORT_EMAIL || process.env.EMAIL_TEST_TO || '',
+  supportEmail: process.env.SUPPORT_EMAIL || process.env.EMAIL_TEST_TO || 'customersupport@moyi-cmo.com',
   maxAiOperationsPerMonth: numberFromEnv(process.env.MAX_AI_OPERATIONS_PER_MONTH, 500)
 };
 

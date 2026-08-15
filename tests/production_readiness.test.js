@@ -339,13 +339,13 @@ test('enterprise status payload marks database outages as public incidents', () 
 
 test('enterprise hardening review tracks security controls and deferred public API', () => {
   const security = buildSecurityReview({
-    supportEmail: 'support@moyi-cmo.com',
+    supportEmail: 'customersupport@moyi-cmo.com',
     tokenEncryptionSecret: 'a'.repeat(40)
   });
   const backup = buildBackupAndMonitoringPlan({
     mediaStorageProvider: 's3',
     mediaStoragePath: '',
-    supportEmail: 'support@moyi-cmo.com'
+    supportEmail: 'customersupport@moyi-cmo.com'
   });
 
   assert.equal(security.needsReviewCount, 0);

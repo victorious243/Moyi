@@ -817,7 +817,7 @@ SMTP_USER=your_brevo_smtp_user
 SMTP_PASS=your_brevo_smtp_password
 SMTP_FROM="Moyi-CMO <no_reply@moyi-cmo.com>"
 EMAIL_TEST_TO=you@example.com
-SUPPORT_EMAIL=support@moyi-cmo.com
+SUPPORT_EMAIL=customersupport@moyi-cmo.com
 ```
 
 If email does not send:
