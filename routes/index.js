@@ -416,6 +416,8 @@ router.get('/contact', (req, res) => {
   res.render('public/contact', contactView());
 });
 
+const { validateContactSubmission } = require('../services/emailSecurityService');
+
 router.post('/contact', [
   body('name').trim().notEmpty().withMessage('Your name is required.').isLength({ max: 120 }).withMessage('Your name is too long.'),
   body('email').isEmail().withMessage('Enter a valid email address.').normalizeEmail(),
@@ -438,6 +440,23 @@ router.post('/contact', [
       formData
     }));
   }
+
+  // 4-Layer Anti-Spam & Email Security Verification (Honeypot, Rate Limiting, Disposable Block, MX DNS)
+  const clientIp = req.ip || req.headers['x-forwarded-for'] || (req.socket && req.socket.remoteAddress) || '127.0.0.1';
+  const securityCheck = await validateContactSubmission({
+    email: formData.email,
+    name: formData.name,
+    message: formData.message,
+    website: req.body.website,
+    clientIp
+  });
+  if (!securityCheck.valid) {
+    return res.status(422).render('public/contact', contactView({
+      contactError: securityCheck.reason,
+      formData
+    }));
+  }
+
   if (!env.supportEmail) {
     return res.status(503).render('public/contact', contactView({
       contactError: 'Contact delivery is not configured yet. Set SUPPORT_EMAIL and try again.',
