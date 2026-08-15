@@ -1,0 +1,88 @@
+<%- include('../partials/header') %>
+
+<main class="programmatic-page">
+  <!-- Hero Section -->
+  <section class="programmatic-hero">
+    <div class="programmatic-hero-inner">
+      <span class="status status-connected" style="margin-bottom: 16px;"><%= page.heroBadge %></span>
+      <h1><%= page.heroHeadline %></h1>
+      <p class="programmatic-subheadline"><%= page.heroSubheadline %></p>
+      <div class="programmatic-hero-actions">
+        <a class="button button-primary" href="/signup"><%= page.ctaText %></a>
+        <a class="button" href="/pricing">View Pricing Plans</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Core Summary Panel -->
+  <section class="panel programmatic-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Industry Overview</h2>
+        <p><%= page.coreSummary %></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Key Benefits Grid -->
+  <section class="programmatic-section">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">Targeted Solutions</p>
+        <h2>Engineered Specifically for Your Business Model</h2>
+      </div>
+    </div>
+    <div class="feature-grid">
+      <% page.benefits.forEach((benefit) => { %>
+        <article class="panel">
+          <h3><%= benefit.title %></h3>
+          <p><%= benefit.description %></p>
+        </article>
+      <% }) %>
+    </div>
+  </section>
+
+  <!-- Frequently Asked Questions -->
+  <section class="panel programmatic-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Frequently Asked Questions</h2>
+        <p>Common questions about implementing Moyi AI CMO for your industry.</p>
+      </div>
+    </div>
+    <div class="faq-accordion" style="display: grid; gap: 16px; margin-top: 20px;">
+      <% page.faqList.forEach((faq) => { %>
+        <div style="padding: 16px 20px; border-radius: 10px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);">
+          <strong style="display: block; font-size: 15px; color: #ffffff; margin-bottom: 8px;"><%= faq.question %></strong>
+          <p style="margin: 0; font-size: 14px; color: var(--muted); line-height: 1.6;"><%= faq.answer %></p>
+        </div>
+      <% }) %>
+    </div>
+  </section>
+
+  <!-- Conversion CTA Banner -->
+  <section class="programmatic-cta panel" style="text-align: center; padding: 48px 24px; background: linear-gradient(140deg, rgba(79, 70, 229, 0.15), rgba(17, 19, 24, 0.95)); border: 1px solid rgba(99, 102, 241, 0.35);">
+    <h2 style="font-size: 28px; font-weight: 800; margin-bottom: 12px;"><%= page.ctaHeadline %></h2>
+    <p style="font-size: 16px; color: var(--muted); max-width: 600px; margin: 0 auto 24px;"><%= page.ctaSubheadline %></p>
+    <a class="button button-primary" style="padding: 14px 32px; font-size: 16px;" href="/signup"><%= page.ctaText %></a>
+  </section>
+</main>
+
+<!-- JSON-LD Structured Data Schema for Google Rich Snippets -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "<%= page.title %>",
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "Web",
+  "description": "<%= page.metaDescription %>",
+  "offers": {
+    "@type": "Offer",
+    "priceCurrency": "EUR",
+    "price": "49.00"
+  }
+}
+</script>
+
+<%- include('../partials/footer') %>

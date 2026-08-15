@@ -202,6 +202,8 @@ async function buildWorkspaceSetupSummary(projects) {
   };
 }
 
+const { COMPARISON_PAGES, SOLUTION_PAGES } = require('../config/programmaticPages');
+
 router.get('/sitemap.xml', (req, res) => {
   const urls = [
     sitemapUrl('/', '1.0', 'weekly'),
@@ -217,6 +219,8 @@ router.get('/sitemap.xml', (req, res) => {
       ].includes(slug);
       return sitemapUrl(`/${slug}`, highIntent ? '0.9' : '0.8', 'monthly');
     }),
+    ...Object.keys(COMPARISON_PAGES).map((slug) => sitemapUrl(`/compare/${slug}`, '0.85', 'weekly')),
+    ...Object.keys(SOLUTION_PAGES).map((slug) => sitemapUrl(`/solutions/${slug}`, '0.85', 'weekly')),
     sitemapUrl('/status', '0.7', 'daily'),
     sitemapUrl('/contact', '0.6', 'monthly'),
     sitemapUrl('/privacy', '0.5', 'yearly'),
@@ -398,6 +402,28 @@ Object.entries(publicPages).forEach(([slug, page]) => {
       additionalSchemas: publicPageSchema(slug, page),
       page
     });
+  });
+});
+
+// Programmatic SEO: Competitor Comparison Pages
+router.get('/compare/:slug', (req, res, next) => {
+  const page = COMPARISON_PAGES[req.params.slug];
+  if (!page) return next();
+  return res.render('public/compare', {
+    title: page.title,
+    seoDescription: page.metaDescription,
+    page
+  });
+});
+
+// Programmatic SEO: Industry & Solution Pages
+router.get('/solutions/:slug', (req, res, next) => {
+  const page = SOLUTION_PAGES[req.params.slug];
+  if (!page) return next();
+  return res.render('public/solution', {
+    title: page.title,
+    seoDescription: page.metaDescription,
+    page
   });
 });
 
