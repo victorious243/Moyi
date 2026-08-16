@@ -2,6 +2,18 @@
   let chatHistory = [];
   let isSending = false;
 
+  function getCsrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta && meta.getAttribute('content')) {
+      return meta.getAttribute('content');
+    }
+    if (document.body && document.body.dataset && document.body.dataset.csrfToken) {
+      return document.body.dataset.csrfToken;
+    }
+    const match = document.cookie.match(/csrf_token=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
+  }
+
   function parseMarkdown(text) {
     if (!text) return '';
     let html = String(text)
@@ -84,11 +96,10 @@
   }
 
   async function sendMessage(text) {
-    const widget = document.getElementById('cmo-chat-widget');
-    if (!widget || !text || isSending) return;
+    if (!text || !text.trim() || isSending) return;
 
-    const projectId = widget.getAttribute('data-project-id');
-    if (!projectId) return;
+    const widget = document.getElementById('cmo-chat-widget');
+    const projectId = widget ? widget.getAttribute('data-project-id') : '';
 
     const input = document.getElementById('cmo-chat-input');
     if (input) input.value = '';
@@ -97,27 +108,38 @@
     isSending = true;
     showTypingIndicator();
 
+    const csrfToken = getCsrfToken();
+    const endpoint = projectId ? `/projects/${projectId}/cmo-chat` : '/api/cmo-chat';
+
     try {
-      const res = await fetch(`/projects/${projectId}/cmo-chat`, {
+      const headers = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      };
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+      }
+
+      const res = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json'
-        },
+        headers,
         body: JSON.stringify({
           message: text,
-          history: chatHistory.slice(-6)
+          projectId: projectId || undefined,
+          history: chatHistory.slice(-6),
+          _csrf: csrfToken
         })
       });
 
       removeTypingIndicator();
 
       if (!res.ok) {
-        throw new Error(`Server returned ${res.status}`);
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server responded with status ${res.status}`);
       }
 
       const data = await res.json();
-      appendMessage('assistant', data.reply || 'Analysis complete. Ready for next question.');
+      appendMessage('assistant', data.reply || 'Strategy analysis complete.');
     } catch (err) {
       removeTypingIndicator();
       appendMessage('assistant', `⚠️ Sorry, I encountered a temporary connection issue: ${err.message}. Please try again.`);
@@ -126,80 +148,84 @@
     }
   }
 
-  function initCmoChat() {
-    const widget = document.getElementById('cmo-chat-widget');
-    if (!widget) return;
-
-    const triggerBtn = document.getElementById('cmo-chat-trigger-btn');
-    const drawer = document.getElementById('cmo-chat-drawer');
-    const closeBtn = document.getElementById('cmo-chat-close-btn');
-    const form = document.getElementById('cmo-chat-form');
-    const input = document.getElementById('cmo-chat-input');
-
-    if (triggerBtn && drawer) {
-      triggerBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const isOpen = drawer.classList.contains('is-open');
-        if (isOpen) {
-          drawer.classList.remove('is-open');
-          drawer.setAttribute('aria-hidden', 'true');
-          triggerBtn.setAttribute('aria-expanded', 'false');
-        } else {
-          drawer.classList.add('is-open');
-          drawer.setAttribute('aria-hidden', 'false');
-          triggerBtn.setAttribute('aria-expanded', 'true');
-          if (input) setTimeout(() => input.focus(), 150);
-        }
-      });
-    }
-
-    if (closeBtn && drawer && triggerBtn) {
-      closeBtn.addEventListener('click', () => {
+  // Document-level event delegation
+  document.addEventListener('click', (e) => {
+    // Trigger button click
+    const trigger = e.target.closest('#cmo-chat-trigger-btn, .cmo-chat-trigger-btn');
+    if (trigger) {
+      e.preventDefault();
+      e.stopPropagation();
+      const drawer = document.getElementById('cmo-chat-drawer');
+      if (!drawer) return;
+      const isOpen = drawer.classList.contains('is-open');
+      if (isOpen) {
         drawer.classList.remove('is-open');
         drawer.setAttribute('aria-hidden', 'true');
-        triggerBtn.setAttribute('aria-expanded', 'false');
-      });
+        trigger.setAttribute('aria-expanded', 'false');
+      } else {
+        drawer.classList.add('is-open');
+        drawer.setAttribute('aria-hidden', 'false');
+        trigger.setAttribute('aria-expanded', 'true');
+        const input = document.getElementById('cmo-chat-input');
+        if (input) setTimeout(() => input.focus(), 150);
+      }
+      return;
     }
 
-    if (form && input) {
-      form.addEventListener('submit', (e) => {
-        e.preventDefault();
+    // Close button click
+    const closeBtn = e.target.closest('#cmo-chat-close-btn, .cmo-chat-close-btn');
+    if (closeBtn) {
+      e.preventDefault();
+      const drawer = document.getElementById('cmo-chat-drawer');
+      const triggerBtn = document.getElementById('cmo-chat-trigger-btn');
+      if (drawer) {
+        drawer.classList.remove('is-open');
+        drawer.setAttribute('aria-hidden', 'true');
+      }
+      if (triggerBtn) triggerBtn.setAttribute('aria-expanded', 'false');
+      return;
+    }
+
+    // Quick prompt chip click
+    const chip = e.target.closest('.cmo-prompt-chip');
+    if (chip) {
+      e.preventDefault();
+      const prompt = chip.getAttribute('data-prompt');
+      if (prompt) sendMessage(prompt);
+      return;
+    }
+  });
+
+  document.addEventListener('submit', (e) => {
+    const form = e.target.closest('#cmo-chat-form, .cmo-chat-form');
+    if (form) {
+      e.preventDefault();
+      const input = form.querySelector('#cmo-chat-input, textarea');
+      if (input) {
         const val = input.value.trim();
         if (val) sendMessage(val);
-      });
+      }
+    }
+  });
 
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          const val = input.value.trim();
-          if (val) sendMessage(val);
-        }
-      });
+  document.addEventListener('keydown', (e) => {
+    // Enter without Shift submits chat
+    if (e.key === 'Enter' && !e.shiftKey && e.target && e.target.id === 'cmo-chat-input') {
+      e.preventDefault();
+      const val = e.target.value.trim();
+      if (val) sendMessage(val);
+      return;
     }
 
-    // Suggested prompt chips
-    document.addEventListener('click', (e) => {
-      const chip = e.target.closest('.cmo-prompt-chip');
-      if (chip) {
-        const prompt = chip.getAttribute('data-prompt');
-        if (prompt) sendMessage(prompt);
-      }
-    });
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && drawer && drawer.classList.contains('is-open')) {
+    // Escape closes drawer
+    if (e.key === 'Escape') {
+      const drawer = document.getElementById('cmo-chat-drawer');
+      if (drawer && drawer.classList.contains('is-open')) {
         drawer.classList.remove('is-open');
         drawer.setAttribute('aria-hidden', 'true');
-        if (triggerBtn) triggerBtn.setAttribute('aria-expanded', 'false');
+        const trigger = document.getElementById('cmo-chat-trigger-btn');
+        if (trigger) trigger.setAttribute('aria-expanded', 'false');
       }
-    });
-  }
-
-  document.addEventListener('DOMContentLoaded', initCmoChat);
-  document.addEventListener('moyi:page-load', initCmoChat);
-  document.addEventListener('moyi:after-page-swap', initCmoChat);
-
-  if (document.readyState !== 'loading') {
-    initCmoChat();
-  }
+    }
+  });
 })();

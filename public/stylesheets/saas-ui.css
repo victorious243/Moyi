@@ -1661,20 +1661,40 @@ table code,
   transform: scale(1.05);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 980px) {
+  .topbar .notification-center-wrap {
+    margin-left: auto;
+    margin-right: 10px;
+  }
+  
+  .notification-dropdown {
+    position: fixed !important;
+    top: 68px !important;
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: calc(85vh - 68px) !important;
+    z-index: 99999 !important;
+  }
+
   .cmo-chat-trigger-btn {
-    bottom: 24px;
+    bottom: 20px;
     right: 84px;
     padding: 8px 14px;
     font-size: 12px;
   }
+
   .cmo-chat-drawer {
-    bottom: 80px;
-    right: 12px;
-    left: 12px;
-    width: auto;
-    max-width: none;
-    height: 70vh;
+    position: fixed !important;
+    bottom: 76px !important;
+    right: 12px !important;
+    left: 12px !important;
+    width: auto !important;
+    max-width: none !important;
+    height: calc(85vh - 84px) !important;
+    max-height: none !important;
+    z-index: 99999 !important;
   }
 }
 

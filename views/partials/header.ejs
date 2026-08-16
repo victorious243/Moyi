@@ -43,10 +43,11 @@
       <script type="application/ld+json"><%- JSON.stringify(schema) %></script>
     <% }) %>
   <% } %>
-  <link rel="stylesheet" href="/stylesheets/style.css?v=20260816f">
-  <link rel="stylesheet" href="/stylesheets/saas-ui.css?v=20260816f">
+  <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+  <link rel="stylesheet" href="/stylesheets/style.css?v=20260816g">
+  <link rel="stylesheet" href="/stylesheets/saas-ui.css?v=20260816g">
   <script id="Cookiebot" src="https://consent.cookiebot.com/uc.js" data-cbid="7031f7cc-b0f4-4087-bc4b-de5aaaec95f7"  type="text/javascript"></script>
 </head>
-<body>
+<body data-csrf-token="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
   <%- include('navbar') %>
   <main class="shell">

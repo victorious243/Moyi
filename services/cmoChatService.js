@@ -137,8 +137,52 @@ Feel free to ask me to draft social hooks, analyze competitor gaps, or prioritiz
 }
 
 async function askCmoAssistant({ projectId, message, history = [] }) {
-  const context = await assembleProjectTelemetryContext(projectId);
+  let context = null;
+  if (projectId) {
+    try {
+      context = await assembleProjectTelemetryContext(projectId);
+    } catch (e) {
+      context = null;
+    }
+  }
+
   const client = getClient();
+
+  if (!context) {
+    const generalReply = `### 🧭 Strategic Growth Guidance from Moyi AI CMO
+
+I am your fractional Chief Marketing Officer. I can help analyze positioning, design distribution loops, optimize landing page conversion, and architect SEO growth roadmaps.
+
+**Top High-Leverage Priorities:**
+1. **Target High-Intent Search:** Focus on bottom-of-funnel comparison and solution queries.
+2. **Clarity Over Cleverness:** Ensure your main headline and value proposition clearly articulate your offer and audience.
+3. **Multi-Channel Distribution:** Repurpose core wins across social channels and newsletters.
+
+Open any project workspace to unlock real-time Search Console data, competitor gap analysis, and automated site audit findings!`;
+
+    if (!client) {
+      return { reply: generalReply, timestamp: new Date() };
+    }
+
+    try {
+      const completion = await client.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: 'You are Moyi, an elite world-class enterprise Chief Marketing Officer (CMO). Deliver clear, actionable, high-leverage marketing guidance.' },
+          ...history.slice(-6).map((h) => ({ role: h.role, content: h.content })),
+          { role: 'user', content: message }
+        ],
+        temperature: 0.6,
+        max_tokens: 800
+      });
+      return {
+        reply: completion.choices?.[0]?.message?.content || generalReply,
+        timestamp: new Date()
+      };
+    } catch (err) {
+      return { reply: generalReply, timestamp: new Date() };
+    }
+  }
 
   if (!client) {
     return {

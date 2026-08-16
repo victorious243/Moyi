@@ -1,6 +1,18 @@
 (() => {
   let isFetching = false;
 
+  function getCsrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta && meta.getAttribute('content')) {
+      return meta.getAttribute('content');
+    }
+    if (document.body && document.body.dataset && document.body.dataset.csrfToken) {
+      return document.body.dataset.csrfToken;
+    }
+    const match = document.cookie.match(/csrf_token=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
+  }
+
   function timeAgo(dateString) {
     const date = new Date(dateString);
     const seconds = Math.floor((new Date() - date) / 1000);
@@ -30,17 +42,17 @@
       if (!res.ok) return;
       const data = await res.json();
 
-      const badge = document.getElementById('notification-badge');
+      const badges = document.querySelectorAll('.notification-badge, #notification-badge');
       const list = document.getElementById('notification-list');
 
-      if (badge) {
+      badges.forEach((badge) => {
         if (data.unreadCount > 0) {
           badge.textContent = data.unreadCount > 99 ? '99+' : data.unreadCount;
           badge.style.display = 'flex';
         } else {
           badge.style.display = 'none';
         }
-      }
+      });
 
       if (list) {
         if (!data.notifications || !data.notifications.length) {
@@ -80,82 +92,101 @@
     }
   }
 
-  function initNotificationCenter() {
-    const wrap = document.getElementById('notification-center-wrap');
-    if (!wrap) return;
-
-    const bellBtn = document.getElementById('notification-bell-btn');
-    const dropdown = document.getElementById('notification-dropdown');
-    const markAllBtn = document.getElementById('mark-all-read-btn');
-
-    if (bellBtn && dropdown) {
-      bellBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const isOpen = dropdown.classList.contains('is-open');
-        if (isOpen) {
-          dropdown.classList.remove('is-open');
-          dropdown.setAttribute('aria-hidden', 'true');
-          bellBtn.setAttribute('aria-expanded', 'false');
-        } else {
-          dropdown.classList.add('is-open');
-          dropdown.setAttribute('aria-hidden', 'false');
-          bellBtn.setAttribute('aria-expanded', 'true');
-          fetchNotifications();
-        }
-      });
+  // Document-level event delegation for instant click response
+  document.addEventListener('click', async (e) => {
+    // Bell button toggle
+    const bellBtn = e.target.closest('#notification-bell-btn, .notification-bell-btn');
+    if (bellBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const dropdown = document.getElementById('notification-dropdown');
+      if (!dropdown) return;
+      const isOpen = dropdown.classList.contains('is-open');
+      if (isOpen) {
+        dropdown.classList.remove('is-open');
+        dropdown.setAttribute('aria-hidden', 'true');
+        bellBtn.setAttribute('aria-expanded', 'false');
+      } else {
+        dropdown.classList.add('is-open');
+        dropdown.setAttribute('aria-hidden', 'false');
+        bellBtn.setAttribute('aria-expanded', 'true');
+        fetchNotifications();
+      }
+      return;
     }
 
+    // Mark all read button
+    const markAllBtn = e.target.closest('#mark-all-read-btn, .mark-all-read-btn');
     if (markAllBtn) {
-      markAllBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
+      e.preventDefault();
+      e.stopPropagation();
+      const csrfToken = getCsrfToken();
+      try {
+        await fetch('/api/notifications/read-all', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken
+          },
+          body: JSON.stringify({ _csrf: csrfToken })
+        });
+        fetchNotifications();
+      } catch (err) {}
+      return;
+    }
+
+    // Mark single notification as read
+    const markReadBtn = e.target.closest('.notif-mark-read-btn');
+    if (markReadBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const id = markReadBtn.getAttribute('data-read-id');
+      if (id) {
+        const csrfToken = getCsrfToken();
         try {
-          await fetch('/api/notifications/read-all', { method: 'POST' });
+          await fetch(`/api/notifications/${id}/read`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-Token': csrfToken
+            },
+            body: JSON.stringify({ _csrf: csrfToken })
+          });
           fetchNotifications();
         } catch (err) {}
-      });
+      }
+      return;
     }
 
-    // Delegated click for individual mark as read
-    document.addEventListener('click', async (e) => {
-      const markReadBtn = e.target.closest('.notif-mark-read-btn');
-      if (markReadBtn) {
-        e.preventDefault();
-        e.stopPropagation();
-        const id = markReadBtn.getAttribute('data-read-id');
-        if (id) {
-          try {
-            await fetch(`/api/notifications/${id}/read`, { method: 'POST' });
-            fetchNotifications();
-          } catch (err) {}
-        }
-        return;
-      }
-
-      // Close dropdown when clicking outside
-      if (dropdown && dropdown.classList.contains('is-open') && !dropdown.contains(e.target) && !bellBtn.contains(e.target)) {
+    // Click outside dropdown closes it
+    const dropdown = document.getElementById('notification-dropdown');
+    if (dropdown && dropdown.classList.contains('is-open')) {
+      if (!dropdown.contains(e.target)) {
         dropdown.classList.remove('is-open');
         dropdown.setAttribute('aria-hidden', 'true');
-        if (bellBtn) bellBtn.setAttribute('aria-expanded', 'false');
+        const bell = document.getElementById('notification-bell-btn');
+        if (bell) bell.setAttribute('aria-expanded', 'false');
       }
-    });
+    }
+  });
 
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && dropdown && dropdown.classList.contains('is-open')) {
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const dropdown = document.getElementById('notification-dropdown');
+      if (dropdown && dropdown.classList.contains('is-open')) {
         dropdown.classList.remove('is-open');
         dropdown.setAttribute('aria-hidden', 'true');
-        if (bellBtn) bellBtn.setAttribute('aria-expanded', 'false');
+        const bell = document.getElementById('notification-bell-btn');
+        if (bell) bell.setAttribute('aria-expanded', 'false');
       }
-    });
+    }
+  });
 
-    // Initial fetch
-    fetchNotifications();
-  }
-
-  document.addEventListener('DOMContentLoaded', initNotificationCenter);
-  document.addEventListener('moyi:page-load', initNotificationCenter);
-  document.addEventListener('moyi:after-page-swap', initNotificationCenter);
+  document.addEventListener('DOMContentLoaded', fetchNotifications);
+  document.addEventListener('moyi:page-load', fetchNotifications);
+  document.addEventListener('moyi:after-page-swap', fetchNotifications);
 
   if (document.readyState !== 'loading') {
-    initNotificationCenter();
+    fetchNotifications();
   }
 })();

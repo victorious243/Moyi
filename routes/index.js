@@ -746,6 +746,31 @@ router.post('/api/notifications/read-all', requireAuth, asyncHandler(async (req,
   res.json({ success: true });
 }));
 
+router.post('/api/cmo-chat', requireAuth, asyncHandler(async (req, res) => {
+  const { askCmoAssistant } = require('../services/cmoChatService');
+  const { message, history, projectId } = req.body;
+
+  if (!message || typeof message !== 'string' || !message.trim()) {
+    return res.status(400).json({ error: 'Message cannot be empty.' });
+  }
+
+  let targetProjectId = projectId;
+  if (!targetProjectId) {
+    const accessibleProjects = await findAccessibleProjects(req.user._id, { limit: 1 });
+    if (accessibleProjects && accessibleProjects.length > 0) {
+      targetProjectId = accessibleProjects[0]._id;
+    }
+  }
+
+  const response = await askCmoAssistant({
+    projectId: targetProjectId,
+    message: message.trim(),
+    history: Array.isArray(history) ? history : []
+  });
+
+  res.json(response);
+}));
+
 router.get('/account/export', requireAuth, asyncHandler(async (req, res) => {
   const payload = await exportAccountData(req.user._id);
   await recordAuditEvent({ user: req.user, eventType: 'account_data_exported', req });
