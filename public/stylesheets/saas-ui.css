@@ -751,7 +751,9 @@ table code,
   }
 
   /* Mobile Slide-Out Workspace Drawer */
-  .app-sidebar {
+  .app-sidebar,
+  .dashboard-sidebar,
+  .project-sidebar {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
@@ -762,7 +764,7 @@ table code,
     height: 100dvh !important;
     z-index: 1050 !important;
     transform: translateX(-105%) !important;
-    transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+    transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1), visibility 280ms !important;
     display: flex !important;
     flex-direction: column !important;
     gap: 4px !important;
@@ -777,28 +779,48 @@ table code,
     backdrop-filter: blur(28px) !important;
     box-shadow: 12px 0 50px rgba(0, 0, 0, 0.65) !important;
     scrollbar-width: thin;
+    visibility: hidden !important;
+    pointer-events: none !important;
   }
 
-  .app-sidebar.drawer-open {
+  .app-sidebar.drawer-open,
+  .dashboard-sidebar.drawer-open,
+  .project-sidebar.drawer-open {
     transform: translateX(0) !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
   }
 
   /* Full labels & sections inside the drawer */
   .app-sidebar strong,
+  .dashboard-sidebar strong,
+  .project-sidebar strong,
   .app-sidebar .sidebar-project-title,
+  .dashboard-sidebar .sidebar-project-title,
+  .project-sidebar .sidebar-project-title,
   .app-sidebar .sidebar-section-heading,
+  .dashboard-sidebar .sidebar-section-heading,
+  .project-sidebar .sidebar-section-heading,
   .app-sidebar .sidebar-divider,
-  .app-sidebar .sidebar-back-link {
+  .dashboard-sidebar .sidebar-divider,
+  .project-sidebar .sidebar-divider,
+  .app-sidebar .sidebar-back-link,
+  .dashboard-sidebar .sidebar-back-link,
+  .project-sidebar .sidebar-back-link {
     display: block !important;
   }
 
-  .app-sidebar .sidebar-project-title {
+  .app-sidebar .sidebar-project-title,
+  .dashboard-sidebar .sidebar-project-title,
+  .project-sidebar .sidebar-project-title {
     padding-right: 36px;
     font-size: 14px;
     color: var(--saas-text);
   }
 
-  .app-sidebar a {
+  .app-sidebar a,
+  .dashboard-sidebar a,
+  .project-sidebar a {
     display: flex !important;
     width: 100% !important;
     min-height: 40px !important;
@@ -810,12 +832,16 @@ table code,
     white-space: normal !important;
   }
 
-  .app-sidebar a.active {
+  .app-sidebar a.active,
+  .dashboard-sidebar a.active,
+  .project-sidebar a.active {
     background: linear-gradient(90deg, rgba(85, 230, 207, 0.15), rgba(138, 124, 255, 0.1)) !important;
     border-color: rgba(85, 230, 207, 0.35) !important;
   }
 
-  .app-sidebar a.active::before {
+  .app-sidebar a.active::before,
+  .dashboard-sidebar a.active::before,
+  .project-sidebar a.active::before {
     display: block !important;
   }
 

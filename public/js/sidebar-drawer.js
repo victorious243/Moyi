@@ -1,9 +1,9 @@
 (() => {
   function initSidebarDrawer() {
-    const sidebar = document.querySelector('.app-sidebar');
+    const sidebar = document.querySelector('.app-sidebar, .dashboard-sidebar, .project-sidebar');
     if (!sidebar) return;
 
-    // Create or locate cool floating action button (FAB)
+    // Create or locate floating action button (FAB)
     let toggleBtn = document.querySelector('.mobile-workspace-fab, .mobile-sidebar-toggle-button');
     if (!toggleBtn) {
       toggleBtn = document.createElement('button');
