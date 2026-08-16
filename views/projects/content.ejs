@@ -9,16 +9,7 @@
 %>
 
 <div class="app-layout">
-  <aside class="app-sidebar">
-    <strong><%= project.name %></strong>
-    <a href="/projects/<%= project._id %>">CMO Overview</a>
-    <a class="active" href="/projects/<%= project._id %>/content">Content Studio</a>
-    <a href="/projects/<%= project._id %>/calendar">Content Calendar</a>
-    <a href="/projects/<%= project._id %>/campaigns">Campaigns</a>
-    <span class="sidebar-divider"></span>
-    <a href="/projects/<%= project._id %>/recommendations">Growth Opportunities</a>
-    <a href="/projects/<%= project._id %>/ai-report/latest">AI CMO Plan</a>
-  </aside>
+  <%- include('../partials/project-sidebar', { project, activeSection: 'content' }) %>
 
   <section
     class="app-main"

@@ -6,14 +6,7 @@
 <% const opportunityCount = opportunities ? opportunities.total : 0; %>
 
 <div class="app-layout">
-  <aside class="app-sidebar">
-    <strong>Workspace</strong>
-    <a href="/dashboard">Dashboard</a>
-    <a href="/projects">Projects</a>
-    <a href="/projects/<%= project._id %>">Project Overview</a>
-    <a href="/projects/<%= project._id %>/search-console/connect">Search Console</a>
-    <a href="/projects/<%= project._id %>/search-console/performance">Performance</a>
-  </aside>
+  <%- include('../../partials/project-sidebar', { project, activeSection: 'search-console' }) %>
 
   <section
     class="app-main"

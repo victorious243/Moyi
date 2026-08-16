@@ -1,12 +1,7 @@
 <%- include('../partials/header') %>
 
 <div class="app-layout">
-  <aside class="app-sidebar">
-    <strong><%= project.name %></strong>
-    <a href="/projects/<%= project._id %>">Overview</a>
-    <a href="/projects/<%= project._id %>/team">Team</a>
-    <% if (canManageProject) { %><a href="/projects/<%= project._id %>/edit">Settings</a><% } %>
-  </aside>
+  <%- include('../partials/project-sidebar', { project, activeSection: 'team' }) %>
 
   <section class="app-main">
     <div class="page-heading">

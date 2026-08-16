@@ -11,15 +11,7 @@
 %>
 
 <div class="app-layout">
-  <aside class="app-sidebar">
-    <strong><%= project.name %></strong>
-    <a href="/projects/<%= project._id %>">CMO Overview</a>
-    <a href="/projects/<%= project._id %>/content">Content Studio</a>
-    <a href="/projects/<%= project._id %>/calendar">Content Calendar</a>
-    <a href="/projects/<%= project._id %>/campaigns">Campaigns</a>
-    <a class="active" href="/projects/<%= project._id %>/social-performance">Social Performance</a>
-    <a href="/projects/<%= project._id %>/integrations/social">Social Accounts</a>
-  </aside>
+  <%- include('../partials/project-sidebar', { project, activeSection: 'social-performance' }) %>
 
   <section class="app-main">
     <div class="page-heading">

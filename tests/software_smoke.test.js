@@ -145,6 +145,23 @@ test('footer product links use standalone routes for authenticated users', async
   assert.doesNotMatch(html, /href="\/#how-it-works"/);
 });
 
+test('project sidebar renders clean categorized sections and active highlight', async () => {
+  const html = await ejs.renderFile(
+    path.join(__dirname, '../views/partials/project-sidebar.ejs'),
+    {
+      project: { _id: '507f1f77bcf86cd799439011', name: 'Acme SaaS' },
+      activeSection: 'strategy'
+    }
+  );
+
+  assert.match(html, /Acme SaaS/);
+  assert.match(html, /Strategy & Growth/);
+  assert.match(html, /Content Studio/);
+  assert.match(html, /Performance & Signals/);
+  assert.match(html, /Settings/);
+  assert.match(html, /class="active" href="\/projects\/507f1f77bcf86cd799439011\/ai-report\/latest"/);
+});
+
 test('shared header renders SEO, social, canonical, and schema metadata', async () => {
   const html = await ejs.renderFile(
     path.join(__dirname, '../views/partials/header.ejs'),

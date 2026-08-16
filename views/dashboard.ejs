@@ -44,16 +44,27 @@
   <aside class="app-sidebar dashboard-sidebar">
     <strong>Workspace</strong>
     <a class="active" href="/dashboard">Dashboard</a>
-    <a href="/projects">Projects</a>
-    <a href="/projects/new">Add Project</a>
+    <a href="/projects">All Projects</a>
+    <a href="/projects/new">+ Add Project</a>
+
     <span class="sidebar-divider"></span>
-    <a href="<%= latestProject ? `${latestProjectBase}/integrations/social` : '/projects/new' %>">Social Accounts</a>
-    <a href="<%= latestProject ? `${latestProjectBase}/content` : '/projects/new' %>">Approval Queue</a>
-    <a href="<%= latestProject ? `${latestProjectBase}/calendar` : '/projects/new' %>">Content Calendar</a>
-    <a href="<%= latestProject ? `${latestProjectBase}/social-performance` : '/projects/new' %>">Performance</a>
-    <a href="<%= latestProject ? `${latestProjectBase}/tracking/setup` : '/projects/new' %>">Tracking Setup</a>
+
+    <% if (latestProject) { %>
+      <span class="sidebar-section-heading"><%= latestProject.name %></span>
+      <a href="<%= latestProjectBase %>">Overview</a>
+      <a href="<%= latestProjectBase %>/content">Content Studio</a>
+      <a href="<%= latestProjectBase %>/calendar">Content Calendar</a>
+      <a href="<%= latestProjectBase %>/integrations/social">Social Accounts</a>
+      <a href="<%= latestProjectBase %>/social-performance">Performance</a>
+    <% } else { %>
+      <span class="sidebar-section-heading">Projects</span>
+      <a href="/projects/new">Create First Project</a>
+    <% } %>
+
     <span class="sidebar-divider"></span>
-    <a href="/integrations">Search Console</a>
+
+    <span class="sidebar-section-heading">Management</span>
+    <a href="/organizations">Agency</a>
     <a href="/billing">Billing</a>
     <a href="/account">Account</a>
   </aside>

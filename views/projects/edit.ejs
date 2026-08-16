@@ -1,12 +1,7 @@
 <%- include('../partials/header') %>
 
 <div class="app-layout">
-  <aside class="app-sidebar">
-    <strong>Workspace</strong>
-    <a href="/dashboard">Dashboard</a>
-    <a href="/projects">Projects</a>
-    <a href="/projects/new">Add Project</a>
-  </aside>
+  <%- include('../partials/project-sidebar', { project, activeSection: 'settings' }) %>
 
   <section class="app-main">
     <section class="wide-form">
