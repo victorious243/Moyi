@@ -1236,6 +1236,35 @@ table code,
   padding: 6px 0;
 }
 
+.mobile-notif-accordion {
+  border-bottom: 1px solid var(--saas-line);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+}
+
+.mobile-notif-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(85, 230, 207, 0.06);
+  border: 1px solid rgba(85, 230, 207, 0.2);
+  color: var(--saas-cyan);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.mobile-notif-summary::-webkit-details-marker {
+  display: none;
+}
+
+.mobile-notification-list {
+  max-height: 280px;
+}
+
 .notification-empty {
   padding: 32px 16px;
   text-align: center;
@@ -1355,52 +1384,54 @@ table code,
    ========================================================================== */
 .cmo-chat-widget-container {
   position: relative;
-  z-index: 1065;
+  z-index: 99999;
 }
 
 .cmo-chat-trigger-btn {
-  position: fixed;
-  bottom: 24px;
-  right: 88px;
-  display: inline-flex;
+  position: fixed !important;
+  bottom: 24px !important;
+  right: 24px !important;
+  display: inline-flex !important;
   align-items: center;
   gap: 8px;
-  padding: 10px 18px;
+  padding: 11px 20px;
   border-radius: 999px;
-  border: 1.5px solid rgba(85, 230, 207, 0.5);
-  background: radial-gradient(circle at 30% 30%, rgba(35, 45, 50, 0.96), rgba(12, 15, 17, 0.98));
+  border: 1.5px solid rgba(85, 230, 207, 0.55);
+  background: radial-gradient(circle at 30% 30%, rgba(35, 45, 50, 0.98), rgba(12, 15, 17, 0.99));
   color: var(--saas-cyan);
   font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.02em;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(85, 230, 207, 0.35);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7), 0 0 24px rgba(85, 230, 207, 0.45);
   backdrop-filter: blur(16px);
   cursor: pointer;
   transition: transform 220ms ease, box-shadow 220ms ease;
-  z-index: 980;
+  z-index: 99999 !important;
+  pointer-events: auto !important;
 }
 
 .cmo-chat-trigger-btn:hover {
   transform: translateY(-2px) scale(1.03);
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.7), 0 0 28px rgba(85, 230, 207, 0.55);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.8), 0 0 32px rgba(85, 230, 207, 0.65);
 }
 
 .cmo-chat-drawer {
-  position: fixed;
-  bottom: 84px;
-  right: 24px;
-  width: 420px;
-  max-width: calc(100vw - 32px);
-  height: 580px;
-  max-height: calc(100vh - 120px);
+  position: fixed !important;
+  bottom: 84px !important;
+  right: 24px !important;
+  width: 420px !important;
+  max-width: calc(100vw - 32px) !important;
+  height: 580px !important;
+  max-height: calc(100vh - 120px) !important;
   background: rgba(13, 16, 18, 0.98);
   border: 1px solid var(--saas-line);
   border-radius: 16px;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.8), 0 0 30px rgba(85, 230, 207, 0.2);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.85), 0 0 32px rgba(85, 230, 207, 0.25);
   display: none;
   flex-direction: column;
   backdrop-filter: blur(28px);
-  z-index: 1070;
+  z-index: 99999 !important;
+  pointer-events: auto !important;
   overflow: hidden;
   animation: notifFadeIn 220ms cubic-bezier(0.16, 1, 0.3, 1);
 }

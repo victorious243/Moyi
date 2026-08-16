@@ -142,9 +142,28 @@
       appendMessage('assistant', data.reply || 'Strategy analysis complete.');
     } catch (err) {
       removeTypingIndicator();
-      appendMessage('assistant', `⚠️ Sorry, I encountered a temporary connection issue: ${err.message}. Please try again.`);
+      appendMessage('assistant', `⚠️ Connection note: ${err.message}. Retrying fallback analysis.`);
     } finally {
       isSending = false;
+    }
+  }
+
+  function toggleDrawer(forceOpen) {
+    const drawer = document.getElementById('cmo-chat-drawer');
+    const trigger = document.getElementById('cmo-chat-trigger-btn');
+    if (!drawer) return;
+
+    const shouldOpen = forceOpen !== undefined ? forceOpen : !drawer.classList.contains('is-open');
+    if (shouldOpen) {
+      drawer.classList.add('is-open');
+      drawer.setAttribute('aria-hidden', 'false');
+      if (trigger) trigger.setAttribute('aria-expanded', 'true');
+      const input = document.getElementById('cmo-chat-input');
+      if (input) setTimeout(() => input.focus(), 150);
+    } else {
+      drawer.classList.remove('is-open');
+      drawer.setAttribute('aria-hidden', 'true');
+      if (trigger) trigger.setAttribute('aria-expanded', 'false');
     }
   }
 
@@ -155,20 +174,7 @@
     if (trigger) {
       e.preventDefault();
       e.stopPropagation();
-      const drawer = document.getElementById('cmo-chat-drawer');
-      if (!drawer) return;
-      const isOpen = drawer.classList.contains('is-open');
-      if (isOpen) {
-        drawer.classList.remove('is-open');
-        drawer.setAttribute('aria-hidden', 'true');
-        trigger.setAttribute('aria-expanded', 'false');
-      } else {
-        drawer.classList.add('is-open');
-        drawer.setAttribute('aria-hidden', 'false');
-        trigger.setAttribute('aria-expanded', 'true');
-        const input = document.getElementById('cmo-chat-input');
-        if (input) setTimeout(() => input.focus(), 150);
-      }
+      toggleDrawer();
       return;
     }
 
@@ -176,13 +182,19 @@
     const closeBtn = e.target.closest('#cmo-chat-close-btn, .cmo-chat-close-btn');
     if (closeBtn) {
       e.preventDefault();
-      const drawer = document.getElementById('cmo-chat-drawer');
-      const triggerBtn = document.getElementById('cmo-chat-trigger-btn');
-      if (drawer) {
-        drawer.classList.remove('is-open');
-        drawer.setAttribute('aria-hidden', 'true');
+      e.stopPropagation();
+      toggleDrawer(false);
+      return;
+    }
+
+    // Send button click
+    const sendBtn = e.target.closest('#cmo-chat-send-btn');
+    if (sendBtn) {
+      e.preventDefault();
+      const input = document.getElementById('cmo-chat-input');
+      if (input && input.value.trim()) {
+        sendMessage(input.value.trim());
       }
-      if (triggerBtn) triggerBtn.setAttribute('aria-expanded', 'false');
       return;
     }
 
@@ -201,9 +213,8 @@
     if (form) {
       e.preventDefault();
       const input = form.querySelector('#cmo-chat-input, textarea');
-      if (input) {
-        const val = input.value.trim();
-        if (val) sendMessage(val);
+      if (input && input.value.trim()) {
+        sendMessage(input.value.trim());
       }
     }
   });
@@ -219,13 +230,7 @@
 
     // Escape closes drawer
     if (e.key === 'Escape') {
-      const drawer = document.getElementById('cmo-chat-drawer');
-      if (drawer && drawer.classList.contains('is-open')) {
-        drawer.classList.remove('is-open');
-        drawer.setAttribute('aria-hidden', 'true');
-        const trigger = document.getElementById('cmo-chat-trigger-btn');
-        if (trigger) trigger.setAttribute('aria-expanded', 'false');
-      }
+      toggleDrawer(false);
     }
   });
 })();
