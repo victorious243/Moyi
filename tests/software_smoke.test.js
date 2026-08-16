@@ -13,6 +13,7 @@ test('application and production-critical services load', () => {
   const quickScanService = require('../services/publicQuickScanService');
   const contentImageService = require('../services/contentImageService');
   const emailVerificationService = require('../services/emailVerificationService');
+  const cmoBriefingService = require('../services/cmoBriefingService');
 
   assert.ok(app);
   assert.equal(typeof emailService.sendCustomerEmail, 'function');
@@ -26,6 +27,9 @@ test('application and production-critical services load', () => {
   assert.equal(typeof contentImageService.deleteContentImagesForProject, 'function');
   assert.equal(typeof emailVerificationService.requestEmailVerification, 'function');
   assert.equal(typeof emailVerificationService.verifyEmailPin, 'function');
+  assert.equal(typeof cmoBriefingService.buildWeeklyBriefingData, 'function');
+  assert.equal(typeof cmoBriefingService.sendWeeklyBriefingEmail, 'function');
+  assert.equal(typeof cmoBriefingService.sendProactiveGrowthAlert, 'function');
 });
 
 test('login template shows invalid password feedback on the sign-in page', async () => {

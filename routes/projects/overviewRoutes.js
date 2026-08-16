@@ -194,7 +194,9 @@ function registerProjectDetailRoutes(router, context) {
     res.render('projects/edit', {
       title: `Edit ${req.project.name}`,
       logoError: req.query.logoError || '',
-      logoSuccess: req.query.logoSuccess || ''
+      logoSuccess: req.query.logoSuccess || '',
+      briefingSuccess: req.query.briefingSuccess || '',
+      briefingError: req.query.briefingError || ''
     });
   }));
 
@@ -302,6 +304,38 @@ function registerProjectDetailRoutes(router, context) {
     asyncHandler(async (req, res) => {
       await context.removeProjectLogo(req.project);
       res.redirect(`/projects/${req.project._id}/edit?logoSuccess=${encodeURIComponent('Brand logo removed.')}`);
+    })
+  );
+
+  router.get(
+    '/:id/briefing/preview',
+    [param('id').isMongoId(), context.handleValidation],
+    context.loadProject,
+    asyncHandler(async (req, res) => {
+      const { buildWeeklyBriefingData, renderWeeklyBriefingHtml } = require('../../services/cmoBriefingService');
+      const briefingData = await buildWeeklyBriefingData(req.project._id);
+      const html = renderWeeklyBriefingHtml(briefingData);
+      res.set('Content-Type', 'text/html; charset=utf-8');
+      res.send(html);
+    })
+  );
+
+  router.post(
+    '/:id/briefing/test',
+    [param('id').isMongoId(), context.handleValidation],
+    context.loadProject,
+    asyncHandler(async (req, res) => {
+      const { sendWeeklyBriefingEmail } = require('../../services/cmoBriefingService');
+      try {
+        await sendWeeklyBriefingEmail({
+          project: req.project,
+          recipientEmail: req.user.email,
+          force: true
+        });
+        res.redirect(`/projects/${req.project._id}/edit?briefingSuccess=${encodeURIComponent(`Test CMO Briefing sent to ${req.user.email}. Check your inbox!`)}`);
+      } catch (error) {
+        res.redirect(`/projects/${req.project._id}/edit?briefingError=${encodeURIComponent(`Failed to send test briefing: ${error.message}`)}`);
+      }
     })
   );
 

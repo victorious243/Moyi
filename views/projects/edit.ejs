@@ -14,6 +14,13 @@
         </div>
       <% } %>
       <% if (typeof logoSuccess !== 'undefined' && logoSuccess) { %><div class="image-success-message"><%= logoSuccess %></div><% } %>
+      <% if (typeof briefingSuccess !== 'undefined' && briefingSuccess) { %><div class="image-success-message"><%= briefingSuccess %></div><% } %>
+      <% if (typeof briefingError !== 'undefined' && briefingError) { %>
+        <div class="notice-panel">
+          <strong>Briefing Notice</strong>
+          <p><%= briefingError %></p>
+        </div>
+      <% } %>
       <form class="form grid-form" action="/projects/<%= project._id %><%= typeof csrfToken !== 'undefined' && csrfToken ? `?_csrf=${csrfToken}` : '' %>" method="post" enctype="multipart/form-data">
         <label>Project name <input name="name" value="<%= project.name %>" required></label>
         <label>Website URL <input name="websiteUrl" value="<%= project.websiteUrl %>" required></label>
@@ -69,13 +76,60 @@
           <p class="empty">Moyi sends approved content drafts to this URL with <strong>X-Moyi-Signature</strong>. Verify the HMAC-SHA256 signature with this project signing secret.</p>
           <p class="empty">Signing secret: <code><%= project.webhookSigningSecret ? `${project.webhookSigningSecret.slice(0, 8)}...${project.webhookSigningSecret.slice(-6)}` : 'generated after save' %></code></p>
         </div>
+        <!-- Autonomous CMO Communications & Email Briefings -->
+        <div class="full" style="border-top: 1px solid var(--saas-line); padding-top: 20px; margin-top: 10px;">
+          <h3>Autonomous CMO Email Briefings & Growth Alerts</h3>
+          <p class="empty" style="margin-bottom: 16px;">Configure how your AI CMO proactively reports on search performance, competitor movements, and pending recommendations.</p>
+          
+          <div style="display: grid; gap: 14px; margin-bottom: 16px;">
+            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
+              <input type="checkbox" name="weeklyBriefingEnabled" <%= (!project.cmoNotifications || !project.cmoNotifications.weeklyBriefing || project.cmoNotifications.weeklyBriefing.enabled !== false) ? 'checked' : '' %>>
+              <span><strong>Weekly Executive CMO Briefing</strong> — Receive a comprehensive growth digest with GSC impressions, competitor movements, and top priority recommendations.</span>
+            </label>
+
+            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
+              <input type="checkbox" name="growthAlertsEnabled" <%= (!project.cmoNotifications || !project.cmoNotifications.growthAlerts || project.cmoNotifications.growthAlerts.enabled !== false) ? 'checked' : '' %>>
+              <span><strong>Competitor & Keyword Growth Alerts</strong> — Receive instant alerts when competitors launch high-impact pages or target keywords move into top ranks.</span>
+            </label>
+
+            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
+              <input type="checkbox" name="contentApprovalNudgesEnabled" <%= (!project.cmoNotifications || !project.cmoNotifications.contentApprovalNudges || project.cmoNotifications.contentApprovalNudges.enabled !== false) ? 'checked' : '' %>>
+              <span><strong>Content Approval Nudges</strong> — Receive reminders when marketing drafts are generated and ready for CMO review and publishing.</span>
+            </label>
+          </div>
+
+          <label>Delivery Day for Weekly Briefing
+            <select name="weeklyBriefingDeliveryDay">
+              <option value="monday" <%= (project.cmoNotifications && project.cmoNotifications.weeklyBriefing && project.cmoNotifications.weeklyBriefing.deliveryDay === 'monday') ? 'selected' : '' %>>Monday Morning (Recommended)</option>
+              <option value="friday" <%= (project.cmoNotifications && project.cmoNotifications.weeklyBriefing && project.cmoNotifications.weeklyBriefing.deliveryDay === 'friday') ? 'selected' : '' %>>Friday Recap</option>
+              <option value="sunday" <%= (project.cmoNotifications && project.cmoNotifications.weeklyBriefing && project.cmoNotifications.weeklyBriefing.deliveryDay === 'sunday') ? 'selected' : '' %>>Sunday Evening</option>
+            </select>
+          </label>
+
+          <label>Additional Recipient Emails (comma-separated)
+            <input name="briefingRecipientEmails" value="<%= (project.cmoNotifications && project.cmoNotifications.weeklyBriefing && project.cmoNotifications.weeklyBriefing.recipientEmails) ? project.cmoNotifications.weeklyBriefing.recipientEmails.join(', ') : '' %>" placeholder="cmo@example.com, founder@example.com">
+          </label>
+        </div>
+
         <div class="row-actions">
           <button class="button button-primary" type="submit">Save Changes</button>
           <a class="button" href="/projects/<%= project._id %>">Cancel</a>
         </div>
       </form>
+
+      <div class="full" style="border-top: 1px solid var(--saas-line); padding-top: 24px; margin-top: 24px;">
+        <h3>Test Weekly CMO Briefing</h3>
+        <p class="empty" style="margin-bottom: 14px;">Preview how your AI CMO executive briefing looks or test send it to your email right now.</p>
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+          <a class="button" href="/projects/<%= project._id %>/briefing/preview" target="_blank" rel="noopener">Preview HTML Briefing &nearr;</a>
+          <form action="/projects/<%= project._id %>/briefing/test" method="post" style="display: inline-block; margin: 0;">
+            <button class="button button-primary" type="submit">Send Test Briefing to My Email</button>
+          </form>
+        </div>
+      </div>
+
       <% if (project.brandLogo && project.brandLogo.storageKey) { %>
-        <form class="compact-form" action="/projects/<%= project._id %>/logo/remove" method="post">
+        <form class="compact-form" action="/projects/<%= project._id %>/logo/remove" method="post" style="margin-top: 24px;">
           <button class="button" type="submit">Remove Brand Logo</button>
         </form>
       <% } %>

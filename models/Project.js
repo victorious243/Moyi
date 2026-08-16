@@ -142,6 +142,52 @@ const projectSchema = new mongoose.Schema(
     webhookSigningSecret: {
       type: String,
       default: () => crypto.randomBytes(32).toString('hex')
+    },
+    cmoNotifications: {
+      weeklyBriefing: {
+        enabled: {
+          type: Boolean,
+          default: true
+        },
+        deliveryDay: {
+          type: String,
+          enum: ['monday', 'friday', 'sunday'],
+          default: 'monday'
+        },
+        lastSentAt: {
+          type: Date,
+          default: null
+        },
+        recipientEmails: {
+          type: [String],
+          default: []
+        }
+      },
+      growthAlerts: {
+        enabled: {
+          type: Boolean,
+          default: true
+        },
+        lastSentAt: {
+          type: Date,
+          default: null
+        },
+        minSeverity: {
+          type: String,
+          enum: ['all', 'high', 'critical'],
+          default: 'high'
+        }
+      },
+      contentApprovalNudges: {
+        enabled: {
+          type: Boolean,
+          default: true
+        },
+        lastSentAt: {
+          type: Date,
+          default: null
+        }
+      }
     }
   },
   { timestamps: true }
