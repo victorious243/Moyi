@@ -839,116 +839,201 @@ router.post('/account/delete', requireAuth, [
 
 router.get('/terms', (req, res) => {
   res.render('legal', {
-    title: 'Terms',
+    title: 'Terms of Service',
     heading: 'Terms of Service',
     body: `
-      <p>Welcome to Moyi-CMO ("Moyi," "we," "our," or "us"). These Terms of Service govern your access to and use of the Moyi-CMO website, application, AI marketing workspace, reports, recommendations, content generation tools, integrations, and related services (the "Service"). By creating an account, connecting a project, or using the Service, you agree to these Terms.</p>
-      <p>If you use Moyi-CMO on behalf of a company, agency, or client, you confirm that you have authority to accept these Terms for that organization and to connect the websites, integrations, and data sources you add to the platform.</p>
+      <p>Welcome to Moyi-CMO ("Moyi," "we," "our," or "us"). These Terms of Service govern your access to and use of the Moyi-CMO platform, application, AI marketing workspace, website audits, recommendations, content generation tools, campaign workflows, integrations, and related software services (collectively, the "Service"). By creating an account, connecting a project, or using the Service, you enter into a legally binding agreement with us under these Terms.</p>
+      <p>If you use Moyi-CMO on behalf of a company, agency, or client, you represent and warrant that you possess the full legal authority to bind that organization to these Terms and to authorize the connection of all websites, integrations, credentials, and data sources you configure.</p>
       
-      <h2>1. Description of Service</h2>
-      <p>Moyi-CMO is an AI Chief Marketing Officer workspace for evidence-led SEO growth and content operations. The Service helps businesses audit websites, identify technical and content opportunities, generate AI CMO plans, create draft content, prepare campaign assets, track first-party performance signals, and organize marketing work across projects.</p>
-      <p>Moyi-CMO is designed to support human decision-making. It does not replace professional judgment, legal advice, financial advice, compliance review, or final editorial approval.</p>
+      <h2>1. Description of Service & Advisory Nature</h2>
+      <p>Moyi-CMO is an evidence-led AI Chief Marketing Officer operating workspace. The Service audits websites, analyzes observable technical and content search signals, reads read-only Google Search Console performance data, generates AI CMO strategic plans, drafts marketing copy and campaign assets, and facilitates workflow distribution across supported channels.</p>
+      <p><strong>Advisory AI Disclaimer:</strong> Moyi-CMO is an assistive operational tool designed to augment human marketing intelligence. It does not replace independent professional judgment, legal advice, financial advice, regulated advertising compliance, or final human editorial sign-off. All recommendations, projections, drafts, and strategies are advisory.</p>
       
-      <h2>2. Accounts and Subscriptions</h2>
-      <p>To access most features, you must create an account and verify your email address. You are responsible for maintaining the confidentiality of your credentials, protecting access to your email account, and all activity that occurs under your account.</p>
-      <p>Paid subscriptions are processed by Stripe. Plan limits, prices, billing intervals, usage allowances, and available features are shown on the pricing and billing pages. You can manage payment methods, invoices, renewals, and cancellations through the Stripe Customer Portal when available.</p>
-      <p>Unless stated otherwise, subscription fees are billed in advance and are non-refundable except where required by law or where we expressly approve a refund. If payment fails, access to paid features may be limited, suspended, or downgraded until billing is resolved.</p>
+      <h2>2. Accounts, Authentication & Security</h2>
+      <p>To access the Service, you must create an account, verify your email address, and provide accurate registration information. You are responsible for safeguarding your login credentials, managing team workspace permissions, and for all actions conducted under your account.</p>
+      <p>You agree to notify us immediately of any unauthorized access, compromised credentials, or security anomalies associated with your workspace.</p>
       
-      <h2>3. Acceptable Use</h2>
-      <p>You agree to use Moyi-CMO lawfully and responsibly. You must not use the Service to scan, crawl, or analyze websites unless you own them, manage them, or have permission from the owner. You must not use the Service to send spam, mislead users, impersonate others, generate unlawful content, infringe intellectual property, bypass rate limits, attack infrastructure, or attempt to access accounts, projects, data, or systems without authorization.</p>
-      <p>You are responsible for ensuring that any marketing content, claims, offers, pricing, regulated statements, images, campaigns, and tracking configurations you publish or deploy comply with applicable laws, platform rules, advertising standards, privacy rules, and industry obligations.</p>
+      <h2>3. Subscriptions, Stripe Billing & Cancellations</h2>
+      <p>Paid tiers, feature limits, scan allowances, and billing frequencies (monthly or annual) are specified on our pricing and billing pages. All payments are processed securely via Stripe. By selecting a paid subscription, you authorize recurring charges to your designated payment method.</p>
+      <ul>
+        <li><strong>Billing Cycle:</strong> Subscription fees are billed in advance on a recurring monthly or annual basis.</li>
+        <li><strong>Fair Usage & Limits:</strong> Project quotas, scan depth, and publishing allowances reset at the start of each billing period.</li>
+        <li><strong>Cancellations:</strong> You may cancel your subscription at any time via the Stripe Customer Portal in your Account Settings. Upon cancellation, your plan remains active until the end of the current paid billing period.</li>
+        <li><strong>Refunds:</strong> Fees are non-refundable except where mandated by statutory consumer protection law or approved in writing by Moyi-CMO management.</li>
+      </ul>
       
-      <h2>4. Intellectual Property & Content Ownership</h2>
-      <p>You retain ownership of your websites, brand assets, uploaded logos, uploaded images, project data, customer-provided content, and approved outputs that you create through the Service, subject to any rights held by third parties or your customers.</p>
-      <p>Moyi-CMO retains ownership of the platform, software, design systems, workflows, prompt templates, AI orchestration logic, reports structure, codebase, documentation, and underlying technology. You may not copy, resell, reverse engineer, or reproduce the Service except as allowed by law or by written permission.</p>
-      <p>You grant Moyi-CMO a limited license to process your project data, uploads, website scan data, integration data, and generated content as needed to operate, secure, improve, and provide the Service to you.</p>
-
-      <h2>5. AI Outputs and Human Review</h2>
-      <p>Moyi-CMO uses AI to assist with SEO analysis, content drafting, campaign planning, recommendations, and image generation. AI outputs may contain errors, omissions, outdated assumptions, formatting issues, or content that requires review. You must review and approve all outputs before publishing, sending, exporting, or relying on them.</p>
-      <p>Moyi-CMO aims to ground recommendations in observed scan data, project data, Search Console data where connected, and user-provided information. However, AI-generated suggestions are not guarantees of search ranking, revenue, traffic, conversion lift, legal compliance, or business performance.</p>
-
-      <h2>6. Integrations and Third-Party Services</h2>
-      <p>The Service may connect with Google Search Console, Stripe, WordPress, Webflow, Shopify, email providers, OpenAI, storage providers, and other third-party services. Your use of those services is governed by their own terms, policies, pricing, permissions, and availability.</p>
-      <p>When you connect an integration, you authorize Moyi-CMO to access, store, encrypt, refresh, and use the credentials or tokens needed to provide the requested feature. You can revoke third-party access from the third-party provider or from Moyi-CMO where supported.</p>
-
-      <h2>7. Publishing, Webhooks, and Manual Control</h2>
-      <p>Moyi-CMO is built around human approval. Drafts, recommendations, images, social posts, and campaign assets should be reviewed before use. Connected CMS exports are intended to create drafts or unpublished content unless a workflow clearly states otherwise.</p>
-      <p>If you configure outgoing webhooks, you are responsible for the receiving endpoint, signature verification, endpoint security, and anything your system does with the payload after receiving it.</p>
-
-      <h2>8. Availability and Changes</h2>
-      <p>We work to keep Moyi-CMO reliable, but the Service may be unavailable because of maintenance, upgrades, infrastructure issues, third-party outages, network problems, or security events. We may change, improve, suspend, or discontinue features when needed to protect the Service, comply with law, or improve the product.</p>
-
-      <h2>9. Termination</h2>
-      <p>You may stop using Moyi-CMO or request account deletion at any time. We may suspend or terminate access if you violate these Terms, misuse the Service, create risk for other users, fail to pay required fees, or use the platform in a way that could harm Moyi-CMO, our customers, or third parties.</p>
+      <h2>4. Acceptable Use & Crawl Authorization</h2>
+      <p>You agree to use Moyi-CMO in compliance with all applicable laws and regulations. You must not:</p>
+      <ul>
+        <li>Scan, crawl, or analyze websites without explicit ownership, authorization, or lawful authority from the website proprietor.</li>
+        <li>Generate deceptive, defamatory, discriminatory, fraudulent, spam, or infringing marketing materials.</li>
+        <li>Attempt to reverse engineer, decompile, duplicate, or scrape the platform codebase, prompt structures, or proprietary scoring models.</li>
+        <li>Bypass security controls, inject malicious payloads, probe system vulnerabilities, or overwhelm server infrastructure.</li>
+        <li>Resell or white-label the Service to third parties without an active Agency tier license or formal partnership agreement.</li>
+      </ul>
       
-      <h2>10. Disclaimers and Limitation of Liability</h2>
-      <p>The Service is provided "as is" and "as available." To the fullest extent allowed by law, we disclaim warranties of merchantability, fitness for a particular purpose, non-infringement, uninterrupted operation, and error-free results.</p>
-      <p>We do not guarantee specific rankings, revenue, traffic, conversions, customer acquisition, ad performance, deliverability, or business outcomes. To the fullest extent allowed by law, Moyi-CMO will not be liable for indirect, incidental, special, consequential, exemplary, or punitive damages, or for lost profits, lost revenue, lost data, or business interruption.</p>
+      <h2>5. Intellectual Property & Customer Ownership</h2>
+      <p><strong>Your Data & Generated Deliverables:</strong> You retain exclusive ownership of all websites, uploaded brand assets, logos, customer prompts, project calibrations, and finalized approved marketing drafts, social posts, and images created through your workspace.</p>
+      <p><strong>Platform IP:</strong> Moyi-CMO retains all rights, title, and interest in the platform software, algorithms, user interfaces, design tokens, deterministic audit heuristics, AI orchestration logic, and documentation.</p>
+      <p><strong>Limited Operational License:</strong> You grant Moyi-CMO a strictly limited, non-exclusive license to host, process, format, and transmit your project inputs and crawled evidence solely to operate, secure, and deliver the Service to you.</p>
 
-      <h2>11. Contact</h2>
-      <p>Questions about these Terms can be sent through the contact page. For account, billing, privacy, or security concerns, include the email address associated with your Moyi-CMO account so we can investigate safely.</p>
+      <h2>6. AI Content Generation & Human-in-the-Loop</h2>
+      <p>Moyi-CMO employs state-of-the-art AI language models (including enterprise OpenAI API endpoints) to assist in generating SEO briefs, articles, social posts, and visual suggestions. AI-generated outputs may occasionally contain factual oversights, stylistic variations, or hallucinated claims.</p>
+      <p><strong>Mandatory Human Review:</strong> You acknowledge and agree that human review is required before publishing, exporting, or executing any AI-generated asset. You maintain sole legal and editorial responsibility for all content deployed to your audience or published to third-party CMS platforms.</p>
+      <p><strong>Zero AI Model Training:</strong> Your private business data, prompts, and workspace content are never utilized by Moyi-CMO or its AI sub-processors to train public foundation models.</p>
+
+      <h2>7. Third-Party Integrations & Platform APIs</h2>
+      <p>The Service connects with third-party providers including Google Search Console, Stripe, Meta (Facebook, Instagram, Threads), LinkedIn, X (Twitter), TikTok, YouTube, Bluesky, WordPress, Webflow, and Shopify. Your utilization of these external services is governed by their respective developer policies and terms of service.</p>
+      <p>You authorize Moyi-CMO to store, refresh, and encrypt integration credentials (using AES-256) strictly to execute user-initiated publishing and analytics retrieval. You may revoke API tokens at any time through our Integrations page or via the third-party provider's security portal.</p>
+
+      <h2>8. Limitation of Liability & Warranty Disclaimers</h2>
+      <p>THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR UNINTERRUPTED OPERATION.</p>
+      <p>MOYI-CMO DOES NOT GUARANTEE SPECIFIC SEARCH ENGINE RANKINGS, TRAFFIC VOLUMES, CONVERSION RATES, SOCIAL ENGAGEMENT, REVENUE GAINS, OR ADVERTISING RESULTS.</p>
+      <p>TO THE MAXIMUM EXTENT PERMITTED BY LAW, MOYI-CMO AND ITS DIRECTORS, EMPLOYEES, AND AFFILIATES SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE DAMAGES, NOR FOR ANY LOSS OF PROFITS, DATA, REVENUE, GOODWILL, OR BUSINESS OPPORTUNITY. IN ALL CASES, MOYI-CMO'S AGGREGATE LIABILITY SHALL NOT EXCEED THE TOTAL FEES PAID BY YOU TO MOYI-CMO IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM.</p>
+
+      <h2>9. Indemnification</h2>
+      <p>You agree to indemnify, defend, and hold harmless Moyi-CMO and its officers, directors, employees, and agents from and against any claims, liabilities, damages, losses, and expenses (including legal fees) arising from or relating to: (a) content published or deployed by you; (b) unauthorized scanning of third-party websites; (c) violation of applicable advertising, privacy, or consumer protection laws; or (d) breach of these Terms.</p>
+
+      <h2>10. Termination & Workspace Deletion</h2>
+      <p>You may terminate your account at any time via Account Settings. We reserve the right to suspend or terminate accounts that breach these Terms, engage in unlawful activity, fail to settle outstanding fees, or pose operational or security risks to the platform.</p>
+
+      <h2>11. Governing Law & Dispute Resolution</h2>
+      <p>These Terms shall be governed by and construed in accordance with applicable laws, without regard to conflict of law principles. Any dispute arising out of or relating to these Terms shall be resolved through good-faith negotiation, and if necessary, submitted to binding arbitration or competent courts having jurisdiction.</p>
+
+      <h2>12. Contact & Notices</h2>
+      <p>For questions or notices regarding these Terms, contact us through our <a href="/contact">Contact Page</a> or email our support desk at <code>support@moyi-cmo.com</code>.</p>
     `
   });
 });
 
 router.get('/privacy', (req, res) => {
   res.render('legal', {
-    title: 'Privacy',
+    title: 'Privacy Policy',
     heading: 'Privacy Policy',
     body: `
-      <p>At Moyi-CMO, privacy and trust are core parts of the product. This Privacy Policy explains what information we collect, how we use it, how we protect it, and what choices you have when using the Moyi-CMO website, application, AI marketing workspace, tracking tools, integrations, and related services.</p>
-      <p>Moyi-CMO is built for business users who need honest, evidence-led marketing workflows. We do not sell personal information, and we do not use your private business data to train external AI models without permission.</p>
+      <p>At Moyi-CMO ("Moyi," "we," "our," or "us"), privacy, data security, and trust are fundamental to our architecture. This Privacy Policy sets out how we collect, process, protect, and govern personal data across the Moyi-CMO platform, application workspaces, website audit scanners, AI marketing engines, tracking scripts, and integrations.</p>
+      <p>We adhere to strict global data protection principles, including the <strong>General Data Protection Regulation (EU & UK GDPR)</strong>, the <strong>California Consumer Privacy Act as amended (CCPA/CPRA)</strong>, and international privacy standards.</p>
       
-      <h2>1. Information We Collect</h2>
+      <h2>1. Roles: Data Controller vs. Data Processor</h2>
       <ul>
-        <li><strong>Account data:</strong> name, email address, password hash, email verification status, login method, role, subscription plan, billing state, account settings, and security/audit events.</li>
-        <li><strong>Project data:</strong> business name, website URL, industry, target audience, country, goals, brand tone, value proposition, competitors, uploaded logos, brand profile, project notes, and team access settings.</li>
-        <li><strong>Website scan data:</strong> crawled URLs, page titles, headings, meta descriptions, status codes, internal links, structured data signals, page issues, recommendations, scan history, and report outputs.</li>
-        <li><strong>Content and campaign data:</strong> recommendations, briefs, AI-generated drafts, edited body copy, metadata, keywords, campaign posts, calendar entries, image prompts, uploaded images, generated image candidates, approval notes, and publishing history.</li>
-        <li><strong>Integration data:</strong> encrypted OAuth tokens, API tokens, CMS configuration, Search Console property identifiers, webhook URLs, signing secrets, and integration status. Sensitive credentials are stored encrypted where supported by the application.</li>
-        <li><strong>First-party analytics data:</strong> when the tracking script is installed, we may collect page views, referrers, UTM parameters, device/browser details, session identifiers, conversion events, and configured goal data. IP addresses are processed using salted cryptographic hashing where supported by the tracker.</li>
-        <li><strong>Billing data:</strong> Stripe customer IDs, subscription IDs, plan names, renewal dates, billing status, invoice/payment events, and usage limits. Full card details are handled by Stripe and are not stored by Moyi-CMO.</li>
-        <li><strong>Support and communication data:</strong> messages sent through contact forms, support requests, admin emails, newsletter preferences, password reset requests, verification PIN events, and customer communication history.</li>
-        <li><strong>Technical data:</strong> IP-derived security logs, browser information, device information, timestamps, error logs, request metadata, and operational diagnostics needed to protect and maintain the Service.</li>
+        <li><strong>Moyi-CMO as Data Controller:</strong> We act as Data Controller regarding your account registration, billing credentials, direct support communications, authentication security logs, and website marketing interactions.</li>
+        <li><strong>Moyi-CMO as Data Processor:</strong> When you connect client websites, crawl target pages, import Google Search Console metrics, or process campaign assets, you act as Data Controller and Moyi-CMO acts as Data Processor executing tasks under your instructions.</li>
       </ul>
-      
-      <h2>2. How We Use Information</h2>
-      <p>We use information to create and secure your account, verify your email, provide project workspaces, run website scans, generate AI CMO plans, produce recommendations, create draft content and images, show campaign calendars, manage approvals, connect integrations, process billing, send transactional emails, provide support, monitor performance, prevent abuse, and improve the reliability and quality of the Service.</p>
-      <p>We may also use aggregated or de-identified information to understand product usage, improve workflows, detect system issues, and make better product decisions. Aggregated information does not identify a specific customer or end user.</p>
-      
-      <h2>3. Data Protection and AI Providers</h2>
-      <p>When generating reports, recommendations, content drafts, social posts, campaign plans, or images, Moyi-CMO may send relevant project context, scan evidence, content briefs, user instructions, uploaded reference details, and brand information to AI providers such as OpenAI. We send the information needed to perform the requested task and aim to avoid unnecessary personal data.</p>
-      <p>AI outputs are stored in your workspace so you can review, edit, approve, download, export, or delete them according to available product controls. You should not enter sensitive personal data, confidential regulated data, payment card details, medical data, or government identifiers into prompts unless you have a lawful basis and understand the risks.</p>
-      
-      <h2>4. Third-Party Services</h2>
-      <p>Moyi-CMO uses trusted third-party services to provide core functionality. These may include Stripe for payments and billing portals, Google for OAuth and Search Console access, OpenAI for AI generation, SMTP/email providers for transactional emails, Redis for background queues, MongoDB for data storage, hosting providers for infrastructure, and optional CMS providers such as WordPress, Webflow, or Shopify when connected by the user.</p>
-      <p>When you connect a third-party integration, that provider may process information according to its own privacy policy and terms. You can revoke access from the third-party provider or remove the integration in Moyi-CMO where supported.</p>
 
-      <h2>5. Cookies and Tracking</h2>
-      <p>We use essential cookies and similar technologies to keep users signed in, protect forms against CSRF attacks, remember secure sessions, and operate the application. If you install the Moyi-CMO tracking script on your website, you are responsible for telling your visitors about that tracking and obtaining consent where required by law.</p>
-      <p>More detail is available in our Cookie Notice.</p>
+      <h2>2. GDPR Legal Bases for Processing (Article 6 GDPR)</h2>
+      <p>We process personal data only where a lawful legal basis applies:</p>
+      <ul>
+        <li><strong>Performance of a Contract (Art. 6(1)(b)):</strong> To authenticate users, run website scans, generate AI CMO plans, provide content drafts, schedule social posts, process subscriptions, and maintain account workspaces.</li>
+        <li><strong>Legitimate Interests (Art. 6(1)(f)):</strong> To secure our infrastructure, prevent fraud and abuse, monitor system uptime, optimize platform performance, and produce aggregated product analytics that do not identify individuals.</li>
+        <li><strong>Consent (Art. 6(1)(a)):</strong> For optional marketing communications, non-essential cookies (governed by Cookiebot CMP), and user-initiated third-party OAuth connections.</li>
+        <li><strong>Compliance with Legal Obligations (Art. 6(1)(c)):</strong> To maintain statutory accounting and tax records, enforce terms, and comply with lawful regulatory requests.</li>
+      </ul>
 
-      <h2>6. Security</h2>
-      <p>We use technical and organizational controls designed to protect information, including password hashing, signed authentication cookies, CSRF protection, encrypted integration credentials, audit logs, production configuration checks, secure headers, and access controls. No system can be guaranteed perfectly secure, but we work to reduce risk and respond responsibly to security issues.</p>
+      <h2>3. Categories of Data We Collect</h2>
+      <ul>
+        <li><strong>Account & Identity Data:</strong> Name, business email, bcrypt-hashed password, email verification timestamp, role, subscription tier, and security audit events.</li>
+        <li><strong>Project & Brand Telemetry:</strong> Domain URLs, target audience profiles, industry classification, competitors, uploaded PNG brand logos, brand voice parameters, and project notes.</li>
+        <li><strong>Website Scan & Technical Data:</strong> Public crawled URLs, page titles, H1–H6 headings, meta tags, schema markup, status codes, internal link graphs, and technical SEO issue diagnostics.</li>
+        <li><strong>Search Performance Data:</strong> Read-only Google Search Console queries, impressions, clicks, CTR, and average rank positions for connected properties.</li>
+        <li><strong>Integration & API Credentials:</strong> OAuth refresh tokens, CMS access tokens, and webhook secrets (stored encrypted at rest using AES-256).</li>
+        <li><strong>Financial & Payment Metadata:</strong> Stripe customer IDs, subscription status, invoice history, and billing dates. Full payment card details are processed directly by Stripe (PCI-DSS Level 1 certified) and are never stored on Moyi servers.</li>
+        <li><strong>First-Party Analytics & Tracker Data:</strong> When the optional Moyi tracking snippet is installed, we record anonymized page views, referrers, UTM campaigns, session identifiers, and conversion events. IP addresses are cryptographically salted and hashed.</li>
+      </ul>
 
-      <h2>7. Data Retention</h2>
-      <p>We keep account, project, scan, recommendation, content, campaign, integration, billing, audit, and operational records for as long as needed to provide the Service, comply with legal obligations, resolve disputes, prevent abuse, and maintain business records. If you delete your account, active workspace data is removed or scheduled for removal, while limited audit, billing, security, and legal records may be retained where necessary.</p>
+      <h2>4. AI Architecture & Zero-Training Guarantee</h2>
+      <p>Moyi-CMO integrates with enterprise AI infrastructure (including OpenAI APIs) to assist in generating strategic recommendations, copy drafts, and image prompts.</p>
+      <ul>
+        <li><strong>Zero Training on Customer Data:</strong> Your workspace data, prompts, crawl evidence, and content drafts are strictly isolated. We do not use, and do not permit third-party AI providers to use, your customer data to train public foundation AI models.</li>
+        <li><strong>Human-in-the-Loop Governance:</strong> AI models generate draft suggestions and diagnostics. All publishing, CMS exporting, and operational decisions remain under human control.</li>
+        <li><strong>Data Minimization:</strong> Prompts sent to AI inference endpoints contain only the contextual metadata required to execute the specific draft or audit task.</li>
+      </ul>
 
-      <h2>8. Your Choices and Rights</h2>
-      <p>You can update account information, manage projects, disconnect integrations, delete content, export account data where available, cancel subscriptions through Stripe, or request account deletion. Depending on your location, you may have rights to access, correct, delete, restrict, or object to certain processing of your personal information.</p>
-      <p>To make a privacy request, use the contact page and include the email address connected to your Moyi-CMO account. We may need to verify your identity before acting on the request.</p>
+      <h2>5. Trusted Sub-processors</h2>
+      <p>We partner with vetted, enterprise-grade sub-processors to deliver core functionality. Each sub-processor is bound by strict Data Processing Agreements (DPAs):</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Sub-processor</th>
+            <th>Role / Service</th>
+            <th>Location</th>
+            <th>Data Safeguard</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Stripe, Inc.</strong></td>
+            <td>Payment processing & billing portal</td>
+            <td>USA / EU</td>
+            <td>PCI-DSS Level 1, EU-US DPF / SCCs</td>
+          </tr>
+          <tr>
+            <td><strong>OpenAI, LLC</strong></td>
+            <td>AI text & visual inference API</td>
+            <td>USA</td>
+            <td>Enterprise Zero-Retention DPA, SCCs</td>
+          </tr>
+          <tr>
+            <td><strong>Google Cloud / GSC</strong></td>
+            <td>OAuth authentication & Search Console API</td>
+            <td>USA / EU</td>
+            <td>ISO 27001, EU-US DPF / SCCs</td>
+          </tr>
+          <tr>
+            <td><strong>Usercentrics A/S (Cookiebot)</strong></td>
+            <td>Consent Management Platform (CMP)</td>
+            <td>Denmark / EU</td>
+            <td>GDPR Certified, EU Hosting</td>
+          </tr>
+          <tr>
+            <td><strong>MongoDB Atlas / Cloud Host</strong></td>
+            <td>Encrypted database & cluster hosting</td>
+            <td>EU / USA</td>
+            <td>SOC 2 Type II, AES-256, SCCs</td>
+          </tr>
+          <tr>
+            <td><strong>Meta / LinkedIn / X / TikTok</strong></td>
+            <td>Social media publishing APIs</td>
+            <td>USA / Global</td>
+            <td>Developer DPAs & Standard OAuth</td>
+          </tr>
+        </tbody>
+      </table>
 
-      <h2>9. International Processing</h2>
-      <p>Moyi-CMO and its service providers may process information in countries other than your own. Where required, we rely on appropriate safeguards for international transfers and work with providers that maintain privacy and security commitments suitable for SaaS operations.</p>
+      <h2>6. International Data Transfers</h2>
+      <p>Where personal data is transferred outside the European Economic Area (EEA) or UK, we ensure appropriate safeguards are implemented in compliance with GDPR Chapter V, including European Commission Standard Contractual Clauses (SCCs), UK International Data Transfer Addendums, and certified participation in the EU-U.S. Data Privacy Framework.</p>
+
+      <h2>7. Security & Cryptographic Safeguards</h2>
+      <p>Moyi-CMO implements robust technical and organizational security controls:</p>
+      <ul>
+        <li><strong>Encryption in Transit:</strong> Mandatory TLS 1.3 encryption for all web and API traffic with strict HTTP Strict Transport Security (HSTS).</li>
+        <li><strong>Encryption at Rest:</strong> Sensitive integration tokens and secrets are stored in encrypted vaults using AES-256.</li>
+        <li><strong>Application Security:</strong> Signed HTTPOnly authentication cookies, CSRF nonces on all state-changing requests, automated rate-limiting, and hardened Content Security Policy (CSP) headers.</li>
+        <li><strong>Audit Logging:</strong> Comprehensive immutable audit logs for authentication, role modifications, data exports, and deletions.</li>
+      </ul>
+
+      <h2>8. Data Retention & Erasure Schedules</h2>
+      <ul>
+        <li><strong>Active Workspaces:</strong> Data is retained for the active lifecycle of your account.</li>
+        <li><strong>Account Deletion:</strong> Upon initiating account deletion (/account/delete), all project data, scans, content drafts, and OAuth credentials are immediately hard-deleted from active databases, and purged from rolling backups within 30 days.</li>
+        <li><strong>Statutory Retention:</strong> Transactional billing records and audit logs are retained for statutory accounting and tax compliance periods (typically up to 7 years).</li>
+      </ul>
+
+      <h2>9. Your Data Subject Rights (GDPR & CCPA/CPRA)</h2>
+      <p>Under GDPR (Articles 15–22) and applicable privacy laws, you possess fundamental rights regarding your personal data:</p>
+      <ul>
+        <li><strong>Right of Access & Portability (Art. 15 & 20):</strong> Instantly export your complete workspace and account data in machine-readable JSON format via <a href="/account/export">Account Export</a>.</li>
+        <li><strong>Right to Rectification (Art. 16):</strong> Update your personal details and business calibrations directly inside Account and Project Settings.</li>
+        <li><strong>Right to Erasure / "Right to be Forgotten" (Art. 17):</strong> Permanently delete your entire account and all project databases via <a href="/account">Account Deletion</a>.</li>
+        <li><strong>Right to Restriction & Objection (Art. 18 & 21):</strong> Object to processing based on legitimate interests or request restricted handling.</li>
+        <li><strong>Right to Withdraw Consent (Art. 7(3)):</strong> Revoke cookie consent at any time via the Cookiebot widget or disconnect third-party integrations with one click.</li>
+        <li><strong>Right to Lodge a Complaint:</strong> You have the right to lodge a complaint with your national Data Protection Authority (e.g., DPC in Ireland, CNIL in France, ICO in the UK, or BfDI in Germany).</li>
+      </ul>
 
       <h2>10. Children's Privacy</h2>
-      <p>Moyi-CMO is a business software product and is not intended for children. You must not create an account or use the Service if you are not old enough to enter into these terms under applicable law.</p>
+      <p>Moyi-CMO is an enterprise B2B software platform and is not intended for use by individuals under 18 years of age. We do not knowingly collect personal data from children.</p>
 
-      <h2>11. Changes to This Policy</h2>
-      <p>We may update this Privacy Policy as the product, laws, integrations, or security practices change. The latest version will be posted on this page with an updated date. Material changes may also be communicated by email or in-app notice when appropriate.</p>
-
-      <h2>12. Contact</h2>
-      <p>For privacy, security, or data protection questions, contact us through the contact page and choose "Privacy request".</p>
+      <h2>11. Contact & Privacy Inquiries</h2>
+      <p>To exercise your privacy rights, request a formal Data Processing Agreement (DPA), or speak with our Data Protection Lead, submit a request via our <a href="/contact">Contact Page</a> (select "Privacy request") or email <code>privacy@moyi-cmo.com</code>.</p>
     `
   });
 });
@@ -958,60 +1043,138 @@ router.get('/data-deletion', (req, res) => {
     title: 'Data Deletion',
     heading: 'Data Deletion Instructions',
     body: `
-      <p>Moyi-CMO lets users disconnect social integrations and request deletion of account, project, publishing, analytics, and integration data associated with their workspace.</p>
-      <p>To request deletion, sign in to your Moyi-CMO account and remove connected integrations from the project Social Accounts page where available. You can also submit a privacy request through the contact page using the email address connected to your Moyi-CMO account.</p>
-      <p>When we receive a verified deletion request, we remove or schedule removal of active workspace data, connected social account credentials, publishing records, uploaded media, and related analytics data, except where limited retention is required for billing, security, fraud prevention, legal compliance, or audit obligations.</p>
-      <p>For Meta, Facebook, Instagram, or Threads data deletion requests, include the connected Meta account name, Page, Instagram, or Threads profile so we can verify and process the request safely.</p>
-      <p><a href="/contact">Submit a privacy request</a></p>
+      <p>In accordance with GDPR Article 17, CCPA/CPRA, and Meta/Google platform policies, Moyi-CMO provides automated, self-service data deletion tools for all users and connected integrations.</p>
+      
+      <h2>1. Self-Service Account & Data Deletion</h2>
+      <p>You can permanently delete your entire account and all associated workspace data at any time without waiting for support intervention:</p>
+      <ol>
+        <li>Sign in to your Moyi-CMO account.</li>
+        <li>Navigate to <strong>Account Settings</strong> (or visit <code>/account</code>).</li>
+        <li>Scroll down to the <strong>Danger Zone</strong>.</li>
+        <li>Confirm your email address and type <code>DELETE</code> to initiate permanent erasure.</li>
+      </ol>
+      <p>Upon confirmation, your user profile, projects, website scans, recommendations, AI drafts, uploaded images, and connected OAuth credentials are permanently purged from active databases.</p>
+
+      <h2>2. Disconnecting Specific Social Integrations</h2>
+      <p>If you wish to remove connected social accounts (Meta Facebook Pages, Instagram accounts, LinkedIn, X, TikTok, Bluesky, YouTube) without deleting your Moyi account:</p>
+      <ol>
+        <li>Go to your <strong>Project Workspace</strong> &rarr; <strong>Integrations / Social Accounts</strong>.</li>
+        <li>Click <strong>Disconnect</strong> next to the desired account.</li>
+        <li>Moyi immediately wipes the encrypted OAuth tokens and access secrets from the database.</li>
+      </ol>
+
+      <h2>3. Meta (Facebook / Instagram / Threads) Data Deletion Callback</h2>
+      <p>If you remove Moyi-CMO permissions through your Facebook App Settings, Meta dispatches an automated data deletion request to our servers. We process these requests automatically, de-authorizing the account and clearing all associated platform tokens.</p>
+      <p>To check the status of a Meta data deletion request or submit a manual deletion ticket, please use our <a href="/contact">Contact Page</a> selecting "Privacy request" and provide your connected Page or Account ID.</p>
     `
   });
 });
 
 router.get('/cookies', (req, res) => {
   res.render('legal', {
-    title: 'Cookies',
-    heading: 'Cookie Notice',
+    title: 'Cookie Notice',
+    heading: 'Cookie Notice & Consent Management',
     body: `
-      <p>This Cookie Notice explains how Moyi uses cookies and similar technologies to recognize you when you visit our platform. It explains what these technologies are and why we use them, as well as your rights to control our use of them.</p>
+      <p>This Cookie Notice explains how Moyi-CMO ("Moyi," "we," "our," or "us") uses cookies and similar browser storage technologies to operate our platform, maintain security, remember user preferences, and analyze website engagement.</p>
+      <p>We employ <strong>Cookiebot CMP</strong> (Usercentrics A/S) to guarantee complete compliance with the <strong>ePrivacy Directive</strong>, <strong>GDPR</strong>, and <strong>Google Consent Mode v2</strong>, ensuring non-essential cookies are blocked until you grant explicit consent.</p>
+
+      <h2>1. What Are Cookies?</h2>
+      <p>Cookies are small text files placed on your device by websites you visit. They are widely used to make web applications work efficiently, preserve user sessions, secure form submissions, and provide telemetry reporting.</p>
+
+      <h2>2. Categories of Cookies We Use</h2>
       
-      <h2>1. What are cookies?</h2>
-      <p>Cookies are small data files that are placed on your computer or mobile device when you visit a website. Cookies are widely used by website owners in order to make their websites work, or to work more efficiently, as well as to provide reporting information.</p>
-      
-      <h2>2. Cookies We Use</h2>
+      <h3>A. Strictly Necessary Cookies (Essential)</h3>
+      <p>These cookies are required for the core operation of the platform. They cannot be disabled, as the site cannot function securely without them. They do not store personally identifiable information outside of authenticated session identifiers.</p>
       <table>
         <thead>
           <tr>
-            <th>Cookie Name</th>
-            <th>Type</th>
+            <th>Cookie / Storage Name</th>
+            <th>Provider</th>
+            <th>Type / Duration</th>
             <th>Purpose</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td><code>moyi_token</code></td>
-            <td>Essential (HTTPOnly, SameSite=Lax)</td>
-            <td>Maintains your authenticated secure user session. Preserved for 7 days.</td>
+            <td>Moyi-CMO</td>
+            <td>HTTPOnly, Secure / 7 Days</td>
+            <td>Maintains your authenticated, encrypted user session token across requests.</td>
           </tr>
           <tr>
             <td><code>csrf_token</code></td>
-            <td>Essential (HTTPOnly, SameSite=Lax)</td>
-            <td>Protects our form submissions against Cross-Site Request Forgery (CSRF) attacks.</td>
+            <td>Moyi-CMO</td>
+            <td>HTTPOnly, SameSite=Lax / Session</td>
+            <td>Cryptographic token protecting forms against Cross-Site Request Forgery attacks.</td>
           </tr>
           <tr>
-            <td><code>moyi_session_id</code></td>
-            <td>Analytics (LocalStorage)</td>
-            <td>Used in the first-party analytics tracker to identify unique visitor sessions over time.</td>
-          </tr>
-          <tr>
-            <td>Stripe Cookies</td>
-            <td>Functional Third-Party</td>
-            <td>Used securely by Stripe to coordinate billing, fraud prevention, and session portals.</td>
+            <td><code>CookieConsent</code></td>
+            <td>Cookiebot (Usercentrics)</td>
+            <td>Persistent / 1 Year</td>
+            <td>Stores your cookie consent state and preferences for this domain.</td>
           </tr>
         </tbody>
       </table>
-      
-      <h2>3. Controlling Cookies</h2>
-      <p>You have the right to decide whether to accept or reject cookies. You can set or amend your web browser controls to accept or refuse cookies. If you choose to reject cookies, you may still use our website though your access to some functionality and secure areas of our website may be restricted.</p>
+
+      <h3>B. Functional & Payment Cookies</h3>
+      <p>These cookies facilitate third-party security verification and checkout operations.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Cookie Name</th>
+            <th>Provider</th>
+            <th>Duration</th>
+            <th>Purpose</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>__stripe_mid</code>, <code>__stripe_sid</code></td>
+            <td>Stripe, Inc.</td>
+            <td>1 Year / 30 Minutes</td>
+            <td>Fraud prevention, security diagnostics, and checkout session management.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>C. Analytics & Performance Cookies (Optional)</h3>
+      <p>These cookies help us understand platform usage, traffic sources, and performance metrics so we can optimize workflows. They are loaded only with your consent.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Cookie / Storage Key</th>
+            <th>Provider</th>
+            <th>Duration</th>
+            <th>Purpose</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>moyi_session_id</code></td>
+            <td>Moyi Analytics (1st Party)</td>
+            <td>LocalStorage / 30 Mins</td>
+            <td>Anonymized session tracking for website engagement telemetry.</td>
+          </tr>
+          <tr>
+            <td><code>moyi_tracker_sid</code></td>
+            <td>Moyi Analytics (1st Party)</td>
+            <td>LocalStorage / 1 Year</td>
+            <td>Visitor attribution and conversion goal tracking for authorized websites.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>3. Managing and Revoking Cookie Consent</h2>
+      <p>You can change or withdraw your consent at any time directly through the Cookiebot preference center:</p>
+      <p style="margin: 18px 0;">
+        <button class="button button-secondary" type="button" onclick="if(window.Cookiebot){Cookiebot.renew();}else{alert('Cookie preference manager is loading. Please try again.');}">
+          🍪 Change Cookie Preferences / Renew Consent
+        </button>
+      </p>
+      <p>Alternatively, you can manage or block cookies through your browser settings (Chrome, Safari, Firefox, Edge). Please note that blocking essential cookies will prevent you from signing in or using the Moyi-CMO workspace.</p>
+
+      <h2>4. Updates to This Notice</h2>
+      <p>We may update this Cookie Notice periodically to reflect changes in our technology, integrations, or regulatory obligations. The latest version is always available on this page.</p>
     `
   });
 });

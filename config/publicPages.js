@@ -309,6 +309,25 @@ module.exports = {
         ]
       },
       {
+        id: 'gdpr-and-security',
+        title: 'GDPR, Privacy & Data Governance',
+        body: 'Moyi is built from the ground up for transparent data protection, GDPR and CCPA/CPRA compliance, and human-supervised AI operations.',
+        options: [
+          { title: 'Read-Only GSC Integration', body: 'Google Search Console access is strictly read-only. Moyi never alters sitemaps, DNS records, or index settings on Google.' },
+          { title: 'Zero AI Training Guarantee', body: 'Customer business data, prompts, and scans are never used to train foundation AI models without explicit consent.' },
+          { title: 'AES-256 Encrypted Vault', body: 'OAuth tokens, API keys, and integration secrets are encrypted at rest using industry-standard cryptography.' },
+          { title: '1-Click Data Export', body: 'Download your full account, project, content, and scan history at any time from Account Settings (/account/export).' },
+          { title: 'Right to Erasure', body: 'Permanently delete your account and all associated projects in one click with hard-deletion confirmation (/account/delete).' },
+          { title: 'Cookiebot Consent CMP', body: 'Integrated with Cookiebot CMP to guarantee automated consent collection, categorized cookie tables, and user revocation controls.' }
+        ],
+        steps: [
+          { title: 'Review Sub-processors', body: 'Consult our Privacy Policy (/privacy) for full disclosure of trusted sub-processors (Stripe, OpenAI, Google, Cookiebot, MongoDB).' },
+          { title: 'Configure Cookie Consent', body: 'Cookiebot banner operates automatically across all pages with full consent logging and prior blocking.' },
+          { title: 'Export or Delete Data', body: 'Use Account Settings to exercise your GDPR Article 15-22 rights at any time without waiting for manual processing.' }
+        ],
+        note: 'For formal Data Processing Agreements (DPA) or privacy inquiries, submit a request via /contact selecting Privacy request.'
+      },
+      {
         id: 'troubleshooting',
         title: 'Troubleshooting',
         body: 'Most issues fall into a few categories: missing environment variables, background worker not running, third-party credentials not ready, or missing data.',

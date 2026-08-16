@@ -132,6 +132,7 @@ test('public documentation and contact pages render real destinations', async ()
       'content-distribution-api',
       'measurement',
       'account-billing',
+      'gdpr-and-security',
       'troubleshooting'
     ]
   );
