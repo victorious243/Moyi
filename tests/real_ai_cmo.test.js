@@ -9,9 +9,12 @@ const {
   googleOAuthErrorMessage
 } = require('../services/googleAuthService');
 const {
+  competitorSummaryFallback,
   extractDuckDuckGoTarget,
+  fallbackSearchTerms,
   filteredHost,
-  parseSearchResults
+  parseSearchResults,
+  sanitizeSearchCandidates
 } = require('../services/discoveryService');
 const { crawlWebsite } = require('../services/crawlerService');
 const { scoreChecks } = require('../services/telemetryAuditor');
@@ -142,6 +145,60 @@ test('AI-CMO SPEC COMPLIANCE Requirement 2: competitor search parsing filters so
   assert.equal(results.length, 2);
   assert.equal(results[0].domain, 'competitor-one.com');
   assert.equal(results[1].domain, 'competitor-two.com');
+});
+
+test('competitor discovery creates product-category searches instead of audience-only searches', () => {
+  const terms = fallbackSearchTerms({
+    title: 'Moyi-CMO AI Chief Marketing Officer for SEO growth teams',
+    metaDescription: 'AI CMO software for startups and marketing teams.',
+    valueProps: ['Content planning and social media publishing'],
+    personas: ['Startup founders', 'Marketing directors']
+  }, [], 'https://moyi-cmo.com');
+
+  assert.ok(terms.includes('AI Chief Marketing Officer'));
+  assert.ok(terms.includes('AI CMO software'));
+  assert.equal(terms.some((term) => /^startup founders$/i.test(term)), false);
+});
+
+test('competitor search challenge pages are not mistaken for competitors', () => {
+  const html = '<html><title>DuckDuckGo</title><a href="/html/?q=test">DuckDuckGo</a></html>';
+  assert.deepEqual(parseSearchResults(html, 'https://moyi-cmo.com'), []);
+});
+
+test('web-search candidates are normalized and exclude the project and directory hosts', () => {
+  const candidates = sanitizeSearchCandidates({
+    results: [
+      { name: 'Moyi', websiteUrl: 'https://moyi-cmo.com' },
+      { name: 'G2', websiteUrl: 'https://www.g2.com/categories/marketing' },
+      { name: 'Direct Rival', websiteUrl: 'https://rival.example/product', rationale: 'AI marketing operations software', confidence: 82 }
+    ]
+  }, 'https://moyi-cmo.com');
+
+  assert.deepEqual(candidates.map((candidate) => candidate.websiteUrl), ['https://rival.example']);
+  assert.equal(candidates[0].searchConfidence, 82);
+});
+
+test('deterministic competitor evidence accepts a directly overlapping SaaS product', () => {
+  const result = competitorSummaryFallback({
+    title: 'Okara AI CMO',
+    snippet: 'AI marketing, SEO and content automation for growth teams'
+  }, {
+    pages: [{
+      statusCode: 200,
+      title: 'Okara - AI Chief Marketing Officer',
+      metaDescription: 'Automate SEO, content marketing and campaign planning with an AI CMO.',
+      h1: ['AI CMO for marketing teams'],
+      headings: ['Product', 'Blog', 'For agencies']
+    }]
+  }, {
+    title: 'Moyi AI Chief Marketing Officer',
+    metaDescription: 'AI CMO software for SEO, content marketing and social publishing',
+    valueProps: ['Marketing automation and campaign planning']
+  }, ['AI CMO software', 'content marketing automation']);
+
+  assert.equal(result.isDirectCompetitor, true);
+  assert.ok(result.confidence >= 56);
+  assert.ok(result.sharedTerms.includes('cmo'));
 });
 
 test('AI-CMO SPEC COMPLIANCE Requirement 2: redirect URLs and false-positive domains are recognized', () => {

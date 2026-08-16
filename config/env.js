@@ -139,6 +139,7 @@ const env = {
   tokenEncryptionSecret: process.env.TOKEN_ENCRYPTION_SECRET || process.env.JWT_SECRET || 'change-me-in-production',
   redisUrl: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
   openaiApiKey: process.env.OPENAI_API_KEY || '',
+  openaiSearchModel: process.env.OPENAI_SEARCH_MODEL || 'gpt-5.4-nano',
   openaiImageModel: process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2',
   openaiImageQuality: process.env.OPENAI_IMAGE_QUALITY || 'high',
   openaiImageSize: process.env.OPENAI_IMAGE_SIZE || 'auto',

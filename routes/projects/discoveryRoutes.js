@@ -132,6 +132,7 @@ function registerDiscoveryRoutes(router, context, services = {}) {
       competitors,
       pages,
       latestInsights,
+      discovery: req.project.competitorDiscovery || {},
       errorMessage: req.query.error || upgradeMessage,
       successMessage: req.query.success || ''
     });
@@ -192,7 +193,8 @@ function registerDiscoveryRoutes(router, context, services = {}) {
     await discoverCompetitorsForProject({
       project: req.project,
       userId: req.user._id,
-      projectPages
+      projectPages,
+      force: true
     });
 
     const competitors = await context.Competitor.find({
@@ -201,36 +203,42 @@ function registerDiscoveryRoutes(router, context, services = {}) {
     }).sort({ createdAt: -1 });
 
     if (!competitors.length) {
-      return res.redirect(`/projects/${req.project._id}/competitors/insights?success=${encodeURIComponent('No competitor websites were available. Add at least one competitor, then generate the report again.')}`);
+      const diagnostics = req.project.competitorDiscovery || {};
+      const message = diagnostics.status === 'search_unavailable'
+        ? 'Competitor search did not return public results. Check outbound network access and try again; you can add a known competitor while search is unavailable.'
+        : `Moyi evaluated ${diagnostics.candidatesEvaluated || 0} public websites but could not verify a direct competitor with enough evidence. Add one known competitor or improve the project offer and industry details, then try again.`;
+      return res.redirect(`/projects/${req.project._id}/competitors?error=${encodeURIComponent(message)}`);
     }
 
     for (const competitor of competitors) {
-      const hasPages = await context.CompetitorPage.exists({
-        projectId: req.project._id,
-        competitorId: competitor._id
-      });
-      if (!hasPages) {
-        await crawlCompetitor({ projectId: req.project._id, competitor });
-      }
+      await crawlCompetitor({ projectId: req.project._id, competitor });
     }
 
+    const persistedPages = await context.CompetitorPage.find({ projectId: req.project._id });
+    const readablePages = persistedPages.filter((page) => page.statusCode >= 200 && page.statusCode < 400 && (page.title || page.wordCount));
+    const crawledPageCount = readablePages.length;
+    const unavailableCompetitors = competitors.filter((competitor) => !readablePages.some((page) => page.competitorId.toString() === competitor._id.toString())).length;
     const insights = await generateCompetitorInsights({ projectId: req.project._id, userId: req.user._id });
     const message = insights.length
-      ? `${insights.length} competitor opportunities generated.`
-      : 'Competitors were scanned, but the available public page evidence did not produce a comparison opportunity yet.';
+      ? `${insights.length} competitor opportunities generated from ${crawledPageCount} verified public pages across ${competitors.length} competitors.`
+      : `No defensible opportunity was found. ${unavailableCompetitors} of ${competitors.length} competitor sites could not be read; review their crawl status and try again.`;
     res.redirect(`/projects/${req.project._id}/competitors/insights?success=${encodeURIComponent(message)}`);
   }));
 
   router.get('/:id/competitors/insights', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
-    const [competitors, insights] = await Promise.all([
+    const [competitors, insights, competitorPages] = await Promise.all([
       context.Competitor.find({ projectId: req.project._id, userId: req.user._id }).sort({ createdAt: -1 }),
-      context.CompetitorInsight.find({ projectId: req.project._id }).sort({ priority: 1, createdAt: -1 })
+      context.CompetitorInsight.find({ projectId: req.project._id }).sort({ priority: 1, createdAt: -1 }),
+      context.CompetitorPage.find({ projectId: req.project._id })
     ]);
 
     res.render('projects/competitors/insights', {
       title: `${req.project.name} competitor opportunities`,
       competitors,
       insights,
+      competitorPages,
+      discovery: req.project.competitorDiscovery || {},
+      errorMessage: req.query.error || '',
       successMessage: req.query.success || ''
     });
   }));

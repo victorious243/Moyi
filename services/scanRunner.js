@@ -31,8 +31,13 @@ async function ensureCompetitorIntelligence({ project, userId, projectPages }) {
 
   const competitors = await Competitor.find({ projectId: project._id, userId }).sort({ createdAt: -1 });
   for (const competitor of competitors) {
-    const hasPages = await CompetitorPage.exists({ projectId: project._id, competitorId: competitor._id });
-    if (!hasPages) {
+    const hasUsablePage = await CompetitorPage.exists({
+      projectId: project._id,
+      competitorId: competitor._id,
+      statusCode: { $gte: 200, $lt: 400 },
+      $or: [{ title: { $ne: '' } }, { wordCount: { $gt: 0 } }]
+    });
+    if (!hasUsablePage) {
       await crawlCompetitor({ projectId: project._id, competitor });
     }
   }

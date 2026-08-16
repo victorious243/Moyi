@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
 const { sanitizeInsights, systemInsights } = require('../services/competitorInsightService');
 const { configuredCompetitorCandidates } = require('../services/competitorDiscoveryService');
+const { parseRobots, sitemapLocations } = require('../services/competitorCrawlerService');
 
 test('configured competitors from calibration become crawlable website candidates', () => {
   const candidates = configuredCompetitorCandidates({
@@ -87,4 +88,46 @@ test('system competitor insights include evidence summaries and system provenanc
     assert.ok(typeof insight.evidenceSummary === 'string' && insight.evidenceSummary.length > 0);
     assert.ok(insight.confidenceScore >= 0 && insight.confidenceScore <= 100);
   });
+});
+
+test('competitor robots parsing retains sitemap declarations', () => {
+  const parsed = parseRobots(`
+    User-agent: *
+    Disallow: /private
+    Sitemap: https://rival.example/sitemap.xml
+  `);
+
+  assert.deepEqual(parsed.sitemaps, ['https://rival.example/sitemap.xml']);
+  assert.deepEqual(parsed.groups[0].disallow, ['/private']);
+});
+
+test('competitor sitemap parsing extracts page and nested sitemap URLs', () => {
+  assert.deepEqual(sitemapLocations(`
+    <urlset>
+      <url><loc>https://rival.example/solutions</loc></url>
+      <url><loc>https://rival.example/pricing?one=1&amp;two=2</loc></url>
+    </urlset>
+  `), [
+    'https://rival.example/solutions',
+    'https://rival.example/pricing?one=1&two=2'
+  ]);
+});
+
+test('competitor comparisons ignore duplicate project URLs from older scans', () => {
+  const competitorId = new mongoose.Types.ObjectId();
+  const insights = systemInsights({
+    competitors: [{ _id: competitorId, name: 'Rival' }],
+    competitorPages: [
+      { competitorId, url: 'https://rival.example/product', statusCode: 200, title: 'Product', h1: ['Product'], wordCount: 700 },
+      { competitorId, url: 'https://rival.example/pricing', statusCode: 200, title: 'Pricing', h1: ['Pricing'], wordCount: 600 },
+      { competitorId, url: 'https://rival.example/blog/guide', statusCode: 200, title: 'Guide', h1: ['Guide'], wordCount: 900 }
+    ],
+    projectPages: [
+      { url: 'https://moyi.example', statusCode: 200, title: 'Moyi', h1: ['Moyi'], wordCount: 150 },
+      { url: 'https://moyi.example', statusCode: 200, title: 'Moyi old scan', h1: ['Moyi'], wordCount: 150 }
+    ]
+  });
+
+  assert.ok(insights.some((insight) => insight.title === 'Competitor exposes broader crawlable topic coverage'));
+  assert.ok(insights.some((insight) => insight.title === 'Competitor pages provide more on-page depth'));
 });

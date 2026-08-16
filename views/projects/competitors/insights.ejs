@@ -1,14 +1,7 @@
 <%- include('../../partials/header') %>
 
 <div class="app-layout">
-  <aside class="app-sidebar">
-    <strong>Workspace</strong>
-    <a href="/dashboard">Dashboard</a>
-    <a href="/projects">Projects</a>
-    <a href="/projects/<%= project._id %>">Project Overview</a>
-    <a href="/projects/<%= project._id %>/competitors">Competitors</a>
-    <a href="/projects/<%= project._id %>/competitors/insights">Opportunities</a>
-  </aside>
+  <%- include('../../partials/project-sidebar', { project, activeSection: 'competitors' }) %>
 
   <section class="app-main">
     <div class="page-heading">
@@ -17,7 +10,7 @@
         <h1>Competitor Opportunities</h1>
       </div>
       <div class="row-actions">
-        <form action="/projects/<%= project._id %>/competitors/report" method="post">
+        <form action="/projects/<%= project._id %>/competitors/report" method="post" data-loading-state="Refreshing competitor evidence">
           <button class="button button-primary" type="submit">Generate Competitor Report</button>
         </form>
         <a class="button" href="/projects/<%= project._id %>/competitors">Manage competitors</a>
@@ -31,12 +24,19 @@
       </section>
     <% } %>
 
+    <% if (errorMessage) { %>
+      <section class="panel notice-panel">
+        <h2>Report issue</h2>
+        <p class="empty"><%= errorMessage %></p>
+      </section>
+    <% } %>
+
     <section class="panel">
       <div class="panel-title">
         <h2>Comparison Report</h2>
         <span class="status"><%= insights.length %> opportunities</span>
       </div>
-      <p class="empty">This report compares your crawled project pages against manually added competitor websites. It does not use private competitor data, rankings, traffic estimates, or search result scraping. Treat each opportunity as a directional comparison, not a market fact.</p>
+      <p class="empty">Public search results are used only to identify candidate websites. Every opportunity below is calculated from readable pages crawled from your site and the verified competitor sites. Moyi does not claim private traffic, revenue, conversions, or rankings.</p>
     </section>
 
     <section class="panel">
@@ -55,7 +55,11 @@
       <% } %>
       <ul class="clean-list">
         <% competitors.forEach((competitor) => { %>
-          <li><a href="/projects/<%= project._id %>/competitors/<%= competitor._id %>"><%= competitor.name %></a> / <%= competitor.websiteUrl %></li>
+          <% const readablePages = competitorPages.filter((page) => page.competitorId.toString() === competitor._id.toString() && page.statusCode >= 200 && page.statusCode < 400 && (page.title || page.wordCount)); %>
+          <li>
+            <a href="/projects/<%= project._id %>/competitors/<%= competitor._id %>"><%= competitor.name %></a>
+            / <%= competitor.websiteUrl %> / <%= readablePages.length %> readable pages
+          </li>
         <% }) %>
       </ul>
     </section>

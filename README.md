@@ -178,6 +178,7 @@ In production, both must be long random values with at least 32 characters.
 ```env
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4o-mini
+OPENAI_SEARCH_MODEL=gpt-5.4-nano
 OPENAI_IMAGE_MODEL=gpt-image-2
 OPENAI_IMAGE_QUALITY=medium
 OPENAI_IMAGE_SIZE=1536x1024
@@ -188,6 +189,7 @@ MAX_AI_OPERATIONS_PER_MONTH=500
 
 - `OPENAI_API_KEY`: Required for AI CMO plans, content generation, and images.
 - `OPENAI_MODEL`: Text model used by planning and content flows.
+- `OPENAI_SEARCH_MODEL`: Responses API model used for web-backed competitor candidate discovery. Candidates are still verified against public crawled-page evidence before reports are created.
 - `OPENAI_IMAGE_MODEL`: Image model used for generated visuals.
 - `OPENAI_IMAGE_QUALITY`: `low`, `medium`, `high`, or `auto`.
 - `OPENAI_IMAGE_SIZE`: Example `1536x1024`, `1024x1024`, or `auto`.

@@ -102,6 +102,10 @@ const projectSchema = new mongoose.Schema(
       type: [mongoose.Schema.Types.Mixed],
       default: []
     },
+    competitorDiscovery: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {}
+    },
     telemetryHealthScore: {
       type: Number,
       min: 0,

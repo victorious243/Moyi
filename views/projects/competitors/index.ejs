@@ -29,12 +29,28 @@
     <% } %>
 
     <section class="panel">
-      <h2>Auto-discovered Competitors (from your site scan)</h2>
-      <p class="empty" style="margin-bottom: 12px;">
-        The app did the heavy research based on your website scan. Review and confirm the ones you actually compete with.
-        Confirmed ones will be crawled for insights.
-      </p>
-      <!-- The list below (from server) will show auto-created ones first. Use the manual form only for missed ones. -->
+      <div class="panel-title">
+        <h2>Competitor Discovery</h2>
+        <span class="status"><%= discovery.status ? discovery.status.replace(/_/g, ' ') : 'not run' %></span>
+      </div>
+      <% if (discovery.completedAt) { %>
+        <div class="metric-grid">
+          <article><span>Category queries</span><strong><%= discovery.queriesAttempted || 0 %></strong></article>
+          <article><span>Search results</span><strong><%= discovery.searchResultsFound || 0 %></strong></article>
+          <article><span>Sites evaluated</span><strong><%= discovery.candidatesEvaluated || 0 %></strong></article>
+          <article><span>Verified matches</span><strong><%= discovery.competitorsFound || 0 %></strong></article>
+        </div>
+        <% if ((discovery.searchTerms || []).length) { %>
+          <p class="empty">Searched buyer categories: <%= discovery.searchTerms.join(', ') %>.</p>
+        <% } %>
+      <% } else { %>
+        <p class="empty">Generate the report to identify likely competitors from your offer, industry, and latest website scan.</p>
+      <% } %>
+      <% if (discovery.status === 'search_unavailable') { %>
+        <p class="form-error">Public competitor search returned no readable results. The report did not guess or invent competitors.</p>
+      <% } else if (discovery.status === 'no_matches') { %>
+        <p class="empty">Public results were found, but none passed the direct-competitor evidence threshold. Add a known competitor or improve the project’s offer and industry details.</p>
+      <% } %>
     </section>
 
     <section class="panel">
@@ -71,6 +87,8 @@
               <tr>
                 <th>Competitor</th>
                 <th>Website</th>
+                <th>Source</th>
+                <th>Match</th>
                 <th>Pages</th>
                 <th>Last crawled</th>
                 <th>Actions</th>
@@ -83,6 +101,8 @@
                 <tr>
                   <td><a href="/projects/<%= project._id %>/competitors/<%= competitor._id %>"><%= competitor.name %></a></td>
                   <td><a href="<%= competitor.websiteUrl %>" target="_blank" rel="noreferrer"><%= competitor.websiteUrl %></a></td>
+                  <td><%= competitor.source || 'manual' %></td>
+                  <td><%= competitor.confidence ? `${competitor.confidence}%` : 'Confirmed' %></td>
                   <td><%= competitorPages.length %></td>
                   <td><%= lastPage ? lastPage.lastCrawledAt.toLocaleString() : 'Never' %></td>
                   <td>

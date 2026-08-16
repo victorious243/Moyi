@@ -27,6 +27,30 @@ const competitorSchema = new mongoose.Schema(
     notes: {
       type: String,
       default: ''
+    },
+    source: {
+      type: String,
+      enum: ['manual', 'configured', 'discovered'],
+      default: 'manual',
+      index: true
+    },
+    confidence: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 0
+    },
+    rationale: {
+      type: String,
+      default: ''
+    },
+    discoveryEvidence: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {}
+    },
+    lastDiscoveredAt: {
+      type: Date,
+      default: null
     }
   },
   { timestamps: true }

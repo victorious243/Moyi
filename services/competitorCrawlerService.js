@@ -4,7 +4,7 @@ const CompetitorPage = require('../models/CompetitorPage');
 const { extractPage } = require('./crawlerService');
 const { isCrawlableUrl, normalizeUrl, sameHost } = require('../utils/url');
 
-const USER_AGENT = 'MoyiAICMO/1.0 (+manual competitor crawl)';
+const USER_AGENT = 'Mozilla/5.0 (compatible; MoyiAI-CMO/2.0; +https://moyi-cmo.com)';
 const IMPORTANT_PATH_PATTERN = /(service|services|product|products|solution|solutions|blog|article|articles|insight|insights|case-stud|pricing|about|location|locations)/i;
 const MAX_COMPETITOR_PAGES = 12;
 
@@ -15,6 +15,7 @@ function robotUrlFor(siteUrl) {
 
 function parseRobots(text) {
   const groups = [];
+  const sitemaps = [];
   let activeAgents = [];
 
   String(text || '').split(/\r?\n/).forEach((line) => {
@@ -30,10 +31,12 @@ function parseRobots(text) {
       groups.push({ agents: activeAgents, disallow: [] });
     } else if (field === 'disallow' && groups.length) {
       groups[groups.length - 1].disallow.push(value);
+    } else if (field === 'sitemap' && value) {
+      sitemaps.push(value);
     }
   });
 
-  return groups;
+  return { groups, sitemaps: [...new Set(sitemaps)] };
 }
 
 function pathAllowed(url, groups) {
@@ -58,11 +61,66 @@ async function fetchRobots(siteUrl) {
       headers: { 'User-Agent': USER_AGENT }
     });
 
-    if (response.status >= 400) return [];
+    if (response.status >= 400) return { groups: [], sitemaps: [] };
     return parseRobots(response.data || '');
   } catch (error) {
-    return [];
+    return { groups: [], sitemaps: [] };
   }
+}
+
+function sitemapLocations(xml) {
+  return [...String(xml || '').matchAll(/<loc[^>]*>([\s\S]*?)<\/loc>/gi)]
+    .map((match) => match[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim())
+    .filter(Boolean);
+}
+
+async function fetchSitemapDocument(url) {
+  try {
+    const response = await axios.get(url, {
+      timeout: env.crawlTimeoutMs,
+      maxRedirects: 5,
+      validateStatus: () => true,
+      headers: {
+        'User-Agent': USER_AGENT,
+        Accept: 'application/xml,text/xml,text/plain,*/*'
+      }
+    });
+    if (response.status < 200 || response.status >= 400) return '';
+    return String(response.data || '').slice(0, 1000000);
+  } catch (error) {
+    return '';
+  }
+}
+
+async function sitemapPageUrls(baseUrl, declaredSitemaps = []) {
+  const origin = new URL(baseUrl).origin;
+  const sitemapCandidates = [...new Set([...declaredSitemaps, `${origin}/sitemap.xml`])].slice(0, 4);
+  const pageUrls = [];
+
+  for (const sitemapUrl of sitemapCandidates) {
+    const xml = await fetchSitemapDocument(sitemapUrl);
+    if (!xml) continue;
+    const locations = sitemapLocations(xml);
+
+    if (/<sitemapindex/i.test(xml)) {
+      for (const nestedUrl of locations.slice(0, 3)) {
+        const nestedXml = await fetchSitemapDocument(nestedUrl);
+        pageUrls.push(...sitemapLocations(nestedXml));
+      }
+    } else {
+      pageUrls.push(...locations);
+    }
+  }
+
+  const valid = pageUrls.filter((url) => {
+    try {
+      return sameHost(url, baseUrl) && isCrawlableUrl(url);
+    } catch (error) {
+      return false;
+    }
+  });
+  const important = valid.filter((url) => IMPORTANT_PATH_PATTERN.test(new URL(url).pathname));
+  return [...new Set([...important, ...valid])].slice(0, MAX_COMPETITOR_PAGES - 1);
 }
 
 async function fetchCompetitorPage(url) {
@@ -130,18 +188,18 @@ async function crawlCompetitor({ projectId, competitor }) {
   const urls = [];
   const pages = [];
 
-  if (!pathAllowed(baseUrl, robots)) {
-    await CompetitorPage.deleteMany({ projectId, competitorId: competitor._id });
+  if (!pathAllowed(baseUrl, robots.groups)) {
     return { pages: [], skippedByRobots: true };
   }
 
   const homepage = await fetchCompetitorPage(baseUrl);
   pages.push(homepage);
-  urls.push(...importantLinksFrom(homepage, baseUrl));
+  const sitemapUrls = await sitemapPageUrls(baseUrl, robots.sitemaps);
+  urls.push(...new Set([...importantLinksFrom(homepage, baseUrl), ...sitemapUrls]));
 
   for (const url of urls) {
     if (pages.length >= MAX_COMPETITOR_PAGES) break;
-    if (!sameHost(url, baseUrl) || !isCrawlableUrl(url) || !pathAllowed(url, robots)) continue;
+    if (!sameHost(url, baseUrl) || !isCrawlableUrl(url) || !pathAllowed(url, robots.groups)) continue;
     const page = await fetchCompetitorPage(url);
     pages.push(page);
 
@@ -150,20 +208,24 @@ async function crawlCompetitor({ projectId, competitor }) {
     }
   }
 
-  await CompetitorPage.deleteMany({ projectId, competitorId: competitor._id });
-  if (pages.length) {
-    const payloads = uniquePagePayloads(pages, { projectId, competitorId: competitor._id });
-    if (payloads.length) {
-      await CompetitorPage.insertMany(payloads);
-    }
+  const payloads = uniquePagePayloads(pages, { projectId, competitorId: competitor._id });
+  const hasUsableEvidence = payloads.some((page) => page.statusCode >= 200 && page.statusCode < 400 && (page.title || page.wordCount));
+  if (hasUsableEvidence) {
+    await CompetitorPage.deleteMany({ projectId, competitorId: competitor._id });
+    await CompetitorPage.insertMany(payloads);
   }
 
   return {
     pages,
-    skippedByRobots: false
+    skippedByRobots: false,
+    sitemapUrlsFound: sitemapUrls.length,
+    usablePages: pages.filter((page) => page.statusCode >= 200 && page.statusCode < 400 && (page.title || page.wordCount)).length,
+    failedPages: pages.filter((page) => page.statusCode < 200 || page.statusCode >= 400).length
   };
 }
 
 module.exports = {
-  crawlCompetitor
+  crawlCompetitor,
+  parseRobots,
+  sitemapLocations
 };

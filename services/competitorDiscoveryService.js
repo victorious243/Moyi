@@ -1,6 +1,6 @@
 const Competitor = require('../models/Competitor');
 const CompetitorPage = require('../models/CompetitorPage');
-const { inferCompetitorsFromPages } = require('./discoveryService');
+const { inferCompetitorsFromPagesDetailed } = require('./discoveryService');
 const { normalizeUrl } = require('../utils/url');
 
 function competitorSummary(competitor) {
@@ -8,7 +8,8 @@ function competitorSummary(competitor) {
     name: competitor.name,
     websiteUrl: competitor.websiteUrl,
     confidence: competitor.confidence,
-    rationale: competitor.rationale
+    rationale: competitor.rationale,
+    evidence: competitor.evidence
   };
 }
 
@@ -46,16 +47,34 @@ function uniqueCompetitorPagePayloads(pages, { projectId, competitorId }) {
 async function persistDiscoveredCompetitors({ project, userId, competitors }) {
   const created = [];
 
-  for (const candidate of competitors.slice(0, 3)) {
+  for (const candidate of competitors.slice(0, 5)) {
     if (!candidate.websiteUrl) continue;
 
-    const competitor = await Competitor.create({
-      projectId: project._id,
-      userId,
-      name: candidate.name || candidate.websiteUrl || 'Competitor',
-      websiteUrl: candidate.websiteUrl,
-      notes: candidate.rationale || 'Auto-discovered from website scan.'
-    });
+    let competitor = await Competitor.findOne({ projectId: project._id, userId, websiteUrl: candidate.websiteUrl });
+    if (!competitor) {
+      competitor = await Competitor.create({
+        projectId: project._id,
+        userId,
+        name: candidate.name || candidate.websiteUrl || 'Competitor',
+        websiteUrl: candidate.websiteUrl,
+        notes: candidate.rationale || 'Auto-discovered from website scan.',
+        source: 'discovered',
+        confidence: Number(candidate.confidence || 0),
+        rationale: candidate.rationale || '',
+        discoveryEvidence: candidate.evidence || {},
+        lastDiscoveredAt: new Date()
+      });
+    } else {
+      competitor.confidence = Math.max(Number(competitor.confidence || 0), Number(candidate.confidence || 0));
+      competitor.rationale = candidate.rationale || competitor.rationale;
+      competitor.discoveryEvidence = candidate.evidence || competitor.discoveryEvidence;
+      competitor.lastDiscoveredAt = new Date();
+      if (competitor.source === 'discovered') {
+        competitor.name = candidate.name || competitor.name;
+        competitor.notes = candidate.rationale || competitor.notes;
+      }
+      await competitor.save();
+    }
     created.push(competitor);
 
     const pages = ((candidate.crawl && candidate.crawl.pages) || []).filter((page) => page && page.url);
@@ -67,7 +86,13 @@ async function persistDiscoveredCompetitors({ project, userId, competitors }) {
     });
 
     if (pagePayloads.length) {
-      await CompetitorPage.insertMany(pagePayloads);
+      await CompetitorPage.bulkWrite(pagePayloads.map((payload) => ({
+        updateOne: {
+          filter: { projectId: payload.projectId, competitorId: payload.competitorId, url: payload.url },
+          update: { $set: payload },
+          upsert: true
+        }
+      })));
     }
   }
 
@@ -118,7 +143,11 @@ async function persistConfiguredCompetitors({ project, userId }) {
       userId,
       name: candidate.name,
       websiteUrl: candidate.websiteUrl,
-      notes: candidate.rationale
+      notes: candidate.rationale,
+      source: 'configured',
+      confidence: Number(candidate.confidence || 0),
+      rationale: candidate.rationale || '',
+      lastDiscoveredAt: new Date()
     });
     created.push(competitor);
   }
@@ -132,6 +161,9 @@ function competitorDiscoveryBrandProfile(project) {
     ...profile,
     title: profile.title || project.name,
     metaDescription: profile.metaDescription || project.mainOffer || '',
+    industry: project.industry || '',
+    mainOffer: project.mainOffer || '',
+    targetAudience: project.targetAudience || '',
     valueProps: Array.isArray(profile.valueProps) && profile.valueProps.length
       ? profile.valueProps
       : [project.mainOffer].filter(Boolean),
@@ -141,31 +173,37 @@ function competitorDiscoveryBrandProfile(project) {
   };
 }
 
-async function discoverCompetitorsForProject({ project, userId, projectPages }) {
+async function discoverCompetitorsForProject({ project, userId, projectPages, force = false }) {
   const existingCompetitors = await Competitor.find({ projectId: project._id, userId }).sort({ createdAt: -1 });
-  if (existingCompetitors.length) return existingCompetitors;
+  if (existingCompetitors.length && !force) return existingCompetitors;
 
   const configuredCompetitors = await persistConfiguredCompetitors({ project, userId });
-  if (configuredCompetitors.length) return configuredCompetitors;
+  if (configuredCompetitors.length && !force) return configuredCompetitors;
 
-  const discoveredCompetitors = await inferCompetitorsFromPages(
+  const discovery = await inferCompetitorsFromPagesDetailed(
     projectPages,
     project.websiteUrl,
     competitorDiscoveryBrandProfile(project)
   );
+  const discoveredCompetitors = discovery.competitors;
 
-  if (!discoveredCompetitors.length) return [];
+  project.competitorDiscovery = {
+    ...discovery.diagnostics,
+    completedAt: new Date()
+  };
 
-  await persistDiscoveredCompetitors({
-    project,
-    userId,
-    competitors: discoveredCompetitors
-  });
+  if (discoveredCompetitors.length) {
+    await persistDiscoveredCompetitors({
+      project,
+      userId,
+      competitors: discoveredCompetitors
+    });
 
-  project.competitors = discoveredCompetitors.map(competitorSummary);
+    project.competitors = discoveredCompetitors.map(competitorSummary);
+  }
   await project.save();
 
-  return discoveredCompetitors;
+  return Competitor.find({ projectId: project._id, userId }).sort({ confidence: -1, createdAt: -1 });
 }
 
 module.exports = {
