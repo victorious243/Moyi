@@ -9,18 +9,24 @@ const {
   googleOAuthErrorMessage
 } = require('../services/googleAuthService');
 const {
+  buildDiscoveryQueries,
+  classifyCompetitor,
   competitorSummaryFallback,
+  detectSemanticConcepts,
   extractDuckDuckGoTarget,
   fallbackSearchTerms,
   filteredHost,
+  inferBusinessModel,
   parseSearchResults,
-  sanitizeSearchCandidates
+  sanitizeSearchCandidates,
+  selectCompetitorMix
 } = require('../services/discoveryService');
 const { crawlWebsite } = require('../services/crawlerService');
 const { scoreChecks } = require('../services/telemetryAuditor');
 const { attributePayment } = require('../services/attributionService');
 const { normalizeCookieDomain } = require('../config/env');
 const Campaign = require('../models/Campaign');
+const Competitor = require('../models/Competitor');
 const Project = require('../models/Project');
 const TrackingEvent = require('../models/TrackingEvent');
 const { sameHost } = require('../utils/url');
@@ -115,6 +121,9 @@ test('AI-CMO SPEC COMPLIANCE model fields: project and tracking resolution field
     name: 'Moyi',
     websiteUrl: 'https://moyi.example',
     status: 'draft',
+    targetCountry: 'Ireland',
+    targetCity: 'Dublin',
+    businessModel: 'agency',
     brand_profile: { toneAdjectives: ['clear'] },
     competitors: [{ name: 'Competitor', websiteUrl: 'https://competitor.example' }]
   });
@@ -131,6 +140,21 @@ test('AI-CMO SPEC COMPLIANCE model fields: project and tracking resolution field
 
   assert.equal(project.validateSync(), undefined);
   assert.equal(event.validateSync(), undefined);
+});
+
+test('competitor records support market classification and location relevance', () => {
+  const competitor = new Competitor({
+    projectId: new mongoose.Types.ObjectId(),
+    userId: new mongoose.Types.ObjectId(),
+    name: 'Rival Agency',
+    websiteUrl: 'https://rival.example',
+    classification: 'direct',
+    businessModel: 'agency',
+    locationRelevance: 'local',
+    classificationReason: 'Same buyer and market'
+  });
+
+  assert.equal(competitor.validateSync(), undefined);
 });
 
 test('AI-CMO SPEC COMPLIANCE Requirement 2: competitor search parsing filters social/news junk', () => {
@@ -158,6 +182,97 @@ test('competitor discovery creates product-category searches instead of audience
   assert.ok(terms.includes('AI Chief Marketing Officer'));
   assert.ok(terms.includes('AI CMO software'));
   assert.equal(terms.some((term) => /^startup founders$/i.test(term)), false);
+});
+
+test('competitor discovery adds city and country to local market searches', () => {
+  const queries = buildDiscoveryQueries(['employment solicitor', 'business law firm'], {
+    targetCity: 'Dublin',
+    targetCountry: 'Ireland'
+  });
+
+  assert.equal(queries[0], 'employment solicitor Dublin, Ireland');
+  assert.ok(queries.includes('business law firm'));
+});
+
+test('business model inference distinguishes agencies and marketplaces', () => {
+  assert.equal(inferBusinessModel({ mainOffer: 'A growth marketing agency for B2B companies' }), 'agency');
+  assert.equal(inferBusinessModel({ mainOffer: 'A marketplace connecting homeowners with local plumbers' }), 'marketplace');
+});
+
+test('semantic concepts recognize equivalent legal service language', () => {
+  assert.ok(detectSemanticConcepts('Employment solicitors for Irish companies').includes('legal'));
+  assert.ok(detectSemanticConcepts('Attorneys helping employers with workplace law').includes('legal'));
+});
+
+test('marketplace projects can treat major directories as competitors', () => {
+  assert.equal(filteredHost('g2.com', 'https://new-reviews.example', { businessModel: 'marketplace' }), false);
+  assert.equal(filteredHost('g2.com', 'https://agency.example', { businessModel: 'agency' }), true);
+});
+
+test('competitor classification respects business model compatibility', () => {
+  const fallback = {
+    isDirectCompetitor: true,
+    isRelatedCompetitor: true,
+    sharedConcepts: ['marketing'],
+    sharedTerms: ['marketing']
+  };
+  const homepage = {
+    title: 'Growth partner',
+    metaDescription: 'Demand generation and content marketing',
+    h1: ['Marketing growth partner'],
+    headings: []
+  };
+  const target = {
+    businessModel: 'agency',
+    mainOffer: 'Growth marketing agency',
+    targetCity: 'Dublin',
+    targetCountry: 'Ireland'
+  };
+
+  const direct = classifyCompetitor({
+    candidate: { businessModel: 'agency', locationRelevance: 'local' },
+    homepage,
+    brandProfile: target,
+    fallback
+  });
+  const indirect = classifyCompetitor({
+    candidate: { businessModel: 'saas', locationRelevance: 'local' },
+    homepage,
+    brandProfile: target,
+    fallback
+  });
+
+  assert.equal(direct.classification, 'direct');
+  assert.equal(indirect.classification, 'indirect');
+
+  const synonymDirect = classifyCompetitor({
+    candidate: { businessModel: 'professional_services', locationRelevance: 'local' },
+    homepage: { title: 'Employment attorneys', metaDescription: 'Workplace law', h1: [], headings: [] },
+    brandProfile: { businessModel: 'professional_services', mainOffer: 'Employment solicitors' },
+    fallback: {
+      isDirectCompetitor: false,
+      isRelatedCompetitor: true,
+      sharedConcepts: ['legal'],
+      sharedTerms: ['legal']
+    }
+  });
+  assert.equal(synonymDirect.classification, 'direct');
+});
+
+test('competitor selection retains direct, indirect, and aspirational candidates', () => {
+  const candidates = [
+    { name: 'Direct A', classification: 'direct', confidence: 90 },
+    { name: 'Direct B', classification: 'direct', confidence: 88 },
+    { name: 'Direct C', classification: 'direct', confidence: 86 },
+    { name: 'Direct D', classification: 'direct', confidence: 84 },
+    { name: 'Indirect', classification: 'indirect', confidence: 70 },
+    { name: 'Aspirational', classification: 'aspirational', confidence: 75 }
+  ];
+  const selected = selectCompetitorMix(candidates, 5);
+
+  assert.equal(selected.filter((candidate) => candidate.classification === 'direct').length, 3);
+  assert.ok(selected.some((candidate) => candidate.classification === 'indirect'));
+  assert.ok(selected.some((candidate) => candidate.classification === 'aspirational'));
 });
 
 test('competitor search challenge pages are not mistaken for competitors', () => {

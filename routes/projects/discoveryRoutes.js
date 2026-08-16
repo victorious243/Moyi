@@ -161,7 +161,10 @@ function registerDiscoveryRoutes(router, context, services = {}) {
         name: req.body.name,
         websiteUrl: context.normalizeUrl(req.body.websiteUrl),
         notes: req.body.notes || '',
-        classification: req.body.classification || 'direct'
+        classification: req.body.classification || 'direct',
+        businessModel: req.body.businessModel || 'other',
+        locationRelevance: req.body.locationRelevance || 'unknown',
+        classificationReason: 'Manually classified by the workspace user.'
       });
 
       res.redirect(`/projects/${req.project._id}/competitors?success=${encodeURIComponent('Competitor added.')}`);

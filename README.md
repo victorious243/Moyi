@@ -430,6 +430,26 @@ Use this when you already know the brand details.
 
 Manual creation requires the logo because Moyi uses it later for branded visuals.
 
+## Competitor Intelligence
+
+Competitor discovery uses the project offer, industry, business model, target city, and target country. Set these fields in project settings before regenerating a report when a business serves a specific geographic market.
+
+Moyi classifies verified public company sites as:
+
+- `direct`: A similar offer for the same buyer problem with a compatible business model.
+- `indirect`: An alternative way for the buyer to solve the same problem.
+- `aspirational`: A relevant category leader or broader-market company worth benchmarking.
+
+Discovery expands equivalent service language, such as `solicitor`, `law firm`, and `attorney`, into shared market concepts. Agencies can therefore be compared with agencies, marketplaces with marketplaces, and local providers with businesses serving the same city or country. Search results are candidate leads only; Moyi must read the public company website and find matching offer evidence before saving it.
+
+To improve a weak report:
+
+1. Open project settings and confirm the business model, main offer, city, and country.
+2. Run a fresh website scan so Moyi has current positioning evidence.
+3. Open `Competitors` and click `Generate Competitor Report`.
+4. Review the type, business model, market reach, match evidence, and classification reason.
+5. Add a missed company manually and classify it when local search evidence is incomplete.
+
 ## Website Scans
 
 A scan collects crawlable website evidence.

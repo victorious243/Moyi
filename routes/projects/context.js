@@ -411,6 +411,14 @@ function buildProjectsContext(overrides = {}) {
         .optional({ checkFalsy: true })
         .isIn(['direct', 'indirect', 'aspirational'])
         .withMessage('Choose a valid competitor type.'),
+      body('businessModel')
+        .optional({ checkFalsy: true })
+        .isIn(['saas', 'ecommerce', 'marketplace', 'agency', 'professional_services', 'local_service', 'retail', 'media', 'nonprofit', 'other'])
+        .withMessage('Choose a valid competitor business model.'),
+      body('locationRelevance')
+        .optional({ checkFalsy: true })
+        .isIn(['local', 'regional', 'national', 'global', 'unknown'])
+        .withMessage('Choose a valid competitor market reach.'),
       deps.handleValidation
     ],
     wordpressValidation: [

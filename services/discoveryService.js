@@ -23,6 +23,10 @@ const EXCLUDED_SEARCH_HOSTS = [
   'forbes.com', 'techcrunch.com', 'venturebeat.com', 'indeed.com', 'glassdoor.com',
   'amazon.com', 'apple.com', 'duckduckgo.com'
 ];
+const MARKETPLACE_COMPETITOR_HOSTS = [
+  'g2.com', 'capterra.com', 'trustpilot.com', 'producthunt.com', 'indeed.com',
+  'glassdoor.com', 'amazon.com', 'apple.com'
+];
 const FALSE_POSITIVE_CONTENT_PATTERN = /(software|tool|business) directory|news (?:site|publication)|media company|course marketplace|training course|online community|reviews and comparisons/i;
 const EDITORIAL_RESULT_PATTERN = /(?:\btop\s+\d+|\b\d+\s+best\b|\bbest\s+.+(?:tools?|software|platforms?)|alternatives?\s+to|comparison|roundup|buyers? guide|reviews?\b)/i;
 const SEARCH_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0 Safari/537.36';
@@ -36,9 +40,9 @@ const SEMANTIC_CONCEPT_PATTERNS = {
   content: /\b(content marketing|copywriting|editorial|content creation|content strategy)\b/i,
   software: /\b(saas|software|cloud platform|web app|automation platform|digital platform)\b/i,
   healthcare: /\b(healthcare|health care|medical|clinic|doctor|physician|hospital|wellness)\b/i,
-  dental: /\b(dental|dentist|orthodont|oral health)\b/i,
-  legal: /\b(legal|law firm|lawyer|attorney|solicitor|barrister)\b/i,
-  accounting: /\b(accounting|accountant|bookkeep|tax advisory|payroll)\b/i,
+  dental: /\b(dental|dentists?|orthodont|oral health)\b/i,
+  legal: /\b(legal|law firms?|lawyers?|attorneys?|solicitors?|barristers?)\b/i,
+  accounting: /\b(accounting|accountants?|bookkeep|tax advisory|payroll)\b/i,
   finance: /\b(finance|financial|fintech|banking|lending|payments?|investment)\b/i,
   insurance: /\b(insurance|insurtech|brokerage|underwriting)\b/i,
   real_estate: /\b(real estate|property|realtor|estate agent|lettings|mortgage)\b/i,
@@ -359,10 +363,15 @@ function extractDuckDuckGoTarget(href) {
   return '';
 }
 
-function filteredHost(host, projectUrl) {
+function filteredHost(host, projectUrl, brandProfile = {}) {
   const normalizedHost = String(host || '').replace(/^www\./, '').toLowerCase();
+  const targetBusinessModel = inferBusinessModel(brandProfile);
+  const allowMarketplaceCompetitors = ['marketplace', 'ecommerce', 'retail'].includes(targetBusinessModel);
   return !normalizedHost ||
-    EXCLUDED_SEARCH_HOSTS.some((blocked) => normalizedHost === blocked || normalizedHost.endsWith(`.${blocked}`)) ||
+    EXCLUDED_SEARCH_HOSTS.some((blocked) => {
+      if (allowMarketplaceCompetitors && MARKETPLACE_COMPETITOR_HOSTS.includes(blocked)) return false;
+      return normalizedHost === blocked || normalizedHost.endsWith(`.${blocked}`);
+    }) ||
     sameHost(`https://${normalizedHost}`, projectUrl);
 }
 
@@ -391,7 +400,7 @@ function candidatePriority(candidate, projectUrl) {
   return score;
 }
 
-function parseSearchResults(html, projectUrl, limit = SEARCH_RESULT_LIMIT) {
+function parseSearchResults(html, projectUrl, limit = SEARCH_RESULT_LIMIT, brandProfile = {}) {
   const $ = cheerio.load(String(html || ''));
   let anchors = $('a.result__a, a[data-testid="result-title-a"], a.result-link, td.result-link a').toArray();
   if (!anchors.length) anchors = $('a[href]').toArray();
@@ -402,7 +411,7 @@ function parseSearchResults(html, projectUrl, limit = SEARCH_RESULT_LIMIT) {
     if (results.length >= limit) return;
     const targetUrl = extractDuckDuckGoTarget($(anchor).attr('href'));
     const host = safeHostname(targetUrl);
-    if (filteredHost(host, projectUrl) || seen.has(host)) return;
+    if (filteredHost(host, projectUrl, brandProfile) || seen.has(host)) return;
 
     const title = cleanText($(anchor).text(), 160);
     if (!title) return;
@@ -422,7 +431,7 @@ function parseSearchResults(html, projectUrl, limit = SEARCH_RESULT_LIMIT) {
   return results;
 }
 
-async function duckDuckGoSearch(query, projectUrl) {
+async function duckDuckGoSearch(query, projectUrl, brandProfile = {}) {
   const endpoints = [
     'https://html.duckduckgo.com/html/',
     'https://duckduckgo.com/html/',
@@ -441,7 +450,7 @@ async function duckDuckGoSearch(query, projectUrl) {
           'Accept-Language': 'en-US,en;q=0.8'
         }
       });
-      const results = parseSearchResults(response.data || '', projectUrl);
+      const results = parseSearchResults(response.data || '', projectUrl, SEARCH_RESULT_LIMIT, brandProfile);
       if (results.length) return results;
     } catch (error) {
       // Try the next public HTML endpoint before reporting an empty result.
@@ -451,14 +460,14 @@ async function duckDuckGoSearch(query, projectUrl) {
   return [];
 }
 
-function sanitizeSearchCandidates(parsed, projectUrl) {
+function sanitizeSearchCandidates(parsed, projectUrl, brandProfile = {}) {
   const items = Array.isArray(parsed && parsed.results) ? parsed.results : [];
   const seen = new Set();
 
   return items.slice(0, 20).map((item) => {
     const suppliedUrl = item.websiteUrl || item.url || '';
     const host = safeHostname(suppliedUrl);
-    if (filteredHost(host, projectUrl) || seen.has(host)) return null;
+    if (filteredHost(host, projectUrl, brandProfile) || seen.has(host)) return null;
     seen.add(host);
     return {
       name: cleanText(item.name || hostnameLabel(suppliedUrl), 100),
@@ -469,7 +478,7 @@ function sanitizeSearchCandidates(parsed, projectUrl) {
       snippet: cleanText(item.rationale || item.valueProposition, 360),
       searchConfidence: Math.min(Math.max(Number(item.confidence) || 0, 0), 100),
       classification: normalizeCompetitorClassification(item.classification),
-      businessModel: normalizeBusinessModel(item.businessModel) || 'other',
+      businessModel: normalizeBusinessModel(item.businessModel),
       locationRelevance: normalizeLocationRelevance(item.locationRelevance) || 'unknown',
       classificationReason: cleanText(item.classificationReason || item.rationale, 300),
       source: 'openai_web_search'
@@ -513,7 +522,7 @@ async function openAiCompetitorSearch({ websiteUrl, brandProfile, pages, searchT
     ].join('\n')
   });
 
-  return sanitizeSearchCandidates(parseJson(response.output_text), websiteUrl);
+  return sanitizeSearchCandidates(parseJson(response.output_text), websiteUrl, brandProfile);
 }
 
 function inferLocationRelevance(candidate, homepage, brandProfile = {}) {
@@ -541,10 +550,14 @@ function inferLocationRelevance(candidate, homepage, brandProfile = {}) {
 
 function classifyCompetitor({ candidate, homepage, brandProfile, fallback }) {
   const targetBusinessModel = inferBusinessModel(brandProfile);
-  const candidateBusinessModel = normalizeBusinessModel(candidate.businessModel) || inferBusinessModel({
+  const suppliedBusinessModel = normalizeBusinessModel(candidate.businessModel);
+  const inferredBusinessModel = inferBusinessModel({
     title: candidate.title,
     metaDescription: candidate.snippet
   }, [homepage]);
+  const candidateBusinessModel = suppliedBusinessModel && suppliedBusinessModel !== 'other'
+    ? suppliedBusinessModel
+    : inferredBusinessModel;
   const compatibility = businessModelCompatibility(targetBusinessModel, candidateBusinessModel);
   const locationRelevance = inferLocationRelevance(candidate, homepage, brandProfile);
   const requestedClassification = normalizeCompetitorClassification(candidate.classification);
@@ -819,7 +832,7 @@ async function inferCompetitorsFromPagesDetailed(pages, websiteUrl, brandProfile
     diagnostics.fallbackSearchUsed = true;
     for (const term of searchQueries) {
       try {
-        const searchResults = await duckDuckGoSearch(searchQueryForTerm(term), websiteUrl);
+        const searchResults = await duckDuckGoSearch(searchQueryForTerm(term), websiteUrl, brandProfile);
         if (searchResults.length) diagnostics.queriesWithResults += 1;
         diagnostics.searchResultsFound += searchResults.length;
         searchResults.forEach((result, rank) => resultPool.push({ ...result, queryTerms: [term], bestRank: rank }));
@@ -862,7 +875,8 @@ async function inferCompetitorsFromPagesDetailed(pages, websiteUrl, brandProfile
       if (evaluation.competitor) enriched.push(evaluation.competitor);
       else diagnostics.rejected[evaluation.reason] = (diagnostics.rejected[evaluation.reason] || 0) + 1;
     });
-    if (enriched.length >= MAX_COMPETITORS) break;
+    const classificationsFound = new Set(enriched.map((competitor) => competitor.classification));
+    if (enriched.length >= MAX_COMPETITORS && classificationsFound.size >= 3) break;
   }
 
   const competitors = selectCompetitorMix(enriched, MAX_COMPETITORS);
