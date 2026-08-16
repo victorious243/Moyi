@@ -47,9 +47,20 @@ function extractPosterText(value) {
   return saying ? cleanText(saying[1], 160) : '';
 }
 
+const { resolveBrandDesignTokens } = require('./graphicDesignStudioService');
+
 function detectVisualFormat({ guidance = '', draft = {} } = {}) {
   const signal = `${guidance} ${draft.title || ''} ${draft.type || ''}`;
-  if (/\b(?:flyer|poster|advert(?:isement)?|ad creative|campaign creative|feature announcement|product launch|saas corporate|brochure|banner|one-pager|social graphic|infographic)\b/i.test(signal)) {
+  if (/\b(?:carousel|slide deck|slide|multi-slide)\b/i.test(signal)) {
+    return 'b2b-carousel-slide';
+  }
+  if (/\b(?:infographic|comparison table|metric badge|benchmark chart|matrix)\b/i.test(signal)) {
+    return 'data-infographic';
+  }
+  if (/\b(?:mockup|3d device|device frame|isometric screen|laptop frame|tablet mockup)\b/i.test(signal)) {
+    return '3d-device-mockup';
+  }
+  if (/\b(?:flyer|poster|advert(?:isement)?|ad creative|campaign creative|feature announcement|product launch|saas corporate|brochure|banner|one-pager|social graphic)\b/i.test(signal)) {
     return 'corporate-flyer';
   }
   return 'editorial-visual';
@@ -195,13 +206,13 @@ function imagePrompt({
       ? `Final canvas: ${outputProfile.width} by ${outputProfile.height} pixels in ${outputProfile.orientation} orientation${outputProfile.channel ? `, composed specifically for ${outputProfile.channel}` : ''}. Keep every logo, headline, paragraph, CTA, icon, person, and product fully inside an inner 8% safe margin on all four sides. Nothing may touch, cross, or disappear beyond the canvas edge. Use the whole canvas intentionally and verify the complete composition before returning it.`
       : '',
     isFlyer
-      ? 'Infer a strong hierarchy without requiring a technical prompt: integrated brand identity, concise headline, clear value proposition, relevant hero visual or supported product concept, scannable feature groups when useful, and a clear CTA. Use a coherent grid, intentional whitespace, and safe margins. The result must look like a finished premium SaaS campaign asset, not a photograph with a text box pasted on top.'
-      : 'Use a premium, credible corporate editorial style with a clear focal subject and natural composition.',
+      ? 'Infer a strong hierarchy without requiring a technical prompt: integrated brand identity, concise headline, clear value proposition, relevant hero visual or supported product concept, scannable feature groups when useful, and a clear CTA. Follow the Swiss 12-column modular grid, 8pt vertical baseline rhythm, and maintain at least 30% unobstructed negative space. Apply C.R.A.P. design principles: high 4.5:1+ contrast, flush-left alignment, uniform card radii, and proximity-grouped atomic cards. The result must look like a finished premium SaaS campaign asset, not a photograph with a text box pasted on top.'
+      : 'Use a premium, credible corporate editorial style with a clear focal subject, Swiss grid balance, and natural composition.',
     isFlyer
       ? 'When the source contains many capabilities, select the most important supported points and arrange them as concise, readable feature groups. Do not invent capabilities, metrics, endorsements, prices, or customer claims.'
       : 'Do not add logos, statistics, product UI, people, locations, or claims that are not supported by the supplied content or reference images.',
     isFlyer
-      ? 'A conceptual SaaS interface may be shown only when supported by the supplied content. It must be clearly illustrative and must not add unsupported product functionality.'
+      ? 'A conceptual SaaS interface may be shown only when supported by the supplied content. It must be clearly illustrative with subtle 3D glassmorphism depth, and must not add unsupported product functionality.'
       : '',
     exactPosterText
       ? `Render this exact CTA once, spelled exactly as written and fully inside the safe margins: "${cleanText(exactPosterText, 160)}".`
