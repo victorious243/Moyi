@@ -249,6 +249,19 @@ router.get('/robots.txt', (req, res) => {
   res.type('text/plain').send([
     'User-agent: *',
     'Allow: /',
+    'Disallow: /dashboard',
+    'Disallow: /projects',
+    'Disallow: /account',
+    'Disallow: /billing',
+    'Disallow: /admin',
+    'Disallow: /organizations',
+    'Disallow: /auth/verify-email',
+    'Disallow: /auth/reset-password',
+    'Disallow: /forgot-password',
+    'Disallow: /reset-password',
+    'Disallow: /verify-email',
+    'Disallow: /api/',
+    '',
     `Sitemap: ${publicBaseUrl()}/sitemap.xml`,
     `Llms: ${publicBaseUrl()}/llms.txt`
   ].join('\n'));

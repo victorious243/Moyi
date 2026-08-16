@@ -53,6 +53,7 @@ function clearGoogleAuthCookies(res) {
 function renderVerifyEmail(res, { email = '', errorMessage = '', successMessage = '' } = {}, statusCode = 200) {
   return res.status(statusCode).render('auth/verify-email', {
     title: 'Verify email',
+    robotsMeta: 'noindex, nofollow',
     email,
     errorMessage,
     successMessage
@@ -268,6 +269,7 @@ router.post(
 router.get('/forgot-password', (req, res) => {
   res.render('auth/forgot-password', {
     title: 'Reset password',
+    robotsMeta: 'noindex, nofollow',
     errorMessage: '',
     resetUrl: ''
   });
@@ -285,6 +287,7 @@ router.post(
       const result = await requestPasswordReset({ email: req.body.email, req });
       res.render('auth/password-reset-requested', {
         title: 'Check your email',
+        robotsMeta: 'noindex, nofollow',
         resetUrl: result.resetUrl || '',
         resetPin: result.resetPin || ''
       });
@@ -297,6 +300,7 @@ router.post(
 router.get('/reset-password/:token', (req, res) => {
   res.render('auth/reset-password', {
     title: 'Choose a new password',
+    robotsMeta: 'noindex, nofollow',
     token: req.params.token,
     errorMessage: req.query.error || ''
   });

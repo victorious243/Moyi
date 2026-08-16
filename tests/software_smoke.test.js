@@ -286,10 +286,28 @@ test('shared header renders SEO, social, canonical, and schema metadata', async 
 
   assert.match(html, /<meta name="description"/);
   assert.match(html, /<link rel="canonical" href="https:\/\/moyi-cmo\.com"/);
+  assert.match(html, /<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">/);
+  assert.match(html, /<meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">/);
+  assert.match(html, /<meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">/);
   assert.match(html, /property="og:description"/);
   assert.match(html, /name="twitter:card" content="summary_large_image"/);
   assert.match(html, /"@type":"Organization"/);
   assert.match(html, /"@type":"SoftwareApplication"/);
+});
+
+test('shared header respects custom robotsMeta for protected/auth views', async () => {
+  const html = await ejs.renderFile(
+    path.join(__dirname, '../views/partials/header.ejs'),
+    {
+      appName: 'Moyi-CMO',
+      title: 'Reset Password',
+      robotsMeta: 'noindex, nofollow',
+      currentUser: null,
+      canonicalUrl: 'https://moyi-cmo.com/forgot-password'
+    }
+  );
+
+  assert.match(html, /<meta name="robots" content="noindex, nofollow">/);
 });
 
 test('public quick scan scoring and snapshot helpers produce gated preview data', () => {
