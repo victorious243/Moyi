@@ -1477,6 +1477,25 @@ table code,
   color: var(--saas-text-muted);
 }
 
+.cmo-privacy-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.22);
+  padding: 2px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.01em;
+}
+
+.cmo-privacy-pill svg {
+  color: #10b981;
+}
+
 .cmo-chat-close-btn {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid var(--saas-line);

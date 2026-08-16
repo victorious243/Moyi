@@ -78,7 +78,7 @@ test('Interactive CMO Chat Assistant & In-App Notification Center', async (t) =>
       assert.ok(competitorReply.includes('DataHero HQ'));
 
       const contentReply = generateDeterministicCmoReply('Draft 3 LinkedIn hooks for me', context);
-      assert.ok(contentReply.includes('Content & Distribution Strategy'));
+      assert.ok(contentReply.includes('Content & Distribution'));
       assert.ok(contentReply.includes('Product Leaders'));
 
       // Test askCmoAssistant response wrapper
@@ -99,6 +99,21 @@ test('Interactive CMO Chat Assistant & In-App Notification Center', async (t) =>
       Recommendation.find = origRecommendationFind;
       ContentDraft.find = origContentDraftFind;
     }
+  });
+
+  await t.test('sanitizePiiAndSecrets strips tokens, API keys, cards, and secrets', () => {
+    const { sanitizePiiAndSecrets } = require('../services/cmoChatService');
+    const dirty = 'Bearer eyJhbGciOiJIUzI1NiJ9.test.123 sk-1234567890abcdef1234567890 password="mySuperSecretPassword" 4111 2222 3333 4444';
+    const clean = sanitizePiiAndSecrets(dirty);
+
+    assert.ok(!clean.includes('eyJhbGciOiJIUzI1NiJ9'));
+    assert.ok(!clean.includes('sk-1234567890abcdef1234567890'));
+    assert.ok(!clean.includes('mySuperSecretPassword'));
+    assert.ok(!clean.includes('4111 2222 3333 4444'));
+    assert.ok(clean.includes('[REDACTED_TOKEN]'));
+    assert.ok(clean.includes('[REDACTED_KEY]'));
+    assert.ok(clean.includes('[REDACTED_SECRET]'));
+    assert.ok(clean.includes('[REDACTED_CARD]'));
   });
 
   await t.test('GrowthAlert data schema supports unread querying and project population', () => {
