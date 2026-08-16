@@ -284,6 +284,7 @@ test('shared header renders SEO, social, canonical, and schema metadata', async 
     }
   );
 
+  assert.match(html, /<script id="Cookiebot" src="https:\/\/consent\.cookiebot\.com\/uc\.js" data-cbid="7031f7cc-b0f4-4087-bc4b-de5aaaec95f7" data-blockingmode="auto" type="text\/javascript"><\/script>/);
   assert.match(html, /<meta name="description"/);
   assert.match(html, /<link rel="canonical" href="https:\/\/moyi-cmo\.com"/);
   assert.match(html, /<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">/);

@@ -43,11 +43,40 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:"],
-      connectSrc: ["'self'"],
+      scriptSrc: [
+        "'self'",
+        "'unsafe-inline'",
+        'https://consent.cookiebot.com',
+        'https://consentcdn.cookiebot.com',
+        'https://*.cookiebot.com'
+      ],
+      styleSrc: [
+        "'self'",
+        "'unsafe-inline'",
+        'https://fonts.googleapis.com',
+        'https://consent.cookiebot.com',
+        'https://consentcdn.cookiebot.com'
+      ],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+      imgSrc: [
+        "'self'",
+        'data:',
+        'https://consent.cookiebot.com',
+        'https://consentcdn.cookiebot.com',
+        'https://imgs.cookiebot.com',
+        'https://*.cookiebot.com'
+      ],
+      connectSrc: [
+        "'self'",
+        'https://consent.cookiebot.com',
+        'https://consentcdn.cookiebot.com',
+        'https://*.cookiebot.com'
+      ],
+      frameSrc: [
+        "'self'",
+        'https://consent.cookiebot.com',
+        'https://consentcdn.cookiebot.com'
+      ],
       upgradeInsecureRequests: [],
     }
   }

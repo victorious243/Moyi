@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script id="Cookiebot" src="https://consent.cookiebot.com/uc.js" data-cbid="7031f7cc-b0f4-4087-bc4b-de5aaaec95f7" data-blockingmode="auto" type="text/javascript"></script>
   <%
     const pageTitle = typeof title !== 'undefined' && title ? `${title} | ${appName}` : `${appName} | Evidence-led AI CMO software`;
     const pageDescription = typeof seoDescription !== 'undefined' && seoDescription
@@ -53,7 +54,6 @@
   <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
   <link rel="stylesheet" href="/stylesheets/style.css?v=20260816h">
   <link rel="stylesheet" href="/stylesheets/saas-ui.css?v=20260816h">
-  <script id="Cookiebot" src="https://consent.cookiebot.com/uc.js" data-cbid="7031f7cc-b0f4-4087-bc4b-de5aaaec95f7"  type="text/javascript"></script>
 </head>
 <body data-csrf-token="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
   <%- include('navbar') %>
