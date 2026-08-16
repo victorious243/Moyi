@@ -184,6 +184,9 @@
                     <input name="reason" placeholder="Reason">
                     <button class="button" type="submit">Add Credits</button>
                   </form>
+                  <form class="inline-form" action="/admin/users/<%= user._id %>/delete" method="post" onsubmit="return confirm('Are you sure you want to permanently delete and ban <%= user.email %>? All associated data will be erased.');">
+                    <button class="button danger-button" type="submit">Ban & Delete</button>
+                  </form>
                 </td>
               </tr>
             <% }) %>

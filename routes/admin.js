@@ -12,7 +12,7 @@ const { retryPublishJob } = require('../services/contentDistributionEngineServic
 const { collectMetricsForJob } = require('../services/engagementMetricsService');
 const PublishJob = require('../models/PublishJob');
 const { retryWebhookDelivery } = require('../services/webhookService');
-const { addSocialPostCredits, currentPeriod } = require('../services/usageService');
+const { deleteAccountData } = require('../services/accountDataService');
 const AppError = require('../utils/appError');
 const handleValidation = require('../utils/validate');
 
@@ -28,6 +28,31 @@ router.get('/', asyncHandler(async (req, res) => {
     title: 'Operator Dashboard',
     ...dashboard
   });
+}));
+
+router.post('/users/:id/delete', [
+  param('id').isMongoId(),
+  handleValidation
+], asyncHandler(async (req, res, next) => {
+  if (String(req.params.id) === String(req.user._id)) {
+    return next(new AppError('You cannot delete your own admin account.', 422));
+  }
+
+  const user = await User.findById(req.params.id);
+  if (!user) return next(new AppError('User not found.', 404));
+
+  const emailSnapshot = user.email;
+  await deleteAccountData(user._id);
+  await User.findByIdAndDelete(user._id);
+
+  await recordAuditEvent({
+    user: req.user,
+    eventType: 'admin_user_deleted_and_banned',
+    metadata: { targetUserId: user._id, targetEmail: emailSnapshot },
+    req
+  });
+
+  res.redirect('/admin');
 }));
 
 router.post('/users/:id', [

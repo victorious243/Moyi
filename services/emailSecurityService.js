@@ -19,7 +19,8 @@ const DISPOSABLE_EMAIL_DOMAINS = new Set([
   'minuteinbox.com', 'mailcatch.com', 'yopmail.fr', 'yopmail.net',
   'cool.fr.nf', 'jetable.fr.nf', 'nospam.ze.tc', 'nomail.xl.cx',
   'mega.zik.dj', 'speed.1s.fr', 'courriel.fr.nf', 'moncourrier.fr.nf',
-  'monemail.fr.nf', 'monmail.fr.nf', 'testmail.com', 'fakeemail.com'
+  'monemail.fr.nf', 'monmail.fr.nf', 'testmail.com', 'fakeemail.com',
+  'immenseignite.info'
 ]);
 
 // IP submission tracker for rate limiting (max 5 submissions per hour per IP)
