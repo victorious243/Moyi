@@ -84,6 +84,7 @@
   <script src="/js/interface-polish.js" defer></script>
   <script src="/js/saas-interactions.js" defer></script>
   <script src="/js/loading-state.js" defer></script>
+  <script src="/js/sidebar-drawer.js" defer></script>
   <script src="/js/soft-navigation.js" defer></script>
   <script data-global-loader>
     (() => {
@@ -97,7 +98,6 @@
       if (document.querySelector('[data-terminal-scan]')) loadScript('/js/terminal-scan.js');
       if (document.querySelector('[data-live-scan]')) loadScript('/js/scan-status.js');
       if (document.querySelector('[data-live-job]')) loadScript('/js/project-job-status.js');
-      if (document.querySelector('.app-sidebar')) loadScript('/js/sidebar-drawer.js');
       if (new URLSearchParams(window.location.search).get('overflowAudit') === '1' || window.localStorage.getItem('moyiOverflowAudit') === '1') {
         loadScript('/js/overflow-audit.js');
       }
