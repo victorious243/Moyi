@@ -5279,16 +5279,6 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .app-sidebar {
-    position: static;
-    display: flex;
-    flex-wrap: wrap;
-  }
-
-  .app-sidebar strong {
-    width: 100%;
-  }
-
   .project-card-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -7751,30 +7741,6 @@ input[type="file"]::file-selector-button {
     gap: 18px;
   }
 
-  .app-sidebar {
-    position: static;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
-    padding: 10px;
-    border: 1px solid var(--app-border);
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.035);
-  }
-
-  .app-sidebar strong,
-  .sidebar-divider {
-    display: none;
-  }
-
-  .app-sidebar a {
-    justify-content: center;
-    min-height: 34px;
-    padding: 0 8px;
-    font-size: 12px;
-    text-align: center;
-  }
-
   .command-grid,
   .project-command-grid,
   .dashboard-work-grid,
@@ -8856,45 +8822,6 @@ code,
   .app-layout {
     grid-template-columns: minmax(0, 1fr);
     gap: 18px;
-  }
-
-  .app-sidebar {
-    position: sticky;
-    top: 74px;
-    z-index: 8;
-    display: flex;
-    flex-wrap: nowrap;
-    gap: 8px;
-    max-width: 100%;
-    padding: 8px;
-    overflow-x: auto;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    background: rgba(9, 11, 13, 0.86);
-    box-shadow: 0 16px 42px rgba(0, 0, 0, 0.22);
-    backdrop-filter: blur(14px) saturate(120%);
-    scrollbar-width: thin;
-  }
-
-  .app-sidebar strong,
-  .app-sidebar .sidebar-divider {
-    display: none;
-  }
-
-  .app-sidebar a {
-    display: inline-flex;
-    flex: 0 0 auto;
-    align-items: center;
-    justify-content: center;
-    min-height: 34px;
-    padding: 0 12px;
-    border-radius: 8px;
-    white-space: nowrap;
-    font-size: 12px;
-  }
-
-  .app-sidebar a.active {
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
   }
 }
 
@@ -10139,8 +10066,6 @@ textarea:focus {
   .app-layout {
     grid-template-columns: 1fr;
   }
-  .app-sidebar {
-    position: static;
-  }
 }
+
 

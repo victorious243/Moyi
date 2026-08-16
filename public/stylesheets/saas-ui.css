@@ -869,37 +869,56 @@ table code,
   }
 
   /* Floating Action Button (FAB) */
+  .mobile-workspace-fab,
   .mobile-sidebar-toggle-button {
     position: fixed !important;
     bottom: 24px !important;
     right: 20px !important;
     z-index: 990 !important;
-    display: inline-flex !important;
+    display: flex !important;
     align-items: center !important;
-    gap: 8px !important;
-    padding: 10px 18px !important;
-    border-radius: 999px !important;
-    border: 1px solid rgba(85, 230, 207, 0.45) !important;
-    background: linear-gradient(135deg, rgba(20, 24, 27, 0.95), rgba(12, 15, 17, 0.98)) !important;
-    color: var(--saas-text) !important;
-    font-size: 13px !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.02em !important;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 16px rgba(85, 230, 207, 0.3) !important;
-    backdrop-filter: blur(14px) !important;
-    cursor: pointer !important;
-    transition: transform 200ms ease, box-shadow 200ms ease !important;
-  }
-
-  .mobile-sidebar-toggle-button:hover,
-  .mobile-sidebar-toggle-button:active {
-    transform: translateY(-2px) scale(1.04) !important;
-    box-shadow: 0 14px 38px rgba(0, 0, 0, 0.6), 0 0 22px rgba(85, 230, 207, 0.45) !important;
-  }
-
-  .mobile-sidebar-toggle-button .toggle-icon {
-    font-size: 15px !important;
+    justify-content: center !important;
+    width: 52px !important;
+    height: 52px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    border: 1.5px solid rgba(85, 230, 207, 0.5) !important;
+    background: radial-gradient(circle at 30% 30%, rgba(35, 45, 50, 0.96), rgba(12, 15, 17, 0.98)) !important;
     color: var(--saas-cyan) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(85, 230, 207, 0.35) !important;
+    backdrop-filter: blur(16px) !important;
+    cursor: pointer !important;
+    transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 220ms ease, border-color 220ms ease !important;
+  }
+
+  .mobile-workspace-fab:hover,
+  .mobile-workspace-fab:active,
+  .mobile-workspace-fab.fab-active {
+    transform: scale(1.08) !important;
+    border-color: rgba(85, 230, 207, 0.8) !important;
+    box-shadow: 0 14px 38px rgba(0, 0, 0, 0.7), 0 0 28px rgba(85, 230, 207, 0.55) !important;
+  }
+
+  .mobile-workspace-fab .fab-icon {
+    width: 24px !important;
+    height: 24px !important;
+    stroke: var(--saas-cyan) !important;
+    transition: transform 220ms ease !important;
+  }
+
+  .mobile-workspace-fab.fab-active .fab-icon {
+    transform: rotate(90deg) !important;
+  }
+
+  .mobile-workspace-fab .fab-badge {
+    position: absolute !important;
+    top: 4px !important;
+    right: 4px !important;
+    width: 8px !important;
+    height: 8px !important;
+    border-radius: 50% !important;
+    background: #c9f56a !important;
+    box-shadow: 0 0 8px rgba(201, 245, 106, 0.9) !important;
   }
 
   .page-heading {

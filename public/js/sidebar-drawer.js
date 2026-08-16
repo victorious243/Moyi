@@ -3,23 +3,28 @@
     const sidebar = document.querySelector('.app-sidebar');
     if (!sidebar) return;
 
-    // Create or locate floating trigger button
-    let toggleBtn = document.querySelector('.mobile-sidebar-toggle-button');
+    // Create or locate cool floating action button (FAB)
+    let toggleBtn = document.querySelector('.mobile-workspace-fab, .mobile-sidebar-toggle-button');
     if (!toggleBtn) {
       toggleBtn = document.createElement('button');
       toggleBtn.type = 'button';
-      toggleBtn.className = 'mobile-sidebar-toggle-button';
+      toggleBtn.className = 'mobile-workspace-fab';
       toggleBtn.setAttribute('aria-label', 'Open Workspace Navigation Menu');
       toggleBtn.setAttribute('aria-expanded', 'false');
       toggleBtn.innerHTML = `
-        <span class="toggle-icon">⚡</span>
-        <span class="toggle-text">Menu</span>
+        <span class="fab-glow" aria-hidden="true"></span>
+        <svg class="fab-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+          <polyline points="2 17 12 22 22 17"></polyline>
+          <polyline points="2 12 12 17 22 12"></polyline>
+        </svg>
+        <span class="fab-badge"></span>
       `;
       document.body.appendChild(toggleBtn);
     }
 
     // Create or locate close button inside sidebar
-    let closeBtn = sidebar.querySelector('.mobile-sidebar-close-button');
+    let closeBtn = sidebar.querySelector('.mobile-sidebar-close-button, [data-sidebar-close]');
     if (!closeBtn) {
       closeBtn = document.createElement('button');
       closeBtn.type = 'button';
@@ -30,7 +35,7 @@
     }
 
     // Create or locate dimmed backdrop
-    let backdrop = document.querySelector('.sidebar-backdrop');
+    let backdrop = document.querySelector('.sidebar-backdrop, [data-sidebar-backdrop]');
     if (!backdrop) {
       backdrop = document.createElement('div');
       backdrop.className = 'sidebar-backdrop';
@@ -41,6 +46,7 @@
       sidebar.classList.add('drawer-open');
       backdrop.classList.add('active');
       toggleBtn.setAttribute('aria-expanded', 'true');
+      toggleBtn.classList.add('fab-active');
       document.body.classList.add('sidebar-drawer-active');
     }
 
@@ -48,6 +54,7 @@
       sidebar.classList.remove('drawer-open');
       backdrop.classList.remove('active');
       toggleBtn.setAttribute('aria-expanded', 'false');
+      toggleBtn.classList.remove('fab-active');
       document.body.classList.remove('sidebar-drawer-active');
     }
 
@@ -69,7 +76,7 @@
       closeDrawer();
     });
 
-    // Close on item click inside drawer
+    // Close on navigation link click inside drawer
     sidebar.addEventListener('click', (e) => {
       const link = e.target.closest('a');
       if (link && !link.getAttribute('target')) {
