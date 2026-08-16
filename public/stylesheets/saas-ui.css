@@ -750,57 +750,156 @@ table code,
     font-size: 16px !important;
   }
 
-  /* Mobile Sticky Horizontal Swipe App Sidebar */
+  /* Mobile Slide-Out Workspace Drawer */
   .app-sidebar {
-    position: sticky;
-    top: 68px;
-    z-index: 9;
-    display: flex;
-    flex-wrap: nowrap;
-    gap: 6px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    padding: 8px 10px;
-    margin-inline: 0;
-    border-radius: 12px;
-    background: rgba(13, 16, 18, 0.94);
-    backdrop-filter: blur(16px);
-    scrollbar-width: none;
-    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35);
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: 290px !important;
+    max-width: 85vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    z-index: 1050 !important;
+    transform: translateX(-105%) !important;
+    transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 24px 16px 36px !important;
+    margin: 0 !important;
+    border-radius: 0 18px 18px 0 !important;
+    border: 1px solid var(--saas-line) !important;
+    border-left: none !important;
+    background: rgba(13, 16, 18, 0.98) !important;
+    backdrop-filter: blur(28px) !important;
+    box-shadow: 12px 0 50px rgba(0, 0, 0, 0.65) !important;
+    scrollbar-width: thin;
   }
 
-  .app-sidebar::-webkit-scrollbar {
-    display: none;
+  .app-sidebar.drawer-open {
+    transform: translateX(0) !important;
   }
 
+  /* Full labels & sections inside the drawer */
   .app-sidebar strong,
   .app-sidebar .sidebar-project-title,
   .app-sidebar .sidebar-section-heading,
   .app-sidebar .sidebar-divider,
   .app-sidebar .sidebar-back-link {
-    display: none !important;
+    display: block !important;
+  }
+
+  .app-sidebar .sidebar-project-title {
+    padding-right: 36px;
+    font-size: 14px;
+    color: var(--saas-text);
   }
 
   .app-sidebar a {
-    display: inline-flex;
-    flex: 0 0 auto;
-    align-items: center;
-    justify-content: center;
-    min-height: 36px;
-    padding: 0 14px;
-    border-radius: 8px;
-    white-space: nowrap;
-    font-size: 12px;
-    font-weight: 500;
+    display: flex !important;
+    width: 100% !important;
+    min-height: 40px !important;
+    padding: 0 12px !important;
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    white-space: normal !important;
   }
 
   .app-sidebar a.active {
-    background: linear-gradient(90deg, rgba(85, 230, 207, 0.15), rgba(138, 124, 255, 0.1));
-    border-color: rgba(85, 230, 207, 0.35);
+    background: linear-gradient(90deg, rgba(85, 230, 207, 0.15), rgba(138, 124, 255, 0.1)) !important;
+    border-color: rgba(85, 230, 207, 0.35) !important;
   }
 
   .app-sidebar a.active::before {
-    display: none;
+    display: block !important;
+  }
+
+  /* Close Button inside Drawer */
+  .mobile-sidebar-close-button {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: absolute !important;
+    top: 14px !important;
+    right: 14px !important;
+    width: 34px !important;
+    height: 34px !important;
+    padding: 0 !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--saas-line) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: var(--saas-text) !important;
+    font-size: 15px !important;
+    cursor: pointer !important;
+    z-index: 10 !important;
+    transition: background 180ms ease, transform 180ms ease !important;
+  }
+
+  .mobile-sidebar-close-button:hover,
+  .mobile-sidebar-close-button:active {
+    background: rgba(255, 255, 255, 0.15) !important;
+    transform: scale(1.05) !important;
+  }
+
+  /* Dimmed Backdrop */
+  .sidebar-backdrop {
+    display: block !important;
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(0, 0, 0, 0.65) !important;
+    backdrop-filter: blur(4px) !important;
+    z-index: 1040 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: opacity 280ms ease !important;
+  }
+
+  .sidebar-backdrop.active {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  body.sidebar-drawer-active {
+    overflow: hidden !important;
+  }
+
+  /* Floating Action Button (FAB) */
+  .mobile-sidebar-toggle-button {
+    position: fixed !important;
+    bottom: 24px !important;
+    right: 20px !important;
+    z-index: 990 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 10px 18px !important;
+    border-radius: 999px !important;
+    border: 1px solid rgba(85, 230, 207, 0.45) !important;
+    background: linear-gradient(135deg, rgba(20, 24, 27, 0.95), rgba(12, 15, 17, 0.98)) !important;
+    color: var(--saas-text) !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.02em !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 16px rgba(85, 230, 207, 0.3) !important;
+    backdrop-filter: blur(14px) !important;
+    cursor: pointer !important;
+    transition: transform 200ms ease, box-shadow 200ms ease !important;
+  }
+
+  .mobile-sidebar-toggle-button:hover,
+  .mobile-sidebar-toggle-button:active {
+    transform: translateY(-2px) scale(1.04) !important;
+    box-shadow: 0 14px 38px rgba(0, 0, 0, 0.6), 0 0 22px rgba(85, 230, 207, 0.45) !important;
+  }
+
+  .mobile-sidebar-toggle-button .toggle-icon {
+    font-size: 15px !important;
+    color: var(--saas-cyan) !important;
   }
 
   .page-heading {

@@ -3,13 +3,21 @@
   const pid = project && project._id ? project._id : '';
 %>
 
+<!-- Floating Workspace Menu Toggle Button for Mobile Screens -->
+<button class="mobile-sidebar-toggle-button" type="button" aria-label="Open Workspace Navigation Menu" data-sidebar-toggle>
+  <span class="toggle-icon">⚡</span>
+  <span class="toggle-text">Menu</span>
+</button>
+
 <aside class="app-sidebar project-sidebar">
+  <button class="mobile-sidebar-close-button" type="button" aria-label="Close Workspace Navigation Menu" data-sidebar-close>✕</button>
+
   <% if (project && project.name) { %>
     <strong class="sidebar-project-title"><%= project.name %></strong>
     <a class="sidebar-back-link" href="/dashboard">&larr; Workspace Dashboard</a>
     <span class="sidebar-divider"></span>
   <% } else { %>
-    <strong>Workspace</strong>
+    <strong class="sidebar-project-title">Workspace</strong>
     <a href="/dashboard">Dashboard</a>
     <a href="/projects">Projects</a>
     <span class="sidebar-divider"></span>
