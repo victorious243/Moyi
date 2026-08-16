@@ -15,6 +15,23 @@
       <form class="form grid-form" action="/projects/scan" method="post" data-loading-state="Scanning your market">
         <label>Project name <input name="name" placeholder="Kununga"></label>
         <label>Website URL <input name="websiteUrl" placeholder="https://example.com" required></label>
+        <label>Target country <input name="targetCountry" placeholder="Ireland, United States, Global"></label>
+        <label>Target city <input name="targetCity" placeholder="Dublin, Lagos, New York"></label>
+        <label>Business model
+          <select name="businessModel">
+            <option value="">Detect from website</option>
+            <option value="saas">Software / SaaS</option>
+            <option value="ecommerce">Ecommerce</option>
+            <option value="marketplace">Marketplace / directory</option>
+            <option value="agency">Agency / consultancy</option>
+            <option value="professional_services">Professional services</option>
+            <option value="local_service">Local service business</option>
+            <option value="retail">Retail</option>
+            <option value="media">Media / publisher</option>
+            <option value="nonprofit">Nonprofit</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
         <button class="button button-primary" type="submit">Scan and prefill</button>
       </form>
     </section>
@@ -34,6 +51,22 @@
         <label>Industry <input name="industry" placeholder="Hospitality, AI, ecommerce"></label>
         <label>Target audience <input name="targetAudience" placeholder="Who this business serves"></label>
         <label>Target country <input name="targetCountry" placeholder="Ireland, United States, Global"></label>
+        <label>Target city <input name="targetCity" placeholder="Dublin, Lagos, New York"></label>
+        <label>Business model
+          <select name="businessModel">
+            <option value="">Choose a model</option>
+            <option value="saas">Software / SaaS</option>
+            <option value="ecommerce">Ecommerce</option>
+            <option value="marketplace">Marketplace / directory</option>
+            <option value="agency">Agency / consultancy</option>
+            <option value="professional_services">Professional services</option>
+            <option value="local_service">Local service business</option>
+            <option value="retail">Retail</option>
+            <option value="media">Media / publisher</option>
+            <option value="nonprofit">Nonprofit</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
         <label>Main offer <input name="mainOffer" placeholder="What you sell or promote"></label>
         <label>Brand tone <input name="brandTone" placeholder="Premium, friendly, technical"></label>
         <label class="full">

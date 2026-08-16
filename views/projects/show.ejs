@@ -295,6 +295,8 @@
           <div><dt>Main goal</dt><dd><%= project.mainGoal || 'Not set yet.' %></dd></div>
           <div><dt>Main offer</dt><dd><%= project.mainOffer || 'Not set yet.' %></dd></div>
           <div><dt>Country</dt><dd><%= project.targetCountry || 'Global' %></dd></div>
+          <div><dt>City</dt><dd><%= project.targetCity || 'Not location-specific' %></dd></div>
+          <div><dt>Business model</dt><dd><%= project.businessModel ? project.businessModel.replace(/_/g, ' ') : 'Auto-detect' %></dd></div>
           <div><dt>Conversion goals</dt><dd><%= conversionGoalCount ? conversionGoalCount : 'Not defined yet' %></dd></div>
         </dl>
       </section>

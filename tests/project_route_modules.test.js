@@ -138,7 +138,10 @@ test('projects discovery route bootstraps a scanned project and redirects to cal
   assert.deepEqual(received, {
     userId: 'user_1',
     name: 'Moyi',
-    websiteUrl: 'https://moyi.example'
+    websiteUrl: 'https://moyi.example',
+    targetCountry: '',
+    targetCity: '',
+    businessModel: ''
   });
 });
 

@@ -1,6 +1,11 @@
 const Competitor = require('../models/Competitor');
 const CompetitorPage = require('../models/CompetitorPage');
-const { inferCompetitorsFromPagesDetailed } = require('./discoveryService');
+const {
+  inferCompetitorsFromPagesDetailed,
+  normalizeBusinessModel,
+  normalizeCompetitorClassification,
+  normalizeLocationRelevance
+} = require('./discoveryService');
 const { normalizeUrl } = require('../utils/url');
 
 function competitorSummary(competitor) {
@@ -9,6 +14,10 @@ function competitorSummary(competitor) {
     websiteUrl: competitor.websiteUrl,
     confidence: competitor.confidence,
     rationale: competitor.rationale,
+    classification: competitor.classification,
+    businessModel: competitor.businessModel,
+    locationRelevance: competitor.locationRelevance,
+    classificationReason: competitor.classificationReason,
     evidence: competitor.evidence
   };
 }
@@ -59,6 +68,10 @@ async function persistDiscoveredCompetitors({ project, userId, competitors }) {
         websiteUrl: candidate.websiteUrl,
         notes: candidate.rationale || 'Auto-discovered from website scan.',
         source: 'discovered',
+        classification: candidate.classification || 'direct',
+        businessModel: candidate.businessModel || 'other',
+        locationRelevance: candidate.locationRelevance || 'unknown',
+        classificationReason: candidate.classificationReason || '',
         confidence: Number(candidate.confidence || 0),
         rationale: candidate.rationale || '',
         discoveryEvidence: candidate.evidence || {},
@@ -66,6 +79,10 @@ async function persistDiscoveredCompetitors({ project, userId, competitors }) {
       });
     } else {
       competitor.confidence = Math.max(Number(competitor.confidence || 0), Number(candidate.confidence || 0));
+      competitor.classification = candidate.classification || competitor.classification;
+      competitor.businessModel = candidate.businessModel || competitor.businessModel;
+      competitor.locationRelevance = candidate.locationRelevance || competitor.locationRelevance;
+      competitor.classificationReason = candidate.classificationReason || competitor.classificationReason;
       competitor.rationale = candidate.rationale || competitor.rationale;
       competitor.discoveryEvidence = candidate.evidence || competitor.discoveryEvidence;
       competitor.lastDiscoveredAt = new Date();
@@ -118,7 +135,11 @@ function configuredCompetitorCandidates(project) {
       name: value.name || websiteUrl,
       websiteUrl,
       confidence: value.confidence,
-      rationale: value.rationale || 'Configured during project calibration.'
+      rationale: value.rationale || 'Configured during project calibration.',
+      classification: normalizeCompetitorClassification(value.classification) || 'direct',
+      businessModel: normalizeBusinessModel(value.businessModel) || 'other',
+      locationRelevance: normalizeLocationRelevance(value.locationRelevance) || 'unknown',
+      classificationReason: value.classificationReason || ''
     };
   }).filter(Boolean);
 }
@@ -145,6 +166,10 @@ async function persistConfiguredCompetitors({ project, userId }) {
       websiteUrl: candidate.websiteUrl,
       notes: candidate.rationale,
       source: 'configured',
+      classification: candidate.classification,
+      businessModel: candidate.businessModel,
+      locationRelevance: candidate.locationRelevance,
+      classificationReason: candidate.classificationReason,
       confidence: Number(candidate.confidence || 0),
       rationale: candidate.rationale || '',
       lastDiscoveredAt: new Date()
@@ -164,6 +189,9 @@ function competitorDiscoveryBrandProfile(project) {
     industry: project.industry || '',
     mainOffer: project.mainOffer || '',
     targetAudience: project.targetAudience || '',
+    targetCountry: project.targetCountry || '',
+    targetCity: project.targetCity || '',
+    businessModel: project.businessModel || profile.businessModel || '',
     valueProps: Array.isArray(profile.valueProps) && profile.valueProps.length
       ? profile.valueProps
       : [project.mainOffer].filter(Boolean),

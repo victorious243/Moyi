@@ -49,9 +49,20 @@ function createProjectWorkflowService(deps = {}) {
     ...deps
   };
 
-  async function bootstrapDiscoveryProject({ userId, websiteUrl: rawWebsiteUrl, name = '' }) {
+  async function bootstrapDiscoveryProject({
+    userId,
+    websiteUrl: rawWebsiteUrl,
+    name = '',
+    targetCountry = '',
+    targetCity = '',
+    businessModel = ''
+  }) {
     const websiteUrl = services.normalizeUrl(rawWebsiteUrl);
-    const discovery = await services.scanProjectForDiscovery(websiteUrl);
+    const discovery = await services.scanProjectForDiscovery(websiteUrl, {
+      targetCountry,
+      targetCity,
+      businessModel
+    });
     const brand = discovery.brandProfile || {};
     const approvedAudience = (brand.targetPersonas || []).map(personaSummary).filter(Boolean);
     const project = await services.Project.create({
@@ -60,6 +71,9 @@ function createProjectWorkflowService(deps = {}) {
       websiteUrl,
       industry: '',
       targetAudience: approvedAudience.join(', ') || (brand.personas || []).join(', '),
+      targetCountry: brand.targetCountry || targetCountry,
+      targetCity: brand.targetCity || targetCity,
+      businessModel: brand.businessModel || businessModel || 'other',
       mainGoal: 'Convert discovered demand into qualified pipeline.',
       mainOffer: (brand.valueProps || [])[0] || '',
       brandTone: (brand.toneAdjectives || []).join(', '),
@@ -68,7 +82,11 @@ function createProjectWorkflowService(deps = {}) {
         ...brand,
         diagnostics: discovery.diagnostics
       },
-      competitors: discovery.competitors.map(services.competitorSummary)
+      competitors: discovery.competitors.map(services.competitorSummary),
+      competitorDiscovery: {
+        ...discovery.diagnostics,
+        completedAt: new Date()
+      }
     });
 
     await services.persistDiscoveredCompetitors({

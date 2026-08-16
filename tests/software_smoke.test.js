@@ -162,6 +162,100 @@ test('project sidebar renders clean categorized sections and active highlight', 
   assert.match(html, /class="active" href="\/projects\/507f1f77bcf86cd799439011\/ai-report\/latest"/);
 });
 
+test('competitor intelligence views render redesigned tables, metrics, and matrices', async () => {
+  const dummyProject = {
+    _id: '507f1f77bcf86cd799439011',
+    name: 'Acme SaaS',
+    websiteUrl: 'https://acme.com',
+    industry: 'Analytics',
+    mainGoal: 'Scale MRR',
+    competitorDiscovery: { completedAt: new Date(), queriesAttempted: 4, searchResultsFound: 12, candidatesEvaluated: 8, competitorsFound: 2, searchTerms: ['b2b saas', 'seo analytics'] }
+  };
+  const dummyCompetitor = {
+    _id: '507f1f77bcf86cd799439012',
+    projectId: '507f1f77bcf86cd799439011',
+    name: 'Rival HQ',
+    websiteUrl: 'https://rivalhq.com',
+    source: 'discovery',
+    confidence: 85,
+    notes: 'Direct category rival'
+  };
+  const dummyPage = {
+    _id: '507f1f77bcf86cd799439013',
+    projectId: '507f1f77bcf86cd799439011',
+    competitorId: '507f1f77bcf86cd799439012',
+    url: 'https://rivalhq.com/features',
+    title: 'Rival HQ Features',
+    metaDescription: 'Feature breakdown',
+    h1: ['Features'],
+    wordCount: 850,
+    schemaTypes: ['Product'],
+    statusCode: 200,
+    lastCrawledAt: new Date()
+  };
+  const dummyInsight = {
+    _id: '507f1f77bcf86cd799439014',
+    projectId: '507f1f77bcf86cd799439011',
+    competitorId: '507f1f77bcf86cd799439012',
+    category: 'content_depth',
+    priority: 1,
+    confidenceScore: 90,
+    title: 'Competitor exposes broader topical coverage',
+    insight: 'Competitor has more on-page guides',
+    opportunity: 'Create comparison pages and detailed playbooks',
+    generatedBy: 'system'
+  };
+
+  const indexHtml = await ejs.renderFile(
+    path.join(__dirname, '../views/projects/competitors/index.ejs'),
+    {
+      appName: 'Moyi',
+      project: dummyProject,
+      currentUser: { role: 'owner' },
+      competitors: [dummyCompetitor],
+      pages: [dummyPage],
+      latestInsights: [dummyInsight],
+      discovery: dummyProject.competitorDiscovery,
+      errorMessage: '',
+      successMessage: ''
+    }
+  );
+  assert.match(indexHtml, /Tracked Competitors Matrix/);
+  assert.match(indexHtml, /Rival HQ/);
+  assert.match(indexHtml, /85% Match/);
+
+  const showHtml = await ejs.renderFile(
+    path.join(__dirname, '../views/projects/competitors/show.ejs'),
+    {
+      appName: 'Moyi',
+      project: dummyProject,
+      currentUser: { role: 'owner' },
+      competitor: dummyCompetitor,
+      pages: [dummyPage],
+      insights: [dummyInsight],
+      successMessage: ''
+    }
+  );
+  assert.match(showHtml, /Indexed Competitor Pages/);
+  assert.match(showHtml, /Rival HQ Features/);
+
+  const insightsHtml = await ejs.renderFile(
+    path.join(__dirname, '../views/projects/competitors/insights.ejs'),
+    {
+      appName: 'Moyi',
+      project: dummyProject,
+      currentUser: { role: 'owner' },
+      competitors: [dummyCompetitor],
+      competitorPages: [dummyPage],
+      insights: [dummyInsight],
+      errorMessage: '',
+      successMessage: ''
+    }
+  );
+  assert.match(insightsHtml, /Competitor Gap Matrix/);
+  assert.match(insightsHtml, /Your Site Benchmark/);
+});
+
 test('shared header renders SEO, social, canonical, and schema metadata', async () => {
   const html = await ejs.renderFile(
     path.join(__dirname, '../views/partials/header.ejs'),

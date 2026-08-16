@@ -7,84 +7,124 @@
     <div class="page-heading">
       <div>
         <p class="eyebrow"><%= project.name %></p>
-        <h1>Competitor Opportunities</h1>
+        <h1>Competitor Gap Matrix</h1>
+        <p>Evidence-based gap analysis comparing your domain against indexed competitor search signals.</p>
       </div>
       <div class="row-actions">
         <form action="/projects/<%= project._id %>/competitors/report" method="post" data-loading-state="Refreshing competitor evidence">
-          <button class="button button-primary" type="submit">Generate Competitor Report</button>
+          <button class="button button-primary" type="submit">⚡ Re-Generate Report</button>
         </form>
-        <a class="button" href="/projects/<%= project._id %>/competitors">Manage competitors</a>
+        <a class="button" href="/projects/<%= project._id %>/competitors">&larr; Manage Competitors</a>
       </div>
     </div>
 
     <% if (successMessage) { %>
-      <section class="panel">
-        <h2>Report updated</h2>
-        <p class="empty"><%= successMessage %></p>
-      </section>
+      <div class="panel" style="border-color: rgba(16, 185, 129, 0.3);">
+        <strong style="color: var(--saas-mint, #10b981);">Report Updated</strong>
+        <p><%= successMessage %></p>
+      </div>
     <% } %>
 
     <% if (errorMessage) { %>
-      <section class="panel notice-panel">
-        <h2>Report issue</h2>
-        <p class="empty"><%= errorMessage %></p>
-      </section>
+      <div class="panel notice-panel">
+        <strong>Notice</strong>
+        <p><%= errorMessage %></p>
+      </div>
     <% } %>
 
+    <!-- Side-by-Side Benchmark Panels -->
+    <div class="dashboard-grid">
+      <section class="panel">
+        <div class="panel-title">
+          <div>
+            <h2>Your Site Benchmark</h2>
+            <p>Target domain baseline for comparison.</p>
+          </div>
+          <span class="status status-success">Primary Target</span>
+        </div>
+        <dl class="detail-list">
+          <div><dt>Website</dt><dd><a href="<%= project.websiteUrl %>" target="_blank" rel="noreferrer" style="color: var(--saas-cyan);"><%= project.websiteUrl %> ↗</a></dd></div>
+          <div><dt>Primary Goal</dt><dd><%= project.mainGoal || 'Set in project settings' %></dd></div>
+          <div><dt>Target Audience</dt><dd><%= project.targetAudience || 'General commercial audience' %></dd></div>
+          <div><dt>Business Model</dt><dd><%= project.businessModel ? project.businessModel.replace(/_/g, ' ') : 'Auto-detected' %></dd></div>
+          <div><dt>Target Market</dt><dd><%= [project.targetCity, project.targetCountry].filter(Boolean).join(', ') || 'Global / not specified' %></dd></div>
+        </dl>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">
+          <div>
+            <h2>Competitor Benchmarks</h2>
+            <p>Classified competitors currently indexed.</p>
+          </div>
+          <span class="status"><%= competitors.length %> tracked</span>
+        </div>
+        <% if (!competitors.length) { %>
+          <p class="empty">No competitors indexed yet. Add or discover competitors to see comparative benchmarks.</p>
+        <% } else { %>
+          <ul class="clean-list">
+            <% competitors.forEach((competitor) => { %>
+              <% const readablePages = competitorPages.filter((page) => page.competitorId && page.competitorId.toString() === competitor._id.toString() && page.statusCode >= 200 && page.statusCode < 400 && (page.title || page.wordCount)); %>
+              <li style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--saas-line);">
+                <div>
+                  <a href="/projects/<%= project._id %>/competitors/<%= competitor._id %>" style="font-weight: 600; color: var(--saas-text);">
+                    <%= competitor.name %>
+                  </a>
+                  <br>
+                  <small style="color: var(--saas-muted); font-size: 11px;"><%= competitor.websiteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '') %> / <%= (competitor.classification || 'direct').replace(/_/g, ' ') %></small>
+                </div>
+                <span class="status" style="font-size: 10px;"><%= readablePages.length %> pages</span>
+              </li>
+            <% }) %>
+          </ul>
+        <% } %>
+      </section>
+    </div>
+
+    <!-- Suggested Growth & Gap Opportunities -->
     <section class="panel">
       <div class="panel-title">
-        <h2>Comparison Report</h2>
+        <div>
+          <h2>Identified Gap Opportunities</h2>
+          <p>Tactical recommendations derived from shallow crawl evidence comparing content, headings, and SEO metadata.</p>
+        </div>
         <span class="status"><%= insights.length %> opportunities</span>
       </div>
-      <p class="empty">Public search results are used only to identify candidate websites. Every opportunity below is calculated from readable pages crawled from your site and the verified competitor sites. Moyi does not claim private traffic, revenue, conversions, or rankings.</p>
-    </section>
 
-    <section class="panel">
-      <h2>Your Site</h2>
-      <dl class="detail-list">
-        <div><dt>Website</dt><dd><%= project.websiteUrl %></dd></div>
-        <div><dt>Goal</dt><dd><%= project.mainGoal || 'Not set' %></dd></div>
-        <div><dt>Audience</dt><dd><%= project.targetAudience || 'Not set' %></dd></div>
-      </dl>
-    </section>
-
-    <section class="panel">
-      <h2>Competitor Sites</h2>
-      <% if (!competitors.length) { %>
-        <p class="empty">No competitors added yet.</p>
-      <% } %>
-      <ul class="clean-list">
-        <% competitors.forEach((competitor) => { %>
-          <% const readablePages = competitorPages.filter((page) => page.competitorId.toString() === competitor._id.toString() && page.statusCode >= 200 && page.statusCode < 400 && (page.title || page.wordCount)); %>
-          <li>
-            <a href="/projects/<%= project._id %>/competitors/<%= competitor._id %>"><%= competitor.name %></a>
-            / <%= competitor.websiteUrl %> / <%= readablePages.length %> readable pages
-          </li>
-        <% }) %>
-      </ul>
-    </section>
-
-    <section class="panel">
-      <h2>Suggested Opportunities</h2>
       <% if (!insights.length) { %>
-        <p class="empty">No opportunities generated yet. Add competitors, scan them, then generate the competitor report.</p>
+        <p class="empty">No opportunities generated yet. Add competitors, run scans, and generate the report above.</p>
+      <% } else { %>
+        <div class="content-card-grid">
+          <% insights.forEach((insight) => { %>
+            <% const competitor = competitors.find((item) => item._id && item._id.toString() === insight.competitorId.toString()); %>
+            <article class="content-card">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span class="status status-success" style="font-size: 10px;">Priority <%= insight.priority %></span>
+                <span class="status" style="font-size: 10px;"><%= insight.category.replace(/_/g, ' ') %></span>
+              </div>
+              
+              <strong style="font-size: 15px; margin-bottom: 4px; display: block;"><%= insight.title %></strong>
+              <% if (competitor) { %>
+                <small style="color: var(--saas-cyan); display: block; margin-bottom: 8px;">vs. <%= competitor.name %> / <%= (competitor.classification || 'direct').replace(/_/g, ' ') %></small>
+              <% } %>
+
+              <p style="color: var(--saas-muted); font-size: 13px; line-height: 1.5; margin-bottom: 12px;"><%= insight.insight %></p>
+
+              <div style="padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.02); border: 1px solid var(--saas-line); font-size: 12px; margin-bottom: 10px;">
+                <strong style="color: var(--saas-mint, #10b981);">Actionable Opportunity:</strong>
+                <p style="margin: 4px 0 0; color: var(--saas-text);"><%= insight.opportunity %></p>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--saas-muted);">
+                <span>Confidence: <%= insight.confidenceScore %>%</span>
+                <span>Source: <%= insight.generatedBy === 'ai' ? 'AI Analysis' : 'Deterministic Rule' %></span>
+              </div>
+            </article>
+          <% }) %>
+        </div>
       <% } %>
-      <div class="recommendation-grid">
-        <% insights.forEach((insight) => { %>
-          <% const competitor = competitors.find((item) => item._id.toString() === insight.competitorId.toString()); %>
-          <article class="recommendation-card">
-            <span class="status"><%= insight.category.replace(/_/g, ' ') %> / Priority <%= insight.priority %></span>
-            <h2><%= insight.title %></h2>
-            <small><%= competitor ? competitor.name : 'Competitor' %></small>
-            <p><strong>Source:</strong> <%= insight.generatedBy === 'ai' ? 'AI summary of crawled-page evidence' : 'Rule-based comparison of crawled-page evidence' %></p>
-            <p><strong>Confidence estimate:</strong> <%= insight.confidenceScore %>%</p>
-            <p><strong>Insight:</strong> <%= insight.insight %></p>
-            <p><strong>Evidence:</strong> <%= insight.evidenceSummary || 'Based on the shallow public crawl available for this project and competitor.' %></p>
-            <p><strong>Opportunity:</strong> <%= insight.opportunity %></p>
-          </article>
-        <% }) %>
-      </div>
     </section>
+
   </section>
 </div>
 

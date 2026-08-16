@@ -42,6 +42,17 @@ const projectSchema = new mongoose.Schema(
       trim: true,
       default: ''
     },
+    targetCity: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    businessModel: {
+      type: String,
+      enum: ['', 'saas', 'ecommerce', 'marketplace', 'agency', 'professional_services', 'local_service', 'retail', 'media', 'nonprofit', 'other'],
+      default: '',
+      index: true
+    },
     mainGoal: {
       type: String,
       trim: true,

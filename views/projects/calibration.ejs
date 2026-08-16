@@ -9,7 +9,11 @@
     name: typeof competitor === 'string' ? competitor : (competitor.name || competitor.websiteUrl || ''),
     websiteUrl: typeof competitor === 'string' ? '' : (competitor.websiteUrl || ''),
     confidence: typeof competitor === 'string' ? '' : (competitor.confidence || ''),
-    rationale: typeof competitor === 'string' ? '' : (competitor.rationale || '')
+    rationale: typeof competitor === 'string' ? '' : (competitor.rationale || ''),
+    classification: typeof competitor === 'string' ? 'direct' : (competitor.classification || 'direct'),
+    businessModel: typeof competitor === 'string' ? 'other' : (competitor.businessModel || 'other'),
+    locationRelevance: typeof competitor === 'string' ? 'unknown' : (competitor.locationRelevance || 'unknown'),
+    classificationReason: typeof competitor === 'string' ? '' : (competitor.classificationReason || '')
   })).filter((competitor) => competitor.name || competitor.websiteUrl);
 %>
 
@@ -128,13 +132,14 @@
           <% competitors.forEach((competitor) => { %>
             <article class="recommendation-card">
               <div class="panel-title">
-                <span class="status"><%= competitor.confidence ? `${competitor.confidence}% match estimate` : 'Approved for review' %></span>
+                <span class="status"><%= competitor.classification.replace(/_/g, ' ') %> / <%= competitor.confidence ? `${competitor.confidence}% match` : 'review' %></span>
               </div>
               <h3><%= competitor.name || competitor.websiteUrl %></h3>
               <% if (competitor.websiteUrl) { %>
                 <p><a href="<%= competitor.websiteUrl %>" target="_blank" rel="noreferrer"><%= competitor.websiteUrl %></a></p>
               <% } %>
               <p><%= competitor.rationale || 'Competitive context discovered during onboarding.' %></p>
+              <p class="empty"><%= competitor.businessModel.replace(/_/g, ' ') %> / <%= competitor.locationRelevance.replace(/_/g, ' ') %><%= competitor.classificationReason ? ` / ${competitor.classificationReason}` : '' %></p>
             </article>
           <% }) %>
         </div>

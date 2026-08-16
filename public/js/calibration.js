@@ -50,10 +50,11 @@
   function renderCompetitors(items) {
     competitorGrid.innerHTML = items.map((competitor) => `
       <article class="recommendation-card">
-        <div class="panel-title"><span class="status">${competitor.confidence ? `${competitor.confidence}% match estimate` : 'Approved for review'}</span></div>
+        <div class="panel-title"><span class="status">${String(competitor.classification || 'direct').replace(/_/g, ' ')} / ${competitor.confidence ? `${competitor.confidence}% match` : 'review'}</span></div>
         <h3>${competitor.name || competitor.websiteUrl || ''}</h3>
         ${competitor.websiteUrl ? `<p><a href="${competitor.websiteUrl}" target="_blank" rel="noreferrer">${competitor.websiteUrl}</a></p>` : ''}
         <p>${competitor.rationale || 'Competitive context discovered during onboarding.'}</p>
+        <p class="empty">${String(competitor.businessModel || 'other').replace(/_/g, ' ')} / ${String(competitor.locationRelevance || 'unknown').replace(/_/g, ' ')}</p>
       </article>
     `).join('');
     competitorsInput.value = JSON.stringify(items);

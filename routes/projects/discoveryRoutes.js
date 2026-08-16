@@ -20,6 +20,12 @@ function registerDiscoveryRoutes(router, context, services = {}) {
 
   router.post('/scan', [
     body('name').optional({ checkFalsy: true }).trim().isLength({ max: 160 }).withMessage('Project name is too long.'),
+    body('targetCountry').optional({ checkFalsy: true }).trim().isLength({ max: 80 }).withMessage('Target country is too long.'),
+    body('targetCity').optional({ checkFalsy: true }).trim().isLength({ max: 100 }).withMessage('Target city is too long.'),
+    body('businessModel')
+      .optional({ checkFalsy: true })
+      .isIn(['saas', 'ecommerce', 'marketplace', 'agency', 'professional_services', 'local_service', 'retail', 'media', 'nonprofit', 'other'])
+      .withMessage('Choose a valid business model.'),
     body('websiteUrl')
       .trim()
       .notEmpty()
@@ -43,7 +49,10 @@ function registerDiscoveryRoutes(router, context, services = {}) {
     const { project } = await bootstrapDiscoveryProject({
       userId: req.user._id,
       name: req.body.name || '',
-      websiteUrl: req.body.websiteUrl
+      websiteUrl: req.body.websiteUrl,
+      targetCountry: req.body.targetCountry || '',
+      targetCity: req.body.targetCity || '',
+      businessModel: req.body.businessModel || ''
     });
 
     res.redirect(`/projects/${project._id}/calibration`);
@@ -151,7 +160,8 @@ function registerDiscoveryRoutes(router, context, services = {}) {
         userId: req.user._id,
         name: req.body.name,
         websiteUrl: context.normalizeUrl(req.body.websiteUrl),
-        notes: req.body.notes || ''
+        notes: req.body.notes || '',
+        classification: req.body.classification || 'direct'
       });
 
       res.redirect(`/projects/${req.project._id}/competitors?success=${encodeURIComponent('Competitor added.')}`);
@@ -179,6 +189,19 @@ function registerDiscoveryRoutes(router, context, services = {}) {
         : `${result.pages.length} competitor pages scanned.`;
 
       res.redirect(`/projects/${req.project._id}/competitors/${req.competitor._id}?success=${encodeURIComponent(message)}`);
+    })
+  );
+
+  router.post(
+    '/:id/competitors/:competitorId/delete',
+    [param('id').isMongoId(), param('competitorId').isMongoId(), context.handleValidation],
+    context.loadProject,
+    context.loadCompetitor,
+    asyncHandler(async (req, res) => {
+      await context.Competitor.findByIdAndDelete(req.competitor._id);
+      await context.CompetitorPage.deleteMany({ competitorId: req.competitor._id });
+      await context.CompetitorInsight.deleteMany({ competitorId: req.competitor._id });
+      res.redirect(`/projects/${req.project._id}/competitors?success=${encodeURIComponent('Competitor removed.')}`);
     })
   );
 

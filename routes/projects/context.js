@@ -130,6 +130,8 @@ function buildProjectsContext(overrides = {}) {
       industry: req.body.industry || '',
       targetAudience: req.body.targetAudience || '',
       targetCountry: req.body.targetCountry || '',
+      targetCity: req.body.targetCity || '',
+      businessModel: req.body.businessModel || '',
       mainGoal: req.body.mainGoal || '',
       mainOffer: req.body.mainOffer || '',
       brandTone: req.body.brandTone || '',
@@ -373,6 +375,11 @@ function buildProjectsContext(overrides = {}) {
       body('industry').optional({ checkFalsy: true }).trim().isLength({ max: 120 }).withMessage('Industry is too long.'),
       body('targetAudience').optional({ checkFalsy: true }).trim().isLength({ max: 240 }).withMessage('Target audience is too long.'),
       body('targetCountry').optional({ checkFalsy: true }).trim().isLength({ max: 80 }).withMessage('Target country is too long.'),
+      body('targetCity').optional({ checkFalsy: true }).trim().isLength({ max: 100 }).withMessage('Target city is too long.'),
+      body('businessModel')
+        .optional({ checkFalsy: true })
+        .isIn(['saas', 'ecommerce', 'marketplace', 'agency', 'professional_services', 'local_service', 'retail', 'media', 'nonprofit', 'other'])
+        .withMessage('Choose a valid business model.'),
       body('mainGoal').optional({ checkFalsy: true }).trim().isLength({ max: 500 }).withMessage('Main goal is too long.'),
       body('mainOffer').optional({ checkFalsy: true }).trim().isLength({ max: 240 }).withMessage('Main offer is too long.'),
       body('brandTone').optional({ checkFalsy: true }).trim().isLength({ max: 160 }).withMessage('Brand tone is too long.'),
@@ -400,6 +407,10 @@ function buildProjectsContext(overrides = {}) {
           }
         }),
       body('notes').optional({ checkFalsy: true }).trim().isLength({ max: 500 }).withMessage('Notes are too long.'),
+      body('classification')
+        .optional({ checkFalsy: true })
+        .isIn(['direct', 'indirect', 'aspirational'])
+        .withMessage('Choose a valid competitor type.'),
       deps.handleValidation
     ],
     wordpressValidation: [

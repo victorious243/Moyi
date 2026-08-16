@@ -7,108 +7,164 @@
     <div class="page-heading">
       <div>
         <p class="eyebrow"><%= project.name %></p>
-        <h1>Competitors</h1>
+        <h1>Competitor Intelligence</h1>
+        <p>Evidence-backed competitor discovery, page crawl diagnostics, and content gap opportunities.</p>
       </div>
-      <form action="/projects/<%= project._id %>/competitors/report" method="post" data-loading-state="Generating competitor intelligence">
-        <button class="button button-primary" type="submit">Generate Competitor Report</button>
-      </form>
+      <div class="row-actions">
+        <form action="/projects/<%= project._id %>/competitors/report" method="post" data-loading-state="Scanning SERP & generating competitor report">
+          <button class="button button-primary" type="submit">
+            <span>⚡ Generate Competitor Report</span>
+          </button>
+        </form>
+        <a class="button" href="/projects/<%= project._id %>/competitors/insights">View Full Report</a>
+      </div>
     </div>
 
     <% if (errorMessage) { %>
-      <section class="panel notice-panel">
-        <h2>Competitor issue</h2>
-        <p class="empty"><%= errorMessage %></p>
-      </section>
+      <div class="panel notice-panel">
+        <strong>Notice</strong>
+        <p><%= errorMessage %></p>
+      </div>
     <% } %>
 
     <% if (successMessage) { %>
-      <section class="panel">
-        <h2>Updated</h2>
-        <p class="empty"><%= successMessage %></p>
-      </section>
+      <div class="panel" style="border-color: rgba(16, 185, 129, 0.3);">
+        <strong style="color: var(--saas-mint, #10b981);">Success</strong>
+        <p><%= successMessage %></p>
+      </div>
     <% } %>
 
+    <!-- Metric Overview Grid -->
+    <section class="metric-grid">
+      <article>
+        <span>Tracked Competitors</span>
+        <strong><%= competitors.length %></strong>
+      </article>
+      <article>
+        <span>Search Queries Evaluated</span>
+        <strong><%= discovery.queriesAttempted || 0 %></strong>
+      </article>
+      <article>
+        <span>Competitor Pages Indexed</span>
+        <strong><%= pages.length %></strong>
+      </article>
+      <article>
+        <span>Identified Gaps</span>
+        <strong><%= latestInsights.length %></strong>
+      </article>
+    </section>
+
+    <!-- Auto-Discovery Status Panel -->
     <section class="panel">
       <div class="panel-title">
-        <h2>Competitor Discovery</h2>
-        <span class="status"><%= discovery.status ? discovery.status.replace(/_/g, ' ') : 'not run' %></span>
-      </div>
-      <% if (discovery.completedAt) { %>
-        <div class="metric-grid">
-          <article><span>Category queries</span><strong><%= discovery.queriesAttempted || 0 %></strong></article>
-          <article><span>Search results</span><strong><%= discovery.searchResultsFound || 0 %></strong></article>
-          <article><span>Sites evaluated</span><strong><%= discovery.candidatesEvaluated || 0 %></strong></article>
-          <article><span>Verified matches</span><strong><%= discovery.competitorsFound || 0 %></strong></article>
+        <div>
+          <h2>SERP Discovery Status</h2>
+          <p>Moyi crawls public search queries across your industry to identify real commercial competitors without guessing.</p>
         </div>
-        <% if ((discovery.searchTerms || []).length) { %>
-          <p class="empty">Searched buyer categories: <%= discovery.searchTerms.join(', ') %>.</p>
-        <% } %>
-      <% } else { %>
-        <p class="empty">Generate the report to identify likely competitors from your offer, industry, and latest website scan.</p>
+        <span class="status <%= discovery.completedAt ? 'status-success' : '' %>">
+          <%= discovery.status ? discovery.status.replace(/_/g, ' ') : 'Ready to Run' %>
+        </span>
+      </div>
+
+      <% if (discovery.completedAt && (discovery.searchTerms || []).length) { %>
+        <dl class="detail-list">
+          <div><dt>Business model</dt><dd><%= (discovery.targetBusinessModel || project.businessModel || 'other').replace(/_/g, ' ') %></dd></div>
+          <div><dt>Target market</dt><dd><%= discovery.targetLocation || [project.targetCity, project.targetCountry].filter(Boolean).join(', ') || 'Global / not specified' %></dd></div>
+          <div><dt>Direct matches</dt><dd><%= discovery.classifications ? (discovery.classifications.direct || 0) : 0 %></dd></div>
+          <div><dt>Indirect / aspirational</dt><dd><%= discovery.classifications ? `${discovery.classifications.indirect || 0} / ${discovery.classifications.aspirational || 0}` : '0 / 0' %></dd></div>
+        </dl>
+        <div style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+          <span style="font-size: 11px; color: var(--saas-muted); text-transform: uppercase; letter-spacing: 0.05em;">Scanned Buyer Categories:</span>
+          <% discovery.searchTerms.forEach((term) => { %>
+            <span class="status" style="font-size: 11px; background: rgba(255,255,255,0.04);"><%= term %></span>
+          <% }) %>
+        </div>
+      <% } else if (!discovery.completedAt) { %>
+        <p class="empty" style="margin-top: 10px;">Click <strong>Generate Competitor Report</strong> above to automatically search and evaluate competitors in your sector.</p>
       <% } %>
+
       <% if (discovery.status === 'search_unavailable') { %>
-        <p class="form-error">Public competitor search returned no readable results. The report did not guess or invent competitors.</p>
+        <p class="form-error" style="margin-top: 10px;">Public search returned no readable results. No fake competitors were invented.</p>
       <% } else if (discovery.status === 'no_matches') { %>
-        <p class="empty">Public results were found, but none passed the direct-competitor evidence threshold. Add a known competitor or improve the project’s offer and industry details.</p>
+        <p class="empty" style="margin-top: 10px;">Public search results were found, but none passed direct evidence criteria. You can manually add competitors below.</p>
       <% } %>
     </section>
 
-    <section class="panel">
-      <h2>Add / Correct Competitor</h2>
-      <p class="empty" style="font-size: 0.9em;">Only use this if the auto-discovery missed a real competitor.</p>
-      <form class="form grid-form" action="/projects/<%= project._id %>/competitors" method="post">
-        <label>
-          Name
-          <input type="text" name="name" placeholder="Competitor name" required>
-        </label>
-        <label>
-          Website URL
-          <input type="url" name="websiteUrl" placeholder="https://competitor.com" required>
-        </label>
-        <label class="full">
-          Notes
-          <textarea name="notes" rows="3" placeholder="Why this competitor matters (or why you added it)"></textarea>
-        </label>
-        <button class="button button-primary" type="submit">Add Competitor</button>
-      </form>
-    </section>
-
+    <!-- Tracked Competitors Table -->
     <section class="panel">
       <div class="panel-title">
-        <h2>Tracked Competitors</h2>
+        <div>
+          <h2>Tracked Competitors Matrix</h2>
+          <p>Direct, indirect, and aspirational competitors indexed for page-level SEO and content gap comparisons.</p>
+        </div>
         <span class="status"><%= competitors.length %> tracked</span>
       </div>
+
       <% if (!competitors.length) { %>
-        <p class="empty">No competitors tracked yet. The scan should have auto-populated some — refresh or add the important ones.</p>
+        <p class="empty">No competitors tracked yet. Run auto-discovery above or add known competitors below.</p>
       <% } else { %>
-        <div class="table-scroll">
-          <table class="data-table">
+        <div class="table-wrap">
+          <table>
             <thead>
               <tr>
-                <th>Competitor</th>
-                <th>Website</th>
+                <th>Competitor Name</th>
+                <th>Domain / URL</th>
                 <th>Source</th>
-                <th>Match</th>
-                <th>Pages</th>
-                <th>Last crawled</th>
+                <th>Type</th>
+                <th>Model</th>
+                <th>Market</th>
+                <th>Match Score</th>
+                <th>Indexed Pages</th>
+                <th>Last Crawled</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               <% competitors.forEach((competitor) => { %>
-                <% const competitorPages = pages.filter((page) => page.competitorId.toString() === competitor._id.toString()); %>
-                <% const lastPage = competitorPages.sort((a, b) => b.lastCrawledAt - a.lastCrawledAt)[0]; %>
+                <% const competitorPages = pages.filter((page) => page.competitorId && page.competitorId.toString() === competitor._id.toString()); %>
+                <% const lastPage = competitorPages.sort((a, b) => (new Date(b.lastCrawledAt || 0)) - (new Date(a.lastCrawledAt || 0)))[0]; %>
                 <tr>
-                  <td><a href="/projects/<%= project._id %>/competitors/<%= competitor._id %>"><%= competitor.name %></a></td>
-                  <td><a href="<%= competitor.websiteUrl %>" target="_blank" rel="noreferrer"><%= competitor.websiteUrl %></a></td>
-                  <td><%= competitor.source || 'manual' %></td>
-                  <td><%= competitor.confidence ? `${competitor.confidence}%` : 'Confirmed' %></td>
-                  <td><%= competitorPages.length %></td>
-                  <td><%= lastPage ? lastPage.lastCrawledAt.toLocaleString() : 'Never' %></td>
                   <td>
-                    <form action="/projects/<%= project._id %>/competitors/<%= competitor._id %>/scan" method="post" data-loading-state="Scanning competitor pages">
-                      <button class="button" type="submit">Scan</button>
-                    </form>
+                    <a href="/projects/<%= project._id %>/competitors/<%= competitor._id %>" style="font-weight: 600; color: var(--saas-text);">
+                      <%= competitor.name %>
+                    </a>
+                  </td>
+                  <td>
+                    <a href="<%= competitor.websiteUrl %>" target="_blank" rel="noreferrer" style="color: var(--saas-cyan); font-family: monospace; font-size: 12px;">
+                      <%= competitor.websiteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '') %> ↗
+                    </a>
+                  </td>
+                  <td>
+                    <span class="status" style="font-size: 10px; text-transform: capitalize;">
+                      <%= competitor.source || 'Manual' %>
+                    </span>
+                  </td>
+                  <td><span class="status" style="font-size: 10px;"><%= (competitor.classification || 'direct').replace(/_/g, ' ') %></span></td>
+                  <td><%= (competitor.businessModel || 'other').replace(/_/g, ' ') %></td>
+                  <td><%= (competitor.locationRelevance || 'unknown').replace(/_/g, ' ') %></td>
+                  <td>
+                    <span class="status <%= competitor.confidence >= 70 ? 'status-success' : '' %>" style="font-size: 10px;">
+                      <%= competitor.confidence ? `${competitor.confidence}% Match` : 'Confirmed' %>
+                    </span>
+                  </td>
+                  <td>
+                    <span style="font-weight: 600; color: var(--saas-text);"><%= competitorPages.length %></span> pages
+                  </td>
+                  <td>
+                    <span style="color: var(--saas-muted); font-size: 12px;">
+                      <%= lastPage && lastPage.lastCrawledAt ? new Date(lastPage.lastCrawledAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Never' %>
+                    </span>
+                  </td>
+                  <td>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                      <form action="/projects/<%= project._id %>/competitors/<%= competitor._id %>/scan" method="post" data-loading-state="Crawling competitor pages">
+                        <button class="button button-small" type="submit" title="Scan competitor pages">Scan</button>
+                      </form>
+                      <a class="button button-small" href="/projects/<%= project._id %>/competitors/<%= competitor._id %>">Intel</a>
+                      <form action="/projects/<%= project._id %>/competitors/<%= competitor._id %>/delete" method="post" onsubmit="return confirm('Remove <%= competitor.name %> from tracked competitors?');">
+                        <button class="button button-small danger-button" type="submit" title="Remove competitor">✕</button>
+                      </form>
+                    </div>
                   </td>
                 </tr>
               <% }) %>
@@ -118,24 +174,63 @@
       <% } %>
     </section>
 
+    <!-- Add Competitor Panel -->
     <section class="panel">
       <div class="panel-title">
-        <h2>Latest Opportunities</h2>
-        <a href="/projects/<%= project._id %>/competitors/insights">Open report</a>
+        <div>
+          <h2>Add Known Competitor</h2>
+          <p>Track custom competitors or niche players that may not appear in generic category searches.</p>
+        </div>
       </div>
-      <% if (!latestInsights.length) { %>
-        <p class="empty">No competitor opportunities generated yet.</p>
-      <% } %>
-      <div class="recommendation-grid">
-        <% latestInsights.forEach((insight) => { %>
-          <article class="recommendation-card">
-            <span class="status">Priority <%= insight.priority %></span>
-            <h2><%= insight.title %></h2>
-            <p><%= insight.opportunity %></p>
-          </article>
-        <% }) %>
-      </div>
+      <form class="form grid-form" action="/projects/<%= project._id %>/competitors" method="post">
+        <label>
+          Competitor Brand Name
+          <input type="text" name="name" placeholder="e.g. Acme Analytics" required>
+        </label>
+        <label>
+          Website URL
+          <input type="url" name="websiteUrl" placeholder="https://example.com" required>
+        </label>
+        <label>
+          Competitor Type
+          <select name="classification">
+            <option value="direct">Direct competitor</option>
+            <option value="indirect">Indirect competitor</option>
+            <option value="aspirational">Aspirational competitor</option>
+          </select>
+        </label>
+        <label class="full">
+          Strategic Notes (Optional)
+          <textarea name="notes" rows="2" placeholder="Why this competitor is important or specific features to benchmark..."></textarea>
+        </label>
+        <div>
+          <button class="button button-primary" type="submit">+ Track Competitor</button>
+        </div>
+      </form>
     </section>
+
+    <!-- Latest Opportunity Insights -->
+    <% if (latestInsights.length) { %>
+      <section class="panel">
+        <div class="panel-title">
+          <div>
+            <h2>Top Growth & Gap Opportunities</h2>
+            <p>Actionable differentiators and search gaps calculated against tracked competitors.</p>
+          </div>
+          <a class="button" href="/projects/<%= project._id %>/competitors/insights">All Opportunities &rarr;</a>
+        </div>
+        <div class="content-card-grid">
+          <% latestInsights.forEach((insight) => { %>
+            <article class="content-card">
+              <span class="status status-success" style="font-size: 10px;">Priority <%= insight.priority %></span>
+              <strong style="margin: 8px 0 4px; display: block; font-size: 15px;"><%= insight.title %></strong>
+              <p style="color: var(--saas-muted); font-size: 13px; line-height: 1.5;"><%= insight.opportunity %></p>
+            </article>
+          <% }) %>
+        </div>
+      </section>
+    <% } %>
+
   </section>
 </div>
 

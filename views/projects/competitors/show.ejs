@@ -1,74 +1,123 @@
 <%- include('../../partials/header') %>
 
 <div class="app-layout">
-  <aside class="app-sidebar">
-    <strong>Workspace</strong>
-    <a href="/dashboard">Dashboard</a>
-    <a href="/projects">Projects</a>
-    <a href="/projects/<%= project._id %>">Project Overview</a>
-    <a href="/projects/<%= project._id %>/competitors">Competitors</a>
-    <a href="/projects/<%= project._id %>/competitors/insights">Opportunities</a>
-  </aside>
+  <%- include('../../partials/project-sidebar', { project, activeSection: 'competitors' }) %>
 
   <section class="app-main">
     <div class="page-heading">
       <div>
-        <p class="eyebrow"><%= competitor.websiteUrl %></p>
+        <p class="eyebrow"><%= competitor.websiteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '') %></p>
         <h1><%= competitor.name %></h1>
+        <p>Detailed competitor page architecture, content telemetry, and identified gap opportunities.</p>
       </div>
       <div class="row-actions">
-        <form action="/projects/<%= project._id %>/competitors/<%= competitor._id %>/scan" method="post">
-          <button class="button button-primary" type="submit">Scan Competitor</button>
+        <form action="/projects/<%= project._id %>/competitors/<%= competitor._id %>/scan" method="post" data-loading-state="Crawling competitor pages">
+          <button class="button button-primary" type="submit">⚡ Scan Competitor</button>
         </form>
-        <a class="button" href="/projects/<%= project._id %>/competitors">All competitors</a>
+        <a class="button" href="/projects/<%= project._id %>/competitors">&larr; All Competitors</a>
       </div>
     </div>
 
     <% if (successMessage) { %>
+      <div class="panel" style="border-color: rgba(16, 185, 129, 0.3);">
+        <strong style="color: var(--saas-mint, #10b981);">Updated</strong>
+        <p><%= successMessage %></p>
+      </div>
+    <% } %>
+
+    <section class="metric-grid">
+      <article>
+        <span>Indexed Pages</span>
+        <strong><%= pages.length %></strong>
+      </article>
+      <article>
+        <span>Identified Gaps</span>
+        <strong><%= insights.length %></strong>
+      </article>
+      <article>
+        <span>Target Domain</span>
+        <strong style="font-size: 15px; overflow-wrap: anywhere;"><%= competitor.websiteUrl.replace(/^https?:\/\//, '') %></strong>
+      </article>
+      <article>
+        <span>Last Analyzed</span>
+        <strong><%= pages[0] && pages[0].lastCrawledAt ? new Date(pages[0].lastCrawledAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Never' %></strong>
+      </article>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <div>
+          <h2>Market Fit</h2>
+          <p>How this company relates to the project market and business model.</p>
+        </div>
+        <span class="status"><%= (competitor.classification || 'direct').replace(/_/g, ' ') %></span>
+      </div>
+      <dl class="detail-list">
+        <div><dt>Business model</dt><dd><%= (competitor.businessModel || 'other').replace(/_/g, ' ') %></dd></div>
+        <div><dt>Market reach</dt><dd><%= (competitor.locationRelevance || 'unknown').replace(/_/g, ' ') %></dd></div>
+        <div><dt>Classification reason</dt><dd><%= competitor.classificationReason || 'Manually confirmed for this project.' %></dd></div>
+        <div><dt>Shared concepts</dt><dd><%= ((competitor.discoveryEvidence && competitor.discoveryEvidence.sharedConcepts) || []).join(', ') || 'Manual classification' %></dd></div>
+      </dl>
+    </section>
+
+    <% if (competitor.notes) { %>
       <section class="panel">
-        <h2>Scan updated</h2>
-        <p class="empty"><%= successMessage %></p>
+        <div class="panel-title">
+          <h2>Strategic Notes</h2>
+        </div>
+        <p style="color: var(--saas-text); font-size: 14px; line-height: 1.6;"><%= competitor.notes %></p>
       </section>
     <% } %>
 
-    <section class="metrics">
-      <article><span>Pages stored</span><strong><%= pages.length %></strong></article>
-      <article><span>Insights</span><strong><%= insights.length %></strong></article>
-      <article><span>Website</span><strong><%= competitor.websiteUrl.replace(/^https?:\/\//, '') %></strong></article>
-      <article><span>Last scan</span><strong><%= pages[0] ? pages[0].lastCrawledAt.toLocaleDateString() : 'Never' %></strong></article>
-    </section>
-
+    <!-- Competitor Indexed Pages Table -->
     <section class="panel">
-      <h2>Notes</h2>
-      <p class="empty"><%= competitor.notes || 'No notes added.' %></p>
-    </section>
+      <div class="panel-title">
+        <div>
+          <h2>Indexed Competitor Pages</h2>
+          <p>Public page signals, headings, and schema structures observed on <%= competitor.name %>.</p>
+        </div>
+        <span class="status"><%= pages.length %> pages</span>
+      </div>
 
-    <section class="panel">
-      <h2>Competitor Pages</h2>
       <% if (!pages.length) { %>
-        <p class="empty">No pages stored yet. Run a competitor scan to collect public SEO facts.</p>
+        <p class="empty">No pages indexed yet. Click <strong>Scan Competitor</strong> above to crawl public SEO facts.</p>
       <% } else { %>
-        <div class="table-scroll">
-          <table class="data-table">
+        <div class="table-wrap">
+          <table>
             <thead>
               <tr>
-                <th>Page</th>
-                <th>Title</th>
-                <th>Meta description</th>
-                <th>H1</th>
-                <th>Words</th>
-                <th>Schema</th>
+                <th>Page URL</th>
+                <th>Title & Meta</th>
+                <th>Primary H1 Heading</th>
+                <th>Word Count</th>
+                <th>Structured Data (Schema)</th>
               </tr>
             </thead>
             <tbody>
               <% pages.forEach((page) => { %>
                 <tr>
-                  <td><a href="<%= page.url %>" target="_blank" rel="noreferrer"><%= page.url %></a></td>
-                  <td><%= page.title || 'Missing' %></td>
-                  <td><%= page.metaDescription || 'Missing' %></td>
-                  <td><%= (page.h1 || []).join(' | ') || 'Missing' %></td>
-                  <td><%= page.wordCount %></td>
-                  <td><%= (page.schemaTypes || []).join(', ') || 'None detected' %></td>
+                  <td>
+                    <a href="<%= page.url %>" target="_blank" rel="noreferrer" style="font-family: monospace; font-size: 12px; color: var(--saas-cyan);">
+                      <%= page.url.replace(/^https?:\/\/[^\/]+/, '') || '/' %> ↗
+                    </a>
+                  </td>
+                  <td>
+                    <strong style="display: block; font-size: 13px; margin-bottom: 2px;"><%= page.title || 'Missing Title' %></strong>
+                    <small style="color: var(--saas-muted); font-size: 12px;"><%= page.metaDescription ? page.metaDescription.slice(0, 90) + (page.metaDescription.length > 90 ? '...' : '') : 'Missing description' %></small>
+                  </td>
+                  <td>
+                    <span style="font-size: 12px; color: var(--saas-text);">
+                      <%= (page.h1 || []).length ? page.h1[0] : 'No H1' %>
+                    </span>
+                  </td>
+                  <td>
+                    <span class="status" style="font-size: 11px;"><%= (page.wordCount || 0).toLocaleString() %> words</span>
+                  </td>
+                  <td>
+                    <span style="font-size: 11px; color: var(--saas-muted);">
+                      <%= (page.schemaTypes || []).length ? page.schemaTypes.join(', ') : 'None' %>
+                    </span>
+                  </td>
                 </tr>
               <% }) %>
             </tbody>
@@ -77,26 +126,37 @@
       <% } %>
     </section>
 
+    <!-- Specific Opportunities -->
     <section class="panel">
-      <h2>Opportunities for this competitor</h2>
-      <p class="empty">These opportunities come from shallow public crawl evidence only. They are not claims about private performance, rankings, or conversions.</p>
-      <% if (!insights.length) { %>
-        <p class="empty">No opportunities generated yet.</p>
-      <% } %>
-      <div class="recommendation-grid">
-        <% insights.forEach((insight) => { %>
-          <article class="recommendation-card">
-            <span class="status"><%= insight.category.replace(/_/g, ' ') %> / P<%= insight.priority %></span>
-            <h2><%= insight.title %></h2>
-            <p><strong>Source:</strong> <%= insight.generatedBy === 'ai' ? 'AI summary of crawled-page evidence' : 'Rule-based comparison of crawled-page evidence' %></p>
-            <p><strong>Confidence estimate:</strong> <%= insight.confidenceScore %>%</p>
-            <p><%= insight.insight %></p>
-            <p><strong>Evidence:</strong> <%= insight.evidenceSummary || 'Based on the shallow public crawl available for this competitor.' %></p>
-            <p><strong>Opportunity:</strong> <%= insight.opportunity %></p>
-          </article>
-        <% }) %>
+      <div class="panel-title">
+        <div>
+          <h2>Identified Gap Opportunities</h2>
+          <p>Calculated directly from public page differences between your site and <%= competitor.name %>.</p>
+        </div>
+        <span class="status"><%= insights.length %> opportunities</span>
       </div>
+
+      <% if (!insights.length) { %>
+        <p class="empty">No specific opportunities detected yet. Run a full crawl or generate the competitor report.</p>
+      <% } else { %>
+        <div class="content-card-grid">
+          <% insights.forEach((insight) => { %>
+            <article class="content-card">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span class="status status-success" style="font-size: 10px;">Priority <%= insight.priority %></span>
+                <span class="status" style="font-size: 10px;"><%= insight.confidenceScore %>% Confidence</span>
+              </div>
+              <strong style="font-size: 15px; margin-bottom: 6px; display: block;"><%= insight.title %></strong>
+              <p style="color: var(--saas-muted); font-size: 13px; line-height: 1.5; margin-bottom: 8px;"><%= insight.insight %></p>
+              <div style="padding-top: 8px; border-top: 1px solid var(--saas-line); font-size: 12px;">
+                <strong style="color: var(--saas-cyan);">Opportunity:</strong> <%= insight.opportunity %>
+              </div>
+            </article>
+          <% }) %>
+        </div>
+      <% } %>
     </section>
+
   </section>
 </div>
 

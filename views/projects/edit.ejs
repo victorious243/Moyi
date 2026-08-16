@@ -20,6 +20,26 @@
         <label>Industry <input name="industry" value="<%= project.industry || '' %>"></label>
         <label>Target audience <input name="targetAudience" value="<%= project.targetAudience || '' %>"></label>
         <label>Target country <input name="targetCountry" value="<%= project.targetCountry || '' %>"></label>
+        <label>Target city <input name="targetCity" value="<%= project.targetCity || '' %>"></label>
+        <label>Business model
+          <select name="businessModel">
+            <option value="">Detect from website</option>
+            <% [
+              ['saas', 'Software / SaaS'],
+              ['ecommerce', 'Ecommerce'],
+              ['marketplace', 'Marketplace / directory'],
+              ['agency', 'Agency / consultancy'],
+              ['professional_services', 'Professional services'],
+              ['local_service', 'Local service business'],
+              ['retail', 'Retail'],
+              ['media', 'Media / publisher'],
+              ['nonprofit', 'Nonprofit'],
+              ['other', 'Other']
+            ].forEach(([value, label]) => { %>
+              <option value="<%= value %>" <%= project.businessModel === value ? 'selected' : '' %>><%= label %></option>
+            <% }) %>
+          </select>
+        </label>
         <label>Main offer <input name="mainOffer" value="<%= project.mainOffer || '' %>"></label>
         <label>Brand tone <input name="brandTone" value="<%= project.brandTone || '' %>"></label>
         <div class="full brand-logo-manager">
@@ -40,7 +60,7 @@
           <span class="field-hint">Upload a PNG with real transparency and no background, 2 MB maximum.</span>
         </label>
         <label class="full">Main goal <textarea name="mainGoal" rows="4"><%= project.mainGoal || '' %></textarea></label>
-        <label class="full">Competitors <textarea name="competitors" rows="4"><%= (project.competitors || []).join('\n') %></textarea></label>
+        <label class="full">Competitors <textarea name="competitors" rows="4"><%= (project.competitors || []).map((competitor) => typeof competitor === 'string' ? competitor : (competitor.websiteUrl || competitor.name || '')).filter(Boolean).join('\n') %></textarea></label>
         <label class="full">
           Approved content webhook URL
           <input name="webhookUrl" type="url" value="<%= project.webhookUrl || '' %>" placeholder="https://example.com/api/moyi/content-approved">

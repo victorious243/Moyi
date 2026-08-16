@@ -34,6 +34,26 @@ const competitorSchema = new mongoose.Schema(
       default: 'manual',
       index: true
     },
+    classification: {
+      type: String,
+      enum: ['direct', 'indirect', 'aspirational'],
+      default: 'direct',
+      index: true
+    },
+    businessModel: {
+      type: String,
+      enum: ['saas', 'ecommerce', 'marketplace', 'agency', 'professional_services', 'local_service', 'retail', 'media', 'nonprofit', 'other'],
+      default: 'other'
+    },
+    locationRelevance: {
+      type: String,
+      enum: ['local', 'regional', 'national', 'global', 'unknown'],
+      default: 'unknown'
+    },
+    classificationReason: {
+      type: String,
+      default: ''
+    },
     confidence: {
       type: Number,
       min: 0,
