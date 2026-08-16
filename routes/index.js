@@ -901,7 +901,7 @@ router.get('/terms', (req, res) => {
       <p>These Terms shall be governed by and construed in accordance with applicable laws, without regard to conflict of law principles. Any dispute arising out of or relating to these Terms shall be resolved through good-faith negotiation, and if necessary, submitted to binding arbitration or competent courts having jurisdiction.</p>
 
       <h2>12. Contact & Notices</h2>
-      <p>For questions or notices regarding these Terms, contact us through our <a href="/contact">Contact Page</a> or email our support desk at <code>support@moyi-cmo.com</code>.</p>
+      <p>For questions or notices regarding these Terms, contact us through our <a href="/contact">Contact Page</a> or email our support desk at <code>customersupport@moyi-cmo.com</code>.</p>
     `
   });
 });
@@ -1033,7 +1033,7 @@ router.get('/privacy', (req, res) => {
       <p>Moyi-CMO is an enterprise B2B software platform and is not intended for use by individuals under 18 years of age. We do not knowingly collect personal data from children.</p>
 
       <h2>11. Contact & Privacy Inquiries</h2>
-      <p>To exercise your privacy rights, request a formal Data Processing Agreement (DPA), or speak with our Data Protection Lead, submit a request via our <a href="/contact">Contact Page</a> (select "Privacy request") or email <code>privacy@moyi-cmo.com</code>.</p>
+      <p>To exercise your privacy rights, request a formal Data Processing Agreement (DPA), or speak with our Data Protection Lead, submit a request via our <a href="/contact">Contact Page</a> (select "Privacy request") or email <code>customersupport@moyi-cmo.com</code>.</p>
     `
   });
 });
