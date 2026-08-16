@@ -738,11 +738,69 @@ table code,
     gap: 16px;
   }
 
+  /* Prevent iOS Safari auto-zoom on inputs */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="url"],
+  input[type="number"],
+  input[type="search"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  /* Mobile Sticky Horizontal Swipe App Sidebar */
   .app-sidebar {
-    top: 72px;
+    position: sticky;
+    top: 68px;
+    z-index: 9;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px 10px;
     margin-inline: 0;
-    padding: 7px;
-    border-radius: 10px;
+    border-radius: 12px;
+    background: rgba(13, 16, 18, 0.94);
+    backdrop-filter: blur(16px);
+    scrollbar-width: none;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35);
+  }
+
+  .app-sidebar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .app-sidebar strong,
+  .app-sidebar .sidebar-project-title,
+  .app-sidebar .sidebar-section-heading,
+  .app-sidebar .sidebar-divider,
+  .app-sidebar .sidebar-back-link {
+    display: none !important;
+  }
+
+  .app-sidebar a {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 0 14px;
+    border-radius: 8px;
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .app-sidebar a.active {
+    background: linear-gradient(90deg, rgba(85, 230, 207, 0.15), rgba(138, 124, 255, 0.1));
+    border-color: rgba(85, 230, 207, 0.35);
+  }
+
+  .app-sidebar a.active::before {
+    display: none;
   }
 
   .page-heading {
@@ -753,7 +811,7 @@ table code,
 
   .page-heading h1,
   .dashboard-heading h1 {
-    font-size: clamp(30px, 10vw, 42px);
+    font-size: clamp(26px, 8vw, 38px);
   }
 
   .page-heading > :last-child,
@@ -764,11 +822,14 @@ table code,
   }
 
   .panel {
-    padding: 18px;
+    padding: 16px;
+    margin-bottom: 14px;
+    border-radius: 12px !important;
   }
 
   .panel-title {
     flex-direction: column;
+    gap: 8px;
   }
 
   .panel-title > :last-child,
@@ -779,10 +840,33 @@ table code,
   .grid-form,
   .dashboard-grid,
   .content-card-grid,
-  .social-connect-grid,
+  .social-connect-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* 2-Column Responsive Metric Cards on Phone */
   .metrics,
   .metric-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .metric-grid article,
+  .metrics article {
+    padding: 12px 14px !important;
+    border-radius: 10px !important;
+  }
+
+  .metric-grid article strong,
+  .metrics article strong {
+    font-size: clamp(17px, 5vw, 22px) !important;
+    margin-top: 4px !important;
+  }
+
+  .metric-grid article span,
+  .metrics article span {
+    font-size: 10.5px !important;
+    letter-spacing: 0.04em !important;
   }
 
   .studio-summary {
@@ -811,19 +895,51 @@ table code,
 
   .table-wrap,
   .table-scroll {
+    position: relative;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
     margin-inline: -1px;
     width: calc(100% + 2px);
+    border-radius: 10px;
+    margin-bottom: 12px;
+  }
+
+  table th,
+  table td,
+  .data-table th,
+  .data-table td {
+    padding: 10px 12px;
+    font-size: 12px;
   }
 
   .connected-social-table,
   .social-history-table {
     min-width: 0;
   }
+
+  .table-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    white-space: nowrap;
+  }
+
+  .table-actions form {
+    margin: 0;
+    display: inline-flex;
+  }
 }
 
-@media (max-width: 460px) {
+@media (max-width: 480px) {
   .studio-summary {
     grid-template-columns: 1fr;
+  }
+
+  .page-heading h1,
+  .dashboard-heading h1 {
+    font-size: 24px;
+    line-height: 1.2;
   }
 
   .button,
@@ -836,6 +952,15 @@ table code,
   .status-actions {
     display: grid;
     grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .row-actions form,
+  .row-actions button,
+  .row-actions .button {
+    width: 100% !important;
+    justify-content: center !important;
+    text-align: center !important;
   }
 }
 
