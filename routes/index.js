@@ -11,6 +11,7 @@ const ProjectSearchProperty = require('../models/ProjectSearchProperty');
 const ConversionGoal = require('../models/ConversionGoal');
 const AuditLog = require('../models/AuditLog');
 const ApiCredential = require('../models/ApiCredential');
+const GrowthAlert = require('../models/GrowthAlert');
 const { requireAuth } = require('../middleware/auth');
 const { clearAuthCookie } = require('../middleware/auth');
 const { requirePlatformAdmin } = require('../middleware/platformAdmin');
@@ -689,6 +690,60 @@ router.post('/account/test-email', requireAuth, requirePlatformAdmin, asyncHandl
     });
     res.redirect(`/account?error=${encodeURIComponent(error.message)}`);
   }
+}));
+
+router.get('/api/notifications', requireAuth, asyncHandler(async (req, res) => {
+  const accessibleProjects = await findAccessibleProjects(req.user._id, { select: '_id' });
+  const projectIds = accessibleProjects.map((p) => p._id);
+
+  const notifications = await GrowthAlert.find({
+    $or: [{ userId: req.user._id }, { projectId: { $in: projectIds } }]
+  })
+    .sort({ createdAt: -1 })
+    .limit(25)
+    .populate('projectId', 'name');
+
+  const unreadCount = notifications.filter((n) => !n.readAt).length;
+
+  res.json({
+    notifications: notifications.map((n) => ({
+      _id: n._id,
+      type: n.type,
+      severity: n.severity,
+      title: n.title,
+      summary: n.summary,
+      projectName: (n.projectId && n.projectId.name) || '',
+      ctaUrl: n.ctaUrl || (n.projectId ? `/projects/${n.projectId._id}` : '/dashboard'),
+      ctaLabel: n.ctaLabel || 'View in Moyi',
+      isUnread: !n.readAt,
+      createdAt: n.createdAt
+    })),
+    unreadCount
+  });
+}));
+
+router.post('/api/notifications/:id/read', requireAuth, asyncHandler(async (req, res) => {
+  const alert = await GrowthAlert.findById(req.params.id);
+  if (alert) {
+    alert.readAt = new Date();
+    await alert.save();
+  }
+  res.json({ success: true });
+}));
+
+router.post('/api/notifications/read-all', requireAuth, asyncHandler(async (req, res) => {
+  const accessibleProjects = await findAccessibleProjects(req.user._id, { select: '_id' });
+  const projectIds = accessibleProjects.map((p) => p._id);
+
+  await GrowthAlert.updateMany(
+    {
+      $or: [{ userId: req.user._id }, { projectId: { $in: projectIds } }],
+      readAt: null
+    },
+    { $set: { readAt: new Date() } }
+  );
+
+  res.json({ success: true });
 }));
 
 router.get('/account/export', requireAuth, asyncHandler(async (req, res) => {

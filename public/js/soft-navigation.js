@@ -10,6 +10,8 @@
     '/js/loading-state.js',
     '/js/soft-navigation.js',
     '/js/sidebar-drawer.js',
+    '/js/notification-center.js',
+    '/js/cmo-chat.js',
     '/js/terminal-scan.js',
     '/js/scan-status.js',
     '/js/project-job-status.js',

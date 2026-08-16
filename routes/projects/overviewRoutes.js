@@ -339,6 +339,27 @@ function registerProjectDetailRoutes(router, context) {
     })
   );
 
+  router.post(
+    '/:id/cmo-chat',
+    [param('id').isMongoId(), context.handleValidation],
+    context.loadProject,
+    asyncHandler(async (req, res) => {
+      const { askCmoAssistant } = require('../../services/cmoChatService');
+      const { message, history } = req.body;
+      if (!message || typeof message !== 'string' || !message.trim()) {
+        return res.status(400).json({ error: 'Message cannot be empty.' });
+      }
+
+      const response = await askCmoAssistant({
+        projectId: req.project._id,
+        message: message.trim(),
+        history: Array.isArray(history) ? history : []
+      });
+
+      res.json(response);
+    })
+  );
+
   router.post('/:id/delete', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
     if (String(req.project.owner) !== String(req.user._id)) {
       throw new context.AppError('Only the project owner can permanently delete this workspace.', 403);

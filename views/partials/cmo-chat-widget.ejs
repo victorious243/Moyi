@@ -1,0 +1,64 @@
+<% if (typeof project !== 'undefined' && project && project._id) { %>
+<!-- Interactive Ask Your CMO Floating Widget -->
+<div class="cmo-chat-widget-container" id="cmo-chat-widget" data-project-id="<%= project._id %>" data-project-name="<%= project.name %>">
+  
+  <!-- Floating Trigger Button -->
+  <button class="cmo-chat-trigger-btn" id="cmo-chat-trigger-btn" type="button" aria-label="Talk to your AI CMO" aria-expanded="false">
+    <span class="cmo-trigger-glow" aria-hidden="true"></span>
+    <svg class="cmo-trigger-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+      <circle cx="9" cy="10" r="1" fill="currentColor"></circle>
+      <circle cx="12" cy="10" r="1" fill="currentColor"></circle>
+      <circle cx="15" cy="10" r="1" fill="currentColor"></circle>
+    </svg>
+    <span class="cmo-trigger-label">Ask CMO</span>
+  </button>
+
+  <!-- Slide-out Conversational Drawer -->
+  <div class="cmo-chat-drawer" id="cmo-chat-drawer" aria-hidden="true">
+    <div class="cmo-chat-header">
+      <div class="cmo-header-info">
+        <div class="cmo-title-row">
+          <strong>Moyi AI CMO</strong>
+          <span class="cmo-project-badge"><%= project.name %></span>
+        </div>
+        <span class="cmo-subtitle">Strategic copilot grounded in live workspace telemetry</span>
+      </div>
+      <button class="cmo-chat-close-btn" id="cmo-chat-close-btn" type="button" aria-label="Close CMO Chat">✕</button>
+    </div>
+
+    <!-- Suggested Quick Prompts -->
+    <div class="cmo-quick-prompts" id="cmo-quick-prompts">
+      <button type="button" class="cmo-prompt-chip" data-prompt="Why did search traffic move this week?">📈 Search Traffic Diagnostic</button>
+      <button type="button" class="cmo-prompt-chip" data-prompt="What competitor content gaps should we target?">⚔️ Competitor Gaps</button>
+      <button type="button" class="cmo-prompt-chip" data-prompt="Draft 3 high-converting LinkedIn hooks for our main offer.">✍️ Draft Social Hooks</button>
+      <button type="button" class="cmo-prompt-chip" data-prompt="What are our top 3 priority growth actions right now?">🎯 Top Priorities</button>
+    </div>
+
+    <!-- Message History Feed -->
+    <div class="cmo-chat-messages" id="cmo-chat-messages">
+      <div class="cmo-message cmo-message-assistant">
+        <div class="cmo-message-avatar">CMO</div>
+        <div class="cmo-message-content">
+          <p>Hello! I am your AI Chief Marketing Officer for <strong><%= project.name %></strong>.</p>
+          <p>I have access to your live Search Console rankings, crawl health diagnostics, competitor intelligence, and content pipeline. How can I help you grow today?</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input Form -->
+    <form class="cmo-chat-form" id="cmo-chat-form">
+      <div class="cmo-input-wrap">
+        <textarea id="cmo-chat-input" rows="1" placeholder="Ask your CMO about strategy, keywords, copy..." required></textarea>
+        <button type="submit" id="cmo-chat-send-btn" aria-label="Send message">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </div>
+    </form>
+  </div>
+
+</div>
+<% } %>
