@@ -9,6 +9,7 @@
     '/js/saas-interactions.js',
     '/js/loading-state.js',
     '/js/soft-navigation.js',
+    '/js/sidebar-drawer.js',
     '/js/terminal-scan.js',
     '/js/scan-status.js',
     '/js/project-job-status.js',
@@ -114,6 +115,7 @@
   });
 
   const runConditionalScripts = async () => {
+    if (document.querySelector('.app-sidebar, .dashboard-sidebar, .project-sidebar')) await loadScriptOnce('/js/sidebar-drawer.js');
     if (document.querySelector('[data-terminal-scan]')) await loadScriptOnce('/js/terminal-scan.js');
     if (document.querySelector('[data-live-scan]')) await loadScriptOnce('/js/scan-status.js');
     if (document.querySelector('[data-live-job]')) await loadScriptOnce('/js/project-job-status.js');

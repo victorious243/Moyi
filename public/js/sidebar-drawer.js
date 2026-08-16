@@ -1,16 +1,20 @@
 (() => {
-  function initSidebarDrawer() {
+  if (window.__moyiSidebarDrawerInitialized) return;
+  window.__moyiSidebarDrawerInitialized = true;
+
+  function ensureDrawerElements() {
     const sidebar = document.querySelector('.app-sidebar, .dashboard-sidebar, .project-sidebar');
     if (!sidebar) return;
 
-    // Create or locate floating action button (FAB)
-    let toggleBtn = document.querySelector('.mobile-workspace-fab, .mobile-sidebar-toggle-button');
+    // Ensure floating action button (FAB) exists
+    let toggleBtn = document.querySelector('.mobile-workspace-fab, .mobile-sidebar-toggle-button, [data-sidebar-toggle]');
     if (!toggleBtn) {
       toggleBtn = document.createElement('button');
       toggleBtn.type = 'button';
       toggleBtn.className = 'mobile-workspace-fab';
       toggleBtn.setAttribute('aria-label', 'Open Workspace Navigation Menu');
       toggleBtn.setAttribute('aria-expanded', 'false');
+      toggleBtn.setAttribute('data-sidebar-toggle', 'true');
       toggleBtn.innerHTML = `
         <span class="fab-glow" aria-hidden="true"></span>
         <svg class="fab-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -23,78 +27,130 @@
       document.body.appendChild(toggleBtn);
     }
 
-    // Create or locate close button inside sidebar
+    // Ensure close button exists inside sidebar
     let closeBtn = sidebar.querySelector('.mobile-sidebar-close-button, [data-sidebar-close]');
     if (!closeBtn) {
       closeBtn = document.createElement('button');
       closeBtn.type = 'button';
       closeBtn.className = 'mobile-sidebar-close-button';
       closeBtn.setAttribute('aria-label', 'Close Workspace Navigation Menu');
+      closeBtn.setAttribute('data-sidebar-close', 'true');
       closeBtn.innerHTML = `<span>✕</span>`;
       sidebar.prepend(closeBtn);
     }
 
-    // Create or locate dimmed backdrop
+    // Ensure backdrop exists
     let backdrop = document.querySelector('.sidebar-backdrop, [data-sidebar-backdrop]');
     if (!backdrop) {
       backdrop = document.createElement('div');
       backdrop.className = 'sidebar-backdrop';
+      backdrop.setAttribute('data-sidebar-backdrop', 'true');
       document.body.appendChild(backdrop);
     }
+  }
 
-    function openDrawer() {
-      sidebar.classList.add('drawer-open');
-      backdrop.classList.add('active');
+  function getSidebar() {
+    return document.querySelector('.app-sidebar, .dashboard-sidebar, .project-sidebar');
+  }
+
+  function getToggleBtn() {
+    return document.querySelector('.mobile-workspace-fab, .mobile-sidebar-toggle-button, [data-sidebar-toggle]');
+  }
+
+  function getBackdrop() {
+    return document.querySelector('.sidebar-backdrop, [data-sidebar-backdrop]');
+  }
+
+  function openDrawer() {
+    const sidebar = getSidebar();
+    const backdrop = getBackdrop();
+    const toggleBtn = getToggleBtn();
+    if (!sidebar) return;
+
+    sidebar.classList.add('drawer-open');
+    if (backdrop) backdrop.classList.add('active');
+    if (toggleBtn) {
       toggleBtn.setAttribute('aria-expanded', 'true');
       toggleBtn.classList.add('fab-active');
-      document.body.classList.add('sidebar-drawer-active');
     }
+    document.body.classList.add('sidebar-drawer-active');
+  }
 
-    function closeDrawer() {
-      sidebar.classList.remove('drawer-open');
-      backdrop.classList.remove('active');
+  function closeDrawer() {
+    const sidebar = getSidebar();
+    const backdrop = getBackdrop();
+    const toggleBtn = getToggleBtn();
+    if (sidebar) sidebar.classList.remove('drawer-open');
+    if (backdrop) backdrop.classList.remove('active');
+    if (toggleBtn) {
       toggleBtn.setAttribute('aria-expanded', 'false');
       toggleBtn.classList.remove('fab-active');
-      document.body.classList.remove('sidebar-drawer-active');
     }
+    document.body.classList.remove('sidebar-drawer-active');
+  }
 
-    toggleBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (sidebar.classList.contains('drawer-open')) {
+  // Delegated Global Click Listener (survives any soft-navigation page swaps)
+  document.addEventListener('click', (event) => {
+    // 1. Toggle FAB clicked
+    const toggleBtn = event.target.closest('.mobile-workspace-fab, .mobile-sidebar-toggle-button, [data-sidebar-toggle]');
+    if (toggleBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      const sidebar = getSidebar();
+      if (sidebar && sidebar.classList.contains('drawer-open')) {
         closeDrawer();
       } else {
         openDrawer();
       }
-    });
+      return;
+    }
 
-    closeBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
+    // 2. Close button clicked
+    const closeBtn = event.target.closest('.mobile-sidebar-close-button, [data-sidebar-close]');
+    if (closeBtn) {
+      event.preventDefault();
+      event.stopPropagation();
       closeDrawer();
-    });
+      return;
+    }
 
-    backdrop.addEventListener('click', () => {
+    // 3. Backdrop clicked
+    const backdrop = event.target.closest('.sidebar-backdrop, [data-sidebar-backdrop]');
+    if (backdrop) {
+      event.preventDefault();
       closeDrawer();
-    });
+      return;
+    }
 
-    // Close on navigation link click inside drawer
-    sidebar.addEventListener('click', (e) => {
-      const link = e.target.closest('a');
-      if (link && !link.getAttribute('target')) {
+    // 4. Link clicked inside sidebar
+    const sidebarLink = event.target.closest('.app-sidebar a, .dashboard-sidebar a, .project-sidebar a');
+    if (sidebarLink && !sidebarLink.getAttribute('target')) {
+      closeDrawer();
+    }
+  });
+
+  // Close on Escape key
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      const sidebar = getSidebar();
+      if (sidebar && sidebar.classList.contains('drawer-open')) {
         closeDrawer();
       }
-    });
+    }
+  });
 
-    // Close on Escape key
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && sidebar.classList.contains('drawer-open')) {
-        closeDrawer();
-      }
-    });
-  }
+  // Re-run element checks on soft navigation lifecycle events
+  document.addEventListener('DOMContentLoaded', ensureDrawerElements);
+  document.addEventListener('moyi:page-load', () => {
+    closeDrawer();
+    ensureDrawerElements();
+  });
+  document.addEventListener('moyi:after-page-swap', () => {
+    closeDrawer();
+    ensureDrawerElements();
+  });
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initSidebarDrawer);
-  } else {
-    initSidebarDrawer();
+  if (document.readyState !== 'loading') {
+    ensureDrawerElements();
   }
 })();
