@@ -735,7 +735,19 @@ table code,
   }
 
   .app-layout {
-    gap: 16px;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    grid-template-columns: 1fr !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+
+  .app-layout > * {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
   }
 
   /* Prevent iOS Safari auto-zoom on inputs */
@@ -900,7 +912,7 @@ table code,
     position: fixed !important;
     bottom: 24px !important;
     right: 20px !important;
-    z-index: 990 !important;
+    z-index: 99999 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;

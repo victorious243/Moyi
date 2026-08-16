@@ -4,9 +4,14 @@
 
   function ensureDrawerElements() {
     const sidebar = document.querySelector('.app-sidebar, .dashboard-sidebar, .project-sidebar');
-    if (!sidebar) return;
+    if (!sidebar) {
+      // Remove any lingering button if no sidebar on current page
+      const orphanBtn = document.querySelector('.mobile-workspace-fab, .mobile-sidebar-toggle-button');
+      if (orphanBtn) orphanBtn.remove();
+      return;
+    }
 
-    // Ensure floating action button (FAB) exists
+    // Ensure floating action button (FAB) exists and is mounted directly to document.body
     let toggleBtn = document.querySelector('.mobile-workspace-fab, .mobile-sidebar-toggle-button, [data-sidebar-toggle]');
     if (!toggleBtn) {
       toggleBtn = document.createElement('button');
@@ -25,6 +30,8 @@
         <span class="fab-badge"></span>
       `;
       document.body.appendChild(toggleBtn);
+    } else if (toggleBtn.parentElement !== document.body) {
+      document.body.appendChild(toggleBtn);
     }
 
     // Ensure close button exists inside sidebar
@@ -39,12 +46,14 @@
       sidebar.prepend(closeBtn);
     }
 
-    // Ensure backdrop exists
+    // Ensure backdrop exists on document.body
     let backdrop = document.querySelector('.sidebar-backdrop, [data-sidebar-backdrop]');
     if (!backdrop) {
       backdrop = document.createElement('div');
       backdrop.className = 'sidebar-backdrop';
       backdrop.setAttribute('data-sidebar-backdrop', 'true');
+      document.body.appendChild(backdrop);
+    } else if (backdrop.parentElement !== document.body) {
       document.body.appendChild(backdrop);
     }
   }
