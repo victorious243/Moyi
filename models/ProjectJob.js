@@ -16,7 +16,15 @@ const projectJobSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['ai_report', 'measurement_report', 'search_console_sync', 'content_pipeline', 'content_image_generation'],
+      enum: [
+        'ai_report',
+        'measurement_report',
+        'search_console_sync',
+        'content_pipeline',
+        'content_image_generation',
+        'competitor_scan',
+        'competitor_discovery_report'
+      ],
       required: true,
       index: true
     },

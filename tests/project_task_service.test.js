@@ -5,6 +5,19 @@ const {
   buildFingerprint,
   parseRecommendationLimit
 } = require('../services/projectTaskService');
+const ProjectJob = require('../models/ProjectJob');
+
+test('project jobs accept competitor scan and discovery report types', () => {
+  for (const type of ['competitor_scan', 'competitor_discovery_report']) {
+    const job = new ProjectJob({
+      projectId: '507f1f77bcf86cd799439011',
+      userId: '507f191e810c19729de860ea',
+      type
+    });
+
+    assert.equal(job.validateSync(), undefined);
+  }
+});
 
 test('project task fingerprint is stable across object key order', () => {
   const a = buildFingerprint({
