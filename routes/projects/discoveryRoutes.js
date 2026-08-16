@@ -15,7 +15,11 @@ function registerDiscoveryRoutes(router, context, services = {}) {
     ensureProjectLimit,
     ensureScanAllowed,
     startProjectScan,
-    upgradeRedirect
+    upgradeRedirect,
+    queueCompetitorScan,
+    queueCompetitorReport,
+    findJobForProject,
+    findLatestJob
   } = services;
 
   router.post('/scan', [
@@ -41,9 +45,10 @@ function registerDiscoveryRoutes(router, context, services = {}) {
     context.handleValidation
   ], asyncHandler(async (req, res) => {
     try {
-      await ensureProjectLimit(req.user);
+      ensureScanAllowed(req.user, 'You have reached your scan limit for this billing period.');
+      await ensureProjectLimit(req.user, 'Project limit reached for your current plan.');
     } catch (error) {
-      return res.redirect(`/projects?limitMessage=${encodeURIComponent(error.message)}`);
+      return res.redirect(upgradeRedirect(null, error.message));
     }
 
     const { project } = await bootstrapDiscoveryProject({
@@ -88,11 +93,52 @@ function registerDiscoveryRoutes(router, context, services = {}) {
     req.project.status = 'approved';
     const telemetry = await auditTelemetry(req.project);
     req.project.telemetryHealthScore = telemetry.score;
-    req.project.telemetryAudit = telemetry;
+    req.project.telemetryHistory.push({
+      score: telemetry.score,
+      components: telemetry.components,
+      calculatedAt: new Date()
+    });
     await req.project.save();
 
-    res.redirect(`/projects/${req.project._id}?approved=1`);
+    await startProjectScan({
+      project: req.project,
+      userId: req.user._id,
+      depth: req.body.depth === 'deep' ? 'deep' : 'standard',
+      targetKeywords: req.project.targetKeywords || []
+    });
+
+    res.redirect(`/projects/${req.project._id}`);
   }));
+
+  router.get(
+    '/:id/reports/pdf',
+    [param('id').isMongoId(), context.handleValidation],
+    context.loadProject,
+    asyncHandler(async (req, res) => {
+      const [latestScan, recommendations, brandProfile, competitorInsights] = await Promise.all([
+        context.Scan.findOne({ projectId: req.project._id }).sort({ createdAt: -1 }),
+        context.Recommendation.find({ projectId: req.project._id }).sort({ impactScore: -1 }),
+        req.project.brand_profile,
+        context.CompetitorInsight.find({ projectId: req.project._id }).sort({ priority: 1, createdAt: -1 })
+      ]);
+
+      const doc = generateScanPdfReport({
+        project: req.project,
+        scan: latestScan,
+        recommendations,
+        brandProfile,
+        competitorInsights
+      });
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${req.project.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-audit-report.pdf"`
+      );
+      doc.pipe(res);
+      doc.end();
+    })
+  );
 
   router.post('/:id/scans', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
     try {
@@ -132,15 +178,21 @@ function registerDiscoveryRoutes(router, context, services = {}) {
       upgradeMessage = error.message;
     }
 
-    const competitors = await context.Competitor.find({ projectId: req.project._id, userId: req.user._id }).sort({ createdAt: -1 });
-    const pages = await context.CompetitorPage.find({ projectId: req.project._id });
-    const latestInsights = await context.CompetitorInsight.find({ projectId: req.project._id }).sort({ createdAt: -1 }).limit(6);
+    const [competitors, pages, latestInsights, activeJob] = await Promise.all([
+      context.Competitor.find({ projectId: req.project._id, userId: req.user._id }).sort({ createdAt: -1 }),
+      context.CompetitorPage.find({ projectId: req.project._id }),
+      context.CompetitorInsight.find({ projectId: req.project._id }).sort({ createdAt: -1 }).limit(6),
+      req.query.jobId
+        ? (findJobForProject ? findJobForProject({ jobId: req.query.jobId, projectId: req.project._id, userId: req.user._id }) : context.ProjectJob.findOne({ _id: req.query.jobId, projectId: req.project._id, userId: req.user._id }))
+        : (findLatestJob ? findLatestJob({ projectId: req.project._id, userId: req.user._id, type: 'competitor_discovery_report' }) : context.ProjectJob.findOne({ projectId: req.project._id, userId: req.user._id, type: 'competitor_discovery_report', status: { $in: ['queued', 'running'] } }).sort({ createdAt: -1 }))
+    ]);
 
     res.render('projects/competitors/index', {
       title: `${req.project.name} competitors`,
       competitors,
       pages,
       latestInsights,
+      activeJob: activeJob && (activeJob.status === 'queued' || activeJob.status === 'running') ? activeJob : null,
       discovery: req.project.competitorDiscovery || {},
       errorMessage: req.query.error || upgradeMessage,
       successMessage: req.query.success || ''
@@ -186,6 +238,15 @@ function registerDiscoveryRoutes(router, context, services = {}) {
         return res.redirect(upgradeRedirect(req.project._id, error.message));
       }
 
+      if (queueCompetitorScan) {
+        const job = await queueCompetitorScan({
+          projectId: req.project._id,
+          userId: req.user._id,
+          competitorId: req.competitor._id
+        });
+        return res.redirect(`/projects/${req.project._id}/competitors/${req.competitor._id}?jobId=${job._id}`);
+      }
+
       const result = await crawlCompetitor({ projectId: req.project._id, competitor: req.competitor });
       const message = result.skippedByRobots
         ? 'Competitor homepage is disallowed by robots.txt, so it was not scanned.'
@@ -213,6 +274,14 @@ function registerDiscoveryRoutes(router, context, services = {}) {
       ensureFeature(req.user, 'competitors', 'Competitor tracking is available on Pro and Agency plans.', 'pro');
     } catch (error) {
       return res.redirect(upgradeRedirect(req.project._id, error.message));
+    }
+
+    if (queueCompetitorReport) {
+      const job = await queueCompetitorReport({
+        projectId: req.project._id,
+        userId: req.user._id
+      });
+      return res.redirect(`/projects/${req.project._id}/competitors?jobId=${job._id}`);
     }
 
     const projectPages = await context.Page.find({ projectId: req.project._id }).sort({ lastCrawledAt: -1 }).limit(80);
@@ -275,13 +344,26 @@ function registerDiscoveryRoutes(router, context, services = {}) {
     context.loadProject,
     context.loadCompetitor,
     asyncHandler(async (req, res) => {
-      const pages = await context.CompetitorPage.find({ projectId: req.project._id, competitorId: req.competitor._id }).sort({ lastCrawledAt: -1 });
-      const insights = await context.CompetitorInsight.find({ projectId: req.project._id, competitorId: req.competitor._id }).sort({ priority: 1, createdAt: -1 });
+      const [pages, insights, activeJob] = await Promise.all([
+        context.CompetitorPage.find({ projectId: req.project._id, competitorId: req.competitor._id }).sort({ lastCrawledAt: -1 }),
+        context.CompetitorInsight.find({ projectId: req.project._id, competitorId: req.competitor._id }).sort({ priority: 1, createdAt: -1 }),
+        req.query.jobId
+          ? (findJobForProject ? findJobForProject({ jobId: req.query.jobId, projectId: req.project._id, userId: req.user._id }) : context.ProjectJob.findOne({ _id: req.query.jobId, projectId: req.project._id, userId: req.user._id }))
+          : context.ProjectJob.findOne({
+              projectId: req.project._id,
+              userId: req.user._id,
+              type: 'competitor_scan',
+              'payload.competitorId': req.competitor._id,
+              status: { $in: ['queued', 'running'] }
+            }).sort({ createdAt: -1 })
+      ]);
 
       res.render('projects/competitors/show', {
         title: `${req.competitor.name} competitor`,
+        competitor: req.competitor,
         pages,
         insights,
+        activeJob: activeJob && (activeJob.status === 'queued' || activeJob.status === 'running') ? activeJob : null,
         successMessage: req.query.success || ''
       });
     })

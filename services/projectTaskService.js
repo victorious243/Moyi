@@ -4,6 +4,10 @@ const Recommendation = require('../models/Recommendation');
 const ContentDraft = require('../models/ContentDraft');
 const ContentImage = require('../models/ContentImage');
 const SocialDraft = require('../models/SocialDraft');
+const Competitor = require('../models/Competitor');
+const CompetitorPage = require('../models/CompetitorPage');
+const CompetitorInsight = require('../models/CompetitorInsight');
+const Page = require('../models/Page');
 const { enqueueProjectTask } = require('../queues/projectTaskQueue');
 const {
   generateDraftsForRecommendation,
@@ -16,6 +20,9 @@ const {
 } = require('./projectWorkflowService');
 const { syncSearchConsoleProject } = require('./searchConsoleService');
 const { generateContentImage } = require('./contentImageService');
+const { crawlCompetitor } = require('./competitorCrawlerService');
+const { discoverCompetitorsForProject } = require('./competitorDiscoveryService');
+const { generateCompetitorInsights } = require('./competitorInsightService');
 const { hasProjectLogo, projectLogoReference } = require('./projectLogoService');
 const {
   incrementUsage,
@@ -45,7 +52,9 @@ function typeLabel(type) {
     measurement_report: 'measurement report',
     search_console_sync: 'Search Console sync',
     content_pipeline: 'content pipeline',
-    content_image_generation: 'image generation'
+    content_image_generation: 'image generation',
+    competitor_scan: 'competitor scan',
+    competitor_discovery_report: 'competitor report'
   }[type] || 'job';
 }
 
@@ -78,6 +87,13 @@ function createProjectTaskService(deps = {}) {
     ContentDraft,
     ContentImage,
     SocialDraft,
+    Competitor,
+    CompetitorPage,
+    CompetitorInsight,
+    Page,
+    crawlCompetitor,
+    discoverCompetitorsForProject,
+    generateCompetitorInsights,
     enqueueProjectTask,
     generateDraftsForRecommendation,
     generateContentImage,
@@ -217,6 +233,24 @@ function createProjectTaskService(deps = {}) {
         referenceImageId: referenceImageId || '',
         redirectPath
       }
+    });
+  }
+
+  async function queueCompetitorScan({ projectId, userId, competitorId }) {
+    return enqueueWorkflow({
+      projectId,
+      userId,
+      type: 'competitor_scan',
+      payload: { competitorId }
+    });
+  }
+
+  async function queueCompetitorReport({ projectId, userId }) {
+    return enqueueWorkflow({
+      projectId,
+      userId,
+      type: 'competitor_discovery_report',
+      payload: {}
     });
   }
 
@@ -439,6 +473,79 @@ function createProjectTaskService(deps = {}) {
           resourcePath: job.payload.redirectPath || fallbackPath,
           resourceType: 'content_image'
         };
+      } else if (job.type === 'competitor_scan') {
+        const competitor = await services.Competitor.findOne({
+          _id: job.payload.competitorId,
+          projectId: project._id
+        });
+        if (!competitor) {
+          const error = new Error('Competitor not found.');
+          error.statusCode = 404;
+          throw error;
+        }
+
+        await onProgress({ currentStep: `Crawling public pages for ${competitor.name}`, progressPercent: 30 });
+        const resultScan = await services.crawlCompetitor({
+          projectId: project._id,
+          competitor
+        });
+
+        await onProgress({ currentStep: 'Competitor page crawl completed', progressPercent: 95 });
+        const message = resultScan.skippedByRobots
+          ? 'Competitor homepage is disallowed by robots.txt.'
+          : `${resultScan.pages ? resultScan.pages.length : 0} competitor pages scanned.`;
+
+        result = {
+          competitorId: competitor._id,
+          pagesIndexed: resultScan.pages ? resultScan.pages.length : 0,
+          resourcePath: `/projects/${project._id}/competitors/${competitor._id}?success=${encodeURIComponent(message)}`,
+          resourceType: 'competitor_scan'
+        };
+      } else if (job.type === 'competitor_discovery_report') {
+        await onProgress({ currentStep: 'Evaluating public search signals and category candidates', progressPercent: 15 });
+        const projectPages = await services.Page.find({ projectId: project._id }).sort({ lastCrawledAt: -1 }).limit(80);
+        await services.discoverCompetitorsForProject({
+          project,
+          userId: job.userId,
+          projectPages,
+          force: true
+        });
+
+        const competitors = await services.Competitor.find({
+          projectId: project._id,
+          userId: job.userId
+        }).sort({ createdAt: -1 });
+
+        if (!competitors.length) {
+          const diagnostics = project.competitorDiscovery || {};
+          const msg = diagnostics.status === 'search_unavailable'
+            ? 'Competitor search did not return public results.'
+            : `Evaluated ${diagnostics.candidatesEvaluated || 0} public sites but could not verify a direct competitor.`;
+          result = {
+            competitorCount: 0,
+            resourcePath: `/projects/${project._id}/competitors?error=${encodeURIComponent(msg)}`,
+            resourceType: 'competitor_discovery_report'
+          };
+        } else {
+          for (let i = 0; i < competitors.length; i++) {
+            const comp = competitors[i];
+            const pct = Math.round(25 + ((i + 1) / competitors.length) * 45);
+            await onProgress({ currentStep: `Crawling ${comp.name} (${i + 1}/${competitors.length})`, progressPercent: pct });
+            await services.crawlCompetitor({ projectId: project._id, competitor: comp });
+          }
+
+          await onProgress({ currentStep: 'Synthesizing competitor insights and gap matrix', progressPercent: 85 });
+          const generatedInsights = await services.generateCompetitorInsights({
+            projectId: project._id
+          });
+
+          result = {
+            competitorCount: competitors.length,
+            insightCount: (generatedInsights || []).length,
+            resourcePath: `/projects/${project._id}/competitors/insights?success=${encodeURIComponent('Competitor intelligence report generated.')}`,
+            resourceType: 'competitor_discovery_report'
+          };
+        }
       } else {
         throw new Error(`Unsupported project job type: ${job.type}`);
       }
@@ -473,6 +580,8 @@ function createProjectTaskService(deps = {}) {
     queueContentPipeline,
     queueSearchConsoleSync,
     queueStrategyPlan,
+    queueCompetitorScan,
+    queueCompetitorReport,
     retryFailedJob
   };
 }

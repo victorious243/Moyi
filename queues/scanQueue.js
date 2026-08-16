@@ -1,7 +1,7 @@
 const { Queue } = require('bullmq');
 const env = require('../config/env');
 const { runScan } = require('../services/scanRunner');
-const { createRedisConnection } = require('../services/redisService');
+const { attachRedisErrorHandler, createRedisConnection } = require('../services/redisService');
 
 let queue;
 let queueConnection;
@@ -9,7 +9,10 @@ let queueConnection;
 function getQueue() {
   if (!queue) {
     queueConnection = createRedisConnection({ lazyConnect: false, label: 'scan-queue' });
-    queue = new Queue('website-scans', { connection: queueConnection });
+    queue = attachRedisErrorHandler(
+      new Queue('website-scans', { connection: queueConnection }),
+      'website scan queue'
+    );
   }
 
   return queue;

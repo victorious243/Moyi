@@ -1,6 +1,6 @@
 const { Queue } = require('bullmq');
 const env = require('../config/env');
-const { createRedisConnection } = require('../services/redisService');
+const { attachRedisErrorHandler, createRedisConnection } = require('../services/redisService');
 
 const QUEUE_NAME = 'social-publishing';
 let queue;
@@ -9,7 +9,10 @@ let queueConnection;
 function getPublishQueue() {
   if (!queue) {
     queueConnection = createRedisConnection({ lazyConnect: false, label: 'social-publishing' });
-    queue = new Queue(QUEUE_NAME, { connection: queueConnection });
+    queue = attachRedisErrorHandler(
+      new Queue(QUEUE_NAME, { connection: queueConnection }),
+      'social publishing queue'
+    );
   }
   return queue;
 }

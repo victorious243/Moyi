@@ -2,7 +2,7 @@ const { Worker } = require('bullmq');
 const mongoose = require('mongoose');
 const connectDatabase = require('../config/db');
 const env = require('../config/env');
-const { createRedisConnection } = require('../services/redisService');
+const { attachRedisErrorHandler, createRedisConnection } = require('../services/redisService');
 const { processProjectTask } = require('../services/projectTaskService');
 const { runScan } = require('../services/scanRunner');
 const { QUEUE_NAME, closePublishQueue, ensurePublishMaintenanceSchedules } = require('../queues/publishQueue');
@@ -31,19 +31,19 @@ async function startWorker() {
   const mediaConnection = createRedisConnection({ lazyConnect: false, label: 'social-media-worker' });
   const concurrency = env.workerConcurrency;
 
-  const scanWorker = new Worker(
+  const scanWorker = attachRedisErrorHandler(new Worker(
     'website-scans',
     async (job) => runScan(job.data.scanId),
     { connection: scanConnection, concurrency }
-  );
+  ), 'website scan worker');
 
-  const taskWorker = new Worker(
+  const taskWorker = attachRedisErrorHandler(new Worker(
     'project-tasks',
     async (job) => processProjectTask(job.data.jobId, { attemptsMade: job.attemptsMade || 0 }),
     { connection: taskConnection, concurrency }
-  );
+  ), 'project task worker');
 
-  const publishWorker = new Worker(
+  const publishWorker = attachRedisErrorHandler(new Worker(
     QUEUE_NAME,
     async (job) => {
       if (job.name === 'refresh-social-tokens') return refreshExpiringSocialAccounts();
@@ -68,9 +68,9 @@ async function startWorker() {
       };
     },
     { connection: publishConnection, concurrency }
-  );
+  ), 'social publishing worker');
 
-  const mediaWorker = new Worker(
+  const mediaWorker = attachRedisErrorHandler(new Worker(
     MEDIA_QUEUE_NAME,
     async (job) => {
       if (job.name === 'recover-media-assets') return recoverMediaAssets();
@@ -82,7 +82,7 @@ async function startWorker() {
       return { assetId: String(asset._id), status: asset.status };
     },
     { connection: mediaConnection, concurrency: env.mediaWorkerConcurrency }
-  );
+  ), 'social media worker');
 
   await ensurePublishMaintenanceSchedules();
   await ensureMediaMaintenanceSchedule();

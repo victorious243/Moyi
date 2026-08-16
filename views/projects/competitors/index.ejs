@@ -3,7 +3,14 @@
 <div class="app-layout">
   <%- include('../../partials/project-sidebar', { project, activeSection: 'competitors' }) %>
 
-  <section class="app-main">
+  <section
+    class="app-main"
+    <% if (typeof activeJob !== 'undefined' && activeJob && (activeJob.status === 'queued' || activeJob.status === 'running')) { %>
+      data-live-job
+      data-live-job-endpoint="/projects/<%= project._id %>/jobs/<%= activeJob._id %>"
+      data-initial-job-status="<%= activeJob.status %>"
+    <% } %>
+  >
     <div class="page-heading">
       <div>
         <p class="eyebrow"><%= project.name %></p>
@@ -11,7 +18,7 @@
         <p>Evidence-backed competitor discovery, page crawl diagnostics, and content gap opportunities.</p>
       </div>
       <div class="row-actions">
-        <form action="/projects/<%= project._id %>/competitors/report" method="post" data-loading-state="Scanning SERP & generating competitor report">
+        <form action="/projects/<%= project._id %>/competitors/report" method="post" data-loading-state="Queueing competitor intelligence report...">
           <button class="button button-primary" type="submit">
             <span>⚡ Generate Competitor Report</span>
           </button>
@@ -19,6 +26,22 @@
         <a class="button" href="/projects/<%= project._id %>/competitors/insights">View Full Report</a>
       </div>
     </div>
+
+    <% if (typeof activeJob !== 'undefined' && activeJob && (activeJob.status === 'queued' || activeJob.status === 'running')) { %>
+      <section class="panel" style="border-color: rgba(85, 230, 207, 0.4); background: rgba(85, 230, 207, 0.03);">
+        <div class="panel-title">
+          <strong style="color: var(--saas-cyan); font-size: 15px;">⚡ Competitor Analysis Running in Background</strong>
+          <span class="status status-running" data-job-status><%= activeJob.status %></span>
+        </div>
+        <p style="margin: 8px 0 4px; font-size: 13px; color: var(--saas-text);">
+          <span data-job-step><%= activeJob.currentStep || 'Analyzing search signals & crawling competitors...' %></span>
+        </p>
+        <div style="display: flex; gap: 16px; align-items: center; font-size: 12px; color: var(--saas-muted);">
+          <span>Progress: <strong data-job-progress><%= typeof activeJob.progressPercent === 'number' ? `${activeJob.progressPercent}%` : '15%' %></strong></span>
+          <span>Last checked: <span data-job-last-checked>just now</span></span>
+        </div>
+      </section>
+    <% } %>
 
     <% if (errorMessage) { %>
       <div class="panel notice-panel">

@@ -1,6 +1,6 @@
 const { Queue } = require('bullmq');
 const env = require('../config/env');
-const { createRedisConnection } = require('../services/redisService');
+const { attachRedisErrorHandler, createRedisConnection } = require('../services/redisService');
 
 let queue;
 let queueConnection;
@@ -8,7 +8,10 @@ let queueConnection;
 function getProjectTaskQueue() {
   if (!queue) {
     queueConnection = createRedisConnection({ lazyConnect: false, label: 'project-tasks' });
-    queue = new Queue('project-tasks', { connection: queueConnection });
+    queue = attachRedisErrorHandler(
+      new Queue('project-tasks', { connection: queueConnection }),
+      'project task queue'
+    );
   }
 
   return queue;

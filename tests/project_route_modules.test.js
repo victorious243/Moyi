@@ -291,3 +291,80 @@ test('projects measurement route queues search console sync and redirects back t
 
   assert.equal(response.redirectedTo, '/projects/proj_1/search-console/performance?days=28&syncJob=sync_1&queued=1');
 });
+
+test('projects discovery route queues competitor scan as a background task', async () => {
+  const router = express.Router();
+  const context = {
+    handleValidation: noop,
+    loadScan: noop,
+    competitorValidation: [],
+    loadProject: (req, res, next) => {
+      req.project = { _id: 'proj_1', name: 'Moyi' };
+      next();
+    },
+    loadCompetitor: (req, res, next) => {
+      req.competitor = { _id: 'comp_1', name: 'Rival' };
+      next();
+    }
+  };
+  const services = {
+    ensureFeature: () => {},
+    queueCompetitorScan: async ({ projectId, userId, competitorId }) => {
+      assert.equal(projectId, 'proj_1');
+      assert.equal(userId, 'user_1');
+      assert.equal(competitorId, 'comp_1');
+      return { _id: 'scan_job_1', status: 'queued' };
+    },
+    upgradeRedirect: () => ''
+  };
+
+  registerDiscoveryRoutes(router, context, services);
+  const response = await runRoute(router, {
+    method: 'post',
+    path: '/:id/competitors/:competitorId/scan',
+    req: {
+      user: { _id: 'user_1' },
+      params: { id: 'proj_1', competitorId: 'comp_1' },
+      query: {}
+    }
+  });
+
+  assert.equal(response.redirectedTo, '/projects/proj_1/competitors/comp_1?jobId=scan_job_1');
+});
+
+test('projects discovery route queues competitor report generation as a background task', async () => {
+  const router = express.Router();
+  const context = {
+    handleValidation: noop,
+    loadScan: noop,
+    loadCompetitor: noop,
+    competitorValidation: [],
+    loadProject: (req, res, next) => {
+      req.project = { _id: 'proj_1', name: 'Moyi' };
+      next();
+    }
+  };
+  const services = {
+    ensureFeature: () => {},
+    queueCompetitorReport: async ({ projectId, userId }) => {
+      assert.equal(projectId, 'proj_1');
+      assert.equal(userId, 'user_1');
+      return { _id: 'report_job_1', status: 'queued' };
+    },
+    upgradeRedirect: () => ''
+  };
+
+  registerDiscoveryRoutes(router, context, services);
+  const response = await runRoute(router, {
+    method: 'post',
+    path: '/:id/competitors/report',
+    req: {
+      user: { _id: 'user_1' },
+      params: { id: 'proj_1' },
+      query: {}
+    }
+  });
+
+  assert.equal(response.redirectedTo, '/projects/proj_1/competitors?jobId=report_job_1');
+});
+

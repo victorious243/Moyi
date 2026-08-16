@@ -28,7 +28,9 @@ const {
   queueMeasurementReport,
   queueContentPipeline,
   queueSearchConsoleSync,
-  queueStrategyPlan
+  queueStrategyPlan,
+  queueCompetitorScan,
+  queueCompetitorReport
 } = require('../services/projectTaskService');
 const { buildAttributionReadiness } = require('../services/measurementService');
 const { buildProjectsContext } = require('./projects/context');
@@ -65,6 +67,8 @@ const sharedServices = {
   queueContentPipeline,
   queueSearchConsoleSync,
   queueStrategyPlan,
+  queueCompetitorScan,
+  queueCompetitorReport,
   recordAiOperation,
   recordAiOperationFailure,
   startProjectScan,
