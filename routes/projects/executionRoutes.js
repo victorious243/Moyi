@@ -37,6 +37,28 @@ function registerExecutionRoutes(router, context, services = {}) {
     });
   }));
 
+  router.post('/:id/growth-pack', [
+    param('id').isMongoId(),
+    body('targetUrl').optional().trim(),
+    body('keyword').optional().trim(),
+    context.handleValidation
+  ], context.loadProject, asyncHandler(async (req, res) => {
+    if (ensureAiOperationAllowed) await ensureAiOperationAllowed(req.user);
+    const { generateInstantGrowthPack } = require('../../services/contentDraftService');
+    try {
+      const result = await generateInstantGrowthPack({
+        projectId: req.project._id,
+        targetUrl: req.body.targetUrl || req.project.websiteUrl,
+        keyword: req.body.keyword || req.project.mainOffer
+      });
+      if (recordAiOperation) await recordAiOperation(req.user._id, result.bundleCount || 5);
+      return res.redirect(`/projects/${req.project._id}/content?success=${encodeURIComponent(`Instant 30-Day Growth Pack generated! ${result.bundleCount} omnichannel assets ready for review below.`)}`);
+    } catch (error) {
+      if (recordAiOperationFailure) await recordAiOperationFailure(req.user._id).catch(() => null);
+      return res.redirect(`/projects/${req.project._id}/content?error=${encodeURIComponent(error.message)}`);
+    }
+  }));
+
   router.post('/:id/content-plan', [
     param('id').isMongoId(),
     body('cadence').isIn(['single', 'weekly', 'monthly']).withMessage('Choose a valid plan length.'),

@@ -41,7 +41,10 @@ const contentDraftSchema = new mongoose.Schema(
         'product_led_guide',
         'service_page_section',
         'internal_linking_plan',
-        'schema_jsonld'
+        'schema_jsonld',
+        'paid_ad_copy',
+        'email_newsletter',
+        'growth_pack_bundle'
       ],
       required: true,
       index: true

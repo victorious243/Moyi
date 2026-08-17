@@ -14,6 +14,8 @@ const buildHighIntentContentPrompt = require('../src/prompts/high-intent-content
 const buildSeoStrategistPrompt = require('../src/prompts/seo-strategist.prompt');
 const buildCopywriterPrompt = require('../src/prompts/copywriter.prompt');
 const buildEditorTonePrompt = require('../src/prompts/editor-tone.prompt');
+const buildPaidAdCopyPrompt = require('../src/prompts/paid-ad-copy.prompt');
+const buildEmailNewsletterPrompt = require('../src/prompts/email-newsletter.prompt');
 
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
@@ -32,13 +34,15 @@ const EXECUTION_ASSET_TYPES = [
   'product_led_guide',
   'service_page_section',
   'internal_linking_plan',
-  'schema_jsonld'
+  'schema_jsonld',
+  'paid_ad_copy',
+  'email_newsletter'
 ];
 
 const ACTION_PIPELINES = {
   fix_metadata: ['page_improvement_brief', 'meta_title', 'meta_description'],
-  content: ['content_brief', 'service_page_section', 'faq_section', 'blog_outline', 'blog_article'],
-  new_page: ['content_brief', 'comparison_page_draft'],
+  content: ['content_brief', 'service_page_section', 'faq_section', 'blog_outline', 'blog_article', 'paid_ad_copy', 'email_newsletter'],
+  new_page: ['content_brief', 'comparison_page_draft', 'paid_ad_copy', 'email_newsletter'],
   internal_linking: ['internal_linking_plan'],
   schema: ['page_improvement_brief', 'schema_jsonld'],
   technical: ['page_improvement_brief'],
@@ -60,7 +64,9 @@ const ASSET_LABELS = {
   product_led_guide: 'Product-led guide',
   service_page_section: 'Page section draft',
   internal_linking_plan: 'Internal linking plan',
-  schema_jsonld: 'Schema JSON-LD'
+  schema_jsonld: 'Schema JSON-LD',
+  paid_ad_copy: 'Paid ad creative kit',
+  email_newsletter: 'Email newsletter & nurture'
 };
 
 const ASSET_DESCRIPTIONS = {
@@ -78,7 +84,9 @@ const ASSET_DESCRIPTIONS = {
   product_led_guide: 'A legacy product-led article format for existing drafts.',
   service_page_section: 'A page section draft for improving an existing commercial page.',
   internal_linking_plan: 'A manual linking plan tied to a specific opportunity and page.',
-  schema_jsonld: 'A safe schema draft that still requires manual review before implementation.'
+  schema_jsonld: 'A safe schema draft that still requires manual review before implementation.',
+  paid_ad_copy: 'High-converting multi-platform paid ad creatives for LinkedIn, Meta, and Google Search Ads.',
+  email_newsletter: 'A structured email newsletter with subject lines, executive hook, takeaways, and CTA.'
 };
 
 const PROMPTS = {
@@ -94,7 +102,9 @@ const PROMPTS = {
   comparison_page_draft: buildHighIntentContentPrompt,
   service_page_section: buildServicePageSectionPrompt,
   internal_linking_plan: buildInternalLinksPrompt,
-  schema_jsonld: buildSchemaJsonLdPrompt
+  schema_jsonld: buildSchemaJsonLdPrompt,
+  paid_ad_copy: buildPaidAdCopyPrompt,
+  email_newsletter: buildEmailNewsletterPrompt
 };
 
 const HIGH_INTENT_TYPES = new Set([
@@ -114,6 +124,38 @@ const MULTI_AGENT_TYPES = new Set([
   'product_led_guide',
   'service_page_section'
 ]);
+
+function formatPaidAdCopyBody(data) {
+  if (data.body && typeof data.body === 'string' && data.body.includes('LinkedIn Sponsored Ads')) return data.body;
+  const sections = [];
+  if (Array.isArray(data.linkedinAds) && data.linkedinAds.length) {
+    sections.push(`## LinkedIn Sponsored Ads\n${data.linkedinAds.map((ad) => `**Hook:** ${ad.hook || ''}\n**Primary Text:** ${ad.primaryText || ''}\n**Headline:** ${ad.headline || ''}\n**CTA:** ${ad.ctaButton || 'Get Started'}\n**Visual Concept:** ${ad.visualCreativeConcept || ''}`).join('\n\n')}`);
+  }
+  if (Array.isArray(data.metaAds) && data.metaAds.length) {
+    sections.push(`## Meta & Instagram Feed Ads\n${data.metaAds.map((ad) => `**Headline:** ${ad.headline || ''}\n**Primary Text:** ${ad.primaryText || ''}\n**Description:** ${ad.description || ''}\n**CTA:** ${ad.ctaButton || 'Sign Up'}\n**Story Overlay:** ${ad.storyOverlayText || ''}`).join('\n\n')}`);
+  }
+  if (data.googleSearchAds) {
+    const g = data.googleSearchAds;
+    sections.push(`## Google Search Responsive Ads\n${(g.headlines || []).map((h, i) => `- Headline ${i + 1}: ${h}`).join('\n')}\n${(g.descriptions || []).map((d, i) => `- Description ${i + 1}: ${d}`).join('\n')}`);
+  }
+  return sections.join('\n\n') || data.body || 'Paid ad creatives generated and ready for review.';
+}
+
+function formatEmailNewsletterBody(data) {
+  if (data.body && typeof data.body === 'string' && data.body.includes('Subject Line Options')) return data.body;
+  const sections = [];
+  if (Array.isArray(data.subjectLineOptions)) {
+    sections.push(`## Subject Line Options\n${data.subjectLineOptions.map((s) => `- **${s.type || 'Option'}:** ${s.subject || ''}`).join('\n')}`);
+  }
+  if (data.previewText) {
+    sections.push(`**Preview Text:** ${data.previewText}`);
+  }
+  if (data.newsletterContent) {
+    const c = data.newsletterContent;
+    sections.push(`---\n\n${c.headerHook || ''}\n\n${c.coreInsight || ''}\n\n${(c.keyTakeaways || []).map((t) => `- ${t}`).join('\n')}\n\n👉 [${c.primaryCta?.buttonText || 'Learn More'}](${c.primaryCta?.targetUrl || '#'})\n\n${c.postscript || ''}`);
+  }
+  return sections.join('\n\n') || data.body || 'Email newsletter generated and ready for review.';
+}
 
 function parseJson(content) {
   const trimmed = String(content || '').trim();
@@ -415,11 +457,19 @@ function fallbackDraft({ type, project, recommendation, page, keyword, execution
     };
   }
 
-  if (type === 'product_led_guide') {
+  if (type === 'paid_ad_copy') {
     return {
-      title: `How ${audience} can ${goal} with ${project.name}`,
-      body: `# How ${audience} can ${goal} with ${project.name}\n\nThis guide explains a practical workflow for moving from problem to action, with ${project.name} included where it naturally supports the job.\n\n## Step 1: Clarify the goal\nDefine what ${goal} means for your team, your customers, and your current website or campaign.\n\n## Step 2: Identify the highest-friction part of the workflow\nLook for the point where decisions stall, content becomes generic, or execution loses momentum.\n\n## Step 3: Use ${project.name} to support the workflow\n${project.name} helps ${audience} by focusing on ${offer}. Use it to turn strategy into clearer next actions.\n\n## Step 4: Review before publishing or launching\nCheck claims, examples, and calls to action before anything goes live.\n\n## CTA\n${executionContext.primaryCta}`,
-      improvementReason: 'Turns the recommendation into an educational guide with natural product-led conversion moments.'
+      title: `Paid ad creative kit: ${project.name}`,
+      body: `## LinkedIn Sponsored Ads\n**Hook:** Are sluggish agency retainers slowing down your marketing pipeline?\n**Primary Text:** Traditional agencies charge €5,000/month with zero live visibility. ${project.name} delivers 24/7 autonomous marketing intelligence, live site crawls, and 1-click publishing.\n**Headline:** ${project.name} - Autonomous AI CMO for Growth Teams\n**CTA:** Start 14-Day Free Trial\n\n## Meta & Instagram Feed Ads\n**Headline:** Replace Agency Retainers with Live Telemetry\n**Primary Text:** Crawl your website, uncover high-intent search queries, and publish on-brand multi-channel campaigns in minutes.\n**Description:** 14-day free trial • Zero card required • Set up in 60s\n**CTA:** Sign Up\n\n## Google Search Responsive Ads\n- Headline 1: ${project.name} | Autonomous AI CMO\n- Headline 2: Scale Organic Pipeline 3.5x\n- Headline 3: Replace Your €5k/Mo Agency\n- Description 1: Turn live website audits and Search Console queries into published campaigns automatically.\n- Description 2: Eliminate agency overhead with 24/7 AI CMO intelligence and 4-stage governance.`,
+      improvementReason: 'Generates high-converting multi-platform paid ad creatives for LinkedIn, Meta, and Google Search Ads.'
+    };
+  }
+
+  if (type === 'email_newsletter') {
+    return {
+      title: `Email newsletter & lifecycle campaign: ${project.name}`,
+      body: `## Subject Line Options\n- Benefit-Driven: How to 3x your organic search traffic without agency retainers\n- Curiosity: The #1 reason traditional SEO agencies are being replaced\n- Action: [Blueprint] Your 30-day evidence-led growth roadmap\n\n**Preview Text:** Turn live website telemetry into high-converting campaigns.\n\n---\n\nHi {{first_name}},\n\nMost growth teams struggle with the same bottleneck: spending thousands on agency retainers while high-intent search queries sit unranked.\n\nHere is how modern operators are shifting to evidence-led marketing:\n\n1. **Empirical Crawl Telemetry:** Fix technical SEO blockers before publishing new content.\n2. **Search Console Query Mining:** Identify keywords on positions 5–15 that can leap to page one.\n3. **4-Stage Governance:** Write → Visual → Review → Distribute with human sign-off.\n\n👉 [Read the Full Blueprint / Try ${project.name}](${targetUrl})\n\nP.S. Set up your workspace in under 60 seconds with 1-click Google OAuth.`,
+      improvementReason: 'Produces an executive newsletter with subject lines, strategic insights, and clear CTA.'
     };
   }
 
@@ -532,9 +582,8 @@ async function generateDraftsForRecommendation({
     throw error;
   }
 
-  const allowedTypes = selectDraftTypes(recommendation, '');
-  const types = Array.isArray(requestedTypes)
-    ? requestedTypes.filter((type) => allowedTypes.includes(type))
+  const types = Array.isArray(requestedTypes) && requestedTypes.length
+    ? requestedTypes
     : selectDraftTypes(recommendation, requestedType);
   if (!types.length) return [];
   const targetUrl = recommendation.targetUrls[0] || project.websiteUrl;
@@ -599,6 +648,13 @@ async function generateDraftsForRecommendation({
       : null;
     const output = generated || fallbackDraft({ type, project, recommendation, page, keyword, executionContext });
 
+    let body = String(output.body || '');
+    if (type === 'paid_ad_copy') {
+      body = formatPaidAdCopyBody(output);
+    } else if (type === 'email_newsletter') {
+      body = formatEmailNewsletterBody(output);
+    }
+
     return {
       projectId: project._id,
       recommendationId: recommendation._id,
@@ -606,7 +662,7 @@ async function generateDraftsForRecommendation({
       type,
       keyword,
       title: String(output.title || ''),
-      body: String(output.body || ''),
+      body,
       jsonBody: output.jsonBody || null,
       currentValue: currentValueForType(type, page),
       improvementReason: String(output.improvementReason || ''),
@@ -619,11 +675,80 @@ async function generateDraftsForRecommendation({
   return drafts;
 }
 
+async function generateInstantGrowthPack({ projectId, recommendationId, targetUrl, keyword }) {
+  const Project = require('../models/Project');
+  const Recommendation = require('../models/Recommendation');
+  const ContentDraft = require('../models/ContentDraft');
+
+  const project = await Project.findById(projectId);
+  if (!project) throw new Error('Project not found for Instant Growth Pack.');
+
+  let recommendation = null;
+  if (recommendationId) {
+    recommendation = await Recommendation.findById(recommendationId);
+  }
+
+  if (!recommendation) {
+    recommendation = await Recommendation.findOne({ projectId: project._id, status: { $in: ['accepted', 'open', 'pending'] } });
+  }
+
+  if (!recommendation) {
+    recommendation = await Recommendation.create({
+      projectId: project._id,
+      title: 'Accelerate High-Intent Organic Pipeline & Multi-Channel Distribution',
+      category: 'content',
+      priority: 1,
+      impact: 'High',
+      effort: 'Low',
+      actionType: 'content',
+      status: 'accepted',
+      targetUrls: [targetUrl || project.websiteUrl],
+      expectedImpact: 'High-impact 30-day omnichannel growth bundle',
+      reason: 'Auto-created for Instant 30-Day Growth Pack Studio'
+    });
+  } else if (recommendation.status !== 'accepted' && recommendation.status !== 'in_progress' && recommendation.status !== 'done') {
+    recommendation.status = 'accepted';
+    await recommendation.save();
+  }
+
+  const effectiveUrl = targetUrl || (recommendation.targetUrls && recommendation.targetUrls[0]) || project.websiteUrl;
+  const effectiveKeyword = keyword || project.mainOffer || 'Autonomous Marketing';
+
+  const packTypes = [
+    'comparison_page_draft',
+    'paid_ad_copy',
+    'email_newsletter',
+    'page_improvement_brief',
+    'faq_section'
+  ];
+
+  const generatedDrafts = await generateDraftsForRecommendation({
+    project,
+    recommendation,
+    requestedTypes: packTypes,
+    keyword: effectiveKeyword
+  });
+
+  const savedDrafts = [];
+  for (const draftData of generatedDrafts) {
+    const saved = await ContentDraft.create(draftData);
+    savedDrafts.push(saved);
+  }
+
+  return {
+    success: true,
+    bundleCount: savedDrafts.length,
+    drafts: savedDrafts,
+    message: `Successfully generated Instant 30-Day Growth Pack (${savedDrafts.length} assets ready for review).`
+  };
+}
+
 module.exports = {
   ASSET_LABELS,
   EXECUTION_ASSET_TYPES,
   buildExecutionContext,
   generateDraftsForRecommendation,
+  generateInstantGrowthPack,
   mapWithConcurrency,
   pipelineAssetOptions,
   pipelineTypesForAction,

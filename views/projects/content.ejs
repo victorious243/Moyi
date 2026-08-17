@@ -61,6 +61,28 @@
     <% if (successMessage) { %><div class="image-success-message"><%= successMessage %></div><% } %>
     <% if (errorMessage) { %><section class="panel notice-panel"><strong>Plan creation failed</strong><p><%= errorMessage %></p></section><% } %>
 
+    <!-- Instant 30-Day Omnichannel Growth Pack Card -->
+    <section class="panel growth-pack-panel" style="background: linear-gradient(135deg, rgba(85, 230, 207, 0.08), rgba(62, 134, 198, 0.08)); border: 1px solid rgba(85, 230, 207, 0.25); border-radius: 16px; padding: 24px; margin-bottom: 24px;">
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px;">
+        <div style="max-width: 620px;">
+          <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(85, 230, 207, 0.15); color: var(--saas-cyan); padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-bottom: 8px;">
+            ⚡ Instant 1-Click Engine
+          </div>
+          <h2 style="font-size: 22px; font-weight: 800; color: #fff; margin: 0 0 6px;">Launch Instant 30-Day Growth Pack</h2>
+          <p style="font-size: 13px; color: var(--saas-text-muted); margin: 0; line-height: 1.5;">
+            Point Moyi at your URL to instantly generate a complete omnichannel pipeline: <strong>1 Comparison Article</strong>, <strong>4 Social Posts</strong>, <strong>2 Paid Ads</strong>, <strong>1 Executive Newsletter</strong>, and <strong>1 Page Improvement Brief</strong>.
+          </p>
+        </div>
+        <form action="/projects/<%= project._id %>/growth-pack" method="post" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;" data-loading-state="Generating Instant 30-Day Growth Pack...">
+          <input type="hidden" name="targetUrl" value="<%= project.websiteUrl %>">
+          <input type="hidden" name="keyword" value="<%= project.mainOffer || 'AI Marketing' %>">
+          <button class="button button-primary" type="submit" style="padding: 12px 24px; font-size: 14px; font-weight: 800; box-shadow: 0 0 20px rgba(85, 230, 207, 0.35);">
+            🚀 Generate Instant Growth Pack
+          </button>
+        </form>
+      </div>
+    </section>
+
     <section class="campaign-composer" id="planner">
       <div class="campaign-composer-intro">
         <p class="eyebrow">Create new content</p>
