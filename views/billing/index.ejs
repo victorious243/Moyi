@@ -33,6 +33,22 @@
         <h2>Subscription Updated</h2>
         <p class="empty"><%= successMessage %></p>
       </section>
+
+      <% if (typeof isCheckoutSuccess !== 'undefined' && isCheckoutSuccess) { %>
+        <!-- Trustpilot Dynamic Service Review Invitation -->
+        <script>
+          document.addEventListener('DOMContentLoaded', function() {
+            if (typeof tp === 'function') {
+              tp('createInvitation', {
+                recipientEmail: '<%= currentUser.email %>',
+                recipientName: '<%= currentUser.name %>',
+                referenceId: 'sub_<%= currentUser._id %>_<%= Date.now() %>',
+                source: 'InvitationScript'
+              });
+            }
+          });
+        </script>
+      <% } %>
     <% } %>
 
     <!-- Current Plan Details -->

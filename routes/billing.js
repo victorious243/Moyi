@@ -29,7 +29,8 @@ router.get('/billing', requireAuth, asyncHandler(async (req, res) => {
     publicPlans: PLANS,
     usage,
     socialPostAllowance: socialPostAllowance(plan, usage),
-    successMessage: req.query.success ? 'Billing updated.' : '',
+    successMessage: req.query.success ? 'Thank you! Your subscription has been successfully updated.' : '',
+    isCheckoutSuccess: Boolean(req.query.success),
     errorMessage: req.query.error || ''
   });
 }));
