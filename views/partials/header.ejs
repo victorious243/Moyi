@@ -3,10 +3,10 @@
 <head>
   <script id="Cookiebot" src="https://consent.cookiebot.com/uc.js" data-cbid="7031f7cc-b0f4-4087-bc4b-de5aaaec95f7" data-blockingmode="auto" type="text/javascript"></script>
   <%
-    const pageTitle = typeof title !== 'undefined' && title ? `${title} | ${appName}` : `${appName} | Evidence-led AI CMO software`;
+    const pageTitle = typeof title !== 'undefined' && title ? `${title} | ${appName}` : `${appName} | Evidence-Led AI CMO`;
     const pageDescription = typeof seoDescription !== 'undefined' && seoDescription
       ? seoDescription
-      : 'Moyi-CMO is an evidence-led AI Chief Marketing Officer platform for website audits, Google Search Console insights, SEO recommendations, content drafts, campaign planning, and weekly growth reports.';
+      : 'Evidence-led AI CMO platform that turns website audits and Search Console queries into automated SEO content, paid ads, and campaign calendars.';
     const pageCanonical = typeof canonicalUrl !== 'undefined' && canonicalUrl ? canonicalUrl : 'https://moyi-cmo.com';
     const pageOgImage = typeof ogImageUrl !== 'undefined' && ogImageUrl ? ogImageUrl : 'https://moyi-cmo.com/images/brand/moyi-mark-512.png';
   %>
@@ -23,6 +23,8 @@
   <title><%= pageTitle %></title>
   <meta name="description" content="<%= pageDescription %>">
   <link rel="canonical" href="<%= pageCanonical %>">
+  <link rel="alternate" hreflang="x-default" href="<%= pageCanonical %>">
+  <link rel="alternate" hreflang="en" href="<%= pageCanonical %>">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Moyi-CMO">
   <meta property="og:title" content="<%= pageTitle %>">

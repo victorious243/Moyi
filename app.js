@@ -103,7 +103,7 @@ app.use((req, res, next) => {
   const pathname = (req.originalUrl || req.url || '/').split('?')[0] || '/';
   const canonicalPath = pathname === '/' ? '' : pathname.replace(/\/$/, '');
   res.locals.canonicalUrl = `${publicBase}${canonicalPath}`;
-  res.locals.seoDescription = res.locals.seoDescription || 'Moyi-CMO is an evidence-led AI Chief Marketing Officer platform for website audits, Google Search Console insights, SEO recommendations, content drafts, campaign planning, and weekly growth reports.';
+  res.locals.seoDescription = res.locals.seoDescription || 'Evidence-led AI CMO platform that turns website audits and Search Console queries into automated SEO content, paid ads, and campaign calendars.';
   res.locals.ogImageUrl = `${publicBase}/images/brand/moyi-mark-512.png`;
   res.locals.organizationSchema = {
     '@context': 'https://schema.org',
@@ -112,6 +112,11 @@ app.use((req, res, next) => {
     url: publicBase,
     logo: `${publicBase}/images/brand/moyi-mark-512.png`,
     description: res.locals.seoDescription,
+    sameAs: [
+      'https://www.linkedin.com/company/moyi-cmo',
+      'https://x.com/moyi_cmo',
+      'https://github.com/victorious243/Moyi'
+    ],
     contactPoint: env.supportEmail ? [{
       '@type': 'ContactPoint',
       email: env.supportEmail,

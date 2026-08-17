@@ -49,7 +49,7 @@ router.get('/', function(req, res) {
   if (req.user) return res.redirect('/dashboard');
   res.render('index', {
     title: 'AI CMO Software for SEO Growth and Content Reports',
-    seoDescription: 'Moyi-CMO turns website scans and Google Search Console evidence into SEO recommendations, AI CMO plans, content drafts, campaign calendars, and weekly growth reports.',
+    seoDescription: 'Evidence-led AI CMO platform that turns website audits and Search Console queries into automated SEO content, paid ads, and campaign calendars.',
     quickScanResult: null,
     quickScanError: '',
     quickScanUrl: ''

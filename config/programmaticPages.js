@@ -2,8 +2,8 @@ const COMPARISON_PAGES = {
   'moyi-vs-ahrefs': {
     slug: 'moyi-vs-ahrefs',
     competitorName: 'Ahrefs',
-    title: 'Moyi vs Ahrefs: Why AI Execution Beats Raw SEO Dashboards | Moyi AI CMO',
-    metaDescription: 'Compare Moyi AI CMO with Ahrefs. See why modern growth teams choose autonomous content generation and 1-click social distribution over manual keyword dashboards.',
+    title: 'Moyi vs Ahrefs: AI Execution vs SEO Dashboards',
+    metaDescription: 'Compare Moyi AI CMO with Ahrefs. Modern growth teams choose autonomous content generation and multi-channel publishing over manual keyword dashboards.',
     heroBadge: 'Head-to-Head Comparison',
     heroHeadline: 'Moyi vs Ahrefs: From Raw SEO Data to Autonomous Execution',
     heroSubheadline: 'Ahrefs shows you what keywords exist. Moyi actually writes the direct-response content, creates the visual assets, and publishes directly to your CMS and social channels in one click.',
@@ -57,8 +57,8 @@ const COMPARISON_PAGES = {
   'moyi-vs-hootsuite': {
     slug: 'moyi-vs-hootsuite',
     competitorName: 'Hootsuite',
-    title: 'Moyi vs Hootsuite: The Difference Between a Social Scheduler and an AI CMO',
-    metaDescription: 'Compare Moyi AI CMO with Hootsuite. Discover why founders prefer an autonomous AI CMO that researches, writes, and publishes over an expensive empty calendar tool.',
+    title: 'Moyi vs Hootsuite: Social Scheduler vs AI CMO',
+    metaDescription: 'Compare Moyi AI CMO with Hootsuite. Discover why growth teams choose an autonomous AI CMO over expensive manual calendar tools.',
     heroBadge: 'Platform Comparison',
     heroHeadline: 'Moyi vs Hootsuite: Why Schedule an Empty Calendar When AI Can Run It?',
     heroSubheadline: 'Hootsuite charges $99/mo for an empty calendar you have to fill out yourself. Moyi mines your high-intent search data, writes the copy, generates the graphics, and schedules high-converting posts autonomously.',
@@ -110,8 +110,8 @@ const COMPARISON_PAGES = {
 const SOLUTION_PAGES = {
   'ai-cmo-for-ecommerce': {
     slug: 'ai-cmo-for-ecommerce',
-    title: 'Autonomous AI CMO for E-Commerce & Shopify Brands | Moyi AI CMO',
-    metaDescription: 'Scale your e-commerce store with an autonomous AI CMO. Automate Shopify product blog posts, high-converting social product flyers, and organic search ranking on autopilot.',
+    title: 'Autonomous AI CMO for E-Commerce & Shopify',
+    metaDescription: 'Scale your store with an autonomous AI CMO. Automate Shopify blog posts, high-converting social flyers, and organic search rankings in one click.',
     heroBadge: 'E-Commerce Growth Engine',
     heroHeadline: 'The All-In-One AI CMO Built for High-Volume E-Commerce Brands',
     heroSubheadline: 'Turn your Shopify catalog into ranking SEO articles, viral social graphics, and multi-channel promotional campaigns with 1-click execution.',
@@ -146,8 +146,8 @@ const SOLUTION_PAGES = {
   },
   'ai-cmo-for-b2b-saas': {
     slug: 'ai-cmo-for-b2b-saas',
-    title: 'Autonomous AI CMO for B2B SaaS & Tech Startups | Moyi AI CMO',
-    metaDescription: 'Dominate organic search and LinkedIn thought leadership for your B2B SaaS. Moyi mines Google Search Console data and publishes high-converting BOFU content automatically.',
+    title: 'Autonomous AI CMO for B2B SaaS & Startups',
+    metaDescription: 'Scale organic search and LinkedIn thought leadership for B2B SaaS. Moyi mines Search Console data and publishes high-converting BOFU content.',
     heroBadge: 'B2B SaaS Growth Engine',
     heroHeadline: 'Autonomous SEO Strategy & Thought Leadership Publishing for B2B SaaS',
     heroSubheadline: 'Stop relying on expensive $10k/mo agency retainers. Get high-intent comparison pages, technical SEO fixes, and executive LinkedIn thought leadership executed automatically.',
