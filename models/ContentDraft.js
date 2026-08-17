@@ -44,7 +44,8 @@ const contentDraftSchema = new mongoose.Schema(
         'schema_jsonld',
         'paid_ad_copy',
         'email_newsletter',
-        'growth_pack_bundle'
+        'growth_pack_bundle',
+        'daily_content_intelligence'
       ],
       required: true,
       index: true

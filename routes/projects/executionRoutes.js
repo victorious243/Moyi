@@ -100,6 +100,27 @@ function registerExecutionRoutes(router, context, services = {}) {
     }
   }));
 
+  router.post('/:id/content-intelligence', [
+    param('id').isMongoId(),
+    context.handleValidation
+  ], context.loadProject, asyncHandler(async (req, res) => {
+    if (ensureAiOperationAllowed) await ensureAiOperationAllowed(req.user);
+    const { executeDailyContentIntelligenceRun } = require('../../services/dailyContentIntelligenceService');
+    try {
+      const result = await executeDailyContentIntelligenceRun({
+        projectId: req.project._id,
+        autoSaveDraft: true
+      });
+      if (recordAiOperation) await recordAiOperation(req.user._id, 1).catch(() => null);
+      if (result.status === 'NO_PUBLICATION') {
+        return res.redirect(`/projects/${req.project._id}/content?success=${encodeURIComponent('Daily Intelligence Review: No publication required today (Quality threshold protected).')}`);
+      }
+      return res.redirect(`/projects/${req.project._id}/content?success=${encodeURIComponent('Daily Content Intelligence complete! Strategic draft created and awaiting review.')}`);
+    } catch (error) {
+      return res.redirect(`/projects/${req.project._id}/content?error=${encodeURIComponent(error.message)}`);
+    }
+  }));
+
   router.get('/:id/calendar', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
     const imageJobQuery = req.query.imageJob && /^[a-f\d]{24}$/i.test(String(req.query.imageJob))
       ? {
