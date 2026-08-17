@@ -588,5 +588,197 @@ module.exports = {
       { id: 'principles', title: 'Operating principles', body: 'The product is designed to be useful without pretending certainty.', bullets: ['Do not invent findings, results, or customer proof.', 'Keep scan and recommendation evidence traceable.', 'Make data gaps visible.', 'Give users control over edits, approvals, publishing, and integrations.'] },
       { id: 'businesses', title: 'Who it is for', body: 'Moyi supports business owners, marketers, and small teams that need a repeatable way to turn website and search evidence into organized marketing work.', bullets: ['SaaS and service businesses', 'Teams managing content and organic growth', 'Operators who need one accountable workflow'] }
     ]
+  },
+  'seo-audit-tool': {
+    eyebrow: 'Automated SEO Audit',
+    title: 'Deep Technical SEO Audit Tool That Shows Observable Evidence',
+    seoTitle: 'Deep Technical SEO Audit Tool | Moyi-CMO',
+    seoDescription: 'Discover crawl blockers, missing metadata, broken schema, and heading issues with an automated, evidence-backed SEO audit engine.',
+    schemaAbout: 'Technical SEO audit tool for crawl diagnostics, metadata analysis, schema detection, and prioritized fixes',
+    intro: 'Most SEO tools give you arbitrary scorecards without clear technical proof. Moyi crawls your website, extracts page-level telemetry, and ranks fixes by real business impact.',
+    primaryAction: { label: 'Run Free Website Scan', href: '/register' },
+    secondaryAction: { label: 'See How It Works', href: '/how-it-works' },
+    sections: [
+      { id: 'crawl-diagnostics', title: 'Comprehensive multi-page crawl', body: 'Moyi crawls your public pages and inspects status codes, canonicals, robots directives, Open Graph cards, and image accessibility details.', bullets: ['Clear status code and redirection tracing', 'Missing or truncated title and meta descriptions', 'Heading hierarchy and semantic structure analysis', 'Schema.org JSON-LD detection'] },
+      { id: 'prioritized-fixes', title: 'Actionable fix recommendations', body: 'Transform diagnostic findings into clear, ranked tasks categorized by impact and implementation effort.', bullets: ['Critical technical blockers highlighted immediately', 'Direct-response copy suggestions for metadata', 'Code-ready snippets for missing tags', 'Human-in-the-loop task governance'] },
+      { id: 'continuous-monitoring', title: 'Recurring crawl tracking', body: 'Maintain technical SEO health over time with automated weekly audits and regression alerts.', bullets: ['Detect newly broken links or missing tags early', 'Monitor crawl health across deployment cycles', 'Integrate findings into weekly AI CMO growth reports'] }
+    ],
+    faqs: [
+      { question: 'How fast does the SEO audit run?', answer: 'Single-page quick scans run in under 5 seconds; complete multi-page project crawls finish in under 60 seconds.' },
+      { question: 'Does Moyi invent issues or guess traffic numbers?', answer: 'No. Moyi relies strictly on observable HTTP responses, DOM elements, and Search Console telemetry without hallucinating.' }
+    ],
+    related: [
+      { label: 'Website Marketing Audit', href: '/website-marketing-audit', body: 'Evaluate complete 360° SEO, content, and conversion factors.' },
+      { label: 'Google Search Console Analysis', href: '/google-search-console-analysis', body: 'Turn search queries into ranking content.' },
+      { label: 'SEO Growth Software', href: '/seo-growth-software', body: 'Turn audit evidence into prioritized execution.' }
+    ]
+  },
+  'marketing-assistant-for-small-business': {
+    eyebrow: 'Small Business AI Copilot',
+    title: '24/7 AI Marketing Assistant Built for Small Business Owners',
+    seoTitle: 'AI Marketing Assistant for Small Business | Moyi',
+    seoDescription: 'Run SEO audits, write high-converting copy, design branded flyers, and schedule multi-channel social posts with an autonomous marketing assistant.',
+    schemaAbout: 'AI marketing assistant for small businesses, local founders, content creation, and social scheduling',
+    intro: 'Small business founders shouldn’t have to spend 20 hours a week juggling disjointed marketing tools. Moyi acts as your tireless copilot to audit, write, design, and publish.',
+    primaryAction: { label: 'Get Started Free', href: '/register' },
+    secondaryAction: { label: 'Explore Pricing', href: '/pricing' },
+    sections: [
+      { id: 'multi-channel-ops', title: 'Manage your entire marketing workflow', body: 'From ranking blog articles to weekly LinkedIn and Instagram updates, Moyi drafts channel-ready assets from your business context.', bullets: ['Direct-response articles using PAS and AIDA frameworks', 'Lifecycle email newsletters and promotional campaigns', 'Multi-platform social posts ready for approval'] },
+      { id: 'brand-consistency', title: 'Maintain your brand identity', body: 'Moyi applies your official brand colors, guidelines, and logo watermark to every promotional flyer.', bullets: ['Automated logo watermark overlays', 'Custom color palette matching', 'Consistent typography and messaging tone'] },
+      { id: 'human-control', title: 'Full human sign-off', body: 'You stay in total control. Review drafts, customize messaging, and approve posts with a single click before they go live.', bullets: ['4-stage Write, Visual, Review, Distribute pipeline', '1-click approval or rejection controls', 'Zero unreviewed auto-publishing'] }
+    ],
+    faqs: [
+      { question: 'Do I need marketing experience to use Moyi?', answer: 'None at all. Moyi guides you step-by-step from initial site crawl to approved multi-channel distribution.' },
+      { question: 'How does it help small businesses save money?', answer: 'Moyi replaces fragmented subscriptions for SEO tools, copywriters, and schedulers starting at just €49/month.' }
+    ],
+    related: [
+      { label: 'Marketing Software for Small Business', href: '/marketing-software-for-small-business', body: 'Discover straightforward tools built for lean businesses.' },
+      { label: 'Social Media Content Planner', href: '/social-media-content-planner', body: 'Plan and schedule multi-channel campaigns.' },
+      { label: 'Marketing Tools for Startups', href: '/marketing-tools-for-startups', body: 'Scale organic pipeline with an all-in-one stack.' }
+    ]
+  },
+  'marketing-tools-for-startups': {
+    eyebrow: 'Startup Growth Stack',
+    title: 'All-In-One Marketing Stack for High-Growth Startups',
+    seoTitle: 'All-In-One Marketing Tools for Startups | Moyi',
+    seoDescription: 'Eliminate expensive agency retainers. Launch a complete startup marketing stack with SEO auditing, BOFU content writing, and multi-channel publishing.',
+    schemaAbout: 'Startup marketing tools, organic search growth, direct response content, and multi-channel distribution',
+    intro: 'Early-stage startups need fast organic pipeline without burning runway on €5k/month agency retainers. Moyi provides a unified operating system from discovery to conversion.',
+    primaryAction: { label: 'Launch Startup Workspace', href: '/register' },
+    secondaryAction: { label: 'See Demo', href: '/demo' }
+    ,sections: [
+      { id: 'bofu-capture', title: 'Target high-intent buyer searches', body: 'Mine Search Console and competitor keywords to draft bottom-of-funnel comparison and alternative guides.', bullets: ['Vs and alternative comparison pages', 'High-intent buying guides that convert trial users', 'Direct CMS publishing to Webflow, WordPress, and Shopify'] },
+      { id: 'velocity-without-bloat', title: 'Ship marketing assets 10x faster', body: 'Produce launch announcements, weekly newsletters, and paid ad variants without hiring a full team first.', bullets: ['Multi-platform paid ad creative generator', 'Weekly email newsletters with subject line testing', 'DALL-E promotional flyers with official logo branding'] },
+      { id: 'lean-governance', title: '4-stage review workflow', body: 'Ensure brand voice accuracy and factual compliance with structured Write, Visual, Review, and Distribute gates.', bullets: ['Structured approval checkpoints', 'Evidence constraints that prevent AI hallucinations', 'Full audit logging of every published asset'] }
+    ],
+    faqs: [
+      { question: 'Can Moyi help B2B SaaS startups?', answer: 'Yes. Moyi includes dedicated B2B frameworks (PAS, BAB), competitor battlecards, and executive LinkedIn ghostwriting.' },
+      { question: 'How does Moyi integrate with startup tech stacks?', answer: 'Moyi connects natively to Webflow, WordPress, Shopify, Google Search Console, and 8 social platforms.' }
+    ],
+    related: [
+      { label: 'Marketing Assistant for Small Business', href: '/marketing-assistant-for-small-business', body: 'AI copilot for research, drafting, and distribution.' },
+      { label: 'Marketing Software for Small Business', href: '/marketing-software-for-small-business', body: 'Essential marketing tools without enterprise bloat.' },
+      { label: 'SEO Growth Software', href: '/seo-growth-software', body: 'Turn search evidence into prioritized SEO execution.' }
+    ]
+  },
+  'social-media-content-planner': {
+    eyebrow: 'Content Calendar & Planner',
+    title: 'Evidence-Led Social Media Content Planner and Visual Studio',
+    seoTitle: 'Social Media Content Planner & Visual Studio | Moyi',
+    seoDescription: 'Plan, write, design, and schedule multi-channel social media campaigns with automated brand flyers and 1-click publishing across 8 networks.',
+    schemaAbout: 'Social media content planner, visual studio, multi-channel scheduler, and campaign calendar',
+    intro: 'Stop staring at blank calendars. Moyi turns your website insights and campaign goals into cohesive multi-week social content with on-brand visuals ready for approval.',
+    primaryAction: { label: 'Start Planning Free', href: '/register' },
+    secondaryAction: { label: 'Explore Features', href: '/features#operations' },
+    sections: [
+      { id: 'campaign-structure', title: 'Goal-driven campaign batches', body: 'Generate 7-day or 30-day campaign batches structured around specific product launches, features, or promotional offers.', bullets: ['Single, weekly, and monthly campaign planning', 'Campaign-grouped content drafts and visual assets', 'Interactive calendar view with status filtering'] },
+      { id: 'automated-brand-visuals', title: 'Built-in DALL-E visual studio', body: 'Create stunning social graphics with automatic logo watermarking, aspect ratios, and custom brand color palettes.', bullets: ['Square, portrait, and widescreen aspect ratios', 'Logo overlay reference with transparent PNG integration', 'Candidate selection, rejection, and regeneration'] },
+      { id: 'omni-channel-dispatch', title: '1-click batch publishing', body: 'Publish or schedule approved posts across LinkedIn, X, Meta (Facebook & Instagram), Bluesky, TikTok, YouTube, and Threads.', bullets: ['Native OAuth and encrypted credential management', 'Batch publishing with one job per target account', 'Real-time job queue and delivery status tracking'] }
+    ],
+    faqs: [
+      { question: 'Does Moyi require a third-party scheduler like Buffer or Hootsuite?', answer: 'No. Moyi owns the publishing layer and connects directly to social APIs with encrypted credentials.' },
+      { question: 'Can I edit posts before they are scheduled?', answer: 'Yes. You can edit copy, swap images, adjust posting times, or delete drafts directly in the calendar.' }
+    ],
+    related: [
+      { label: 'Social Media Publishing Tool', href: '/social-media-publishing-tool', body: 'Connect publishing accounts and track engagement.' },
+      { label: 'AI Content Marketing Platform', href: '/ai-content-marketing-platform', body: 'Generate SEO drafts and campaign copy.' },
+      { label: 'Marketing Assistant for Small Business', href: '/marketing-assistant-for-small-business', body: 'Automate marketing research and asset drafting.' }
+    ]
+  },
+  'google-search-console-analysis': {
+    eyebrow: 'Search Intent Mining',
+    title: 'Turn Google Search Console Data into High-Ranking Content',
+    seoTitle: 'Google Search Console Analysis & Insights | Moyi',
+    seoDescription: 'Connect Google Search Console to uncover high-impression queries, optimize low-CTR pages, and generate revenue-driving SEO articles automatically.',
+    schemaAbout: 'Google Search Console analysis tool, keyword intent mining, CTR optimization, and content opportunities',
+    intro: 'Google Search Console contains your most valuable organic search signals, but raw numbers don’t write content. Moyi analyzes your queries and generates actionable assets.',
+    primaryAction: { label: 'Connect Search Console', href: '/register' },
+    secondaryAction: { label: 'Read Setup Guide', href: '/docs#setup-tutorials' },
+    sections: [
+      { id: 'query-opportunity-mining', title: 'Find striking-distance queries', body: 'Automatically identify high-impression keywords ranking in positions 8–20 and generate targeted content to push them to position 1.', bullets: ['Page-two keywords with fast ranking potential', 'High-intent BOFU query clustering', 'Evidence-backed content briefs created in one click'] },
+      { id: 'ctr-optimization', title: 'Fix underperforming meta descriptions', body: 'Detect landing pages with strong impressions but low click-through rates and generate high-converting title and meta replacements.', bullets: ['Identify click-through leakage before traffic drops', 'Generate compelling, character-optimized title tags', 'Direct-response meta descriptions that increase CTR'] },
+      { id: 'closed-loop-reporting', title: 'Track ranking impact over time', body: 'Measure whether updated content and newly published articles gain impressions and top-three rankings.', bullets: ['Compare search performance before and after optimization', 'Weekly executive reports with data-quality indicators', 'Growth Brain telemetry feeding the next planning cycle'] }
+    ],
+    faqs: [
+      { question: 'Does Moyi require write access to Google Search Console?', answer: 'No. Moyi requests strictly read-only access via Google OAuth to analyze performance telemetry.' },
+      { question: 'How often is Search Console data synced?', answer: 'Moyi syncs daily telemetry and incorporates fresh ranking trends into your weekly AI CMO growth reports.' }
+    ],
+    related: [
+      { label: 'Google Search Console Reporting Tool', href: '/google-search-console-reporting-tool', body: 'Turn search data into prioritized SEO recommendations.' },
+      { label: 'SEO Growth Software', href: '/seo-growth-software', body: 'Connect search insights with content execution.' },
+      { label: 'SEO Audit Tool', href: '/seo-audit-tool', body: 'Identify crawl blockers and technical errors.' }
+    ]
+  },
+  'marketing-platform-for-agencies': {
+    eyebrow: 'Agency Growth OS',
+    title: 'Multi-Client Marketing Platform Built for Growing Agencies',
+    seoTitle: 'Marketing Platform for Agencies & Multi-Client | Moyi',
+    seoDescription: 'Scale your agency with dedicated client workspaces, automated technical audits, 4-stage human approval gates, and white-label executive reporting.',
+    schemaAbout: 'Marketing platform for agencies, multi-tenant workspaces, client SEO audits, and automated reporting',
+    intro: 'Agencies waste hundreds of hours manually auditing client sites, writing routine copy, and assembling weekly PDF reports. Moyi unifies client ops in separated workspaces.',
+    primaryAction: { label: 'Start Agency Workspace', href: '/register' },
+    secondaryAction: { label: 'View Agency Pricing', href: '/pricing' },
+    sections: [
+      { id: 'isolated-workspaces', title: 'Dedicated client workspaces', body: 'Keep website crawls, Search Console connections, social accounts, and draft queues completely isolated per client.', bullets: ['Client-specific branding and logo reference', 'Separate connected social accounts and CMS tokens', 'Independent usage quotas and project limits'] },
+      { id: 'client-ready-reports', title: 'Automated executive CMO briefs', body: 'Generate comprehensive weekly and monthly client growth reports detailing what changed, tasks completed, and next priorities.', bullets: ['7-day and 30-day comparative executive summaries', 'Search and social engagement metrics included', 'Transparent data-quality notes that build client trust'] },
+      { id: 'role-based-approvals', title: 'Governance that protects client trust', body: 'Enable clients or account managers to review and approve copy before anything publishes to live CMS or social accounts.', bullets: ['Granular publisher and analyst permissions', 'Mandatory human approval before external publishing', 'Traceable audit log for all generated and approved assets'] }
+    ],
+    faqs: [
+      { question: 'How many clients can I manage on the Agency plan?', answer: 'The Agency plan includes up to 10 active client projects with dedicated limits, with options for custom enterprise scale.' },
+      { question: 'Can clients log in to approve their own content?', answer: 'Yes. You can assign role-based access so clients can review and approve drafts without accessing backend billing.' }
+    ],
+    related: [
+      { label: 'Agency SEO Reporting Software', href: '/agency-seo-reporting-software', body: 'Manage client SEO evidence and growth reports.' },
+      { label: 'SEO Audit Tool', href: '/seo-audit-tool', body: 'Run instant technical audits on client websites.' },
+      { label: 'Marketing Software for Small Business', href: '/marketing-software-for-small-business', body: 'Empower client marketing with streamlined workflows.' }
+    ]
+  },
+  'marketing-software-for-small-business': {
+    eyebrow: 'Accessible Marketing Software',
+    title: 'The Straightforward Marketing Software Built for Small Business',
+    seoTitle: 'Marketing Software for Small Business | Moyi-CMO',
+    seoDescription: 'Simple, powerful marketing software for small businesses. Run website audits, create ranking content, design flyers, and publish to social channels.',
+    schemaAbout: 'Marketing software for small businesses, automated SEO, content studio, and multi-channel marketing',
+    intro: 'Enterprise marketing suites charge thousands for bloated features small businesses never use. Moyi gives you the essential growth tools in one streamlined, affordable platform.',
+    primaryAction: { label: 'Try Moyi Free', href: '/register' },
+    secondaryAction: { label: 'View Pricing', href: '/pricing' },
+    sections: [
+      { id: 'all-in-one-simplicity', title: 'No complex setup or coding required', body: 'Scan your website in seconds to receive an immediate list of technical fixes and content opportunities.', bullets: ['Instant single-page and multi-page website crawls', 'Plain-English explanations for all technical findings', 'One-click recommendation acceptance'] },
+      { id: 'revenue-focused-content', title: 'Write content that attracts paying customers', body: 'Create problem-solving buying guides, product flyers, and email newsletters that convert local or online visitors.', bullets: ['Proven conversion copywriting frameworks', 'Automated brand flyer design with your official logo', 'Lifecycle email newsletter engine with subject testing'] },
+      { id: 'budget-friendly-scale', title: 'Predictable, transparent pricing', body: 'Start free, then unlock unlimited scans, AI drafting, and multi-channel publishing starting at €49/month.', bullets: ['No hidden add-on fees or user seat penalties', 'Generous monthly AI drafting and publishing allowances', 'Cancel or change plans at any time with 1 click'] }
+    ],
+    faqs: [
+      { question: 'Is Moyi suitable for non-technical business owners?', answer: 'Yes! Moyi was designed with a clean, intuitive interface that translates complex SEO data into plain English next steps.' },
+      { question: 'Can I connect my existing website or Shopify store?', answer: 'Yes. Moyi connects seamlessly with Shopify, WordPress, Webflow, and custom websites.' }
+    ],
+    related: [
+      { label: 'Marketing Assistant for Small Business', href: '/marketing-assistant-for-small-business', body: '24/7 AI marketing copilot for lean teams.' },
+      { label: 'Marketing Tools for Startups', href: '/marketing-tools-for-startups', body: 'Full-funnel marketing operating system for founders.' },
+      { label: 'Social Media Content Planner', href: '/social-media-content-planner', body: 'Plan and schedule visual social campaigns.' }
+    ]
+  },
+  'website-marketing-audit': {
+    eyebrow: '360° Website Health Check',
+    title: 'Free Website Marketing Audit for SEO, Content, and Conversions',
+    seoTitle: 'Free Website Marketing Audit & SEO Health Check | Moyi',
+    seoDescription: 'Audit your website for technical SEO issues, keyword alignment, Open Graph social tags, Schema markup, and conversion friction in under 60 seconds.',
+    schemaAbout: 'Website marketing audit, 360-degree SEO review, conversion rate optimization, and technical health check',
+    intro: 'Is your website losing traffic or failing to convert visitors? Run a comprehensive 360° marketing audit to uncover technical blockers, missing metadata, and content gaps.',
+    primaryAction: { label: 'Run Instant Website Audit', href: '/register' },
+    secondaryAction: { label: 'See Sample Report', href: '/reports' },
+    sections: [
+      { id: 'technical-foundations', title: 'Technical crawl & indexing audit', body: 'Identify slow response times, missing canonicals, robots.txt blockers, and unindexed URLs before they hurt rankings.', bullets: ['Comprehensive HTTP status and redirect chain detection', 'Canonical tag validation and self-referencing checks', 'Meta robots and search engine indexing directives'] },
+      { id: 'content-and-conversion', title: 'Content depth and keyword alignment', body: 'Analyze whether your page headings, titles, and body copy effectively target high-intent buyer keywords.', bullets: ['Thin content and minimum word count warnings', 'Multi-tag keyword alignment across Title, Meta, and H1/H2s', 'Direct-response hook and call-to-action assessment'] },
+      { id: 'social-and-schema', title: 'Structured data and social preview check', body: 'Verify Schema.org JSON-LD markup and Facebook Open Graph / X Cards for flawless link sharing across the web.', bullets: ['Schema.org validation for Organization, WebSite, and FAQs', 'Open Graph og:title, og:description, and og:image verification', 'Twitter/X summary large image card diagnostic'] }
+    ],
+    faqs: [
+      { question: 'What does the website marketing audit evaluate?', answer: 'It checks over 30 critical factors including HTTP status, canonical tags, schema markup, title/meta lengths, image alt text, heading hierarchy, and social cards.' },
+      { question: 'Can I export the audit findings?', answer: 'Yes. You can review findings interactively or download an executive PDF audit report with prioritized recommendations.' }
+    ],
+    related: [
+      { label: 'SEO Audit Tool', href: '/seo-audit-tool', body: 'Deep technical crawl diagnostics with observable proof.' },
+      { label: 'SEO Growth Software', href: '/seo-growth-software', body: 'Turn audit findings into ranked execution queues.' },
+      { label: 'Google Search Console Analysis', href: '/google-search-console-analysis', body: 'Connect search console queries to ranking content.' }
+    ]
   }
 };

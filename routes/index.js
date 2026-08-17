@@ -216,7 +216,15 @@ router.get('/sitemap.xml', (req, res) => {
         'google-search-console-reporting-tool',
         'ai-content-marketing-platform',
         'social-media-publishing-tool',
-        'agency-seo-reporting-software'
+        'agency-seo-reporting-software',
+        'seo-audit-tool',
+        'marketing-assistant-for-small-business',
+        'marketing-tools-for-startups',
+        'social-media-content-planner',
+        'google-search-console-analysis',
+        'marketing-platform-for-agencies',
+        'marketing-software-for-small-business',
+        'website-marketing-audit'
       ].includes(slug);
       return sitemapUrl(`/${slug}`, highIntent ? '0.9' : '0.8', 'monthly');
     }),
