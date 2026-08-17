@@ -224,7 +224,8 @@ router.get('/sitemap.xml', (req, res) => {
         'google-search-console-analysis',
         'marketing-platform-for-agencies',
         'marketing-software-for-small-business',
-        'website-marketing-audit'
+        'website-marketing-audit',
+        'resources/striking-distance-keywords-google-search-console'
       ].includes(slug);
       return sitemapUrl(`/${slug}`, highIntent ? '0.9' : '0.8', 'monthly');
     }),

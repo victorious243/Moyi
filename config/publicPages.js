@@ -780,5 +780,101 @@ module.exports = {
       { label: 'SEO Growth Software', href: '/seo-growth-software', body: 'Turn audit findings into ranked execution queues.' },
       { label: 'Google Search Console Analysis', href: '/google-search-console-analysis', body: 'Connect search console queries to ranking content.' }
     ]
+  },
+  'resources/striking-distance-keywords-google-search-console': {
+    eyebrow: 'Google Search Console Growth Guide',
+    title: 'How to Find Striking-Distance Queries in Google Search Console (And Move to Page 1)',
+    seoTitle: 'How to Find Striking-Distance Queries in Search Console | Moyi',
+    seoDescription: 'Learn how to find striking-distance queries in Google Search Console (positions 8–20) and turn high-impression search data into page-one rankings.',
+    schemaAbout: 'Striking distance keywords in Google Search Console, SEO query optimization, and page-two organic traffic recovery',
+    intro: 'If your website has been live for more than a few months, Google is showing your pages for hundreds of search terms in positions 8–20. Learn how to extract these striking-distance queries and use our 4-step framework to move them onto page one.',
+    primaryAction: { label: 'Start Free GSC Analysis', href: '/register' },
+    secondaryAction: { label: 'Explore Search Console Tool', href: '/google-search-console-analysis' },
+    sections: [
+      {
+        id: 'what-is-happening',
+        title: 'What is a striking-distance query?',
+        body: 'A striking-distance query is a search term where your page ranks on the bottom of page one or on page two of Google search results (typically positions 8 through 20). Because Google already considers your domain relevant enough to test in the top 20, your page receives search impressions. However, because fewer than 2% of searchers click past position 7, your click-through rate (CTR) remains near zero.',
+        bullets: [
+          'Positions 8–20 generate search impressions with under 2% CTR',
+          'Google has already validated your domain authority for the topic',
+          'Moving from position 12 to position 3 yields an average 10x CTR increase'
+        ]
+      },
+      {
+        id: 'why-does-it-happen',
+        title: 'Why do striking-distance rankings occur?',
+        body: 'Striking-distance rankings typically occur for three root causes: secondary keyword relevance (touching on related sub-topics), intent mismatches in headings, or missing content depth that competing top 3 results provide.',
+        bullets: [
+          'Secondary keyword coverage without dedicated H2/H3 sections',
+          'Vague title tags and meta descriptions that do not answer the specific query',
+          'Missing comparison tables, step-by-step checklists, or clear definitions'
+        ]
+      },
+      {
+        id: 'how-to-diagnose',
+        title: 'How to diagnose striking-distance queries in Search Console',
+        body: 'You do not need expensive third-party tools to extract these opportunities. You can filter them directly in Google Search Console using these steps:',
+        steps: [
+          { title: '1. Open Performance Report', body: 'Navigate to Google Search Console and select Search results under the Performance tab.' },
+          { title: '2. Enable All 4 Metrics', body: 'Ensure Total clicks, Total impressions, Average CTR, and Average position are all checked.' },
+          { title: '3. Filter by Position', body: 'Add a Position filter for "Greater than 7.9" and "Smaller than 20.1" over the last 3 months.' },
+          { title: '4. Sort by Impressions', body: 'Sort descending by Impressions to identify high-volume terms sitting in page-two purgatory.' }
+        ]
+      },
+      {
+        id: 'how-to-solve',
+        title: 'The 4-step striking-distance optimization framework',
+        body: 'Follow this proven framework to update existing authoritative URLs rather than creating new competing pages:',
+        steps: [
+          { title: 'Step 1: Verify the Ranking URL', body: 'Click the query in Search Console and inspect the Pages tab to confirm which URL Google associates with the keyword.' },
+          { title: 'Step 2: Update Your Title Tag & H1 Hook', body: 'Incorporate the core search concept naturally into your title tag or primary H2 headings.' },
+          { title: 'Step 3: Add the Missing Answer Section', body: 'Review top 3 SERP results and add the specific list, markdown comparison table, or diagnostic answer that searchers want.' },
+          { title: 'Step 4: Add Contextual Internal Links', body: 'Link internally from 2–3 high-authority pages on your domain using natural descriptive anchor text.' }
+        ]
+      },
+      {
+        id: 'example',
+        title: 'Realistic B2B SaaS example',
+        body: 'A B2B SaaS company had a guide titled "Guide to Website Performance". Search Console showed the query "how to fix slow ttfb" with 4,200 impressions, average position 11.4, but only 18 clicks (0.4% CTR).',
+        bullets: [
+          'Diagnostic: Article mentioned TTFB in passing without a dedicated troubleshooting section.',
+          'Action: Added an H2 section with a 4-bullet diagnostic checklist and linked from the technical audit overview.',
+          'Result: The page moved from position 11.4 to position 3.2 within 14 days, lifting CTR from 0.4% to 8.5%.'
+        ]
+      },
+      {
+        id: 'common-mistakes',
+        title: 'Common mistakes to avoid',
+        body: 'Avoid these critical traps when optimizing striking-distance keywords:',
+        bullets: [
+          'Creating brand-new URLs for every query variation instead of expanding existing authoritative pages (causes keyword cannibalization).',
+          'Keyword stuffing exact-match phrases instead of satisfying semantic search intent.',
+          'Ignoring search intent by providing 3,000 words of theory when searchers want a 3-step action list.'
+        ]
+      },
+      {
+        id: 'how-moyi-helps',
+        title: 'How Moyi helps: Moyi proposes. Humans decide.',
+        body: 'Moyi connects to your Google Search Console with read-only access to automate query mining. Moyi identifies striking-distance clusters, generates content expansion drafts in Content Studio, and queues them for human approval. Moyi never publishes changes automatically—you retain 100% editorial control.',
+        bullets: [
+          'Automatic discovery of high-impression queries in positions 8–20',
+          'AI CMO expansion briefs and recommended H2 structures',
+          'Human-in-the-loop review before any live CMS or social updates'
+        ]
+      }
+    ],
+    faqs: [
+      { question: 'What is considered a "striking distance" position in SEO?', answer: 'Most SEO practitioners define striking distance as positions 8 through 20 (the bottom of page one and the entirety of page two) where search engines recognize relevance but need stronger engagement signals.' },
+      { question: 'How long does it take for a page-two query to reach page one after updating?', answer: 'Ranking adjustments typically occur within 7 to 21 days after requesting re-indexing in Google Search Console.' },
+      { question: 'Should I create a new page if my striking-distance query is slightly different?', answer: 'In most cases, no. Expanding an existing ranking page preserves existing backlink equity and URL authority, which prevents keyword cannibalization.' }
+    ],
+    related: [
+      { label: 'Google Search Console Analysis', href: '/google-search-console-analysis', body: 'Read-only Search Console query mining and intent analysis.' },
+      { label: 'SEO Audit Tool', href: '/seo-audit-tool', body: 'Technical SEO crawl diagnostics with prioritized fix roadmaps.' },
+      { label: 'Social Media Content Planner', href: '/social-media-content-planner', body: 'Multi-channel social planner with 1-click batch publishing.' },
+      { label: 'Pricing Plans', href: '/pricing', body: 'Transparent pricing starting at €49/mo with no seat penalties.' }
+    ]
   }
 };
+
