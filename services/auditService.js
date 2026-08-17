@@ -191,9 +191,12 @@ function auditPage(page) {
   const titleText = cleanText(page.title).toLowerCase();
   const metaText = cleanText(page.metaDescription).toLowerCase();
   const headingText = cleanText([...(page.h1 || []), ...(page.headings || [])].join(' ')).toLowerCase();
-  const weakKeywordAlignment = keywords.length >= 2 && keywords.filter((keyword) => (
-    titleText.includes(keyword) && metaText.includes(keyword) && headingText.includes(keyword)
-  )).length === 0;
+  const alignedCount = keywords.filter((keyword) => (
+    (titleText.includes(keyword) && metaText.includes(keyword)) ||
+    (titleText.includes(keyword) && headingText.includes(keyword)) ||
+    (metaText.includes(keyword) && headingText.includes(keyword))
+  )).length;
+  const weakKeywordAlignment = keywords.length >= 2 && alignedCount === 0;
 
   if (weakKeywordAlignment) {
     issues.push(issue({
@@ -333,14 +336,15 @@ function auditPage(page) {
   }
 
   const missingProfiles = missingSocialProfiles(page);
-  if (missingProfiles.length) {
+  const activeProfilesCount = Object.values(page.socialProfiles || {}).filter(Boolean).length;
+  if (activeProfilesCount === 0 && missingProfiles.length === 5) {
     issues.push(issue({
       page,
       type: 'missing_social_profile_links',
       severity: 'opportunity',
-      title: 'Some major social profile links were not found',
+      title: 'No major social profile links were found',
       evidence: { missingProfiles, socialProfiles: page.socialProfiles || {} },
-      recommendation: 'Link only the real active brand profiles that matter to the business, such as LinkedIn, Instagram, Facebook, X, or YouTube.'
+      recommendation: 'Link the active brand profiles that matter to the business, such as LinkedIn, X, Instagram, Facebook, or YouTube.'
     }));
   }
 

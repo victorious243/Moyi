@@ -443,7 +443,8 @@ router.get('/solutions/:slug', (req, res, next) => {
 
 function contactView(overrides = {}) {
   return {
-    title: 'Contact Moyi',
+    title: 'Contact Customer Support & Sales',
+    seoDescription: 'Get in touch with Moyi-CMO for product inquiries, customer support, partnerships, and enterprise AI growth solutions.',
     contactSuccess: '',
     contactError: '',
     formData: {},

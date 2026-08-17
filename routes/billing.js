@@ -12,7 +12,8 @@ const router = express.Router();
 router.get('/pricing', (req, res) => {
   const billingInterval = req.query.billing === 'annual' ? 'annual' : 'monthly';
   res.render('pricing', {
-    title: 'Pricing',
+    title: 'Transparent AI CMO Pricing & Plans',
+    seoDescription: 'Transparent pricing for Moyi-CMO. Autonomous SEO audits, content drafts, and social publishing starting at €49/mo.',
     plans: PLANS,
     billingInterval,
     canceled: req.query.canceled || ''

@@ -71,7 +71,11 @@ function handleVerifyEmailValidation(req, res, next) {
 }
 
 router.get('/register', (req, res) => {
-  res.render('auth/register', { title: 'Create account', errorMessage: req.query.error || '' });
+  res.render('auth/register', {
+    title: 'Create Account & Growth Workspace',
+    seoDescription: 'Create your Moyi-CMO account. Start your free website scan, SEO opportunity audit, and AI CMO marketing operating system in under 60 seconds.',
+    errorMessage: req.query.error || ''
+  });
 });
 
 router.post(
@@ -179,7 +183,11 @@ router.post(
 );
 
 router.get('/login', (req, res) => {
-  res.render('auth/login', { title: 'Sign in', errorMessage: req.query.error || '' });
+  res.render('auth/login', {
+    title: 'Sign In to Your Workspace',
+    seoDescription: 'Sign in to your Moyi-CMO workspace to manage autonomous SEO growth, content studio drafts, and social publishing.',
+    errorMessage: req.query.error || ''
+  });
 });
 
 router.get('/google', (req, res) => {

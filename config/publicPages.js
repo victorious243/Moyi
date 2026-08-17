@@ -2,6 +2,8 @@ module.exports = {
   features: {
     eyebrow: 'Product capabilities',
     title: 'One system for evidence-led marketing work',
+    seoTitle: 'One System for Evidence-Led Marketing Work | Moyi-CMO',
+    seoDescription: 'Discover core Moyi-CMO features: website audits, Search Console query mining, AI CMO plans, Content Studio, and 1-click social distribution.',
     intro: 'Moyi connects website intelligence, prioritization, content production, campaign operations, and measurement inside one accountable project workspace.',
     primaryAction: { label: 'Start Free', href: '/register' },
     secondaryAction: { label: 'See How It Works', href: '/how-it-works' },
@@ -17,6 +19,8 @@ module.exports = {
   'how-it-works': {
     eyebrow: 'Operating workflow',
     title: 'From website evidence to reviewed execution',
+    seoTitle: 'How Moyi Works: From Evidence to Execution | Moyi-CMO',
+    seoDescription: 'Learn how Moyi-CMO turns website crawl data and Google Search Console queries into prioritized growth recommendations and multi-channel campaigns.',
     intro: 'Moyi follows a controlled cycle so every recommendation, draft, campaign, and report has a clear place in the business workflow.',
     primaryAction: { label: 'View Product Demo', href: '/demo' },
     secondaryAction: { label: 'Read Documentation', href: '/docs' },
@@ -31,6 +35,8 @@ module.exports = {
   docs: {
     eyebrow: 'Product documentation',
     title: 'Use Moyi from evidence to execution',
+    seoTitle: 'Moyi-CMO Documentation & User Guides | Moyi-CMO',
+    seoDescription: 'Explore the complete Moyi-CMO documentation: workspace setup, crawl evidence, AI CMO plans, content studio, and multi-channel publishing.',
     intro: 'A structured guide to Moyi. The sections follow the same order as the product flow: set up the workspace, collect evidence, decide what matters, create content, attach visuals, plan campaigns, connect channels, publish safely, measure results, manage billing, and troubleshoot when needed.',
     primaryAction: { label: 'Open Dashboard', href: '/dashboard' },
     secondaryAction: { label: 'Create Account', href: '/register' },
@@ -358,6 +364,8 @@ module.exports = {
   reports: {
     eyebrow: 'Measurement resources',
     title: 'Reports built around recorded evidence',
+    seoTitle: 'Executive Marketing & SEO Reports | Moyi-CMO',
+    seoDescription: 'Generate evidence-based weekly and monthly CMO reports that connect website audits, Search Console queries, and campaign publishing performance.',
     intro: 'Moyi’s reports explain what changed, what remains uncertain, and what the team should review next.',
     primaryAction: { label: 'Open Workspace', href: '/workspace' },
     secondaryAction: { label: 'Read Documentation', href: '/docs#measurement' },
@@ -371,8 +379,8 @@ module.exports = {
   'ai-cmo-software': {
     eyebrow: 'AI CMO software',
     title: 'AI CMO software for evidence-led SEO growth',
-    seoTitle: 'AI CMO Software for SEO Growth and Content Distribution',
-    seoDescription: 'Moyi-CMO is AI CMO software that turns website scans, Google Search Console data, approved drafts, social publishing, and engagement signals into a repeatable growth workflow.',
+    seoTitle: 'Autonomous AI CMO Software & Growth OS | Moyi',
+    seoDescription: 'Turn website audits, Google Search Console data, approved drafts, and social publishing into an autonomous and repeatable growth engine.',
     schemaAbout: 'AI CMO software for SEO, content marketing, social publishing, and growth reporting',
     intro: 'Moyi-CMO helps teams move from scattered marketing ideas to a controlled operating system: discover evidence, decide priorities, create assets, approve work, distribute content, and learn from performance.',
     primaryAction: { label: 'Start Free', href: '/register' },
@@ -556,6 +564,8 @@ module.exports = {
   roadmap: {
     eyebrow: 'Product direction',
     title: 'What Moyi supports and what comes next',
+    seoTitle: 'Product Roadmap & Upcoming Features | Moyi-CMO',
+    seoDescription: 'Explore what Moyi-CMO supports today and what is coming next in autonomous marketing intelligence, content production, and publishing.',
     intro: 'This roadmap communicates direction without fixed delivery dates. Priorities can change as reliability, security, and customer evidence develop.',
     primaryAction: { label: 'Use Available Features', href: '/register' },
     secondaryAction: { label: 'Send Feedback', href: '/contact' },
@@ -568,6 +578,8 @@ module.exports = {
   about: {
     eyebrow: 'About Moyi',
     title: 'An AI CMO that shows its work',
+    seoTitle: 'About Moyi-CMO: Evidence-First Marketing OS',
+    seoDescription: 'Learn about the mission, architecture, and principles behind Moyi-CMO: the autonomous AI Chief Marketing Officer that shows its work.',
     intro: 'Moyi is built for businesses that need marketing decisions connected to evidence, execution, review, and measurement.',
     primaryAction: { label: 'Start Free', href: '/register' },
     secondaryAction: { label: 'Contact Moyi', href: '/contact' },
