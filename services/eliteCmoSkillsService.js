@@ -8,6 +8,11 @@ const buildPseoPrompt = require('../src/prompts/programmatic-seo.prompt');
 const buildPlgPrompt = require('../src/prompts/plg-growth-loops.prompt');
 const buildLifecyclePrompt = require('../src/prompts/lifecycle-retention.prompt');
 const buildAbmPrompt = require('../src/prompts/abm-outbound.prompt');
+const buildCustomerAdvocacyPrompt = require('../src/prompts/customer-marketing-advocacy.prompt');
+const buildAlliancesCoMarketingPrompt = require('../src/prompts/alliances-co-marketing.prompt');
+const buildEventLifecyclePrompt = require('../src/prompts/event-lifecycle-campaign.prompt');
+const buildMarketingProjectManagementPrompt = require('../src/prompts/marketing-project-management.prompt');
+const buildCroExperimentationPrompt = require('../src/prompts/cro-experimentation.prompt');
 
 let OpenAIClient = null;
 function getOpenAIClient() {
@@ -506,6 +511,296 @@ async function generateFullEliteCmoAudit({ brandName = 'Moyi-CMO', domain = 'exa
   };
 }
 
+// -------------------------------------------------------------
+// 9. CUSTOMER MARKETING & ADVOCACY (Senior Customer Marketing Manager)
+// -------------------------------------------------------------
+async function generateCustomerAdvocacyAndCaseStudy({
+  brandName = 'Moyi-CMO',
+  customerName = 'Acme Corp',
+  customerIndustry = 'B2B SaaS',
+  coreChallenge = 'High agency spend with slow SEO turnarounds',
+  resultsAchieved = '3.5x organic search lift and €48,000 saved annually',
+  keyQuote = 'Moyi replaced our sluggish agency with 24/7 autonomous marketing intelligence.'
+}) {
+  const prompt = buildCustomerAdvocacyPrompt({
+    brandName,
+    customerName,
+    customerIndustry,
+    coreChallenge,
+    resultsAchieved,
+    keyQuote
+  });
+
+  const fallback = {
+    caseStudy: {
+      headline: `How ${customerName} Accelerated Organic Search Velocity by 350% and Saved €48,000 Annually with ${brandName}`,
+      executiveSummary: `${customerName} transitioned from a high-overhead external marketing agency to ${brandName}'s evidence-led AI CMO platform, slashing turnaround times from weeks to minutes while multiplying high-intent search rankings.`,
+      theChallenge: `${customerName} was spending over €4,000 per month on traditional SEO agency retainers with zero visibility into crawl blockers, delayed content deliverables, and stagnant organic search traffic.`,
+      theSolution: `By deploying ${brandName}, ${customerName} automated weekly site crawls, connected read-only Google Search Console telemetry, and established a 4-stage review pipeline to produce and publish high-converting BOFU articles and social campaigns.`,
+      quantifiedImpact: [
+        { metric: '350%', label: 'Organic Traffic Velocity', context: 'Achieved in the first 90 days of deployment' },
+        { metric: '€48,000', label: 'Annual Overhead Saved', context: 'Eliminated external agency retainer' },
+        { metric: '100%', label: 'Human-in-the-Loop Governance', context: 'Zero unapproved AI content published' }
+      ],
+      featuredQuote: {
+        quote: keyQuote,
+        attribution: `VP of Growth, ${customerName}`
+      }
+    },
+    advocacyReviewCampaign: {
+      reviewPlatform: 'G2 & Trustpilot',
+      emailInviteSubject: `Quick question about your results with ${brandName}`,
+      emailInviteBody: `Hi team, we loved seeing your 3.5x organic traffic milestone this quarter! Would you be open to sharing a 60-second review on G2 to help other growth leaders discover evidence-led marketing?`,
+      incentiveStrategy: 'Offer a complimentary workspace upgrade or charity donation for every verified review.'
+    },
+    customerExpansionNurture: {
+      upsellHook: 'Unlock multi-project agency workspaces and advanced competitor matrix tracking.',
+      advocateReferralPrompt: 'Invite 2 peer marketing leaders to join Moyi and unlock 10,000 additional monthly crawl credits.'
+    }
+  };
+
+  return executeOpenAiJsonPrompt(prompt, fallback, 'CustomerMarketingAdvocacy');
+}
+
+// -------------------------------------------------------------
+// 9. CHANNEL & ALLIANCES CO-MARKETING (Head of Channel & Alliances)
+// -------------------------------------------------------------
+async function generateAlliancesCoMarketing({
+  brandName = 'Moyi-CMO',
+  partnerName = 'HubSpot',
+  partnerCategory = 'CRM & Marketing Automation Ecosystem',
+  integrationHighlights = 'Automatic 1-click blog drafting and lead-syncing',
+  sharedAudience = 'B2B Growth Marketers and Agencies'
+}) {
+  const prompt = buildAlliancesCoMarketingPrompt({
+    brandName,
+    partnerName,
+    partnerCategory,
+    integrationHighlights,
+    sharedAudience
+  });
+
+  const fallback = {
+    jointValueProposition: {
+      headline: `${brandName} + ${partnerName}: Autonomous Marketing Intelligence Meets Enterprise Workflow Execution`,
+      elevatorPitch: `Combine ${partnerName}'s leading ecosystem with ${brandName}'s evidence-led AI CMO to automatically turn website audit telemetry into high-converting campaigns.`,
+      threePillars: [
+        { pillar: 'Frictionless Co-Execution', description: 'Publish approved content and sync telemetry directly across platforms in 1 click.' },
+        { pillar: 'Compounding Revenue Growth', description: 'Target high-intent search terms that drive qualified pipeline into your CRM.' },
+        { pillar: 'Certified Security & Privacy', description: 'Enterprise-grade AES-256 encryption with zero AI model training on customer data.' }
+      ]
+    },
+    coBrandedWebinar: {
+      title: `The 2026 Growth Blueprint: How Modern CMOs Scale Organic Pipeline with ${partnerName} and ${brandName}`,
+      landingPageHero: 'Discover the exact evidence-led framework used by top B2B teams to replace bloated agency retainers with automated growth systems.',
+      keyLearningBulletPoints: [
+        'How to uncover high-intent Search Console query gaps in under 5 minutes',
+        'Bridging the gap between technical audit diagnostics and executed social campaigns',
+        'Live workflow teardown: From raw crawl evidence to multi-channel publishing'
+      ],
+      promoEmailSubject: `[Live Masterclass] Scaling B2B Organic Pipeline with ${partnerName} & ${brandName}`,
+      promoEmailBody: `Join marketing leaders from ${brandName} and ${partnerName} on this hands-on workshop detailing the next generation of evidence-led marketing operations.`
+    },
+    partnerSalesBattlecard: {
+      positioning: `Recommend ${brandName} whenever a ${partnerName} customer needs automated website auditing, Search Console query mining, and governed AI drafting.`,
+      commonObjectionsAndResponses: [
+        { objection: 'Why not use standard AI writing tools?', counter: 'Standard AI tools lack crawl evidence, Search Console integration, and human-in-the-loop multi-platform scheduling.' },
+        { objection: 'Is setup complicated?', counter: 'Takes less than 60 seconds with 1-click OAuth authentication and zero engineering required.' }
+      ],
+      dealRegistrationPitch: 'Empower your clients with a full-stack AI CMO that turns website diagnostics into published content inside their existing stack.'
+    },
+    jointAnnouncementPR: {
+      headline: `${brandName} Announces Strategic Partnership with ${partnerName} to Bring Autonomous Marketing Intelligence to Global Teams`,
+      quoteFromPartner: `"This partnership empowers our shared ecosystem to bridge the gap between marketing analytics and actual multi-channel execution."`,
+      callToAction: 'Connect the integration from your workspace settings in 1 click.'
+    }
+  };
+
+  return executeOpenAiJsonPrompt(prompt, fallback, 'AlliancesCoMarketing');
+}
+
+// -------------------------------------------------------------
+// 10. EVENT LIFECYCLE CAMPAIGN (Senior Events Manager)
+// -------------------------------------------------------------
+async function generateEventLifecycleCampaign({
+  brandName = 'Moyi-CMO',
+  eventName = 'Global Growth & AI Marketing Summit 2026',
+  eventDate = 'October 15, 2026',
+  eventLocation = 'London & Virtual Livestream',
+  keySpeakers = ['Sarah Jenkins (VP Growth)', 'Marcus Vance (Ex-Google)'],
+  targetAudience = 'CMOs, VPs of Marketing, Agency Founders'
+}) {
+  const prompt = buildEventLifecyclePrompt({
+    brandName,
+    eventName,
+    eventDate,
+    eventLocation,
+    keySpeakers,
+    targetAudience
+  });
+
+  const fallback = {
+    phase1PreEventLaunch: {
+      earlyBirdHeadline: `Secure Your Seat at ${eventName}: Where Enterprise Growth Leaders Shape the Future of Marketing`,
+      socialTeaserPosts: [
+        { platform: 'LinkedIn', copy: `🚨 Early-bird registration is officially live for ${eventName}! Join 1,000+ CMOs and growth operators on ${eventDate} for practical playbooks on scaling organic search and AI marketing governance. Grab your pass today.`, suggestedVisual: 'High-contrast event teaser badge with speaker lineup' },
+        { platform: 'Twitter / X', copy: `The countdown begins! ${eventName} lands on ${eventDate}. Keynotes from ${keySpeakers.join(' & ')}. Register now →` }
+      ],
+      emailInvite: {
+        subject: `Exclusive Invitation: ${eventName} (${eventDate})`,
+        body: `Dear Growth Leader, we are thrilled to invite you to ${eventName}. Discover cutting-edge frameworks on AI CMO operations, Search Console arbitrage, and multi-channel distribution.`
+      }
+    },
+    phase2CountdownAndSpeakers: {
+      speakerSpotlightHooks: [
+        { speaker: keySpeakers[0] || 'Keynote Speaker', hook: `Featured Keynote: Discover how to scale organic pipeline from 0 to €1M ARR without agency retainers.` }
+      ],
+      agendaTeaserPost: `Here is what is on deck for ${eventName}: 3 interactive masterclasses, live teardowns of real B2B growth funnels, and executive networking sessions.`,
+      finalCountdownEmail: {
+        subject: `Final 24 Hours: Registration closing for ${eventName}`,
+        body: `Only a few passes remain for ${eventName}. Do not miss keynotes from industry pioneers and our live strategy reveal.`
+      }
+    },
+    phase3LiveEventCoverage: {
+      realTimeQuoteTemplates: [
+        { template: `🔥 Key insight from ${keySpeakers[0] || 'our keynote'}: "Evidence beats assumptions in every single marketing sprint." #${eventName.replace(/[^a-zA-Z0-9]/g, '')}`, channel: 'LinkedIn & Twitter / X' }
+      ],
+      backstageLivePrompt: 'Share live audience polling results and highlight top questions submitted during the live Q&A panel.'
+    },
+    phase4PostEventRepurposing: {
+      onDemandRecordingPage: {
+        headline: `Watch the Full On-Demand Replay of ${eventName}`,
+        gatedLeadMagnetCopy: 'Access all presentation slide decks, keynote recordings, and executive growth templates.'
+      },
+      attendeeNurtureEmail: {
+        subject: `Thank you for joining ${eventName} + Your Executive Slide Pack`,
+        body: `Thank you for being part of ${eventName}. To help you immediately execute the frameworks discussed, we have unlocked full access to our AI CMO platform for your team.`
+      },
+      seoArticleAngle: `Turn keynote insights into a comprehensive pillar guide: "Key Takeaways from ${eventName}: The Modern Blueprint for AI Marketing Governance".`
+    }
+  };
+
+  return executeOpenAiJsonPrompt(prompt, fallback, 'EventLifecycleCampaign');
+}
+
+// -------------------------------------------------------------
+// 11. MARKETING PROJECT MANAGEMENT & SPRINT GOVERNANCE (Project Manager)
+// -------------------------------------------------------------
+async function generateMarketingSprintAndQa({
+  brandName = 'Moyi-CMO',
+  initiativeName = 'Q4 Organic Search Expansion & Multi-Channel Repurposing',
+  acceptedPriorities = ['Fix 404 broken redirect chains', 'Publish 6 BOFU comparison guides', 'Connect LinkedIn social queue'],
+  targetSprintDays = 14,
+  teamCapacity = '1 Growth Lead, 1 Content Writer, 1 SEO Specialist'
+}) {
+  const prompt = buildMarketingProjectManagementPrompt({
+    brandName,
+    initiativeName,
+    acceptedPriorities,
+    targetSprintDays,
+    teamCapacity
+  });
+
+  const fallback = {
+    sprintOverview: {
+      sprintGoal: `Deliver 100% of accepted technical fixes and launch 6 comparison guides within ${targetSprintDays} days to accelerate organic search velocity.`,
+      totalStoryPoints: 28,
+      velocityTarget: 'Zero backlog spillover with full 4-stage governance compliance'
+    },
+    sprintWorkBreakdown: [
+      {
+        ticketId: 'MKTG-101',
+        taskName: 'Resolve 404 Errors & Broken Redirects',
+        assigneeRole: 'SEO Specialist',
+        raciRole: 'Accountable: SEO Specialist | Responsible: Dev Lead | Informed: CMO',
+        storyPoints: 5,
+        definitionOfDone: 'All broken URLs mapped to active canonical pages and verified via live crawl scan.'
+      },
+      {
+        ticketId: 'MKTG-102',
+        taskName: 'Draft & Review 6 BOFU Comparison Articles',
+        assigneeRole: 'Content Writer',
+        raciRole: 'Accountable: Writer | Consulted: Product Lead | Responsible: Growth Lead',
+        storyPoints: 13,
+        definitionOfDone: 'Articles completed in Content Studio, branded visuals attached, and approved by editorial lead.'
+      },
+      {
+        ticketId: 'MKTG-103',
+        taskName: 'Schedule Multi-Channel Social Calendar',
+        assigneeRole: 'Social Marketer',
+        raciRole: 'Accountable: Social Lead | Responsible: Copywriter | Informed: CMO',
+        storyPoints: 10,
+        definitionOfDone: '15 social drafts scheduled across LinkedIn, Meta, and X with valid UTM parameters.'
+      }
+    ],
+    preFlightCampaignQaChecklist: [
+      { category: 'Tracking & Attribution', checkItem: 'Ensure all destination links have valid utm_source, utm_medium, and utm_campaign parameters.' },
+      { category: 'Brand & Visual Assets', checkItem: 'Verify official transparent PNG logos are rendered cleanly without distortion on mobile devices.' },
+      { category: 'Technical Indexing', checkItem: 'Confirm landing pages output <meta name="robots" content="index, follow"> and have valid canonical URLs.' },
+      { category: 'Governance Sign-Off', checkItem: 'Verify human editorial approval is marked in Content Studio before any social or CMS push.' }
+    ],
+    riskAndBlockerMitigation: [
+      { risk: 'Editorial review bottleneck delaying publishing schedule', mitigation: 'Establish a mandatory 24-hour review SLA in Content Studio notifications.' }
+    ]
+  };
+
+  return executeOpenAiJsonPrompt(prompt, fallback, 'MarketingProjectManagement');
+}
+
+// -------------------------------------------------------------
+// 12. ADVANCED CRO & EXPERIMENTATION (Digital Marketing Specialist)
+// -------------------------------------------------------------
+async function generateCroExperimentationPlan({
+  brandName = 'Moyi-CMO',
+  pageUrl = 'https://moyi-cmo.com/pricing',
+  currentConversionRate = '2.4%',
+  targetGoal = 'Increase Free Trial Signups by 35%',
+  observedFriction = 'Vague feature comparisons and lack of clear proof on pricing cards'
+}) {
+  const prompt = buildCroExperimentationPrompt({
+    brandName,
+    pageUrl,
+    currentConversionRate,
+    targetGoal,
+    observedFriction
+  });
+
+  const fallback = {
+    meclabsHeuristicAnalysis: {
+      motivation: 'High-intent search visitors looking to replace manual marketing or high agency retainers.',
+      valuePropositionClarity: 'Current copy emphasizes feature lists rather than direct business ROI and time saved.',
+      incentiveVsFriction: 'Hesitation around onboarding complexity, credit card requirements, and setup time.',
+      anxietyReduction: 'Highlight 14-day free trial, zero credit card requirement, and 1-click Google OAuth setup.'
+    },
+    experimentHypothesis: {
+      ifThenStatement: `If we replace generic CTA buttons with outcome-specific value prompts ("Start 14-Day Free Growth Trial — No Card Needed") and display live GSC telemetry proof, then signup conversion will increase by 35% because friction and perceived risk are minimized.`,
+      primaryMetric: 'Trial Signup Conversion Rate (%)',
+      secondaryMetrics: ['Pricing table toggle interaction rate', 'Time on page', 'Checkout completion rate'],
+      minimumSampleSize: 'Minimum 1,500 unique visitors per variant to achieve 95% statistical confidence.'
+    },
+    copyTestingVariants: [
+      {
+        variantName: 'Control (A)',
+        heroHeadline: 'Simple, Predictable Pricing for Evidence-Led Growth',
+        ctaCopy: 'Get Started',
+        supportingMicroCopy: 'Billed monthly or annually.'
+      },
+      {
+        variantName: 'Outcome-Led Variant (B)',
+        heroHeadline: 'Replace Your €5k/Month Agency with an Autonomous AI CMO',
+        ctaCopy: 'Start Free Trial — No Card Needed',
+        supportingMicroCopy: 'Set up in 60 seconds with 1-click Google sign-in. Cancel anytime in 1 click.'
+      }
+    ],
+    microFrictionFixes: [
+      { frictionPoint: 'Unclear distinction between Starter and Pro plans', fix: 'Add a prominent "Most Popular for Growth Teams" badge and clear project limit pill.' },
+      { frictionPoint: 'Fear of long-term lock-in', fix: 'Display explicit "14-Day Money-Back Guarantee & Instant 1-Click Cancellation" reassurance.' }
+    ]
+  };
+
+  return executeOpenAiJsonPrompt(prompt, fallback, 'CroExperimentation');
+}
+
 module.exports = {
   generateStrategicPositioning,
   analyzeLandingPageCro,
@@ -514,5 +809,11 @@ module.exports = {
   designPlgGrowthLoops,
   generateLifecycleEmailSequences,
   generateAbmOutboundCampaign,
+  generateCustomerAdvocacyAndCaseStudy,
+  generateAlliancesCoMarketing,
+  generateEventLifecycleCampaign,
+  generateMarketingSprintAndQa,
+  generateCroExperimentationPlan,
   generateFullEliteCmoAudit
 };
+
