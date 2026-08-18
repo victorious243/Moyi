@@ -22,6 +22,10 @@
   <a class="<%= currentSection === 'strategy' ? 'active' : '' %>" href="/projects/<%= pid %>/ai-report/latest">Strategy Brief</a>
   <a class="<%= currentSection === 'recommendations' ? 'active' : '' %>" href="/projects/<%= pid %>/recommendations">Recommendations</a>
   <a class="<%= currentSection === 'competitors' ? 'active' : '' %>" href="/projects/<%= pid %>/competitors">Competitors</a>
+  <a class="sidebar-alerts-item <%= currentSection === 'alerts' ? 'active' : '' %>" href="/dashboard?tab=alerts" style="display:flex;align-items:center;justify-content:space-between;">
+    <span>Growth Alerts</span>
+    <span class="notification-badge sidebar-notif-badge" style="display:none;position:static;margin-left:auto;">0</span>
+  </a>
 
   <span class="sidebar-divider"></span>
 
