@@ -99,7 +99,7 @@ const publishJobSchema = new mongoose.Schema(
     },
     failureKind: {
       type: String,
-      enum: ['', 'transient', 'rate_limit', 'authentication', 'permission', 'permanent', 'unknown'],
+      enum: ['', 'transient', 'rate_limit', 'authentication', 'permission', 'billing', 'permanent', 'unknown'],
       default: '',
       index: true
     },
