@@ -76,8 +76,10 @@ async function ensureMonthlyLimit(user, field, limit, message, upgradePlan = 'st
 }
 
 async function resolveUsageUser(userOrId) {
-  if (userOrId && userOrId._id) return userOrId;
-  return User.findById(userOrId).select('_id plan');
+  const userId = (userOrId && userOrId._id) ? userOrId._id : userOrId;
+  if (!userId) return null;
+  const user = await User.findById(userId).select('_id plan role subscriptionStatus');
+  return user || userOrId;
 }
 
 async function ensureMonthlyCapacity(user, field, limit, amount, message, upgradePlan = 'starter') {
