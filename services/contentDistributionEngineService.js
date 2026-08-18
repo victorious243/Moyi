@@ -38,6 +38,7 @@ const {
   ensureSocialPublishAllowed,
   reserveSocialPublishUsage
 } = require('./usageService');
+const { assertStandardXPost } = require('./xTextService');
 
 const VARIANT_REQUIRED_PLATFORMS = new Set(['facebook', 'instagram', 'threads', 'tiktok', 'youtube']);
 
@@ -210,6 +211,9 @@ async function createPublishBatch({
       accountIds,
       allowedProjectIds: allowedDestinationProjectIds
     });
+    if (accounts.some((account) => account.platform === 'x')) {
+      assertStandardXPost(draft.body);
+    }
     accountSelections.set(String(draft._id), accounts);
     requestedJobCount += accounts.length;
   }
@@ -846,10 +850,25 @@ async function createAndExecutePublishBatch(options) {
 }
 
 async function retryPublishJob(jobId) {
+  const existing = await PublishJob.findOne({
+    _id: jobId,
+    status: { $in: ['failed', 'dead_letter'] }
+  });
+  if (!existing) return null;
+
+  const draft = await SocialDraft.findOne({ _id: existing.draftId, projectId: existing.projectId });
+  const contentUpdates = {};
+  if (draft) {
+    if (existing.platform === 'x') assertStandardXPost(draft.body);
+    contentUpdates['content.title'] = draft.title || '';
+    contentUpdates['content.body'] = draft.body || '';
+  }
+
   const job = await PublishJob.findOneAndUpdate(
     { _id: jobId, status: { $in: ['failed', 'dead_letter'] } },
     {
       $set: {
+        ...contentUpdates,
         status: 'queued',
         errorCode: '',
         errorMessage: '',

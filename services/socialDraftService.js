@@ -5,6 +5,7 @@ const SocialDraft = require('../models/SocialDraft');
 const buildSocialDraftsPrompt = require('../src/prompts/social-drafts.prompt');
 const buildCampaignPlannerPrompt = require('../src/prompts/campaign-planner.prompt');
 const { buildGrowthBrainSocialContext } = require('./socialAnalyticsService');
+const { fitStandardXPost } = require('./xTextService');
 
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 const CHANNELS = ['bluesky', 'linkedin', 'facebook', 'x', 'instagram', 'threads', 'tiktok', 'youtube', 'email'];
@@ -98,7 +99,9 @@ function sanitizeCampaignDrafts(parsed, fallback, schedule) {
       channel: slot.channel,
       scheduledFor: slot.scheduledFor,
       title: String(item.title || fallback[index].title).slice(0, 180),
-      body: String(item.body || fallback[index].body).slice(0, 4000)
+      body: slot.channel === 'x'
+        ? fitStandardXPost(item.body || fallback[index].body)
+        : String(item.body || fallback[index].body).slice(0, 4000)
     };
   });
 }
@@ -228,7 +231,9 @@ function sanitizeDrafts(parsed, fallback) {
     .map((item) => ({
       channel: item.channel,
       title: String(item.title || `${item.channel} draft`).slice(0, 180),
-      body: String(item.body || '').slice(0, 4000)
+      body: item.channel === 'x'
+        ? fitStandardXPost(item.body)
+        : String(item.body || '').slice(0, 4000)
     }))
     .filter((item) => item.body);
 }
@@ -314,5 +319,7 @@ async function createSocialDraftsFromContent({ project, draft, campaignId = '' }
 module.exports = {
   campaignSchedule,
   createCampaignContentPlan,
-  createSocialDraftsFromContent
+  createSocialDraftsFromContent,
+  sanitizeCampaignDrafts,
+  sanitizeDrafts
 };

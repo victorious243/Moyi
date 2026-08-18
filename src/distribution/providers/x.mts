@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { createRequire } from 'node:module';
 import axios from 'axios';
 import { distributionConfig } from '../config.mjs';
 import { providerError, requireValue } from '../provider-error.mjs';
@@ -16,6 +17,11 @@ import type {
 import type { EngagementMetricsResult, PublishedPostReference } from '../types.mjs';
 
 const X_SCOPES = ['tweet.read', 'tweet.write', 'users.read', 'media.write', 'offline.access'];
+const X_STANDARD_MAX_WEIGHTED_LENGTH = 280;
+const require = createRequire(import.meta.url);
+const twitterText = require('twitter-text') as {
+  parseTweet(value: string): { valid: boolean; weightedLength: number };
+};
 
 function base64Url(value: Buffer): string {
   return value.toString('base64url');
@@ -111,6 +117,18 @@ export class XProvider implements SocialProvider {
   }
 
   async publish(account: SocialAccountCredentials, payload: PublishPayload): Promise<PublishResult> {
+    const parsedText = twitterText.parseTweet(payload.text);
+    if (!parsedText.valid || parsedText.weightedLength > X_STANDARD_MAX_WEIGHTED_LENGTH) {
+      const error = new Error(parsedText.weightedLength > X_STANDARD_MAX_WEIGHTED_LENGTH
+        ? `X posts for standard accounts must be ${X_STANDARD_MAX_WEIGHTED_LENGTH} weighted characters or fewer. This post is ${parsedText.weightedLength}. Shorten it before publishing.`
+        : 'X post copy contains invalid text. Remove unsupported control characters and try again.') as Error & {
+        code?: string;
+        statusCode?: number;
+      };
+      error.code = parsedText.weightedLength > X_STANDARD_MAX_WEIGHTED_LENGTH ? 'content_too_long' : 'invalid_post_text';
+      error.statusCode = 422;
+      throw error;
+    }
     const media = payload.mediaItems?.length ? payload.mediaItems : payload.media ? [payload.media] : [];
     if (media.some((item) => item.kind !== 'image')) {
       const error = new Error('X video publishing is not enabled in this release.') as Error & { code?: string };

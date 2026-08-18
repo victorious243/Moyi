@@ -54,7 +54,8 @@
     "openai": "^6.42.0",
     "sharp": "^0.35.3",
     "slugify": "^1.6.9",
-    "stripe": "^22.2.0"
+    "stripe": "^22.2.0",
+    "twitter-text": "^3.1.0"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

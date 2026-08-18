@@ -43,13 +43,13 @@ fi
 
 log "Installing dependencies for build and validation"
 if [ -f "package-lock.json" ]; then
-  npm ci
+  npm ci --include=dev
 else
-  npm install
+  npm install --include=dev
 fi
 
 log "Building distribution adapters"
-npm run build:distribution
+REQUIRE_DISTRIBUTION_BUILD=true npm run build:distribution
 
 log "Validating production runtime configuration"
 NODE_ENV=production node -e "require('./config/env').assertRuntimeConfig(); console.log('Runtime configuration is valid.');"

@@ -386,7 +386,7 @@
                     <details class="agenda-edit"><summary class="button">Edit</summary>
                       <form class="form" action="/social-drafts/<%= draft._id %>/update" method="post">
                         <label>Internal title <input name="title" value="<%= draft.title || '' %>" maxlength="180"></label>
-                        <label>Channel <select name="channel"><% ['bluesky', 'linkedin', 'instagram', 'facebook', 'threads', 'x', 'tiktok', 'youtube', 'email'].forEach((channel) => { %><option value="<%= channel %>" <%= draft.channel === channel ? 'selected' : '' %>><%= channel %></option><% }) %></select></label>
+                        <label>Channel <select name="channel" data-draft-channel><% ['bluesky', 'linkedin', 'instagram', 'facebook', 'threads', 'x', 'tiktok', 'youtube', 'email'].forEach((channel) => { %><option value="<%= channel %>" <%= draft.channel === channel ? 'selected' : '' %>><%= channel %></option><% }) %></select></label>
                         <label>Publish target
                           <select name="socialAccountId">
                             <option value="">Auto-select connected account</option>
@@ -396,7 +396,7 @@
                           </select>
                         </label>
                         <label>Schedule <input type="datetime-local" name="scheduledFor" value="<%= new Date(draft.scheduledFor.getTime() - draft.scheduledFor.getTimezoneOffset() * 60000).toISOString().slice(0, 16) %>" required></label>
-                        <label>Post copy <textarea name="body" rows="8" maxlength="4000" required><%= draft.body %></textarea></label>
+                        <label>Post copy <textarea name="body" rows="8" maxlength="4000" required data-draft-copy><%= draft.body %></textarea><small class="draft-copy-limit" data-draft-copy-limit></small></label>
                         <button class="button button-primary" type="submit">Save Post</button>
                       </form>
                     </details>
@@ -484,6 +484,23 @@
 </div>
 
 <script>
+  document.querySelectorAll('.agenda-edit form').forEach((form) => {
+    const channel = form.querySelector('[data-draft-channel]');
+    const copy = form.querySelector('[data-draft-copy]');
+    const limit = form.querySelector('[data-draft-copy-limit]');
+    if (!channel || !copy || !limit) return;
+    const syncCopyLimit = () => {
+      const isX = channel.value === 'x';
+      const length = [...copy.value].length;
+      limit.hidden = !isX;
+      limit.textContent = isX ? `${length}/280 X character guide` : '';
+      limit.classList.toggle('is-over-limit', isX && length > 280);
+    };
+    channel.addEventListener('change', syncCopyLimit);
+    copy.addEventListener('input', syncCopyLimit);
+    syncCopyLimit();
+  });
+
   document.querySelectorAll('.copy-button').forEach((button) => {
     button.addEventListener('click', async () => {
       const target = document.getElementById(button.dataset.copyTarget);

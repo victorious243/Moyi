@@ -3838,6 +3838,19 @@ blockquote {
   display: none;
 }
 
+.draft-copy-limit {
+  color: var(--muted);
+  display: block;
+  font-size: 0.75rem;
+  margin-top: 6px;
+  text-align: right;
+}
+
+.draft-copy-limit.is-over-limit {
+  color: var(--danger);
+  font-weight: 700;
+}
+
 .campaign-register {
   border-top: 1px solid var(--line);
   display: grid;
@@ -10067,5 +10080,4 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 }
-
 

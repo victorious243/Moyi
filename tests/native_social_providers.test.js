@@ -158,6 +158,13 @@ test('X image publishing requires the media.write OAuth scope', async () => {
   );
 });
 
+test('X adapter rejects copy above the standard-account weighted limit before dispatch', async () => {
+  await assert.rejects(
+    () => publishWithProvider('x', credentials('x'), { text: 'x'.repeat(281), mediaItems: [] }),
+    /must be 280 weighted characters or fewer.*281/
+  );
+});
+
 test('X text publishing requires the tweet.write OAuth scope', async () => {
   const account = {
     ...credentials('x'),

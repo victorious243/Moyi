@@ -36,6 +36,7 @@ const { queueContentImageGeneration } = require('../services/projectTaskService'
 const { ensureImageGenerationAllowed } = require('../services/usageService');
 const { getTikTokCreatorInfo } = require('../services/socialProviderService');
 const { ensureFreshSocialAccountCredentials } = require('../services/socialTokenRefreshService');
+const { assertStandardXPost } = require('../services/xTextService');
 
 const router = express.Router();
 dayjs.extend(utc);
@@ -788,7 +789,11 @@ router.post(
       projectId: req.project._id
     });
     if (!job) throw new AppError('Publish job not found.', 404);
-    await retryPublishJob(job._id);
+    try {
+      await retryPublishJob(job._id);
+    } catch (error) {
+      return res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { error: error.message }));
+    }
     res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { success: `Retry queued for ${job.platform}.` }));
   })
 );
@@ -802,6 +807,13 @@ router.post('/:id/update', [
   body('socialAccountId').optional({ checkFalsy: true }).isMongoId().withMessage('Choose a valid social account.'),
   handleValidation
 ], loadSocialDraft, requireDraftManager, requireDraftNotPublishing, asyncHandler(async (req, res) => {
+  if (req.body.channel === 'x') {
+    try {
+      assertStandardXPost(req.body.body);
+    } catch (error) {
+      return res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { error: error.message }));
+    }
+  }
   req.socialDraft.title = req.body.title;
   req.socialDraft.body = req.body.body;
   req.socialDraft.channel = req.body.channel;

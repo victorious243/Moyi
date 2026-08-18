@@ -1,5 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const express = require('express');
 const { createRuntimeHealthService } = require('../services/runtimeHealthService');
 const { buildHealthRouter } = require('../routes/health');
@@ -40,6 +42,16 @@ function findRoute(router, method, path) {
   assert.ok(layer, `Route ${method.toUpperCase()} ${path} should exist.`);
   return layer.route.stack.map((item) => item.handle);
 }
+
+test('production deployment cannot silently reuse stale distribution adapters', () => {
+  const deployScript = fs.readFileSync(path.join(__dirname, '../scripts/deploy-production.sh'), 'utf8');
+  const buildScript = fs.readFileSync(path.join(__dirname, '../scripts/build-distribution.js'), 'utf8');
+
+  assert.match(deployScript, /npm ci --include=dev/);
+  assert.match(deployScript, /REQUIRE_DISTRIBUTION_BUILD=true npm run build:distribution/);
+  assert.match(buildScript, /REQUIRE_DISTRIBUTION_BUILD === 'true'/);
+  assert.match(buildScript, /process\.exit\(1\)/);
+});
 
 async function runRoute(router, { method, path }) {
   const handlers = findRoute(router, method, path);
