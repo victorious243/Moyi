@@ -183,6 +183,42 @@ test('Meta webhook verification only echoes challenges for matching tokens', () 
   );
 });
 
+test('TikTok webhook verification and deauthorization handlers respond correctly', () => {
+  const {
+    handleTikTokWebhookGet,
+    handleTikTokWebhookPost,
+    handleTikTokDeauthPost
+  } = require('../routes/socialOAuthPublic');
+
+  // Test GET verification challenge
+  let resStatus = 0;
+  let resBody = null;
+  const mockResGet = {
+    status(code) { resStatus = code; return this; },
+    type() { return this; },
+    send(val) { resBody = val; return this; },
+    json(val) { resBody = val; return this; }
+  };
+  handleTikTokWebhookGet({ query: { challenge: 'tiktok-challenge-xyz' } }, mockResGet);
+  assert.equal(resStatus, 200);
+  assert.equal(resBody, 'tiktok-challenge-xyz');
+
+  // Test POST verification challenge in body
+  handleTikTokWebhookPost({ body: { event: 'verify_webhook', challenge: 'tiktok-post-challenge' } }, mockResGet);
+  assert.equal(resStatus, 200);
+  assert.deepEqual(resBody, { challenge: 'tiktok-post-challenge', code: 0, message: 'success' });
+
+  // Test POST event notification
+  handleTikTokWebhookPost({ body: { event: 'video.publish.completed', data: { publish_id: 'v123' } } }, mockResGet);
+  assert.equal(resStatus, 200);
+  assert.deepEqual(resBody, { code: 0, message: 'success', received: true });
+
+  // Test POST deauth callback
+  handleTikTokDeauthPost({ body: { open_id: 'user-tiktok-open-id' } }, mockResGet);
+  assert.equal(resStatus, 200);
+  assert.deepEqual(resBody, { code: 0, success: true, message: 'Deauthorization processed successfully' });
+});
+
 test('AI CMO Plan Fallback: generates report and recommendations when OpenAI key is missing', async () => {
   const project = {
     _id: '60c72b2f9b1d8b2e5c8b4567',

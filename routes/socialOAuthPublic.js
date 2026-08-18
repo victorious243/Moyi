@@ -8,6 +8,7 @@ const {
   getBlueskyClientMetadata,
   getBlueskyJwks
 } = require('../services/socialProviderService');
+const { recordAppLog } = require('../services/appLogger');
 
 const router = express.Router();
 
@@ -42,6 +43,60 @@ router.get('/webhooks/meta', (req, res) => {
 router.post('/webhooks/meta', express.json({ type: '*/*' }), (req, res) => {
   res.status(200).json({ received: true });
 });
+
+function handleTikTokWebhookGet(req, res) {
+  const challenge = req.query.challenge || req.query['hub.challenge'] || req.query.tiktok_challenge;
+  if (challenge) {
+    return res.status(200).type('text/plain').send(String(challenge));
+  }
+  return res.status(200).json({ ok: true, service: 'moyi-tiktok-webhook' });
+}
+
+function handleTikTokWebhookPost(req, res) {
+  const body = req.body || {};
+  if (body.challenge || (body.event === 'verify_webhook' && body.challenge)) {
+    return res.status(200).json({
+      challenge: body.challenge,
+      code: 0,
+      message: 'success'
+    });
+  }
+  recordAppLog({
+    level: 'info',
+    message: `[TikTokWebhook] Received event: ${body.event || 'notification'}`,
+    metadata: body
+  }).catch(() => null);
+
+  return res.status(200).json({
+    code: 0,
+    message: 'success',
+    received: true
+  });
+}
+
+function handleTikTokDeauthPost(req, res) {
+  const body = req.body || {};
+  recordAppLog({
+    level: 'info',
+    message: '[TikTokDeauth] User deauthorization received',
+    metadata: body
+  }).catch(() => null);
+
+  return res.status(200).json({
+    code: 0,
+    success: true,
+    message: 'Deauthorization processed successfully'
+  });
+}
+
+router.get('/webhooks/tiktok', handleTikTokWebhookGet);
+router.get('/api/webhooks/tiktok', handleTikTokWebhookGet);
+router.post('/webhooks/tiktok', express.json({ type: '*/*' }), handleTikTokWebhookPost);
+router.post('/api/webhooks/tiktok', express.json({ type: '*/*' }), handleTikTokWebhookPost);
+
+router.post('/api/webhooks/tiktok/deauth', express.json({ type: '*/*' }), handleTikTokDeauthPost);
+router.post('/webhooks/tiktok/deauth', express.json({ type: '*/*' }), handleTikTokDeauthPost);
+router.post('/auth/tiktok/deauth', express.json({ type: '*/*' }), handleTikTokDeauthPost);
 
 router.get('/social-media/public/:assetId/:variantKey', asyncHandler(async (req, res, next) => {
   const { assetId, variantKey } = req.params;
@@ -92,3 +147,6 @@ router.get('/social-media/public/:assetId/:variantKey', asyncHandler(async (req,
 
 module.exports = router;
 module.exports.verifyMetaWebhookRequest = verifyMetaWebhookRequest;
+module.exports.handleTikTokWebhookGet = handleTikTokWebhookGet;
+module.exports.handleTikTokWebhookPost = handleTikTokWebhookPost;
+module.exports.handleTikTokDeauthPost = handleTikTokDeauthPost;
