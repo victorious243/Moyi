@@ -16,7 +16,10 @@ const {
   connectSocialWebhook,
   disconnectSocialAccount,
   getDecryptedSocialAccountCredentials,
-  listProjectSocialAccounts
+  listProjectSocialAccounts,
+  setSocialAccountVisibility,
+  socialAccountAccessFilter,
+  socialAccountConnectionFilter
 } = require('../services/socialAccountService');
 
 const {
@@ -193,9 +196,40 @@ test('SocialAccount model validation and schema defaults', () => {
   assert.equal(account.validateSync(), undefined);
   assert.equal(account.platform, 'linkedin');
   assert.equal(account.status, 'connected');
+  assert.equal(account.visibility, 'private');
 
   account.platform = 'invalid_platform';
   assert.ok(account.validateSync().errors.platform);
+});
+
+test('socialAccountService: account access is private unless explicitly project-shared', () => {
+  const userId = new mongoose.Types.ObjectId();
+  assert.deepEqual(socialAccountAccessFilter(userId), {
+    $or: [
+      { userId },
+      { visibility: 'project' }
+    ]
+  });
+  assert.throws(() => socialAccountAccessFilter(), /user is required/i);
+});
+
+test('socialAccountService: X connection identity is scoped to one user and project', () => {
+  const projectId = new mongoose.Types.ObjectId();
+  const userId = new mongoose.Types.ObjectId();
+  assert.deepEqual(socialAccountConnectionFilter({
+    projectId,
+    userId,
+    platform: 'x',
+    externalAccountId: 'a-different-x-user',
+    accountName: '@different'
+  }), { projectId, userId, platform: 'x' });
+  assert.deepEqual(socialAccountConnectionFilter({
+    projectId,
+    userId,
+    platform: 'linkedin',
+    externalAccountId: 'urn:li:person:123',
+    accountName: 'Member'
+  }), { projectId, userId, platform: 'linkedin', externalAccountId: 'urn:li:person:123' });
 });
 
 test('SocialDraft multi-platform publishing schema fields', () => {
@@ -333,14 +367,69 @@ test('socialAccountService: connects and encrypts webhook and API account creden
   assert.equal(decryptedApi.accessToken, 'linkedin-oauth-access-token-xyz');
 
   // List accounts
-  const accounts = await listProjectSocialAccounts(projectId);
+  const accounts = await listProjectSocialAccounts(projectId, { userId });
   assert.equal(accounts.length, 2);
 
   // Disconnect
-  await disconnectSocialAccount({ projectId, accountId: apiAcc._id });
+  await disconnectSocialAccount({ projectId, accountId: apiAcc._id, userId });
   const disconnected = await SocialAccount.findById(apiAcc._id).select('+accessToken');
   assert.equal(disconnected.status, 'disconnected');
   assert.equal(disconnected.accessToken, '');
+
+  await SocialAccount.deleteMany({ projectId });
+});
+
+test('socialAccountService: isolates users and keeps one active X connection per user and project', async () => {
+  if (mongoose.connection.readyState !== 1) return;
+
+  const projectId = new mongoose.Types.ObjectId();
+  const ownerId = new mongoose.Types.ObjectId();
+  const otherUserId = new mongoose.Types.ObjectId();
+
+  const firstOwnerAccount = await connectSocialApiAccount({
+    projectId,
+    userId: ownerId,
+    platform: 'x',
+    accountName: '@owner_one',
+    externalAccountId: 'owner-one',
+    accessToken: 'owner-token-one'
+  });
+  const replacementOwnerAccount = await connectSocialApiAccount({
+    projectId,
+    userId: ownerId,
+    platform: 'x',
+    accountName: '@owner_two',
+    externalAccountId: 'owner-two',
+    accessToken: 'owner-token-two'
+  });
+  const otherAccount = await connectSocialApiAccount({
+    projectId,
+    userId: otherUserId,
+    platform: 'x',
+    accountName: '@other_user',
+    externalAccountId: 'other-user',
+    accessToken: 'other-token'
+  });
+
+  assert.equal(String(firstOwnerAccount._id), String(replacementOwnerAccount._id));
+  const ownerAccounts = await listProjectSocialAccounts(projectId, { userId: ownerId });
+  assert.deepEqual(ownerAccounts.map((account) => account.accountName), ['@owner_two']);
+  const otherAccounts = await listProjectSocialAccounts(projectId, { userId: otherUserId });
+  assert.deepEqual(otherAccounts.map((account) => account.accountName), ['@other_user']);
+
+  await assert.rejects(
+    disconnectSocialAccount({ projectId, accountId: otherAccount._id, userId: ownerId }),
+    /not found/i
+  );
+
+  await setSocialAccountVisibility({
+    projectId,
+    accountId: otherAccount._id,
+    userId: otherUserId,
+    visibility: 'project'
+  });
+  const accountsAfterShare = await listProjectSocialAccounts(projectId, { userId: ownerId });
+  assert.deepEqual(accountsAfterShare.map((account) => account.accountName).sort(), ['@other_user', '@owner_two']);
 
   await SocialAccount.deleteMany({ projectId });
 });
@@ -484,7 +573,7 @@ test('socialPublisherService: selects Instagram account before fallback targets'
     accessToken: 'sandbox_meta_access_token'
   });
 
-  const selected = await selectConnectedSocialAccount({ draft });
+  const selected = await selectConnectedSocialAccount({ draft, userId });
   assert.equal(String(selected._id), String(instagramAccount._id));
   assert.equal(selected.platform, 'instagram');
 

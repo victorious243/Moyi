@@ -11,7 +11,8 @@ const PublishJobEvent = require('../models/PublishJobEvent');
 const SocialAccount = require('../models/SocialAccount');
 const SocialDraft = require('../models/SocialDraft');
 const {
-  NATIVE_SOCIAL_PLATFORMS
+  NATIVE_SOCIAL_PLATFORMS,
+  socialAccountAccessFilter
 } = require('./socialAccountService');
 const { downloadBuffer: downloadContentImageBuffer } = require('./contentImageStorageService');
 const { downloadMediaBuffer, downloadMediaToFile } = require('./mediaStorageService');
@@ -96,7 +97,7 @@ function normalizedSchedule(value) {
   return date;
 }
 
-async function accountsForDraft({ draft, accountIds = [], allowedProjectIds = [] }) {
+async function accountsForDraft({ draft, userId, accountIds = [], allowedProjectIds = [] }) {
   const requestedIds = [...new Set((accountIds.length
     ? accountIds
     : draft.socialAccountId
@@ -108,7 +109,8 @@ async function accountsForDraft({ draft, accountIds = [], allowedProjectIds = []
       _id: { $in: requestedIds },
       projectId: { $in: allowedProjectIds.length ? allowedProjectIds : [draft.projectId] },
       status: 'connected',
-      platform: { $in: NATIVE_SOCIAL_PLATFORMS }
+      platform: { $in: NATIVE_SOCIAL_PLATFORMS },
+      ...socialAccountAccessFilter(userId)
     });
     const byId = new Map(accounts.map((account) => [String(account._id), account]));
     return requestedIds.map((id) => byId.get(id)).filter(Boolean);
@@ -118,7 +120,8 @@ async function accountsForDraft({ draft, accountIds = [], allowedProjectIds = []
   const account = await SocialAccount.findOne({
     projectId: { $in: allowedProjectIds.length ? allowedProjectIds : [draft.projectId] },
     platform: draft.channel,
-    status: 'connected'
+    status: 'connected',
+    ...socialAccountAccessFilter(userId)
   }).sort({ updatedAt: -1 });
   return account ? [account] : [];
 }
@@ -224,6 +227,7 @@ async function createPublishBatch({
   for (const draft of drafts) {
     const accounts = await accountsForDraft({
       draft,
+      userId,
       accountIds,
       allowedProjectIds: allowedDestinationProjectIds
     });
@@ -625,7 +629,11 @@ async function executePublishJob({ jobId }) {
     await recordPublishJobEvent(job, 'attempt_started', { fromStatus: existing.status, toStatus: 'publishing' });
     const [draft, account] = await Promise.all([
       SocialDraft.findOne({ _id: job.draftId, projectId: job.projectId }),
-      SocialAccount.findOne({ _id: job.accountId, projectId: job.destinationProjectId || job.projectId })
+      SocialAccount.findOne({
+        _id: job.accountId,
+        projectId: job.destinationProjectId || job.projectId,
+        ...socialAccountAccessFilter(job.userId)
+      })
     ]);
     if (!draft || draft.status !== 'approved') {
       const error = new Error('Human approval gate: this draft must remain approved before publishing.');
@@ -734,7 +742,8 @@ async function executeProviderStatusCheck({ jobId }) {
   }
   const account = await SocialAccount.findOne({
     _id: job.accountId,
-    projectId: job.destinationProjectId || job.projectId
+    projectId: job.destinationProjectId || job.projectId,
+    ...socialAccountAccessFilter(job.userId)
   });
   if (!account || account.status !== 'connected') {
     const error = new Error('Reconnect the social account so Moyi can finish checking the submitted post.');

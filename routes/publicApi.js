@@ -5,6 +5,7 @@ const Project = require('../models/Project');
 const PublishBatch = require('../models/PublishBatch');
 const PublishJob = require('../models/PublishJob');
 const SocialAccount = require('../models/SocialAccount');
+const { socialAccountAccessFilter } = require('../services/socialAccountService');
 const SocialDraft = require('../models/SocialDraft');
 const createRateLimit = require('../middleware/rateLimit');
 const { requireApiCredential, requireApiScope } = require('../services/apiCredentialService');
@@ -237,7 +238,10 @@ router.get('/accounts', requireApiScope('accounts:read'), asyncHandler(async (re
   const requestedProjectId = req.query.projectId ? objectId(req.query.projectId, 'Project ID') : '';
   const projectIds = requestedProjectId ? [requestedProjectId] : req.apiCredential.projectIds;
   await Promise.all(projectIds.map((projectId) => authorizedProject(req, projectId)));
-  const accounts = await SocialAccount.find({ projectId: { $in: projectIds } })
+  const accounts = await SocialAccount.find({
+    projectId: { $in: projectIds },
+    ...socialAccountAccessFilter(req.apiCredential.userId)
+  })
     .select('projectId platform accountName externalAccountId status statusMessage metricsStatus lastMetricsSyncAt')
     .sort({ projectId: 1, platform: 1, accountName: 1 })
     .lean();
@@ -259,7 +263,8 @@ router.post('/publish-jobs', requireApiScope('publish:write'), asyncHandler(asyn
   const selectedAccounts = await SocialAccount.find({
     _id: { $in: accountIds },
     projectId: { $in: allowedDestinationProjectIds },
-    status: 'connected'
+    status: 'connected',
+    ...socialAccountAccessFilter(req.apiCredential.userId)
   }).select('_id projectId');
   if (selectedAccounts.length !== accountIds.length) {
     throw new AppError('One or more accounts are disconnected or outside this API key scope.', 422);

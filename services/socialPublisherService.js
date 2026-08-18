@@ -4,7 +4,7 @@ const SocialDraft = require('../models/SocialDraft');
 const SocialAccount = require('../models/SocialAccount');
 const PublishAction = require('../models/PublishAction');
 const ContentImage = require('../models/ContentImage');
-const { getDecryptedSocialAccountCredentials } = require('./socialAccountService');
+const { getDecryptedSocialAccountCredentials, socialAccountAccessFilter } = require('./socialAccountService');
 const { ensureFreshSocialAccountCredentials } = require('./socialTokenRefreshService');
 const { recordAppLog } = require('./appLogger');
 const { publishFacebookPagePost, publishInstagramBusinessPost } = require('./metaMcpService');
@@ -316,12 +316,13 @@ function buildPublishReadiness({ socialDrafts = [], connectedAccounts = [], imag
   };
 }
 
-async function selectConnectedSocialAccount({ draft, socialAccountId = null }) {
+async function selectConnectedSocialAccount({ draft, userId, socialAccountId = null }) {
   if (socialAccountId) {
     return SocialAccount.findOne({
       _id: socialAccountId,
       projectId: draft.projectId,
-      status: 'connected'
+      status: 'connected',
+      ...socialAccountAccessFilter(userId)
     });
   }
 
@@ -329,7 +330,8 @@ async function selectConnectedSocialAccount({ draft, socialAccountId = null }) {
   const accounts = await SocialAccount.find({
     projectId: draft.projectId,
     platform: { $in: platforms },
-    status: 'connected'
+    status: 'connected',
+    ...socialAccountAccessFilter(userId)
   }).sort({ updatedAt: -1 });
 
   return accounts.sort((a, b) => platforms.indexOf(a.platform) - platforms.indexOf(b.platform))[0] || null;
@@ -352,6 +354,7 @@ async function publishSocialDraft({ socialDraftId, userId, socialAccountId = nul
   // 2. Find target SocialAccount
   const account = await selectConnectedSocialAccount({
     draft,
+    userId,
     socialAccountId: socialAccountId || draft.socialAccountId
   });
 

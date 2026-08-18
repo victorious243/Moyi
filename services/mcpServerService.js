@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Project = require('../models/Project');
 const SocialAccount = require('../models/SocialAccount');
 const SocialDraft = require('../models/SocialDraft');
+const { socialAccountAccessFilter } = require('./socialAccountService');
 const { createBlotatoCampaign, publishBlotatoCampaign } = require('./blotatoEngineService');
 const { canManageProjectRole, projectAccessRole } = require('./projectAccessService');
 
@@ -91,7 +92,10 @@ async function handleMcpToolCall({ toolName, params, userId }) {
   switch (toolName) {
     case 'blotato_connect_status': {
       await authorizedProject(projectId, userId);
-      const accounts = await SocialAccount.find({ projectId });
+      const accounts = await SocialAccount.find({
+        projectId,
+        ...socialAccountAccessFilter(userId)
+      });
       return {
         success: true,
         connectedCount: accounts.length,

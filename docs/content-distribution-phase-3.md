@@ -114,6 +114,8 @@ When the source draft belongs to an agency, its destination accounts are restric
 
 A direct project owner or project admin who is not an agency member can continue publishing that one project, but cannot use that project as a path into the agency's other clients.
 
+Social account credentials are private to the Moyi user who completed OAuth. Another project member cannot see, select, disconnect, export, or publish through that connection. Inside an agency workspace, the connector can explicitly choose **Share with agency** on the Social Accounts page; shared accounts become available to members whose role permits publishing. X keeps one active connection per Moyi user and project, so reconnecting with a different X profile replaces that user's previous X connection without affecting another member's connection.
+
 ## Analytics And Growth Brain
 
 Open `/projects/PROJECT_ID/social-performance` for 7, 30, or 90-day performance. The view shows:

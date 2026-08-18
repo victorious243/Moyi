@@ -36,6 +36,7 @@ const { queueContentImageGeneration } = require('../services/projectTaskService'
 const { ensureImageGenerationAllowed } = require('../services/usageService');
 const { getTikTokCreatorInfo } = require('../services/socialProviderService');
 const { ensureFreshSocialAccountCredentials } = require('../services/socialTokenRefreshService');
+const { socialAccountAccessFilter } = require('../services/socialAccountService');
 const { assertStandardXPost } = require('../services/xTextService');
 
 const router = express.Router();
@@ -768,7 +769,8 @@ router.get(
       _id: accountId,
       projectId: { $in: destinationProjectIds },
       platform: 'tiktok',
-      status: 'connected'
+      status: 'connected',
+      ...socialAccountAccessFilter(req.user._id)
     });
     if (!account) return next(new AppError('Connected TikTok account not found.', 404));
     const credentials = await ensureFreshSocialAccountCredentials(account);

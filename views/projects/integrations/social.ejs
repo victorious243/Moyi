@@ -51,6 +51,7 @@
   const nativeProviderKeys = providerCards.map((provider) => provider.key);
   const readyNativeProviders = nativeProviderKeys.filter((key) => readiness.providers && readiness.providers[key] && readiness.providers[key].ready);
   const connectedByPlatform = (platforms) => accounts.filter((account) => platforms.includes(account.platform) && account.status === 'connected');
+  const ownedConnectedByPlatform = (platforms) => connectedByPlatform(platforms).filter((account) => account.isOwnedByCurrentUser);
   const reconnectHref = (account) => {
     const key = ['facebook', 'instagram'].includes(account.platform) ? 'meta' : account.platform;
     return `/integrations/social/${key}/connect?projectId=${project._id}`;
@@ -110,6 +111,9 @@
             const platformAccounts = provider.key === 'meta'
               ? connectedByPlatform(['facebook', 'instagram'])
               : connectedByPlatform([provider.key]);
+            const ownedPlatformAccounts = provider.key === 'meta'
+              ? ownedConnectedByPlatform(['facebook', 'instagram'])
+              : ownedConnectedByPlatform([provider.key]);
           %>
           <article class="social-connect-card">
             <div>
@@ -120,7 +124,10 @@
             <% if (platformAccounts.length) { %>
               <ul class="clean-list compact-list">
                 <% platformAccounts.forEach((account) => { %>
-                  <li><strong><%= account.accountName %></strong> <span><%= account.platform %></span></li>
+                  <li>
+                    <strong><%= account.accountName %></strong>
+                    <span><%= account.platform %><%= account.visibility === 'project' && !account.isOwnedByCurrentUser ? ' · shared' : '' %></span>
+                  </li>
                 <% }) %>
               </ul>
             <% } %>
@@ -135,10 +142,10 @@
               <form class="form social-handle-connect" action="/integrations/social/bluesky/connect" method="get">
                 <input type="hidden" name="projectId" value="<%= project._id %>">
                 <label>Bluesky handle <input name="handle" placeholder="name.bsky.social" autocomplete="username" required></label>
-                <button class="button button-primary" type="submit"><%= platformAccounts.length ? 'Reconnect' : 'Connect Bluesky' %></button>
+                <button class="button button-primary" type="submit"><%= ownedPlatformAccounts.length ? 'Reconnect' : 'Connect Bluesky' %></button>
               </form>
             <% } else { %>
-              <a class="button button-primary" href="<%= provider.href %>"><%= platformAccounts.length ? 'Reconnect' : `Connect ${provider.label}` %></a>
+              <a class="button button-primary" href="<%= provider.href %>"><%= ownedPlatformAccounts.length ? 'Reconnect' : `Connect ${provider.label}` %></a>
             <% } %>
           </article>
         <% }) %>
@@ -163,6 +170,7 @@
                 <th>Platform</th>
                 <th>Account</th>
                 <th>Status</th>
+                <th>Access</th>
                 <th>Token renewal</th>
                 <th></th>
               </tr>
@@ -176,10 +184,19 @@
                     <span class="status <%= account.status === 'connected' ? 'status-success' : 'publish-status-failed' %>"><%= account.status %></span>
                     <% if (account.statusMessage && account.status !== 'connected') { %><small class="connection-status-message"><%= account.statusMessage %></small><% } %>
                   </td>
+                  <td data-label="Access">
+                    <span class="status"><%= account.visibility === 'project' ? 'Agency shared' : 'Private' %></span>
+                  </td>
                   <td data-label="Token renewal"><%= account.tokenExpiresAt ? account.tokenExpiresAt.toLocaleString() : (account.platform === 'bluesky' ? 'Managed session' : 'No expiry reported') %></td>
                   <td data-label="Actions">
-                    <% if (userCanManageProject && account.status === 'reconnect_required') { %><a class="button button-primary button-small" href="<%= reconnectHref(account) %>">Reconnect</a><% } %>
-                    <% if (userCanManageProject && account.status !== 'disconnected') { %>
+                    <% if (userCanManageProject && account.isOwnedByCurrentUser && account.status === 'reconnect_required') { %><a class="button button-primary button-small" href="<%= reconnectHref(account) %>">Reconnect</a><% } %>
+                    <% if (userCanManageProject && account.isOwnedByCurrentUser && project.organizationId) { %>
+                      <form action="/projects/<%= project._id %>/integrations/social/<%= account.id %>/visibility" method="post">
+                        <input type="hidden" name="visibility" value="<%= account.visibility === 'project' ? 'private' : 'project' %>">
+                        <button class="button button-small" type="submit"><%= account.visibility === 'project' ? 'Make private' : 'Share with agency' %></button>
+                      </form>
+                    <% } %>
+                    <% if (userCanManageProject && account.isOwnedByCurrentUser && account.status !== 'disconnected') { %>
                       <form action="/projects/<%= project._id %>/integrations/social/<%= account.id %>/disconnect" method="post">
                         <button class="button button-small" type="submit">Disconnect</button>
                       </form>

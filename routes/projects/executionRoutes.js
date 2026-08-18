@@ -2,6 +2,7 @@ const asyncHandler = require('express-async-handler');
 const { body, param } = require('express-validator');
 const { buildPublishReadiness } = require('../../services/socialPublisherService');
 const { publishableProjectIds } = require('../../services/projectAccessService');
+const { socialAccountAccessFilter } = require('../../services/socialAccountService');
 
 function registerExecutionRoutes(router, context, services = {}) {
   const {
@@ -137,7 +138,11 @@ function registerExecutionRoutes(router, context, services = {}) {
     const [campaigns, socialDrafts, socialAccounts, destinationProjects, imageJob] = await Promise.all([
       context.Campaign.find({ projectId: req.project._id }).sort({ startDate: 1 }),
       context.SocialDraft.find({ projectId: req.project._id }).sort({ scheduledFor: 1 }).populate('campaignId'),
-      context.SocialAccount.find({ projectId: { $in: destinationProjectIds }, status: 'connected' })
+      context.SocialAccount.find({
+        projectId: { $in: destinationProjectIds },
+        status: 'connected',
+        ...socialAccountAccessFilter(req.user._id)
+      })
         .select('-accessToken -refreshToken -webhookSecret')
         .sort({ platform: 1, updatedAt: -1 }),
       context.Project.find({ _id: { $in: destinationProjectIds } }).select('name').lean(),

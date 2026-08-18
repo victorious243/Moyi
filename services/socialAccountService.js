@@ -7,6 +7,48 @@ const NATIVE_SOCIAL_PLATFORMS = ['bluesky', 'x', 'linkedin', 'facebook', 'instag
 const DIRECT_API_PLATFORMS = [...NATIVE_SOCIAL_PLATFORMS];
 const CONNECTABLE_PLATFORMS = [...new Set([...NATIVE_SOCIAL_PLATFORMS, ...DIRECT_API_PLATFORMS, 'webhook'])];
 
+function socialAccountAccessFilter(userId) {
+  if (!userId) {
+    const error = new Error('A user is required to access social accounts.');
+    error.statusCode = 400;
+    throw error;
+  }
+  return {
+    $or: [
+      { userId },
+      { visibility: 'project' }
+    ]
+  };
+}
+
+function socialAccountConnectionFilter({ projectId, userId, platform, externalAccountId = '', accountName = '' }) {
+  const ownership = { projectId, userId, platform };
+  if (platform === 'x') return ownership;
+  return {
+    ...ownership,
+    ...(externalAccountId ? { externalAccountId } : { accountName })
+  };
+}
+
+async function disconnectSupersededXAccounts({ projectId, userId, accountId }) {
+  return SocialAccount.updateMany({
+    _id: { $ne: accountId },
+    projectId,
+    userId,
+    platform: 'x',
+    status: { $ne: 'disconnected' }
+  }, {
+    $set: {
+      status: 'disconnected',
+      statusMessage: 'Replaced by a newer X connection.',
+      accessToken: '',
+      refreshToken: '',
+      reconnectRequiredAt: null,
+      lastSyncAt: new Date()
+    }
+  });
+}
+
 function publicMetadata(metadata = {}) {
   return ['accountType', 'handle', 'username', 'memberUrn', 'organizationUrn', 'pageId', 'pageName', 'channelTitle']
     .reduce((safe, key) => {
@@ -35,8 +77,12 @@ async function resumeAccountMetrics(accountId) {
   );
 }
 
-async function listProjectSocialAccounts(projectId) {
-  const accounts = await SocialAccount.find({ projectId })
+async function listProjectSocialAccounts(projectId, { userId } = {}) {
+  const accounts = await SocialAccount.find({
+    projectId,
+    status: { $ne: 'disconnected' },
+    ...socialAccountAccessFilter(userId)
+  })
     .select('+accessToken +refreshToken +webhookSecret')
     .sort({ platform: 1, createdAt: -1 });
   return accounts.map((acc) => ({
@@ -55,6 +101,8 @@ async function listProjectSocialAccounts(projectId) {
     metadata: publicMetadata(acc.metadata),
     status: acc.status,
     statusMessage: acc.statusMessage,
+    visibility: acc.visibility || 'private',
+    isOwnedByCurrentUser: String(acc.userId) === String(userId),
     lastSyncAt: acc.lastSyncAt,
     reconnectRequiredAt: acc.reconnectRequiredAt,
     metricsStatus: acc.metricsStatus,
@@ -73,6 +121,7 @@ async function connectSocialWebhook({ projectId, userId, platform, accountName, 
 
   const existing = await SocialAccount.findOne({
     projectId,
+    userId,
     platform: platform || 'webhook',
     webhookUrl
   }).select('+webhookSecret');
@@ -84,6 +133,7 @@ async function connectSocialWebhook({ projectId, userId, platform, accountName, 
     accountName: accountName || 'Custom Outgoing Webhook',
     webhookUrl,
     webhookSecret: webhookSecret ? encrypt(webhookSecret) : '',
+    visibility: existing && existing.visibility ? existing.visibility : 'private',
     status: 'connected',
     statusMessage: 'Webhook connected successfully.',
     lastSyncAt: new Date()
@@ -129,11 +179,16 @@ async function connectSocialApiAccount({
       ? new Date(Date.now() + expiresInSeconds * 1000)
       : null;
 
-  const existing = await SocialAccount.findOne({
+  const existingQuery = socialAccountConnectionFilter({
     projectId,
+    userId,
     platform,
-    ...(externalAccountId ? { externalAccountId } : { accountName })
-  }).select('+accessToken +refreshToken');
+    externalAccountId,
+    accountName
+  });
+  const existing = await SocialAccount.findOne(existingQuery)
+    .sort({ updatedAt: -1 })
+    .select('+accessToken +refreshToken');
 
   const payload = {
     projectId,
@@ -149,6 +204,7 @@ async function connectSocialApiAccount({
       ...(existing && existing.metadata ? existing.metadata : {}),
       ...(metadata || {})
     },
+    visibility: existing && existing.visibility ? existing.visibility : 'private',
     status: 'connected',
     statusMessage: `Connected to ${platform} successfully.`,
     reconnectRequiredAt: null,
@@ -159,14 +215,18 @@ async function connectSocialApiAccount({
 
   if (existing) {
     Object.assign(existing, payload);
-    return existing.save();
+    const saved = await existing.save();
+    if (platform === 'x') await disconnectSupersededXAccounts({ projectId, userId, accountId: saved._id });
+    return saved;
   }
 
-  return SocialAccount.create(payload);
+  const saved = await SocialAccount.create(payload);
+  if (platform === 'x') await disconnectSupersededXAccounts({ projectId, userId, accountId: saved._id });
+  return saved;
 }
 
-async function disconnectSocialAccount({ projectId, accountId }) {
-  const account = await SocialAccount.findOne({ _id: accountId, projectId })
+async function disconnectSocialAccount({ projectId, accountId, userId }) {
+  const account = await SocialAccount.findOne({ _id: accountId, projectId, userId })
     .select('+accessToken +refreshToken +webhookSecret');
   if (!account) {
     const error = new Error('Social account connection not found.');
@@ -186,6 +246,22 @@ async function disconnectSocialAccount({ projectId, accountId }) {
       key: String(account.metadata.oauthSessionKey)
     });
   }
+  return account.save();
+}
+
+async function setSocialAccountVisibility({ projectId, accountId, userId, visibility }) {
+  if (!['private', 'project'].includes(visibility)) {
+    const error = new Error('Choose private or project visibility.');
+    error.statusCode = 422;
+    throw error;
+  }
+  const account = await SocialAccount.findOne({ _id: accountId, projectId, userId });
+  if (!account) {
+    const error = new Error('Only the person who connected this social account can change its sharing.');
+    error.statusCode = 403;
+    throw error;
+  }
+  account.visibility = visibility;
   return account.save();
 }
 
@@ -313,10 +389,13 @@ module.exports = {
   CONNECTABLE_PLATFORMS,
   DIRECT_API_PLATFORMS,
   NATIVE_SOCIAL_PLATFORMS,
+  socialAccountAccessFilter,
+  socialAccountConnectionFilter,
   listProjectSocialAccounts,
   connectSocialWebhook,
   connectSocialApiAccount,
   disconnectSocialAccount,
+  setSocialAccountVisibility,
   getDecryptedSocialAccountCredentials,
   markSocialAccountError,
   markSocialAccountReconnectRequired,

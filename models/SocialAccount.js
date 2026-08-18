@@ -77,6 +77,12 @@ const socialAccountSchema = new mongoose.Schema(
       type: String,
       default: ''
     },
+    visibility: {
+      type: String,
+      enum: ['private', 'project'],
+      default: 'private',
+      index: true
+    },
     lastSyncAt: {
       type: Date,
       default: Date.now
@@ -106,6 +112,7 @@ const socialAccountSchema = new mongoose.Schema(
 
 socialAccountSchema.index({ projectId: 1, platform: 1 });
 socialAccountSchema.index({ userId: 1, platform: 1 });
+socialAccountSchema.index({ projectId: 1, visibility: 1, status: 1 });
 socialAccountSchema.index({ status: 1, tokenExpiresAt: 1 });
 
 module.exports = mongoose.model('SocialAccount', socialAccountSchema);

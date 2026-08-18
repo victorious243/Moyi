@@ -164,7 +164,7 @@ function createAccountDataService(deps = {}) {
       models.TrackingEvent.find({ projectId: { $in: projectIds } }).limit(5000).lean(),
       models.Campaign.find({ projectId: { $in: projectIds } }).lean(),
       models.SocialDraft.find({ projectId: { $in: projectIds } }).lean(),
-      models.SocialAccount.find({ projectId: { $in: projectIds } }),
+      models.SocialAccount.find({ projectId: { $in: projectIds }, userId }),
       models.AnalyticsSnapshot.find({ project: { $in: projectIds } }).lean(),
       models.ProjectMember.find({ $or: [{ userId }, { projectId: { $in: projectIds } }] }).lean(),
       models.AuditLog.find({ actorUserId: userId }).sort({ createdAt: -1 }).limit(500).lean(),

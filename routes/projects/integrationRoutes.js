@@ -270,11 +270,12 @@ function registerIntegrationRoutes(router, context, services = {}) {
     connectSocialApiAccount,
     connectSocialWebhook,
     disconnectSocialAccount,
-    listProjectSocialAccounts
+    listProjectSocialAccounts,
+    setSocialAccountVisibility
   } = require('../../services/socialAccountService');
 
   router.get('/:id/integrations/social', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
-    const accounts = await listProjectSocialAccounts(req.project._id);
+    const accounts = await listProjectSocialAccounts(req.project._id, { userId: req.user._id });
     const recentActions = await context.PublishAction.find({
       projectId: req.project._id,
       integrationType: { $in: ['bluesky', 'linkedin', 'x', 'facebook', 'instagram', 'threads', 'youtube', 'tiktok', 'ayrshare', 'buffer', 'webhook'] }
@@ -353,9 +354,42 @@ function registerIntegrationRoutes(router, context, services = {}) {
       try {
         await disconnectSocialAccount({
           projectId: req.project._id,
-          accountId: req.params.accountId
+          accountId: req.params.accountId,
+          userId: req.user._id
         });
         res.redirect(`/projects/${req.project._id}/integrations/social?success=${encodeURIComponent('Social account disconnected.')}`);
+      } catch (error) {
+        res.redirect(`/projects/${req.project._id}/integrations/social?error=${encodeURIComponent(error.message)}`);
+      }
+    })
+  );
+
+  router.post(
+    '/:id/integrations/social/:accountId/visibility',
+    [
+      param('id').isMongoId(),
+      param('accountId').isMongoId(),
+      body('visibility').isIn(['private', 'project']).withMessage('Choose private or project visibility.'),
+      context.handleValidation
+    ],
+    context.loadProject,
+    asyncHandler(async (req, res) => {
+      try {
+        if (req.body.visibility === 'project' && !req.project.organizationId) {
+          const error = new Error('Project sharing is available only inside an agency workspace.');
+          error.statusCode = 422;
+          throw error;
+        }
+        await setSocialAccountVisibility({
+          projectId: req.project._id,
+          accountId: req.params.accountId,
+          userId: req.user._id,
+          visibility: req.body.visibility
+        });
+        const message = req.body.visibility === 'project'
+          ? 'Social account shared with this agency workspace.'
+          : 'Social account is private to you.';
+        res.redirect(`/projects/${req.project._id}/integrations/social?success=${encodeURIComponent(message)}`);
       } catch (error) {
         res.redirect(`/projects/${req.project._id}/integrations/social?error=${encodeURIComponent(error.message)}`);
       }
