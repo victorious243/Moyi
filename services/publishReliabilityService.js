@@ -50,6 +50,9 @@ function classifyPublishError(error) {
   const statusCode = Number(error && error.statusCode || 0);
   const code = String(error && (error.code || error.providerCode || error.name) || 'publish_failed').toLowerCase();
   const message = String(error && error.message || '').toLowerCase();
+  if (code === 'x_account_write_restricted') {
+    return { failureKind: 'permission', reconnectRequired: false, retryable: false };
+  }
   const reconnectRequired = AUTH_CODES.has(code) || statusCode === 401 || (
     statusCode === 403 && /(token|oauth|authorization|permission|scope|reconnect|expired)/i.test(message)
   );

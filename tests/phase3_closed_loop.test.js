@@ -115,6 +115,10 @@ test('provider-aware retry policy separates transient, authentication, and perma
   const auth = Object.assign(new Error('OAuth token expired'), { statusCode: 401, code: 'invalid_token' });
   const permanent = Object.assign(new Error('media is invalid'), { statusCode: 422, code: 'media_too_large' });
   const billing = Object.assign(new Error('X request failed: API credits are depleted.'), { statusCode: 429, code: 'x_api_credits_depleted' });
+  const restricted = Object.assign(new Error('X account write access is restricted.'), {
+    statusCode: 403,
+    code: 'x_account_write_restricted'
+  });
   assert.equal(classifyPublishError(transient).retryable, true);
   assert.deepEqual(classifyPublishError(auth), {
     failureKind: 'authentication', reconnectRequired: true, retryable: false
@@ -122,6 +126,9 @@ test('provider-aware retry policy separates transient, authentication, and perma
   assert.equal(classifyPublishError(permanent).failureKind, 'permanent');
   assert.deepEqual(classifyPublishError(billing), {
     failureKind: 'billing', reconnectRequired: false, retryable: false
+  });
+  assert.deepEqual(classifyPublishError(restricted), {
+    failureKind: 'permission', reconnectRequired: false, retryable: false
   });
 
   const decision = retryDecision({ job: { platform: 'tiktok', attempts: 1, maxAttempts: 5 }, error: transient });

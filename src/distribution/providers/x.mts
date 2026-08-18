@@ -131,6 +131,15 @@ export class XProvider implements SocialProvider {
       const id = `x_sandbox_${Date.now()}`;
       return { platformPostId: id, platformUrl: `https://x.com/i/web/status/${id}` };
     }
+    if (!account.scopes.includes('tweet.write')) {
+      const error = new Error('Reconnect X to grant posting permission. The current token was not granted the tweet.write scope.') as Error & {
+        code?: string;
+        statusCode?: number;
+      };
+      error.code = 'reauthorization_required';
+      error.statusCode = 403;
+      throw error;
+    }
     if (media.length && !account.scopes.includes('media.write')) {
       const error = new Error('Reconnect X to allow media uploads. The current token can publish text, but it was not granted the media.write scope.') as Error & {
         code?: string;

@@ -158,6 +158,42 @@ test('X image publishing requires the media.write OAuth scope', async () => {
   );
 });
 
+test('X text publishing requires the tweet.write OAuth scope', async () => {
+  const account = {
+    ...credentials('x'),
+    accessToken: 'live_x_token_without_write_scope',
+    scopes: ['tweet.read', 'users.read', 'offline.access'],
+    metadata: {}
+  };
+
+  await assert.rejects(
+    () => publishWithProvider('x', account, { text: 'Approved post', mediaItems: [] }),
+    /Reconnect X to grant posting permission/
+  );
+});
+
+test('X account write restrictions return actionable verification guidance', async () => {
+  const { providerError } = await import('../dist/distribution/provider-error.mjs');
+  const error = {
+    isAxiosError: true,
+    message: 'Request failed with status code 403',
+    response: {
+      status: 403,
+      data: {
+        title: 'Forbidden',
+        detail: 'You are not permitted to perform this action.'
+      }
+    }
+  };
+
+  const mapped = providerError('X', error);
+
+  assert.equal(mapped.code, 'x_account_write_restricted');
+  assert.equal(mapped.statusCode, 403);
+  assert.equal(mapped.retryable, false);
+  assert.match(mapped.message, /complete any email, phone, CAPTCHA/);
+});
+
 test('Bluesky publishes standards-compliant client metadata without secrets', async () => {
   const metadata = await getBlueskyClientMetadata();
   assert.equal(metadata.dpop_bound_access_tokens, true);
