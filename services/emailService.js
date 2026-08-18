@@ -506,7 +506,45 @@ function createEmailService(deps = {}) {
     });
   }
 
+  async function sendContentIntelligenceReadyEmail({ user, project, contentPackage, reviewUrl }) {
+    const primaryKeyword = contentPackage && contentPackage.seoPackage ? contentPackage.seoPackage.primaryKeyword : '';
+    const title = contentPackage && contentPackage.seoPackage ? contentPackage.seoPackage.seoTitle : 'Daily Content Intelligence Package';
+    const hook = contentPackage && contentPackage.socialDistribution ? (contentPackage.socialDistribution.x || contentPackage.socialDistribution.linkedIn || '') : '';
+    const channels = ['X (Twitter)', 'LinkedIn', 'Facebook', 'Video Script', 'Visual Flyer'];
+
+    const bodyHtml = `
+      <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6;">
+        The <strong>Daily Content Intelligence Agent</strong> has discovered today's top opportunity for <strong>${escapeHtml(project && project.name || 'your project')}</strong> and drafted a complete 11-part SEO article and multi-channel social distribution suite.
+      </p>
+      ${infoCard({
+        title: `Opportunity: ${primaryKeyword || 'Striking-Distance SEO Topic'}`,
+        body: `
+          <p style="margin:0 0 6px;font-weight:700;color:#111827;">${escapeHtml(title)}</p>
+          <p style="margin:0 0 10px;color:#4b5563;font-size:13px;">${escapeHtml(hook.slice(0, 200))}...</p>
+          <div style="font-size:12px;color:#6b7280;">
+            <strong>Prepared Assets:</strong> ${channels.map((c) => `<span style="display:inline-block;padding:2px 8px;margin:2px;background:#eef2ff;color:#4338ca;border-radius:4px;font-weight:600;">${c}</span>`).join(' ')}
+          </div>
+        `,
+        tone: 'success'
+      })}
+      <p style="margin:16px 0 0;color:#6b7280;font-size:13px;line-height:1.5;">
+        <em>Governance Standard:</em> As always, no content has been auto-published. Review the draft, customize copy if needed, and publish in 1 click.
+      </p>
+    `;
+
+    return sendCustomerEmail({
+      to: user && user.email,
+      subject: `[Moyi-CMO] Daily Content Ready: "${title}" (${project && project.name || 'Project'})`,
+      heading: 'Daily Content Intelligence Ready for Review',
+      intro: `Hi ${escapeHtml(user && user.name || 'there')}, today's content intelligence asset is ready.`,
+      bodyHtml,
+      ctaUrl: reviewUrl || `${targetEnv.appUrl}/projects/${project && project._id}/content`,
+      ctaLabel: 'Review & Approve Content'
+    });
+  }
+
   return {
+    sendContentIntelligenceReadyEmail,
     sendCustomerEmail,
     sendEmail,
     sendEmailVerificationPinEmail,
@@ -535,6 +573,7 @@ module.exports = {
   escapeHtml,
   infoCard,
   pinBlock,
+  sendContentIntelligenceReadyEmail: createEmailService().sendContentIntelligenceReadyEmail,
   sendCustomerEmail: createEmailService().sendCustomerEmail,
   sendEmail: createEmailService().sendEmail,
   sendEmailVerificationPinEmail: createEmailService().sendEmailVerificationPinEmail,

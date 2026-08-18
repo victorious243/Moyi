@@ -22,7 +22,8 @@ const growthAlertSchema = new mongoose.Schema(
         'keyword_breakthrough',
         'scan_completed',
         'content_approval_nudge',
-        'recommendation_urgent'
+        'recommendation_urgent',
+        'daily_content_intelligence'
       ],
       required: true,
       index: true
