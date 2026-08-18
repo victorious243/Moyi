@@ -5,6 +5,7 @@ const SocialAccount = require('../models/SocialAccount');
 const PublishAction = require('../models/PublishAction');
 const ContentImage = require('../models/ContentImage');
 const { getDecryptedSocialAccountCredentials } = require('./socialAccountService');
+const { ensureFreshSocialAccountCredentials } = require('./socialTokenRefreshService');
 const { recordAppLog } = require('./appLogger');
 const { publishFacebookPagePost, publishInstagramBusinessPost } = require('./metaMcpService');
 
@@ -372,7 +373,13 @@ async function publishSocialDraft({ socialDraftId, userId, socialAccountId = nul
 
   try {
     if (account) {
-      const credentials = await getDecryptedSocialAccountCredentials(account._id);
+      let credentials;
+      try {
+        credentials = await ensureFreshSocialAccountCredentials(account);
+      } catch (tokenErr) {
+        credentials = await getDecryptedSocialAccountCredentials(account._id);
+      }
+
       if (!credentials || credentials.status !== 'connected') {
         throw new Error('The selected social account is not connected.');
       }
@@ -431,9 +438,12 @@ async function publishSocialDraft({ socialDraftId, userId, socialAccountId = nul
       externalId: publishResult.externalId
     };
   } catch (error) {
-    const errorMsg = error.response && error.response.data && error.response.data.message
-      ? error.response.data.message
-      : error.message;
+    const errorMsg = (error.response && error.response.data && (
+        error.response.data.detail ||
+        error.response.data.message ||
+        (Array.isArray(error.response.data.errors) ? error.response.data.errors.map((e) => e.message || e.detail || JSON.stringify(e)).join('; ') : null) ||
+        error.response.data.title
+      )) || error.message;
 
     draft.publishStatus = 'failed';
     draft.errorMessage = errorMsg;
