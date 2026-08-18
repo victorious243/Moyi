@@ -133,7 +133,7 @@
         </div>
         <div class="publish-command-actions">
           <% if (readiness.readyCount) { %>
-            <form action="/social-drafts/publish-all-connected" method="post">
+            <form action="/social-drafts/publish-all-connected" method="post" data-publish-submit>
               <input type="hidden" name="projectId" value="<%= project._id %>">
               <button class="button button-primary" type="submit">Publish Ready Posts</button>
             </form>
@@ -291,7 +291,7 @@
                     <% if (selectedDownloadUrl) { %><a class="button" href="<%= selectedDownloadUrl %>">Download Image</a><% } %>
                     <% if (userCanManageProject && draft.status === 'draft') { %><form action="/social-drafts/<%= draft._id %>/approve" method="post"><button class="button" type="submit">Approve</button></form><% } %>
                     <% if (userCanPublishProject && canStartPublish && nativePublishAccounts.length) { %>
-                      <form class="social-publish-form social-publish-panel" action="/social-drafts/<%= draft._id %>/approve-and-publish" method="post">
+                      <form class="social-publish-form social-publish-panel" action="/social-drafts/<%= draft._id %>/approve-and-publish" method="post" data-publish-submit>
                         <fieldset class="publish-account-picker">
                           <legend>Publish to</legend>
                           <% nativePublishAccounts.forEach((account) => { %>
@@ -375,6 +375,7 @@
                             <input type="datetime-local" name="scheduledAt" data-scheduled-at="<%= defaultPublishAt.toISOString() %>" value="<%= new Date(defaultPublishAt.getTime() - defaultPublishAt.getTimezoneOffset() * 60000).toISOString().slice(0, 16) %>" disabled>
                           </label>
                           <input type="hidden" name="timeZone">
+                          <small class="publish-submit-feedback" data-publish-feedback hidden aria-live="polite"></small>
                           <button class="button button-primary" type="submit"><%= draft.status === 'draft' ? 'Approve & Publish' : 'Publish' %></button>
                         </div>
                       </form>
@@ -484,6 +485,41 @@
 </div>
 
 <script>
+  document.querySelectorAll('[data-publish-submit]').forEach((form) => {
+    if (form.dataset.publishSubmitBound) return;
+    form.dataset.publishSubmitBound = 'true';
+    form.addEventListener('submit', (event) => {
+      let feedback = form.querySelector('[data-publish-feedback]');
+      if (!feedback) {
+        feedback = document.createElement('small');
+        feedback.className = 'publish-submit-feedback';
+        feedback.dataset.publishFeedback = '';
+        feedback.setAttribute('aria-live', 'polite');
+        form.append(feedback);
+      }
+
+      const accountInputs = [...form.querySelectorAll('[data-publish-account]')];
+      if (accountInputs.length && !accountInputs.some((input) => input.checked)) {
+        event.preventDefault();
+        feedback.hidden = false;
+        feedback.classList.add('is-error');
+        feedback.textContent = 'Select at least one connected account.';
+        return;
+      }
+      if (!form.checkValidity()) return;
+
+      const button = event.submitter || form.querySelector('button[type="submit"]');
+      feedback.hidden = false;
+      feedback.classList.remove('is-error');
+      feedback.textContent = 'Saving to the publishing queue...';
+      form.setAttribute('aria-busy', 'true');
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'Publishing...';
+      }
+    });
+  });
+
   document.querySelectorAll('.agenda-edit form').forEach((form) => {
     const channel = form.querySelector('[data-draft-channel]');
     const copy = form.querySelector('[data-draft-copy]');

@@ -41,6 +41,22 @@ const {
 const { assertStandardXPost } = require('./xTextService');
 
 const VARIANT_REQUIRED_PLATFORMS = new Set(['facebook', 'instagram', 'threads', 'tiktok', 'youtube']);
+const PUBLISH_QUEUE_SUBMIT_TIMEOUT_MS = 5000;
+
+function waitForPublishQueue(promise, timeoutMs = PUBLISH_QUEUE_SUBMIT_TIMEOUT_MS) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error('The publishing queue did not respond in time.');
+      error.code = 'publish_queue_timeout';
+      error.statusCode = 503;
+      error.retryable = true;
+      reject(error);
+    }, timeoutMs);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
 
 function redactSensitiveText(value) {
   return String(value)
@@ -819,16 +835,28 @@ async function createAndQueuePublishBatch(options) {
     const mediaAssetIds = [...new Set(created.jobs
       .filter((job) => job.status === 'preparing_media')
       .flatMap((job) => job.mediaIds.map(String)))];
-    await Promise.all([
-      ...readyJobs.map((job) => enqueuePublishJob(job._id, job.scheduledAt)),
-      ...mediaAssetIds.map((assetId) => reenqueueMediaProcessing(assetId))
-    ]);
+    let queueDelayed = false;
+    try {
+      await waitForPublishQueue(Promise.all([
+        ...readyJobs.map((job) => enqueuePublishJob(job._id, job.scheduledAt)),
+        ...mediaAssetIds.map((assetId) => reenqueueMediaProcessing(assetId))
+      ]));
+    } catch (error) {
+      queueDelayed = true;
+      created.batch.errorMessage = [
+        created.batch.errorMessage,
+        'Publishing is saved and will start automatically when the background queue reconnects.'
+      ].filter(Boolean).join(' ');
+      await created.batch.save();
+      console.warn(`Social publishing queue delayed (${String(error.code || 'queue_unavailable')}).`);
+    }
     return {
       ...created,
       total: created.jobs.length,
       queuedCount: created.jobs.length,
       successCount: 0,
-      failedCount: 0
+      failedCount: 0,
+      queueDelayed
     };
   }
 
@@ -1008,5 +1036,6 @@ module.exports = {
   refreshBatchSummary,
   retryPublishJob,
   safeErrorDetails,
-  safeErrorMessage
+  safeErrorMessage,
+  waitForPublishQueue
 };

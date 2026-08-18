@@ -9334,6 +9334,17 @@ code,
   width: 100%;
 }
 
+.publish-submit-feedback {
+  color: var(--muted);
+  font-size: 0.78rem;
+  grid-column: 1 / -1;
+}
+
+.publish-submit-feedback.is-error {
+  color: var(--danger);
+  font-weight: 700;
+}
+
 .publish-timing-control {
   display: grid;
   grid-template-columns: repeat(2, minmax(76px, 1fr));
@@ -10080,4 +10091,3 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 }
-

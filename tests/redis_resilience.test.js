@@ -5,6 +5,7 @@ const {
   attachRedisErrorHandler,
   redisRetryDelay
 } = require('../services/redisService');
+const { waitForPublishQueue } = require('../services/contentDistributionEngineService');
 
 test('Redis reconnect delay backs off and remains bounded', () => {
   assert.equal(redisRetryDelay(1), 500);
@@ -33,4 +34,17 @@ test('Redis infrastructure errors are handled and duplicate logs are throttled',
 
   assert.equal(messages.length, 1);
   assert.match(messages[0], /Retrying automatically/);
+});
+
+test('publishing queue submissions fail fast so the web request cannot hang', async () => {
+  const startedAt = Date.now();
+  await assert.rejects(
+    () => waitForPublishQueue(new Promise(() => {}), 20),
+    (error) => {
+      assert.equal(error.code, 'publish_queue_timeout');
+      assert.equal(error.statusCode, 503);
+      return true;
+    }
+  );
+  assert.ok(Date.now() - startedAt < 500);
 });
