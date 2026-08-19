@@ -26,6 +26,12 @@
         </div>
 
         <div style="display:flex;align-items:center;gap:10px;">
+          <form action="/projects/<%= project._id %>/growth-intelligence/recalculate-baselines" method="POST" style="margin:0;">
+            <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+            <button type="submit" class="button" style="display:flex;align-items:center;gap:6px;padding:8px 14px;font-weight:700;font-size:13px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:var(--saas-text);">
+              <span>Recalculate Baselines</span>
+            </button>
+          </form>
           <form action="/projects/<%= project._id %>/growth-intelligence/generate" method="POST" style="margin:0;">
             <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
             <button type="submit" class="button button-primary" style="display:flex;align-items:center;gap:6px;padding:8px 16px;font-weight:700;font-size:13px;">
@@ -258,9 +264,24 @@
 
                 <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
                   <span style="font-size:11px;color:var(--saas-text-muted);"><%= opp.evidence %></span>
-                  <a href="/projects/<%= project._id %>/content" class="button button-primary" style="padding:6px 12px;font-size:12px;font-weight:700;">
-                    <%= opp.actionType === 'repurpose_post' ? 'Generate Follow-Up Content' : (opp.actionType === 'schedule_slot' ? 'Add to Calendar' : 'Execute Opportunity') %> &rarr;
-                  </a>
+                  <div style="display:flex;gap:6px;align-items:center;">
+                    <% if (opp.status === 'accepted') { %>
+                      <span class="badge" style="background:#12c99b;color:#04110e;font-weight:800;padding:4px 8px;font-size:11px;">✓ Draft Prepared</span>
+                    <% } else if (opp.status === 'dismissed') { %>
+                      <span class="badge" style="background:rgba(255,255,255,0.06);color:var(--saas-text-muted);font-weight:700;padding:4px 8px;font-size:11px;">Dismissed</span>
+                    <% } else { %>
+                      <form action="/projects/<%= project._id %>/growth-intelligence/opportunities/<%= opp.id %>/dismiss" method="POST" style="margin:0;">
+                        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                        <button type="submit" class="button" style="padding:5px 10px;font-size:11px;color:var(--saas-text-muted);background:transparent;border:1px solid rgba(255,255,255,0.1);">Dismiss</button>
+                      </form>
+                      <form action="/projects/<%= project._id %>/growth-intelligence/opportunities/<%= opp.id %>/accept" method="POST" style="margin:0;">
+                        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                        <button type="submit" class="button button-primary" style="padding:6px 12px;font-size:12px;font-weight:700;">
+                          <%= opp.actionType === 'repurpose_post' ? 'Create Follow-Up Draft' : (opp.actionType === 'schedule_slot' ? 'Add to Calendar' : 'Accept Opportunity') %> &rarr;
+                        </button>
+                      </form>
+                    <% } %>
+                  </div>
                 </div>
               </div>
             <% }); %>

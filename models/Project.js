@@ -143,7 +143,28 @@ const projectSchema = new mongoose.Schema(
       type: String,
       default: () => crypto.randomBytes(32).toString('hex')
     },
+    timezone: {
+      type: String,
+      trim: true,
+      default: 'UTC'
+    },
     cmoNotifications: {
+      dailyGrowthIntelligence: {
+        enabled: {
+          type: Boolean,
+          default: true
+        },
+        reportingHour: {
+          type: Number,
+          default: 7,
+          min: 0,
+          max: 23
+        },
+        lastGeneratedAt: {
+          type: Date,
+          default: null
+        }
+      },
       weeklyBriefing: {
         enabled: {
           type: Boolean,

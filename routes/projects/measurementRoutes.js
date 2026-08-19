@@ -21,6 +21,10 @@ const {
   getGrowthIntelligenceDashboardData,
   generateDailyGrowthIntelligenceReport
 } = require('../../services/dailyGrowthIntelligenceService');
+const { updateProjectGrowthBaselines } = require('../../services/growthBaselineLearningService');
+const DailyGrowthIntelligence = require('../../models/DailyGrowthIntelligence');
+const ContentDraft = require('../../models/ContentDraft');
+const SocialDraft = require('../../models/SocialDraft');
 
 function registerMeasurementRoutes(router, context, services = {}) {
   const {
@@ -103,6 +107,56 @@ function registerMeasurementRoutes(router, context, services = {}) {
   router.post('/:id/growth-intelligence/generate', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
     await generateDailyGrowthIntelligenceReport(req.project._id, req.body.date || req.query.date || new Date());
     res.redirect(`/projects/${req.project._id}/growth-intelligence?success=${encodeURIComponent('Daily Growth Intelligence diagnosis refreshed successfully.')}`);
+  }));
+
+  router.post('/:id/growth-intelligence/recalculate-baselines', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
+    await updateProjectGrowthBaselines(req.project._id, 60);
+    res.redirect(`/projects/${req.project._id}/growth-intelligence?success=${encodeURIComponent('Rolling historical baselines recalculated from past 60 days of activity.')}`);
+  }));
+
+  router.post('/:id/growth-intelligence/opportunities/:oppId/accept', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
+    const report = await DailyGrowthIntelligence.findOne({ projectId: req.project._id }).sort({ date: -1 });
+    if (!report) {
+      return res.redirect(`/projects/${req.project._id}/growth-intelligence?error=${encodeURIComponent('No active intelligence report found.')}`);
+    }
+
+    const opp = report.opportunities.find((o) => o.id === req.params.oppId || String(o._id) === req.params.oppId);
+    if (!opp) {
+      return res.redirect(`/projects/${req.project._id}/growth-intelligence?error=${encodeURIComponent('Opportunity not found.')}`);
+    }
+
+    opp.status = 'accepted';
+    await report.save();
+
+    // Create Draft following Human Decision Governance
+    const draftTitle = opp.title || 'Growth Opportunity Draft';
+    const draftBody = `${opp.description}\n\n${opp.evidence || ''}`;
+
+    await SocialDraft.create({
+      projectId: req.project._id,
+      title: draftTitle,
+      body: draftBody,
+      targetPlatforms: opp.actionPayload && opp.actionPayload.platform ? [opp.actionPayload.platform] : ['linkedin', 'x'],
+      status: 'draft',
+      metadata: {
+        source: 'growth_intelligence_opportunity',
+        opportunityId: opp.id
+      }
+    });
+
+    res.redirect(`/projects/${req.project._id}/content?success=${encodeURIComponent('Opportunity accepted! Draft post has been prepared in Content Studio for your review.')}`);
+  }));
+
+  router.post('/:id/growth-intelligence/opportunities/:oppId/dismiss', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
+    const report = await DailyGrowthIntelligence.findOne({ projectId: req.project._id }).sort({ date: -1 });
+    if (report) {
+      const opp = report.opportunities.find((o) => o.id === req.params.oppId || String(o._id) === req.params.oppId);
+      if (opp) {
+        opp.status = 'dismissed';
+        await report.save();
+      }
+    }
+    res.redirect(`/projects/${req.project._id}/growth-intelligence?success=${encodeURIComponent('Opportunity dismissed.')}`);
   }));
 
   router.get('/:id/search-console/connect', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {

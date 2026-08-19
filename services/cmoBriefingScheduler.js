@@ -1,8 +1,12 @@
 const { triggerWeeklyBriefingBatch } = require('./cmoBriefingService');
+const { startDailyGrowthScheduler, stopDailyGrowthScheduler, triggerDailyGrowthBatch } = require('./dailyGrowthScheduler');
 
 let schedulerTimer = null;
 
 function startCmoBriefingScheduler(intervalMs = 60 * 60 * 1000) {
+  // Start daily growth intelligence scheduler
+  startDailyGrowthScheduler(intervalMs);
+
   if (schedulerTimer) return;
 
   // Run initial check after 2 minutes to let database settle
@@ -25,6 +29,7 @@ function startCmoBriefingScheduler(intervalMs = 60 * 60 * 1000) {
 }
 
 function stopCmoBriefingScheduler() {
+  stopDailyGrowthScheduler();
   if (schedulerTimer) {
     clearInterval(schedulerTimer);
     schedulerTimer = null;
@@ -33,5 +38,6 @@ function stopCmoBriefingScheduler() {
 
 module.exports = {
   startCmoBriefingScheduler,
-  stopCmoBriefingScheduler
+  stopCmoBriefingScheduler,
+  triggerDailyGrowthBatch
 };
