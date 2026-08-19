@@ -1,0 +1,399 @@
+<%- include('../partials/header') %>
+<%- include('../partials/navbar') %>
+
+<div class="app-layout">
+  <%- include('../partials/project-sidebar', { activeSection: 'growth-intelligence', project }) %>
+
+  <main class="app-content">
+    <div class="workspace-container">
+      
+      <!-- Top Title & Controls Header -->
+      <div class="workspace-header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;margin-bottom:24px;">
+        <div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+            <span class="badge" style="background:linear-gradient(135deg, #12c99b, #5b4dff);color:#ffffff;font-weight:900;padding:4px 10px;border-radius:6px;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;">Daily Growth Intelligence</span>
+            <span style="color:var(--saas-text-muted);font-size:13px;"><%= new Date(report.date || Date.now()).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' }) %></span>
+            <% if (report.reportMode === 'opportunity') { %>
+              <span class="badge" style="background:#12c99b;color:#04110e;font-weight:800;padding:2px 8px;border-radius:4px;font-size:11px;text-transform:uppercase;">Opportunity Detected</span>
+            <% } else if (report.reportMode === 'performance_alert') { %>
+              <span class="badge" style="background:#ef4444;color:#fff;font-weight:800;padding:2px 8px;border-radius:4px;font-size:11px;text-transform:uppercase;">Performance Alert</span>
+            <% } else if (report.reportMode === 'milestone') { %>
+              <span class="badge" style="background:#8b5cf6;color:#fff;font-weight:800;padding:2px 8px;border-radius:4px;font-size:11px;text-transform:uppercase;">Milestone Reached</span>
+            <% } %>
+          </div>
+          <h1 style="margin:0;font-size:28px;font-weight:900;letter-spacing:-0.02em;color:var(--saas-text);">Daily Growth Intelligence</h1>
+          <p style="margin:4px 0 0;color:var(--saas-text-muted);font-size:14px;">Turning social signals into: Data &rarr; Insight &rarr; Diagnosis &rarr; Recommendation &rarr; Action &rarr; Attribution.</p>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:10px;">
+          <form action="/projects/<%= project._id %>/growth-intelligence/generate" method="POST" style="margin:0;">
+            <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+            <button type="submit" class="button button-primary" style="display:flex;align-items:center;gap:6px;padding:8px 16px;font-weight:700;font-size:13px;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+              <span>Refresh Diagnosis</span>
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <% if (typeof successMessage !== 'undefined' && successMessage) { %>
+        <div class="alert alert-success" style="margin-bottom:20px;"><%= successMessage %></div>
+      <% } %>
+      <% if (typeof errorMessage !== 'undefined' && errorMessage) { %>
+        <div class="alert alert-danger" style="margin-bottom:20px;"><%= errorMessage %></div>
+      <% } %>
+
+      <!-- Executive Morning Brief Banner -->
+      <div class="card" style="margin-bottom:24px;border:1px solid rgba(91, 77, 255, 0.3);background:linear-gradient(135deg, rgba(13, 16, 25, 0.95), rgba(20, 24, 40, 0.95));padding:24px;border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,0.4);">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:20px;">
+          <div style="flex:1;min-width:300px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span style="font-size:18px;">☀️</span>
+              <strong style="color:var(--saas-cyan, #55e6cf);font-size:14px;letter-spacing:0.06em;text-transform:uppercase;font-weight:800;">Executive Morning Brief</strong>
+            </div>
+            <p style="margin:0 0 12px;color:var(--saas-text, #ffffff);font-size:15px;line-height:1.65;font-weight:500;">
+              <%= report.executiveSummary %>
+            </p>
+            <% if (report.growthScoreBreakdown && report.growthScoreBreakdown.movementExplanation) { %>
+              <div style="font-size:13px;color:var(--saas-text-muted);background:rgba(255,255,255,0.03);padding:8px 12px;border-radius:6px;border-left:3px solid var(--saas-cyan);">
+                <strong style="color:#ffffff;">Why Score Moved:</strong> <%= report.growthScoreBreakdown.movementExplanation %>
+              </div>
+            <% } %>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px;min-width:240px;background:rgba(255,255,255,0.03);padding:16px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div>
+                <div style="font-size:11px;color:var(--saas-text-muted);text-transform:uppercase;font-weight:700;letter-spacing:0.05em;">Growth Score</div>
+                <div style="font-size:26px;font-weight:900;color:var(--saas-cyan, #55e6cf);">
+                  <%= (report.growthScoreBreakdown && report.growthScoreBreakdown.overallScore) || report.performanceScore %>
+                  <span style="font-size:13px;color:var(--saas-text-muted);font-weight:600;">/100</span>
+                  <% if (report.growthScoreBreakdown && report.growthScoreBreakdown.scoreDelta) { %>
+                    <span style="font-size:13px;font-weight:800;color:<%= report.growthScoreBreakdown.scoreDelta > 0 ? '#12c99b' : '#ef4444' %>;margin-left:4px;">
+                      <%= report.growthScoreBreakdown.scoreDelta > 0 ? '+' : '' %><%= report.growthScoreBreakdown.scoreDelta %>
+                    </span>
+                  <% } %>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:11px;color:var(--saas-text-muted);text-transform:uppercase;font-weight:700;letter-spacing:0.05em;">Grade</div>
+                <div style="font-size:26px;font-weight:900;color:<%= report.performanceGrade.startsWith('A') ? '#12c99b' : (report.performanceGrade === 'B' ? '#5b4dff' : '#f59e0b') %>;"><%= report.performanceGrade %></div>
+              </div>
+            </div>
+
+            <!-- 6-Dimensional Score Matrix -->
+            <% if (report.growthScoreBreakdown) { %>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;color:var(--saas-text-muted);border-top:1px solid rgba(255,255,255,0.08);padding-top:10px;">
+                <div>Audience: <strong style="color:#fff;"><%= report.growthScoreBreakdown.audienceGrowth %></strong></div>
+                <div>Content: <strong style="color:#fff;"><%= report.growthScoreBreakdown.contentPerformance %></strong></div>
+                <div>Engagement: <strong style="color:#fff;"><%= report.growthScoreBreakdown.engagement %></strong></div>
+                <div>Acquisition: <strong style="color:#fff;"><%= report.growthScoreBreakdown.websiteAcquisition %></strong></div>
+                <div>Conversion: <strong style="color:#fff;"><%= report.growthScoreBreakdown.conversion %></strong></div>
+                <div>Visibility: <strong style="color:#fff;"><%= report.growthScoreBreakdown.brandVisibility %></strong></div>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      </div>
+
+      <!-- Key Wins & Sustained Risks Side-by-Side -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(400px, 1fr));gap:20px;margin-bottom:32px;">
+        
+        <!-- Key Wins -->
+        <div class="card" style="padding:20px;border-radius:12px;border:1px solid rgba(18, 201, 155, 0.25);background:rgba(18, 22, 28, 0.7);">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+            <span style="color:#12c99b;font-weight:900;font-size:16px;">✨</span>
+            <h3 style="margin:0;font-size:15px;font-weight:800;color:#ffffff;">Key Wins Yesterday</h3>
+          </div>
+          <% if (report.keyWins && report.keyWins.length) { %>
+            <ul style="margin:0;padding-left:20px;color:var(--saas-text);font-size:13px;line-height:1.6;">
+              <% report.keyWins.forEach(function(win) { %>
+                <li style="margin-bottom:4px;"><%= win %></li>
+              <% }); %>
+            </ul>
+          <% } else { %>
+            <p style="margin:0;color:var(--saas-text-muted);font-size:13px;">Consistent publishing cadence maintained across active channels.</p>
+          <% } %>
+        </div>
+
+        <!-- Problems & Risks Requiring Attention -->
+        <div class="card" style="padding:20px;border-radius:12px;border:1px solid rgba(255, 111, 126, 0.25);background:rgba(18, 22, 28, 0.7);">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+            <span style="color:#ff6f7e;font-weight:900;font-size:16px;">⚠️</span>
+            <h3 style="margin:0;font-size:15px;font-weight:800;color:#ffffff;">Problems / Risks Requiring Attention</h3>
+          </div>
+          <% if (report.risksAndProblems && report.risksAndProblems.length) { %>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <% report.risksAndProblems.forEach(function(risk) { %>
+                <div style="padding:8px 12px;background:rgba(255, 111, 126, 0.06);border-radius:8px;border-left:3px solid #ff6f7e;">
+                  <strong style="color:#ffffff;font-size:13px;"><%= risk.title %></strong>
+                  <div style="color:var(--saas-text-muted);font-size:12px;margin:2px 0;"><%= risk.primarySignal %></div>
+                  <div style="font-size:11px;color:#55e6cf;">Action: <%= risk.recommendation %></div>
+                </div>
+              <% }); %>
+            </div>
+          <% } else { %>
+            <p style="margin:0;color:var(--saas-text-muted);font-size:13px;">No critical sustained risk patterns detected. Metrics within healthy variance.</p>
+          <% } %>
+        </div>
+
+      </div>
+
+      <!-- Section 1: Objective-Based Platform Champions -->
+      <h2 style="font-size:18px;font-weight:800;margin:0 0 16px;display:flex;align-items:center;gap:8px;">
+        <span>🏆</span>
+        <span>Platform Performance Champions</span>
+      </h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:16px;margin-bottom:32px;">
+        
+        <!-- Best for Reach -->
+        <div class="card" style="padding:18px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:rgba(18, 22, 28, 0.6);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <span style="font-size:12px;font-weight:800;color:var(--saas-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Best for Reach</span>
+            <span class="badge" style="background:#2563eb;color:#fff;font-weight:800;text-transform:capitalize;padding:2px 8px;border-radius:4px;font-size:11px;"><%= report.platformChampions.bestForReach.platform %></span>
+          </div>
+          <div style="font-size:24px;font-weight:900;color:#ffffff;margin-bottom:6px;"><%= (report.platformChampions.bestForReach.value || 0).toLocaleString() %> <span style="font-size:13px;color:var(--saas-text-muted);font-weight:500;">impressions</span></div>
+          <p style="margin:0;font-size:13px;color:var(--saas-text-muted);line-height:1.5;"><%= report.platformChampions.bestForReach.rationale %></p>
+        </div>
+
+        <!-- Best for Engagement -->
+        <div class="card" style="padding:18px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:rgba(18, 22, 28, 0.6);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <span style="font-size:12px;font-weight:800;color:var(--saas-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Best for Engagement</span>
+            <span class="badge" style="background:#7c3aed;color:#fff;font-weight:800;text-transform:capitalize;padding:2px 8px;border-radius:4px;font-size:11px;"><%= report.platformChampions.bestForEngagement.platform %></span>
+          </div>
+          <div style="font-size:24px;font-weight:900;color:#ffffff;margin-bottom:6px;"><%= report.platformChampions.bestForEngagement.rate %>% <span style="font-size:13px;color:var(--saas-text-muted);font-weight:500;">engagement rate</span></div>
+          <p style="margin:0;font-size:13px;color:var(--saas-text-muted);line-height:1.5;"><%= report.platformChampions.bestForEngagement.rationale %></p>
+        </div>
+
+        <!-- Best for Website Traffic -->
+        <div class="card" style="padding:18px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:rgba(18, 22, 28, 0.6);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <span style="font-size:12px;font-weight:800;color:var(--saas-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Best for Website Traffic</span>
+            <span class="badge" style="background:#059669;color:#fff;font-weight:800;text-transform:capitalize;padding:2px 8px;border-radius:4px;font-size:11px;"><%= report.platformChampions.bestForWebsiteTraffic.platform %></span>
+          </div>
+          <div style="font-size:24px;font-weight:900;color:#ffffff;margin-bottom:6px;"><%= report.platformChampions.bestForWebsiteTraffic.sessions || 0 %> <span style="font-size:13px;color:var(--saas-text-muted);font-weight:500;">inbound visits</span></div>
+          <p style="margin:0;font-size:13px;color:var(--saas-text-muted);line-height:1.5;"><%= report.platformChampions.bestForWebsiteTraffic.rationale %></p>
+        </div>
+
+        <!-- Best for Conversions & Revenue -->
+        <div class="card" style="padding:18px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:rgba(18, 22, 28, 0.6);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <span style="font-size:12px;font-weight:800;color:var(--saas-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Bottom-Funnel Value</span>
+            <span class="badge" style="background:#0284c7;color:#fff;font-weight:800;text-transform:capitalize;padding:2px 8px;border-radius:4px;font-size:11px;"><%= report.platformChampions.bestForRevenue.platform %></span>
+          </div>
+          <div style="font-size:24px;font-weight:900;color:#ffffff;margin-bottom:6px;">$<%= (report.platformChampions.bestForRevenue.revenue || 0).toLocaleString() %> <span style="font-size:13px;color:var(--saas-text-muted);font-weight:500;">attributed rev</span></div>
+          <p style="margin:0;font-size:13px;color:var(--saas-text-muted);line-height:1.5;"><%= report.platformChampions.bestForRevenue.rationale %></p>
+        </div>
+
+      </div>
+
+      <!-- Section 3: Daily Diagnosis Engine (Data -> Insight -> Diagnosis -> Action) -->
+      <div style="margin-bottom:36px;">
+        <h2 style="font-size:18px;font-weight:800;margin:0 0 16px;display:flex;align-items:center;gap:8px;">
+          <span>🔬</span>
+          <span>Daily Diagnosis Engine</span>
+        </h2>
+
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <% if (report.diagnoses && report.diagnoses.length) { %>
+            <% report.diagnoses.forEach(function(diag) { %>
+              <div class="card" style="padding:20px;border-radius:12px;border:1px solid rgba(255,255,255,0.09);background:rgba(18, 22, 30, 0.8);">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <span class="badge" style="background:<%= diag.priority === 'critical' ? '#dc2626' : (diag.priority === 'high' ? '#ea580c' : '#2563eb') %>;color:#fff;font-weight:800;padding:3px 8px;border-radius:4px;font-size:11px;text-transform:uppercase;"><%= diag.priority %> Priority</span>
+                    <span class="badge" style="background:rgba(255,255,255,0.06);color:var(--saas-text-muted);font-weight:700;padding:3px 8px;border-radius:4px;font-size:11px;text-transform:uppercase;">Impact: <%= diag.businessImpact %></span>
+                    <span class="badge" style="background:rgba(85, 230, 207, 0.1);color:var(--saas-cyan);font-weight:700;padding:3px 8px;border-radius:4px;font-size:11px;text-transform:uppercase;"><%= diag.confidence %> Confidence</span>
+                  </div>
+                </div>
+
+                <h4 style="margin:0 0 8px;font-size:15px;font-weight:800;color:#ffffff;"><%= diag.observation %></h4>
+                
+                <div style="margin-bottom:12px;padding:10px 14px;background:rgba(0,0,0,0.3);border-radius:8px;border:1px solid rgba(255,255,255,0.05);font-size:13px;color:var(--saas-text-muted);">
+                  <strong style="color:var(--saas-cyan);margin-right:6px;">Evidence:</strong> <%= diag.evidence %>
+                </div>
+
+                <div style="margin-bottom:14px;font-size:13px;color:var(--saas-text);line-height:1.6;">
+                  <strong style="color:#ffffff;">Root Cause Analysis:</strong> <%= diag.likelyExplanation %>
+                </div>
+
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:rgba(91, 77, 255, 0.08);border:1px solid rgba(91, 77, 255, 0.2);border-radius:8px;flex-wrap:wrap;gap:10px;">
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="color:#5b4dff;font-weight:900;">⚡</span>
+                    <span style="font-size:13px;font-weight:700;color:#ffffff;"><%= diag.recommendedAction %></span>
+                  </div>
+                  <div style="display:flex;gap:8px;">
+                    <a href="/projects/<%= project._id %>/content" class="button button-primary" style="padding:6px 12px;font-size:12px;font-weight:700;">Create Recommended Post &rarr;</a>
+                  </div>
+                </div>
+              </div>
+            <% }); %>
+          <% } else { %>
+            <div class="card" style="padding:24px;text-align:center;color:var(--saas-text-muted);">
+              All platform signals are operating within normal baseline parameters.
+            </div>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Section 4: Proactive Growth Opportunities -->
+      <% if (report.opportunities && report.opportunities.length) { %>
+        <div style="margin-bottom:36px;">
+          <h2 style="font-size:18px;font-weight:800;margin:0 0 16px;display:flex;align-items:center;gap:8px;">
+            <span>💡</span>
+            <span>Growth Opportunities Detected</span>
+          </h2>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:16px;">
+            <% report.opportunities.forEach(function(opp) { %>
+              <div class="card" style="padding:20px;border-radius:12px;border:1px solid rgba(85, 230, 207, 0.3);background:linear-gradient(135deg, rgba(18, 22, 28, 0.9), rgba(10, 28, 30, 0.9));display:flex;flex-direction:column;justify-content:space-between;">
+                <div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                    <span class="badge" style="background:rgba(85, 230, 207, 0.15);color:var(--saas-cyan);font-weight:800;font-size:11px;padding:3px 8px;border-radius:4px;text-transform:uppercase;"><%= opp.type.replace('_', ' ') %></span>
+                    <span class="badge" style="background:#dc2626;color:#fff;font-weight:800;font-size:10px;padding:2px 6px;border-radius:4px;text-transform:uppercase;"><%= opp.priority %></span>
+                  </div>
+                  <h3 style="margin:0 0 8px;font-size:15px;font-weight:800;color:#ffffff;"><%= opp.title %></h3>
+                  <p style="margin:0 0 12px;color:var(--saas-text-muted);font-size:13px;line-height:1.5;"><%= opp.description %></p>
+                </div>
+
+                <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+                  <span style="font-size:11px;color:var(--saas-text-muted);"><%= opp.evidence %></span>
+                  <a href="/projects/<%= project._id %>/content" class="button button-primary" style="padding:6px 12px;font-size:12px;font-weight:700;">
+                    <%= opp.actionType === 'repurpose_post' ? 'Generate Follow-Up Content' : (opp.actionType === 'schedule_slot' ? 'Add to Calendar' : 'Execute Opportunity') %> &rarr;
+                  </a>
+                </div>
+              </div>
+            <% }); %>
+          </div>
+        </div>
+      <% } %>
+
+      <!-- Section 5: Deep Content Intelligence & Patterns -->
+      <div style="margin-bottom:36px;">
+        <h2 style="font-size:18px;font-weight:800;margin:0 0 16px;display:flex;align-items:center;gap:8px;">
+          <span>📊</span>
+          <span>Content Intelligence & Proven Patterns</span>
+        </h2>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(400px, 1fr));gap:20px;margin-bottom:20px;">
+          
+          <!-- Content Type Breakdown -->
+          <div class="card" style="padding:20px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:rgba(18, 22, 28, 0.6);">
+            <h3 style="margin:0 0 14px;font-size:15px;font-weight:800;color:#ffffff;">Format Performance Matrix</h3>
+            <% if (report.contentIntelligence.contentTypeBreakdown && report.contentIntelligence.contentTypeBreakdown.length) { %>
+              <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                  <thead>
+                    <tr style="border-bottom:1px solid rgba(255,255,255,0.1);color:var(--saas-text-muted);text-align:left;">
+                      <th style="padding:8px 4px;">Format</th>
+                      <th style="padding:8px 4px;">Posts</th>
+                      <th style="padding:8px 4px;">Avg Imp</th>
+                      <th style="padding:8px 4px;">Avg Eng</th>
+                      <th style="padding:8px 4px;">Rate</th>
+                      <th style="padding:8px 4px;">Multiplier</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% report.contentIntelligence.contentTypeBreakdown.forEach(function(row) { %>
+                      <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+                        <td style="padding:8px 4px;font-weight:700;color:#ffffff;text-transform:capitalize;"><%= row.contentType %></td>
+                        <td style="padding:8px 4px;color:var(--saas-text-muted);"><%= row.postCount %></td>
+                        <td style="padding:8px 4px;color:#ffffff;"><%= row.avgImpressions.toLocaleString() %></td>
+                        <td style="padding:8px 4px;color:#ffffff;"><%= row.avgEngagements.toLocaleString() %></td>
+                        <td style="padding:8px 4px;color:var(--saas-cyan);"><%= row.avgEngagementRate %>%</td>
+                        <td style="padding:8px 4px;">
+                          <span class="badge" style="background:<%= row.performanceMultiplier >= 1.3 ? 'rgba(18, 201, 155, 0.2)' : 'rgba(255,255,255,0.06)' %>;color:<%= row.performanceMultiplier >= 1.3 ? '#12c99b' : '#fff' %>;font-weight:800;padding:2px 6px;border-radius:4px;">
+                            <%= row.performanceMultiplier %>x
+                          </span>
+                        </td>
+                      </tr>
+                    <% }); %>
+                  </tbody>
+                </table>
+              </div>
+            <% } else { %>
+              <p style="color:var(--saas-text-muted);font-size:13px;">Publish more posts across formats to populate the matrix.</p>
+            <% } %>
+          </div>
+
+          <!-- Detected Winning Patterns -->
+          <div class="card" style="padding:20px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:rgba(18, 22, 28, 0.6);">
+            <h3 style="margin:0 0 14px;font-size:15px;font-weight:800;color:#ffffff;">Statistically Backed Patterns</h3>
+            <% if (report.contentIntelligence.detectedPatterns && report.contentIntelligence.detectedPatterns.length) { %>
+              <div style="display:flex;flex-direction:column;gap:12px;">
+                <% report.contentIntelligence.detectedPatterns.forEach(function(p) { %>
+                  <div style="padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:8px;border-left:3px solid #5b4dff;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                      <strong style="color:#ffffff;font-size:13px;"><%= p.patternName %></strong>
+                      <span class="badge" style="background:#5b4dff;color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:4px;"><%= p.multiplier %>x ROI</span>
+                    </div>
+                    <p style="margin:0 0 6px;font-size:12px;color:var(--saas-text-muted);"><%= p.observation %></p>
+                    <div style="font-size:11px;color:var(--saas-cyan);font-weight:600;"><%= p.recommendation %></div>
+                  </div>
+                <% }); %>
+              </div>
+            <% } else { %>
+              <p style="color:var(--saas-text-muted);font-size:13px;">Moyi requires a minimum of 3 published posts per category before making confident causal assertions.</p>
+            <% } %>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Section 6: Downstream Closed-Loop Attribution Matrix -->
+      <div class="card" style="padding:24px;border-radius:14px;border:1px solid rgba(255,255,255,0.08);background:rgba(18, 22, 28, 0.8);margin-bottom:36px;">
+        <h2 style="font-size:18px;font-weight:800;margin:0 0 8px;display:flex;align-items:center;gap:8px;">
+          <span>🔗</span>
+          <span>Closed-Loop Social Website Attribution</span>
+        </h2>
+        <p style="margin:0 0 16px;color:var(--saas-text-muted);font-size:13px;">Powered by <code>moyi-tracker.js</code> first-party UTM touchpoints tying social views directly to revenue.</p>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px;margin-bottom:20px;">
+          <div style="padding:14px;background:rgba(0,0,0,0.3);border-radius:10px;border:1px solid rgba(255,255,255,0.05);">
+            <div style="font-size:11px;color:var(--saas-text-muted);text-transform:uppercase;font-weight:700;">Referral Traffic</div>
+            <div style="font-size:22px;font-weight:900;color:#ffffff;margin-top:2px;"><%= report.downstreamAttribution.totalReferralTraffic %> <span style="font-size:12px;color:var(--saas-text-muted);">visits</span></div>
+          </div>
+          <div style="padding:14px;background:rgba(0,0,0,0.3);border-radius:10px;border:1px solid rgba(255,255,255,0.05);">
+            <div style="font-size:11px;color:var(--saas-text-muted);text-transform:uppercase;font-weight:700;">Leads Captured</div>
+            <div style="font-size:22px;font-weight:900;color:#ffffff;margin-top:2px;"><%= report.downstreamAttribution.totalLeads %> <span style="font-size:12px;color:var(--saas-text-muted);">signups</span></div>
+          </div>
+          <div style="padding:14px;background:rgba(0,0,0,0.3);border-radius:10px;border:1px solid rgba(255,255,255,0.05);">
+            <div style="font-size:11px;color:var(--saas-text-muted);text-transform:uppercase;font-weight:700;">Paid Conversions</div>
+            <div style="font-size:22px;font-weight:900;color:#ffffff;margin-top:2px;"><%= report.downstreamAttribution.totalConversions %> <span style="font-size:12px;color:var(--saas-text-muted);">sales</span></div>
+          </div>
+          <div style="padding:14px;background:rgba(0,0,0,0.3);border-radius:10px;border:1px solid rgba(255,255,255,0.05);">
+            <div style="font-size:11px;color:var(--saas-text-muted);text-transform:uppercase;font-weight:700;">Attributed Revenue</div>
+            <div style="font-size:22px;font-weight:900;color:#12c99b;margin-top:2px;">$<%= report.downstreamAttribution.totalRevenue.toLocaleString() %></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 7: Today's Prioritized 1-2-3 Action Plan -->
+      <div class="card" style="padding:24px;border-radius:14px;border:1px solid rgba(91, 77, 255, 0.3);background:linear-gradient(135deg, rgba(13, 16, 25, 0.9), rgba(22, 28, 48, 0.9));">
+        <h2 style="font-size:18px;font-weight:800;margin:0 0 8px;display:flex;align-items:center;gap:8px;">
+          <span>🎯</span>
+          <span>Today's CMO Execution Plan</span>
+        </h2>
+        <p style="margin:0 0 16px;color:var(--saas-text-muted);font-size:13px;">Prioritized action items formulated by Moyi. <em>Governance: Propose &rarr; Human Decides.</em></p>
+
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <% if (report.todayActionList && report.todayActionList.length) { %>
+            <% report.todayActionList.forEach(function(item) { %>
+              <div style="display:flex;align-items:flex-start;gap:14px;padding:14px;background:rgba(255,255,255,0.03);border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
+                <div style="min-width:28px;height:28px;border-radius:50%;background:#5b4dff;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;"><%= item.priority %></div>
+                <div style="flex:1;">
+                  <strong style="color:#ffffff;font-size:14px;"><%= item.action %></strong>
+                  <p style="margin:2px 0 4px;font-size:12px;color:var(--saas-text-muted);"><%= item.rationale %></p>
+                  <div style="font-size:11px;color:var(--saas-cyan);font-weight:600;">Expected Impact: <%= item.expectedImpact %></div>
+                </div>
+              </div>
+            <% }); %>
+          <% } %>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<%- include('../partials/footer') %>

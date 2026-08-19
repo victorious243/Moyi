@@ -20,6 +20,7 @@ const {
   normalizeAnalyticsDays,
   socialPerformanceApiPayload
 } = require('../services/socialAnalyticsService');
+const { getGrowthIntelligenceDashboardData } = require('../services/dailyGrowthIntelligenceService');
 const AppError = require('../utils/appError');
 
 const router = express.Router();
@@ -337,6 +338,18 @@ router.get('/projects/:id/social-performance', requireApiScope('analytics:read')
     days: normalizeAnalyticsDays(req.query.days)
   });
   res.json({ data: socialPerformanceApiPayload(dashboard) });
+}));
+
+router.get('/projects/:id/growth-intelligence', requireApiScope('analytics:read'), asyncHandler(async (req, res) => {
+  const project = await authorizedProject(req, req.params.id);
+  const data = await getGrowthIntelligenceDashboardData(project._id, { date: req.query.date });
+  res.json({
+    data: {
+      projectId: String(project._id),
+      projectName: project.name,
+      report: data.report
+    }
+  });
 }));
 
 router.use((error, req, res, next) => {

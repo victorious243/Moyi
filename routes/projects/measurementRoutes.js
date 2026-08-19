@@ -17,6 +17,10 @@ const {
   getIntegration,
   listSearchConsoleSites
 } = require('../../services/searchConsoleService');
+const {
+  getGrowthIntelligenceDashboardData,
+  generateDailyGrowthIntelligenceReport
+} = require('../../services/dailyGrowthIntelligenceService');
 
 function registerMeasurementRoutes(router, context, services = {}) {
   const {
@@ -72,6 +76,33 @@ function registerMeasurementRoutes(router, context, services = {}) {
     }
 
     res.redirect(`${redirectBase}&success=${encodeURIComponent(result.skipped ? 'Metrics refresh is already running for this post.' : 'Metrics refreshed for this post.')}`);
+  }));
+
+  router.get('/:id/growth-intelligence', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
+    const data = await getGrowthIntelligenceDashboardData(req.project._id, { date: req.query.date });
+    res.render('projects/daily-growth-intelligence', {
+      title: `${req.project.name} Daily Growth Intelligence`,
+      project: req.project,
+      report: data.report,
+      accounts: data.accounts,
+      successMessage: req.query.success || '',
+      errorMessage: req.query.error || ''
+    });
+  }));
+
+  router.get('/:id/growth-intelligence/data', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
+    const data = await getGrowthIntelligenceDashboardData(req.project._id, { date: req.query.date });
+    res.json({
+      success: true,
+      projectId: String(req.project._id),
+      report: data.report,
+      accountsCount: data.accounts.length
+    });
+  }));
+
+  router.post('/:id/growth-intelligence/generate', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
+    await generateDailyGrowthIntelligenceReport(req.project._id, req.body.date || req.query.date || new Date());
+    res.redirect(`/projects/${req.project._id}/growth-intelligence?success=${encodeURIComponent('Daily Growth Intelligence diagnosis refreshed successfully.')}`);
   }));
 
   router.get('/:id/search-console/connect', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
