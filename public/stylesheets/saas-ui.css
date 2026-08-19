@@ -1161,17 +1161,18 @@ table code,
   padding: 0 5px;
   border-radius: 999px;
   background: #ef4444 !important;
+  background-color: #ef4444 !important;
   color: #ffffff !important;
-  font-size: 10px !important;
+  font-size: 11px !important;
   font-weight: 900 !important;
   line-height: 1 !important;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 10px rgba(239, 68, 68, 0.8), 0 2px 4px rgba(0, 0, 0, 0.4) !important;
-  border: 1.5px solid #0d1012 !important;
-  z-index: 10;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.9), 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+  border: 1.5px solid #ffffff !important;
+  z-index: 20;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   animation: badgePulse 2s infinite ease-in-out;
 }
 

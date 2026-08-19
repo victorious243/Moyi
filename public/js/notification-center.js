@@ -48,9 +48,12 @@
       badges.forEach((badge) => {
         if (data.unreadCount > 0) {
           badge.textContent = data.unreadCount > 99 ? '99+' : data.unreadCount;
-          badge.style.display = 'flex';
+          badge.style.setProperty('display', 'flex', 'important');
+          badge.style.setProperty('background-color', '#ef4444', 'important');
+          badge.style.setProperty('color', '#ffffff', 'important');
+          badge.style.setProperty('font-weight', '900', 'important');
         } else {
-          badge.style.display = 'none';
+          badge.style.setProperty('display', 'none', 'important');
         }
       });
 
