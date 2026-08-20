@@ -84,38 +84,45 @@ const dailyGrowthIntelligenceSchema = new mongoose.Schema(
     platformChampions: {
       bestForReach: {
         platform: String,
+        noData: { type: Boolean, default: false },
         value: Number,
         sharePercentage: Number,
         rationale: String
       },
       bestForEngagement: {
         platform: String,
+        noData: { type: Boolean, default: false },
         value: Number,
         rate: Number,
         rationale: String
       },
       bestForFollowerGrowth: {
         platform: String,
+        noData: { type: Boolean, default: false },
         netGained: Number,
         rationale: String
       },
       bestForWebsiteTraffic: {
         platform: String,
+        noData: { type: Boolean, default: false },
         sessions: Number,
         rationale: String
       },
       bestForLeads: {
         platform: String,
+        noData: { type: Boolean, default: false },
         leads: Number,
         rationale: String
       },
       bestForConversions: {
         platform: String,
+        noData: { type: Boolean, default: false },
         conversions: Number,
         rationale: String
       },
       bestForRevenue: {
         platform: String,
+        noData: { type: Boolean, default: false },
         revenue: Number,
         rationale: String
       }

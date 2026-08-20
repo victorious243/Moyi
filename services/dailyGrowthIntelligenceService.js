@@ -371,60 +371,82 @@ function analyzePlatformChampions(snapshots = []) {
   }));
 
   const totalImpressions = list.reduce((sum, i) => sum + i.impressions, 0);
+  const noWinner = (metric, rationale) => ({
+    platform: '',
+    noData: true,
+    value: 0,
+    sharePercentage: 0,
+    rate: 0,
+    netGained: 0,
+    sessions: 0,
+    leads: 0,
+    conversions: 0,
+    revenue: 0,
+    metric,
+    rationale
+  });
+  const topBy = (metric) => list
+    .filter((item) => safeNumber(item[metric], 0) > 0)
+    .sort((a, b) => safeNumber(b[metric], 0) - safeNumber(a[metric], 0))[0] || null;
 
-  // Determine winners
-  const reachWinner = list.slice().sort((a, b) => b.impressions - a.impressions)[0] || { platform: 'linkedin', impressions: 0 };
-  const engagementWinner = list.slice().filter((i) => i.impressions > 50).sort((a, b) => b.engagementRate - a.engagementRate)[0]
-    || list.slice().sort((a, b) => b.engagements - a.engagements)[0]
-    || { platform: 'x', engagements: 0, engagementRate: 0 };
-  const growthWinner = list.slice().sort((a, b) => b.followersGained - a.followersGained)[0] || { platform: 'linkedin', followersGained: 0 };
-  const trafficWinner = list.slice().sort((a, b) => b.referralSessions - a.referralSessions)[0] || { platform: 'linkedin', referralSessions: 0 };
-  const leadWinner = list.slice().sort((a, b) => b.leads - a.leads)[0] || { platform: 'linkedin', leads: 0 };
-  const convWinner = list.slice().sort((a, b) => b.conversions - a.conversions)[0] || { platform: 'linkedin', conversions: 0 };
-  const revenueWinner = list.slice().sort((a, b) => b.revenue - a.revenue)[0] || { platform: 'linkedin', revenue: 0 };
+  const reachWinner = topBy('impressions');
+  const engagementWinner = list.slice()
+    .filter((i) => i.impressions > 50 && i.engagements > 0)
+    .sort((a, b) => b.engagementRate - a.engagementRate)[0]
+    || topBy('engagements');
+  const growthWinner = topBy('followersGained');
+  const trafficWinner = topBy('referralSessions');
+  const leadWinner = topBy('leads');
+  const convWinner = topBy('conversions');
+  const revenueWinner = topBy('revenue');
 
-  const reachShare = totalImpressions > 0 ? Math.round((reachWinner.impressions / totalImpressions) * 100) : 0;
+  const reachShare = reachWinner && totalImpressions > 0 ? Math.round((reachWinner.impressions / totalImpressions) * 100) : 0;
 
   return {
-    bestForReach: {
+    bestForReach: reachWinner ? {
       platform: reachWinner.platform,
+      noData: false,
       value: reachWinner.impressions,
       sharePercentage: reachShare,
-      rationale: reachShare > 0
-        ? `${capitalize(reachWinner.platform)} generated ${reachShare}% of total social reach with ${reachWinner.impressions.toLocaleString()} impressions.`
-        : `${capitalize(reachWinner.platform)} provided the strongest brand exposure.`
-    },
-    bestForEngagement: {
+      rationale: `${capitalize(reachWinner.platform)} generated ${reachShare}% of total social reach with ${reachWinner.impressions.toLocaleString()} impressions.`
+    } : noWinner('impressions', 'No verified impression metrics have been collected yet, so Moyi is not naming a reach winner.'),
+    bestForEngagement: engagementWinner ? {
       platform: engagementWinner.platform,
+      noData: false,
       value: engagementWinner.engagements,
       rate: Math.round(engagementWinner.engagementRate * 10) / 10,
       rationale: `${capitalize(engagementWinner.platform)} recorded the strongest audience response (${Math.round(engagementWinner.engagementRate * 10) / 10}% engagement rate).`
-    },
-    bestForFollowerGrowth: {
+    } : noWinner('engagements', 'No verified engagement counters have been collected yet, so Moyi is not naming an engagement winner.'),
+    bestForFollowerGrowth: growthWinner ? {
       platform: growthWinner.platform,
+      noData: false,
       netGained: growthWinner.followersGained,
       rationale: `${capitalize(growthWinner.platform)} led net new community expansion with +${growthWinner.followersGained} followers.`
-    },
-    bestForWebsiteTraffic: {
+    } : noWinner('followersGained', 'No verified follower-growth metrics have been collected yet.'),
+    bestForWebsiteTraffic: trafficWinner ? {
       platform: trafficWinner.platform,
+      noData: false,
       sessions: trafficWinner.referralSessions,
       rationale: `${capitalize(trafficWinner.platform)} delivered the highest-volume inbound traffic with ${trafficWinner.referralSessions} referral visits.`
-    },
-    bestForLeads: {
+    } : noWinner('referralSessions', 'No tracked social referral sessions were recorded yet, so Moyi is not naming a traffic winner.'),
+    bestForLeads: leadWinner ? {
       platform: leadWinner.platform,
+      noData: false,
       leads: leadWinner.leads,
       rationale: `${capitalize(leadWinner.platform)} drove the highest lead volume (${leadWinner.leads} captured signups/inquiries).`
-    },
-    bestForConversions: {
+    } : noWinner('leads', 'No tracked social leads were recorded yet.'),
+    bestForConversions: convWinner ? {
       platform: convWinner.platform,
+      noData: false,
       conversions: convWinner.conversions,
       rationale: `${capitalize(convWinner.platform)} produced the highest bottom-funnel conversions (${convWinner.conversions} transactions).`
-    },
-    bestForRevenue: {
+    } : noWinner('conversions', 'No tracked social conversions were recorded yet.'),
+    bestForRevenue: revenueWinner ? {
       platform: revenueWinner.platform,
+      noData: false,
       revenue: revenueWinner.revenue,
       rationale: `${capitalize(revenueWinner.platform)} accounted for the highest attributed revenue ($${revenueWinner.revenue.toLocaleString()}).`
-    }
+    } : noWinner('revenue', 'No attributed social revenue was recorded yet, so Moyi is not naming a revenue winner.')
   };
 }
 
@@ -912,7 +934,7 @@ async function generateDailyGrowthIntelligenceReport(projectId, targetDate = new
     keyWins.push(`Closed ${downstreamAttribution.totalConversions} customer conversions ($${downstreamAttribution.totalRevenue.toLocaleString()} revenue).`);
   }
   if (!keyWins.length) {
-    keyWins.push('Steady baseline engagement maintained across active social connections.');
+    keyWins.push('No verified social performance metrics were collected for yesterday yet.');
   }
 
   // 11. Adaptive Report Mode
@@ -929,11 +951,13 @@ async function generateDailyGrowthIntelligenceReport(projectId, targetDate = new
   const topPlatform = platformChampions.bestForReach.platform;
   let executiveSummary = '';
   if (reportMode === 'opportunity') {
-    executiveSummary = `GROWTH OPPORTUNITY DETECTED: Your ${topPlatform} engagement velocity is outperforming normal baseline. Moyi recommends capitalizing on this algorithmic momentum today with a targeted follow-up post.`;
+    executiveSummary = `GROWTH OPPORTUNITY DETECTED: Your ${topPlatform || 'top social channel'} engagement velocity is outperforming normal baseline. Moyi recommends capitalizing on this algorithmic momentum today with a targeted follow-up post.`;
   } else if (reportMode === 'performance_alert') {
     executiveSummary = `PERFORMANCE ALERT: ${risksAndProblems[0].title}. Primary signal: ${risksAndProblems[0].primarySignal}`;
   } else if (reportMode === 'milestone') {
     executiveSummary = `GROWTH MILESTONE: Multi-channel social ecosystem reached high-volume distribution yesterday with ${(yData.impressions || 0).toLocaleString()} impressions and ${downstreamAttribution.totalReferralTraffic} inbound visitors.`;
+  } else if (!topPlatform) {
+    executiveSummary = `Yesterday, ${project.name}'s social channels had no verified provider metrics or tracked referral sessions available yet. Moyi will wait for real platform data before naming a strongest channel.`;
   } else {
     executiveSummary = `Yesterday, ${project.name}'s social channels generated ${(yData.impressions || 0).toLocaleString()} impressions and ${(yData.engagements || 0).toLocaleString()} engagements across active channels. ${capitalize(topPlatform)} was your strongest brand exposure driver, delivering ${downstreamAttribution.totalReferralTraffic} website referral visits. Performance is tracking on baseline.`;
   }
@@ -943,7 +967,7 @@ async function generateDailyGrowthIntelligenceReport(projectId, targetDate = new
     {
       priority: 1,
       action: (opportunities[0] && opportunities[0].title) || 'Review today\'s prepared Daily Content Intelligence draft in Content Studio.',
-      platform: (opportunities[0] && opportunities[0].actionPayload && opportunities[0].actionPayload.platform) || topPlatform,
+      platform: (opportunities[0] && opportunities[0].actionPayload && opportunities[0].actionPayload.platform) || topPlatform || 'all',
       expectedImpact: 'High audience reach & website engagement.',
       rationale: (opportunities[0] && opportunities[0].evidence) || 'Maintains daily organic visibility and search authority.'
     },

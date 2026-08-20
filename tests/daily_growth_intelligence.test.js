@@ -97,6 +97,56 @@ test('Daily Growth Intelligence: Objective-Based Platform Performance', async (t
     assert.equal(champions.bestForRevenue.platform, 'linkedin');
     assert.equal(champions.bestForRevenue.revenue, 1980);
   });
+
+  await t.test('does not invent LinkedIn as a champion when all platform rows are placeholders', () => {
+    const mockSnapshots = [
+      {
+        platform: 'linkedin',
+        impressions: 0,
+        engagements: 0,
+        followersGained: 0,
+        websiteTraffic: { referralSessions: 0, leadsGenerated: 0, conversions: 0, attributedRevenue: 0 }
+      },
+      {
+        platform: 'x',
+        impressions: 0,
+        engagements: 0,
+        followersGained: 0,
+        websiteTraffic: { referralSessions: 0, leadsGenerated: 0, conversions: 0, attributedRevenue: 0 }
+      }
+    ];
+
+    const champions = analyzePlatformChampions(mockSnapshots);
+
+    assert.equal(champions.bestForReach.platform, '');
+    assert.equal(champions.bestForReach.noData, true);
+    assert.match(champions.bestForReach.rationale, /No verified impression metrics/);
+    assert.equal(champions.bestForEngagement.platform, '');
+    assert.equal(champions.bestForWebsiteTraffic.platform, '');
+    assert.equal(champions.bestForRevenue.platform, '');
+  });
+
+  await t.test('shows X as the reach champion when X has the real collected metrics', () => {
+    const champions = analyzePlatformChampions([
+      {
+        platform: 'linkedin',
+        impressions: 0,
+        engagements: 0,
+        websiteTraffic: { referralSessions: 0, leadsGenerated: 0, conversions: 0, attributedRevenue: 0 }
+      },
+      {
+        platform: 'x',
+        impressions: 2400,
+        engagements: 96,
+        websiteTraffic: { referralSessions: 0, leadsGenerated: 0, conversions: 0, attributedRevenue: 0 }
+      }
+    ]);
+
+    assert.equal(champions.bestForReach.platform, 'x');
+    assert.equal(champions.bestForReach.value, 2400);
+    assert.equal(champions.bestForEngagement.platform, 'x');
+    assert.equal(champions.bestForWebsiteTraffic.platform, '');
+  });
 });
 
 test('Daily Growth Intelligence: Daily Diagnosis & Opportunity Engine', async (t) => {

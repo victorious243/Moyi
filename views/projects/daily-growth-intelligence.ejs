@@ -1,10 +1,14 @@
 <%- include('../partials/header') %>
-<%- include('../partials/navbar') %>
 <% const displayGoalValue = (goal, value) => {
   const amount = Number(value || 0).toLocaleString();
   if (goal.unit === '%') return `${amount}%`;
   if (['£', '$', '€'].includes(goal.unit)) return `${goal.unit}${amount}`;
   return [amount, goal.unit].filter(Boolean).join(' ');
+}; %>
+<% const championLabel = (champion) => champion && champion.platform ? champion.platform : 'Awaiting data'; %>
+<% const championBadgeStyle = (champion, color) => {
+  const activeColor = color || '#2563eb';
+  return `background:${champion && champion.platform ? activeColor : 'rgba(255,255,255,0.08)'};color:#fff;font-weight:800;text-transform:capitalize;padding:2px 8px;border-radius:4px;font-size:11px;`;
 }; %>
 
 <div class="app-layout">
@@ -174,7 +178,7 @@
         <div class="card" style="padding:18px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:rgba(18, 22, 28, 0.6);">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
             <span style="font-size:12px;font-weight:800;color:var(--saas-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Best for Reach</span>
-            <span class="badge" style="background:#2563eb;color:#fff;font-weight:800;text-transform:capitalize;padding:2px 8px;border-radius:4px;font-size:11px;"><%= report.platformChampions.bestForReach.platform %></span>
+            <span class="badge" style="<%= championBadgeStyle(report.platformChampions.bestForReach, '#2563eb') %>"><%= championLabel(report.platformChampions.bestForReach) %></span>
           </div>
           <div style="font-size:24px;font-weight:900;color:#ffffff;margin-bottom:6px;"><%= (report.platformChampions.bestForReach.value || 0).toLocaleString() %> <span style="font-size:13px;color:var(--saas-text-muted);font-weight:500;">impressions</span></div>
           <p style="margin:0;font-size:13px;color:var(--saas-text-muted);line-height:1.5;"><%= report.platformChampions.bestForReach.rationale %></p>
@@ -184,7 +188,7 @@
         <div class="card" style="padding:18px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:rgba(18, 22, 28, 0.6);">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
             <span style="font-size:12px;font-weight:800;color:var(--saas-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Best for Engagement</span>
-            <span class="badge" style="background:#7c3aed;color:#fff;font-weight:800;text-transform:capitalize;padding:2px 8px;border-radius:4px;font-size:11px;"><%= report.platformChampions.bestForEngagement.platform %></span>
+            <span class="badge" style="<%= championBadgeStyle(report.platformChampions.bestForEngagement, '#7c3aed') %>"><%= championLabel(report.platformChampions.bestForEngagement) %></span>
           </div>
           <div style="font-size:24px;font-weight:900;color:#ffffff;margin-bottom:6px;"><%= report.platformChampions.bestForEngagement.rate %>% <span style="font-size:13px;color:var(--saas-text-muted);font-weight:500;">engagement rate</span></div>
           <p style="margin:0;font-size:13px;color:var(--saas-text-muted);line-height:1.5;"><%= report.platformChampions.bestForEngagement.rationale %></p>
@@ -194,7 +198,7 @@
         <div class="card" style="padding:18px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:rgba(18, 22, 28, 0.6);">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
             <span style="font-size:12px;font-weight:800;color:var(--saas-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Best for Website Traffic</span>
-            <span class="badge" style="background:#059669;color:#fff;font-weight:800;text-transform:capitalize;padding:2px 8px;border-radius:4px;font-size:11px;"><%= report.platformChampions.bestForWebsiteTraffic.platform %></span>
+            <span class="badge" style="<%= championBadgeStyle(report.platformChampions.bestForWebsiteTraffic, '#059669') %>"><%= championLabel(report.platformChampions.bestForWebsiteTraffic) %></span>
           </div>
           <div style="font-size:24px;font-weight:900;color:#ffffff;margin-bottom:6px;"><%= report.platformChampions.bestForWebsiteTraffic.sessions || 0 %> <span style="font-size:13px;color:var(--saas-text-muted);font-weight:500;">inbound visits</span></div>
           <p style="margin:0;font-size:13px;color:var(--saas-text-muted);line-height:1.5;"><%= report.platformChampions.bestForWebsiteTraffic.rationale %></p>
@@ -204,7 +208,7 @@
         <div class="card" style="padding:18px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:rgba(18, 22, 28, 0.6);">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
             <span style="font-size:12px;font-weight:800;color:var(--saas-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Bottom-Funnel Value</span>
-            <span class="badge" style="background:#0284c7;color:#fff;font-weight:800;text-transform:capitalize;padding:2px 8px;border-radius:4px;font-size:11px;"><%= report.platformChampions.bestForRevenue.platform %></span>
+            <span class="badge" style="<%= championBadgeStyle(report.platformChampions.bestForRevenue, '#0284c7') %>"><%= championLabel(report.platformChampions.bestForRevenue) %></span>
           </div>
           <div style="font-size:24px;font-weight:900;color:#ffffff;margin-bottom:6px;">$<%= (report.platformChampions.bestForRevenue.revenue || 0).toLocaleString() %> <span style="font-size:13px;color:var(--saas-text-muted);font-weight:500;">attributed rev</span></div>
           <p style="margin:0;font-size:13px;color:var(--saas-text-muted);line-height:1.5;"><%= report.platformChampions.bestForRevenue.rationale %></p>
