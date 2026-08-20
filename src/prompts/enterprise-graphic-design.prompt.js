@@ -24,6 +24,12 @@ const AESTHETIC_PRESETS = {
     styleDescriptor: 'Bold high-contrast marketing aesthetic, vibrant gradient accents, high-energy display typography, tactile floating sticker badges, bold metric callouts, clean diagonal composition.',
     colorRule: '60% deep midnight, 30% stark white cards, 10% vibrant electric violet and coral gradient accents.',
     mood: 'Dynamic, high-converting, punchy, energetic.'
+  },
+  'documentary-human': {
+    name: 'Documentary Human Brand',
+    styleDescriptor: 'Human editorial advertising style with believable photography, candid composition, natural light, tactile real-world surfaces, imperfect-but-intentional framing, understated typography, and quiet brand placement.',
+    colorRule: 'Use colors from the supplied brand identity as restrained accents inside a real scene; avoid one-note neon palettes and synthetic gradients.',
+    mood: 'Human, credible, warm, useful, lived-in.'
   }
 };
 
@@ -44,27 +50,34 @@ function buildEnterpriseVisualPrompt({
   const isInfographic = visualFormat === 'data-infographic';
   const isMockup = visualFormat === '3d-device-mockup';
   const isAd = visualFormat === 'performance-ad-creative';
-  const isFlyer = visualFormat === 'corporate-flyer' || (!isCarousel && !isInfographic && !isMockup && !isAd);
+  const isHumanEditorial = visualFormat === 'human-editorial-poster';
+  const isFlyer = visualFormat === 'corporate-flyer' || (!isCarousel && !isInfographic && !isMockup && !isAd && !isHumanEditorial);
 
   return [
     'Act as an elite Enterprise Art Director and Senior Production Designer.',
     `Design an agency-grade marketing visual asset in the ${theme.name} aesthetic.`,
-    
-    '--- SWISS TYPOGRAPHIC GRID & COMPOSITION RULES ---',
-    '1. 12-Column Grid Alignment: Align all cards, text blocks, and visual anchors to a strict modular grid. Never scatter elements arbitrarily.',
-    '2. Golden Ratio Hierarchy (1:1.618): Establish one single dominant focal point (Headline or Hero Asset), followed by secondary structured information.',
-    '3. 8pt Baseline Vertical Rhythm: Use uniform vertical spacing (8px, 16px, 24px, 32px) between headlines, subtitles, feature groups, and button controls.',
-    '4. The 30% Negative Space Rule: Maintain at least 30% unobstructed whitespace/breathing room across the canvas. Avoid clutter, random geometric floaters, and crowded margins.',
-    
-    '--- C.R.A.P. DESIGN & ACCESSIBILITY PRINCIPLES ---',
-    '1. Contrast: Ensure a minimum 4.5:1 WCAG contrast ratio for all text against backgrounds. The primary message must be immediately readable in under 2 seconds.',
-    '2. Repetition: Use identical corner radii (14px), consistent card borders, and uniform iconography styling throughout the visual composition.',
-    '3. Alignment: Body copy and descriptive text must be flush-left aligned with clean vertical left-side margin lines. Avoid centered multi-line body paragraphs with ragged edges.',
-    '4. Proximity: Group related data points, icons, and labels into atomic visual cards separated by clean whitespace.',
-    
-    '--- 60-30-10 COLOR HARMONIZATION ---',
+    isHumanEditorial
+      ? `--- HUMAN EDITORIAL ART DIRECTION ---
+1. Build the image around one believable human or real-world brand moment: a workspace, founder desk, customer environment, product-in-use scene, street-level business context, or documentary-style detail.
+2. Use natural light, subtle grain, real camera depth, tactile surfaces, imperfect framing, and human warmth. It should feel photographed or assembled by a thoughtful creative team, not generated from a template.
+3. If text is requested, use sparse editorial typography like a magazine ad or small poster caption. Keep copy minimal, grounded, and easy to read.
+4. Brand presence should feel real: a laptop sticker, printed note, small screen, package label, office wall, or tasteful lower-corner mark. Do not make the logo the entire concept unless explicitly requested.`
+      : `--- SWISS TYPOGRAPHIC GRID & COMPOSITION RULES ---
+1. 12-Column Grid Alignment: Align all cards, text blocks, and visual anchors to a strict modular grid. Never scatter elements arbitrarily.
+2. Golden Ratio Hierarchy (1:1.618): Establish one single dominant focal point (Headline or Hero Asset), followed by secondary structured information.
+3. 8pt Baseline Vertical Rhythm: Use uniform vertical spacing (8px, 16px, 24px, 32px) between headlines, subtitles, feature groups, and button controls.
+4. The 30% Negative Space Rule: Maintain at least 30% unobstructed whitespace/breathing room across the canvas. Avoid clutter, random geometric floaters, and crowded margins.
+
+--- C.R.A.P. DESIGN & ACCESSIBILITY PRINCIPLES ---
+1. Contrast: Ensure a minimum 4.5:1 WCAG contrast ratio for all text against backgrounds. The primary message must be immediately readable in under 2 seconds.
+2. Repetition: Use identical corner radii (14px), consistent card borders, and uniform iconography styling throughout the visual composition.
+3. Alignment: Body copy and descriptive text must be flush-left aligned with clean vertical left-side margin lines. Avoid centered multi-line body paragraphs with ragged edges.
+4. Proximity: Group related data points, icons, and labels into atomic visual cards separated by clean whitespace.`,
+
+    '--- COLOR & MATERIAL DIRECTION ---',
     `Color Distribution Rule: ${theme.colorRule}`,
     theme.styleDescriptor,
+    'Anti-AI visual ban: no neon orbs, abstract orbit rings, glowing 3D arrows, fake holographic dashboards, floating feature-card clusters, generic purple-blue SaaS gradients, plastic stock-photo people, over-symmetric layouts, warped hands, or decorative tech swirls.',
     
     isCarousel
       ? `--- B2B CAROUSEL SLIDE SPECIFICATION (Slide ${slideIndex} of ${totalSlides}) ---
@@ -95,6 +108,15 @@ function buildEnterpriseVisualPrompt({
 - Clear visual hierarchy with a bold pattern-interrupt hook or Before-vs-After split-screen problem/solution contrast.
 - Visual trust indicators (verified checkmarks, rating star badges, or client proof callouts).
 - High-contrast, friction-reducing CTA button with clear action text.`
+      : '',
+
+    isHumanEditorial
+      ? `--- HUMAN EDITORIAL POSTER SPECIFICATION ---
+- Make the scene emotionally credible before it is promotional.
+- Prefer one strong photographic subject or environmental detail over many UI cards.
+- Use restrained brand typography and no more than one concise headline or CTA when copy is requested.
+- Show the product or offer through context, not through invented interface screens unless the supplied reference supports it.
+- Leave room for social-platform cropping while keeping the composition natural.`
       : '',
 
     isFlyer

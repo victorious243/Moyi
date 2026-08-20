@@ -7,8 +7,10 @@ function resolveBrandDesignTokens({ project = {}, draft = {} } = {}) {
   const brandTone = String(project.brandTone || '').toLowerCase();
   const industry = String(project.industry || '').toLowerCase();
 
-  let aestheticTheme = 'minimalist-saas';
-  if (/\b(?:security|fintech|finance|crypto|devops|data|api)\b/.test(industry) || /\b(?:secure|technical|precise)\b/.test(brandTone)) {
+  let aestheticTheme = 'documentary-human';
+  if (/\b(?:human|warm|authentic|editorial|community|creator|local|personal|approachable)\b/.test(brandTone)) {
+    aestheticTheme = 'documentary-human';
+  } else if (/\b(?:security|fintech|finance|crypto|devops|data|api)\b/.test(industry) || /\b(?:secure|technical|precise)\b/.test(brandTone)) {
     aestheticTheme = 'fintech-glass';
   } else if (/\b(?:consulting|legal|editorial|journalism|executive|healthcare)\b/.test(industry) || /\b(?:authoritative|scholarly|editorial)\b/.test(brandTone)) {
     aestheticTheme = 'warm-editorial';
@@ -126,6 +128,14 @@ function generatePerformanceAdBlueprint({ project = {}, draft = {}, adStyle = 's
 }
 
 const GRAPHIC_DESIGN_SKILLS = [
+  {
+    id: 'human-editorial-poster',
+    name: 'Human Editorial Poster',
+    badge: 'Human-first',
+    icon: '📷',
+    description: 'Believable campaign visuals with natural light, real-world context, restrained typography, and no obvious AI SaaS poster patterns.',
+    bestFor: 'Founder brands, local services, creators, human-led SaaS launches, organic social posts.'
+  },
   {
     id: 'corporate-flyer',
     name: 'Corporate Marketing Flyer',

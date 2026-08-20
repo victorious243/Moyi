@@ -8,6 +8,11 @@ const { getDecryptedSocialAccountCredentials, socialAccountAccessFilter } = requ
 const { ensureFreshSocialAccountCredentials } = require('./socialTokenRefreshService');
 const { recordAppLog } = require('./appLogger');
 const { publishFacebookPagePost, publishInstagramBusinessPost } = require('./metaMcpService');
+const {
+  X_STANDARD_MAX_WEIGHTED_LENGTH,
+  xPostLimitMessage,
+  xPostMetrics
+} = require('./xTextService');
 
 function absoluteAppUrl(pathOrUrl) {
   if (!pathOrUrl) return '';
@@ -278,6 +283,14 @@ function describePublishReadiness({ draft, connectedAccounts = [], imagesByDraft
   if (draft.channel === 'instagram' && !media.hasImage && !media.hasVideo) blockers.push('Instagram needs media');
   if (draft.channel === 'tiktok' && !media.hasImage && !media.hasVideo) blockers.push('TikTok needs media');
   if (draft.channel === 'youtube' && !media.hasVideo) blockers.push('YouTube needs a video');
+  const textMetrics = draft.channel === 'x'
+    ? { ...xPostMetrics(draft.body), maxWeightedLength: X_STANDARD_MAX_WEIGHTED_LENGTH }
+    : null;
+  if (textMetrics && textMetrics.weightedLength > X_STANDARD_MAX_WEIGHTED_LENGTH) {
+    blockers.push(xPostLimitMessage(textMetrics.weightedLength));
+  } else if (textMetrics && !textMetrics.valid) {
+    blockers.push('X post copy contains invalid text. Remove unsupported control characters and try again.');
+  }
 
   return {
     draftId: String(draft._id),
@@ -285,6 +298,7 @@ function describePublishReadiness({ draft, connectedAccounts = [], imagesByDraft
     supportedPlatforms,
     targets,
     selectedTarget,
+    textMetrics,
     blockers,
     ready: blockers.length === 0
   };

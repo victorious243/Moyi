@@ -184,6 +184,44 @@ test('socialPublisherService: publish readiness explains one-click blockers', ()
   assert.ok(instagram.blockers.includes('Instagram needs media'));
 });
 
+test('socialPublisherService: X drafts over the standard limit are not publish-ready', () => {
+  const projectId = new mongoose.Types.ObjectId();
+  const campaignId = new mongoose.Types.ObjectId();
+
+  const longXDraft = new SocialDraft({
+    _id: new mongoose.Types.ObjectId(),
+    projectId,
+    campaignId,
+    channel: 'x',
+    title: 'Long X post',
+    body: 'x'.repeat(319),
+    status: 'approved',
+    publishStatus: 'approved',
+    scheduledFor: new Date()
+  });
+
+  const connectedAccounts = [
+    new SocialAccount({
+      _id: new mongoose.Types.ObjectId(),
+      projectId,
+      userId: new mongoose.Types.ObjectId(),
+      platform: 'x',
+      accountName: '@moyi',
+      accessToken: 'sandbox_x'
+    })
+  ];
+
+  const readiness = buildPublishReadiness({
+    socialDrafts: [longXDraft],
+    connectedAccounts
+  });
+
+  assert.equal(readiness.readyCount, 0);
+  assert.equal(readiness.blockedCount, 1);
+  assert.equal(readiness.posts[0].textMetrics.weightedLength, 319);
+  assert.match(readiness.posts[0].blockers.join(' '), /280 weighted characters/);
+});
+
 test('SocialAccount model validation and schema defaults', () => {
   const account = new SocialAccount({
     projectId: new mongoose.Types.ObjectId(),

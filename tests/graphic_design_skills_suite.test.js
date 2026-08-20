@@ -33,9 +33,10 @@ test('Graphic Design Skills Suite: Blueprints & Design Tokens', async (t) => {
     body: 'Why modern founders replace €5k/mo agency retainers with automated growth intelligence.'
   };
 
-  await t.test('GRAPHIC_DESIGN_SKILLS catalog lists all 5 enterprise design disciplines', () => {
-    assert.equal(GRAPHIC_DESIGN_SKILLS.length, 5);
+  await t.test('GRAPHIC_DESIGN_SKILLS catalog lists all 6 enterprise design disciplines', () => {
+    assert.equal(GRAPHIC_DESIGN_SKILLS.length, 6);
     const skillIds = GRAPHIC_DESIGN_SKILLS.map((s) => s.id);
+    assert.ok(skillIds.includes('human-editorial-poster'));
     assert.ok(skillIds.includes('corporate-flyer'));
     assert.ok(skillIds.includes('b2b-carousel-slide'));
     assert.ok(skillIds.includes('3d-device-mockup'));
@@ -94,9 +95,12 @@ test('Graphic Design Skills Suite: Prompt Synthesis & Format Detection', async (
     assert.equal(detectVisualFormat({ requestedFormat: 'data-infographic' }), 'data-infographic');
     assert.equal(detectVisualFormat({ requestedFormat: 'performance-ad-creative' }), 'performance-ad-creative');
     assert.equal(detectVisualFormat({ requestedFormat: 'corporate-flyer' }), 'corporate-flyer');
+    assert.equal(detectVisualFormat({ requestedFormat: 'human-editorial-poster' }), 'human-editorial-poster');
+    assert.equal(detectVisualFormat({ guidance: 'make a poster with human vibe and natural light' }), 'human-editorial-poster');
+    assert.equal(detectVisualFormat({ guidance: 'make a poster for this launch' }), 'human-editorial-poster');
   });
 
-  await t.test('imagePrompt incorporates Swiss grid, C.R.A.P. principles, and 60-30-10 color rules', () => {
+  await t.test('imagePrompt incorporates Swiss grid, C.R.A.P. principles, and color material rules', () => {
     const prompt = imagePrompt({
       project: mockProject,
       draft: mockDraft,
@@ -108,13 +112,13 @@ test('Graphic Design Skills Suite: Prompt Synthesis & Format Detection', async (
     assert.match(prompt, /SWISS TYPOGRAPHIC GRID & COMPOSITION RULES/);
     assert.match(prompt, /12-Column Grid Alignment/);
     assert.match(prompt, /C\.R\.A\.P\. DESIGN & ACCESSIBILITY PRINCIPLES/);
-    assert.match(prompt, /60-30-10 COLOR HARMONIZATION/);
+    assert.match(prompt, /COLOR & MATERIAL DIRECTION/);
     assert.match(prompt, /DIRECT-RESPONSE PERFORMANCE AD CREATIVE SPECIFICATION/);
     assert.match(prompt, /Before-vs-After split-screen/);
   });
 
   await t.test('resolveImageOutputProfile enforces PNG output for all graphic design skills', () => {
-    const formats = ['corporate-flyer', 'b2b-carousel-slide', '3d-device-mockup', 'data-infographic', 'performance-ad-creative'];
+    const formats = ['human-editorial-poster', 'corporate-flyer', 'b2b-carousel-slide', '3d-device-mockup', 'data-infographic', 'performance-ad-creative'];
     for (const fmt of formats) {
       const profile = resolveImageOutputProfile({ draft: mockDraft, visualFormat: fmt });
       assert.equal(profile.outputFormat, 'png');

@@ -30,11 +30,11 @@ test('resolveBrandDesignTokens selects appropriate enterprise aesthetic preset b
   });
   assert.equal(growthTokens.aestheticTheme, 'high-voltage-growth');
 
-  // 4. Default SaaS
+  // 4. Default SaaS now starts with a human editorial look unless the user asks for a stricter technical style.
   const saasTokens = resolveBrandDesignTokens({
     project: { industry: 'B2B Software', brandTone: 'Professional' }
   });
-  assert.equal(saasTokens.aestheticTheme, 'minimalist-saas');
+  assert.equal(saasTokens.aestheticTheme, 'documentary-human');
 });
 
 test('buildEnterpriseVisualPrompt enforces Swiss 12-column grid, C.R.A.P. principles, and 30% whitespace', () => {
@@ -51,6 +51,22 @@ test('buildEnterpriseVisualPrompt enforces Swiss 12-column grid, C.R.A.P. princi
   assert.ok(prompt.includes('30% Negative Space'));
   assert.ok(prompt.includes('4.5:1'));
   assert.ok(prompt.includes('1200 by 1200'));
+});
+
+test('buildEnterpriseVisualPrompt supports human editorial posters and blocks obvious AI patterns', () => {
+  const prompt = buildEnterpriseVisualPrompt({
+    project: { name: 'VicPods', websiteUrl: 'https://vicpods.com' },
+    draft: { title: 'Start Your Podcast Journey', channel: 'instagram' },
+    visualFormat: 'human-editorial-poster',
+    aestheticTheme: 'documentary-human',
+    outputProfile: { width: 1088, height: 1360, orientation: 'portrait', channel: 'instagram' }
+  });
+
+  assert.ok(prompt.includes('HUMAN EDITORIAL ART DIRECTION'));
+  assert.ok(prompt.includes('believable human or real-world brand moment'));
+  assert.ok(prompt.includes('Anti-AI visual ban'));
+  assert.ok(prompt.includes('no neon orbs'));
+  assert.ok(prompt.includes('HUMAN EDITORIAL POSTER SPECIFICATION'));
 });
 
 test('generateCarouselDeckPlan creates structured 5-to-7 slide narrative decks for LinkedIn & Instagram', () => {

@@ -177,6 +177,10 @@
                 const publishTargets = publishTargetsFor(draft.channel);
                 const selectedTarget = publishTargets.find((account) => String(account._id) === String(draft.socialAccountId || '')) || publishTargets[0];
                 const postReadiness = readinessByDraftId[String(draft._id)] || { ready: false, blockers: [] };
+                const inlinePostBlockers = (postReadiness.blockers || []).filter((blocker) => !['Needs approval', 'Publishing failed', 'Already published', 'Publishing in progress'].includes(blocker));
+                const draftErrorMessage = draft.errorMessage && !inlinePostBlockers.includes(draft.errorMessage) ? draft.errorMessage : '';
+                const publishBlockedByPostIssue = inlinePostBlockers.length > 0;
+                const showPostAttention = publishBlockedByPostIssue || Boolean(draftErrorMessage);
                 const publishJobs = jobsByDraftId[String(draft._id)] || [];
                 const accountNameById = new Map(connectedSocialAccounts.map((account) => [String(account._id), account.accountName]));
                 const draftPublishStatus = draft.publishStatus || (draft.status === 'draft' ? 'draft' : 'approved');
@@ -198,6 +202,20 @@
                     <strong><%= postReadiness.ready ? 'Ready for one-click publish' : postReadiness.blockers.join(' · ') %></strong>
                     <% if (selectedTarget && postReadiness.ready) { %><small><%= selectedTarget.platform %> · <%= selectedTarget.accountName %> · <%= socialAccountProjectNames[String(selectedTarget.projectId)] || project.name %></small><% } %>
                   </div>
+                  <% if (showPostAttention) { %>
+                    <div class="post-attention-panel" role="status">
+                      <div>
+                        <strong><%= publishBlockedByPostIssue ? 'Fix this post before publishing' : 'Last publish attempt failed' %></strong>
+                        <% if (postReadiness.textMetrics) { %>
+                          <small>X length: <%= postReadiness.textMetrics.weightedLength %> / <%= postReadiness.textMetrics.maxWeightedLength %> weighted characters</small>
+                        <% } %>
+                      </div>
+                      <ul>
+                        <% inlinePostBlockers.forEach((blocker) => { %><li><%= blocker %></li><% }) %>
+                        <% if (draftErrorMessage) { %><li><%= draftErrorMessage %></li><% } %>
+                      </ul>
+                    </div>
+                  <% } %>
                   <% if (publishJobs.length) { %>
                     <div class="publish-job-list" data-publish-status-endpoint="/social-drafts/<%= draft._id %>/publish-status">
                       <% publishJobs.forEach((job) => { %>
@@ -290,7 +308,7 @@
                     <button class="button copy-button" type="button" data-copy-target="social-draft-<%= draft._id %>">Copy</button>
                     <% if (selectedDownloadUrl) { %><a class="button" href="<%= selectedDownloadUrl %>">Download Image</a><% } %>
                     <% if (userCanManageProject && draft.status === 'draft') { %><form action="/social-drafts/<%= draft._id %>/approve" method="post"><button class="button" type="submit">Approve</button></form><% } %>
-                    <% if (userCanPublishProject && canStartPublish && nativePublishAccounts.length) { %>
+                    <% if (userCanPublishProject && canStartPublish && nativePublishAccounts.length && !publishBlockedByPostIssue) { %>
                       <form class="social-publish-form social-publish-panel" action="/social-drafts/<%= draft._id %>/approve-and-publish" method="post" data-publish-submit>
                         <fieldset class="publish-account-picker">
                           <legend>Publish to</legend>
@@ -379,6 +397,10 @@
                           <button class="button button-primary" type="submit"><%= draft.status === 'draft' ? 'Approve & Publish' : 'Publish' %></button>
                         </div>
                       </form>
+                    <% } else if (userCanPublishProject && canStartPublish && nativePublishAccounts.length && publishBlockedByPostIssue) { %>
+                      <div class="post-publish-blocked-note">
+                        Shorten or edit this post, then publish it from this card.
+                      </div>
                     <% } else if (userCanPublishProject && canStartPublish && !nativePublishAccounts.length) { %>
                       <a class="button" href="/projects/<%= project._id %>/integrations/social">Connect an account</a>
                     <% } %>
@@ -426,7 +448,8 @@
                       >
                         <label>Graphic Design Skill
                           <select name="visualFormat">
-                            <option value="corporate-flyer">🎨 Corporate Marketing Flyer (Grid & Feature Cards)</option>
+                            <option value="human-editorial-poster">Human Editorial Poster (Natural, believable, less AI)</option>
+                            <option value="corporate-flyer">Corporate Marketing Flyer (Grid & Feature Cards)</option>
                             <option value="b2b-carousel-slide">📱 Multi-Slide B2B Carousel Deck (2.1x Engagement)</option>
                             <option value="3d-device-mockup">💻 3D SaaS Product Mockup (Isometric Glass Frame)</option>
                             <option value="data-infographic">📊 Data-Dense Infographic & Matrix (Comparison & Stats)</option>
@@ -435,6 +458,7 @@
                         </label>
                         <label>Aesthetic Theme
                           <select name="aestheticTheme">
+                            <option value="documentary-human">Documentary Human Brand (Natural Light & Real Context)</option>
                             <option value="minimalist-saas">Minimalist Enterprise SaaS (Stripe/Linear Dark Slate)</option>
                             <option value="fintech-glass">Fintech & Cyber Glass (Frosted Glass & Neon Accents)</option>
                             <option value="warm-editorial">Warm Editorial Corporate (McKinsey/HBR Paper & Serif)</option>

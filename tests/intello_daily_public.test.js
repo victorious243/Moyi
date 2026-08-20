@@ -30,7 +30,8 @@ test('Intello Daily Public Landing Page Template & Content Verification', async 
     assert.match(html, /1-Click Publishing/);
   });
 
-  await t.test('renders all 5 specialized graphic design studio skill panes', () => {
+  await t.test('renders all 6 specialized graphic design studio skill panes', () => {
+    assert.match(html, /Human Editorial Posters/);
     assert.match(html, /Multi-Slide B2B Carousel Decks/);
     assert.match(html, /3D Glassmorphic Device Mockups/);
     assert.match(html, /Data-Dense Infographics & Matrices/);

@@ -49,11 +49,25 @@ function extractPosterText(value) {
 
 const { resolveBrandDesignTokens, buildEnterpriseVisualPrompt } = require('./graphicDesignStudioService');
 
+const VISUAL_FORMATS = new Set([
+  'human-editorial-poster',
+  'corporate-flyer',
+  'b2b-carousel-slide',
+  '3d-device-mockup',
+  'data-infographic',
+  'performance-ad-creative'
+]);
+
+const GRAPHIC_ASSET_FORMATS = new Set([...VISUAL_FORMATS]);
+
 function detectVisualFormat({ guidance = '', draft = {}, requestedFormat = '' } = {}) {
-  if (['corporate-flyer', 'b2b-carousel-slide', '3d-device-mockup', 'data-infographic', 'performance-ad-creative'].includes(requestedFormat)) {
+  if (VISUAL_FORMATS.has(requestedFormat)) {
     return requestedFormat;
   }
   const signal = `${guidance} ${draft.title || ''} ${draft.type || ''}`;
+  if (/\b(?:human|authentic|natural|editorial|documentary|candid|ugc|real[-\s]?world|lifestyle|people|photo(?:graphic)?|less ai|not ai|human vibe)\b/i.test(signal)) {
+    return 'human-editorial-poster';
+  }
   if (/\b(?:carousel|slide deck|slide|multi-slide)\b/i.test(signal)) {
     return 'b2b-carousel-slide';
   }
@@ -66,8 +80,11 @@ function detectVisualFormat({ guidance = '', draft = {}, requestedFormat = '' } 
   if (/\b(?:ad creative|paid ad|performance ad|direct response|facebook ad|meta ad|sponsored)\b/i.test(signal)) {
     return 'performance-ad-creative';
   }
-  if (/\b(?:flyer|poster|advert(?:isement)?|campaign creative|feature announcement|product launch|saas corporate|brochure|banner|one-pager|social graphic)\b/i.test(signal)) {
+  if (/\b(?:corporate flyer|saas corporate|feature cards?|grid layout|one-pager|brochure|comparison flyer)\b/i.test(signal)) {
     return 'corporate-flyer';
+  }
+  if (/\b(?:flyer|poster|advert(?:isement)?|campaign creative|feature announcement|product launch|banner|social graphic)\b/i.test(signal)) {
+    return 'human-editorial-poster';
   }
   return 'editorial-visual';
 }
@@ -116,7 +133,7 @@ function resolveImageOutputProfile({
   model = env.openaiImageModel
 } = {}) {
   const channel = normalizeChannel(draft);
-  const isGraphicAsset = ['corporate-flyer', 'b2b-carousel-slide', '3d-device-mockup', 'data-infographic', 'performance-ad-creative'].includes(visualFormat);
+  const isGraphicAsset = GRAPHIC_ASSET_FORMATS.has(visualFormat);
   const supportsFlexibleSize = /^gpt-image-2(?:$|-)/i.test(String(model || ''));
   const flexibleSizes = {
     instagram: '1088x1360',
@@ -173,7 +190,8 @@ function imagePrompt({
   const valueProps = cleanList(profile.valueProps, 4);
   const callsToAction = cleanList(profile.callsToAction || profile.calls_to_action, 3, 180);
   const body = draftBody(draft);
-  const isGraphicAsset = ['corporate-flyer', 'b2b-carousel-slide', '3d-device-mockup', 'data-infographic', 'performance-ad-creative'].includes(visualFormat);
+  const isGraphicAsset = GRAPHIC_ASSET_FORMATS.has(visualFormat);
+  const isHumanEditorial = visualFormat === 'human-editorial-poster';
   const logoMustAppear = Boolean(brandLogoInputIndex && (isGraphicAsset || explicitLogoRequest(guidance)));
 
   const brandTokens = resolveBrandDesignTokens({ project, draft });
@@ -192,7 +210,9 @@ function imagePrompt({
 
   return [
     enterprisePrompt,
-    isGraphicAsset
+    isHumanEditorial
+      ? 'Act as a human-first brand art director and editorial photographer. Create a believable finished marketing image that feels culturally current, warm, and made by people with taste. Avoid anything that looks like a generic AI SaaS poster.'
+      : isGraphicAsset
       ? 'Act as a senior SaaS art director and production designer. Create one complete, export-ready corporate marketing flyer from the supplied business facts, post, logo, references, and natural-language direction. You own the composition and should make the design decisions yourself.'
       : 'Create one polished visual asset that directly matches the supplied content and its intended business use.',
     `Content type or channel: ${cleanText(draft.type || draft.channel, 120) || 'marketing content asset'}.`,
@@ -227,13 +247,19 @@ function imagePrompt({
     outputProfile && outputProfile.width && outputProfile.height
       ? `Final canvas: ${outputProfile.width} by ${outputProfile.height} pixels in ${outputProfile.orientation} orientation${outputProfile.channel ? `, composed specifically for ${outputProfile.channel}` : ''}. Keep every logo, headline, paragraph, CTA, icon, person, and product fully inside an inner 8% safe margin on all four sides. Nothing may touch, cross, or disappear beyond the canvas edge. Use the whole canvas intentionally and verify the complete composition before returning it.`
       : '',
-    isGraphicAsset
+    isHumanEditorial
+      ? 'Infer a human editorial composition without requiring a technical prompt: one believable subject or environment, natural light, restrained type, real texture, credible brand presence, and a quiet CTA when useful. The result must feel like a real social campaign asset, not a synthetic template, not a UI collage, and not a photograph with a text box pasted on top.'
+      : isGraphicAsset
       ? 'Infer a strong hierarchy without requiring a technical prompt: integrated brand identity, concise headline, clear value proposition, relevant hero visual or supported product concept, scannable feature groups when useful, and a clear CTA. Follow the Swiss 12-column modular grid, 8pt vertical baseline rhythm, and maintain at least 30% unobstructed negative space. Apply C.R.A.P. design principles: high 4.5:1+ contrast, flush-left alignment, uniform card radii, and proximity-grouped atomic cards. The result must look like a finished premium SaaS campaign asset, not a photograph with a text box pasted on top.'
       : 'Use a premium, credible corporate editorial style with a clear focal subject, Swiss grid balance, and natural composition.',
-    isGraphicAsset
+    isHumanEditorial
+      ? 'Do not invent testimonials, metrics, interface screens, awards, customers, or exaggerated product moments. Use context, props, environment, and people to communicate the message naturally.'
+      : isGraphicAsset
       ? 'When the source contains many capabilities, select the most important supported points and arrange them as concise, readable feature groups. Do not invent capabilities, metrics, endorsements, prices, or customer claims.'
       : 'Do not add logos, statistics, product UI, people, locations, or claims that are not supported by the supplied content or reference images.',
-    isGraphicAsset
+    isHumanEditorial
+      ? 'Avoid the obvious AI-poster pattern: no neon glow backgrounds, abstract circular orbits, giant 3D letters, floating arrows, glossy dashboard mockups, feature-card grids, blue-purple cyber gradients, or overly perfect smiling stock models.'
+      : isGraphicAsset
       ? 'A conceptual SaaS interface may be shown only when supported by the supplied content. It must be clearly illustrative with subtle 3D glassmorphism depth, and must not add unsupported product functionality.'
       : '',
     exactPosterText

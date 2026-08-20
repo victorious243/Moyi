@@ -108,20 +108,27 @@ test('content image prompt turns a natural poster request into a logo-aware SaaS
   assert.equal(guidanceRequestsLogo('make a polished SaaS corporate flyer'), true);
   assert.equal(guidanceRequestsLogo('create a natural editorial image'), true);
   assert.equal(guidanceRequestsLogo('make a flyer without the logo'), false);
-  assert.equal(visualFormat, 'corporate-flyer');
+  assert.equal(visualFormat, 'human-editorial-poster');
   assert.equal(extractPosterText(guidance), 'Start using VicPods for free at vicpods.com');
-  assert.match(prompt, /Act as a senior SaaS art director and production designer/);
+  assert.match(prompt, /human-first brand art director and editorial photographer/);
   assert.match(prompt, /Input image 1 is the official VicPods transparent PNG logo/);
   assert.match(prompt, /only authorized logo/);
   assert.match(prompt, /final image itself must visibly contain the supplied logo exactly once/);
   assert.match(prompt, /There is no later logo overlay/);
-  assert.match(prompt, /finished premium SaaS campaign asset/);
+  assert.match(prompt, /real social campaign asset/);
+  assert.match(prompt, /Avoid the obvious AI-poster pattern/);
   assert.match(prompt, /Turn rough ideas into structured episodes/);
   assert.match(prompt, /Official website: https:\/\/vicpods.com/);
   assert.match(prompt, /User art direction: put the logo visible/);
   assert.match(prompt, /Start using VicPods for free at vicpods.com/);
   assert.match(prompt, /Render this exact CTA once/);
   assert.match(prompt, /Do not show design notes, crop marks, dotted safe areas/);
+});
+
+test('explicit corporate flyer requests still use the structured SaaS design skill', () => {
+  const guidance = 'make a corporate flyer with a grid layout and feature cards';
+  const visualFormat = detectVisualFormat({ guidance, draft: { title: 'VicPods New Features' } });
+  assert.equal(visualFormat, 'corporate-flyer');
 });
 
 test('long natural-language feature prompts remain available to the flyer designer', () => {

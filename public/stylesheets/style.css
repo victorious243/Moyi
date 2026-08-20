@@ -3811,6 +3811,54 @@ blockquote {
   font-size: 0.76rem;
 }
 
+.post-attention-panel {
+  background: rgba(127, 29, 29, 0.18);
+  border: 1px solid rgba(248, 113, 113, 0.38);
+  border-radius: 14px;
+  color: var(--soft);
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 14px 16px;
+}
+
+.post-attention-panel > div {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  justify-content: space-between;
+}
+
+.post-attention-panel strong {
+  color: #fecaca;
+}
+
+.post-attention-panel small {
+  color: #fde68a;
+  font-size: 0.82rem;
+}
+
+.post-attention-panel ul {
+  color: #fecaca;
+  line-height: 1.45;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.post-publish-blocked-note {
+  align-items: center;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.34);
+  border-radius: 10px;
+  color: #fde68a;
+  display: inline-flex;
+  font-size: 0.88rem;
+  font-weight: 800;
+  min-height: 44px;
+  padding: 10px 14px;
+}
+
 .agenda-edit {
   position: relative;
 }

@@ -685,7 +685,10 @@ router.post('/:id/approve-and-publish', [
     }
     res.redirect(`/projects/${req.project._id}/calendar?success=${encodeURIComponent(queueSuccessMessage(result, scheduledAt))}#post-${req.socialDraft._id}`);
   } catch (error) {
-    res.redirect(`${projectCalendarUrl(req.project._id, publishFailureParams(error))}#post-${req.socialDraft._id}`);
+    req.socialDraft.publishStatus = 'failed';
+    req.socialDraft.errorMessage = error.message;
+    await req.socialDraft.save();
+    res.redirect(`/projects/${req.project._id}/calendar#post-${req.socialDraft._id}`);
   }
 }));
 
@@ -815,6 +818,9 @@ router.post('/:id/update', [
     try {
       assertStandardXPost(req.body.body);
     } catch (error) {
+      req.socialDraft.publishStatus = 'failed';
+      req.socialDraft.errorMessage = error.message;
+      await req.socialDraft.save();
       return res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { error: error.message }));
     }
   }
@@ -823,6 +829,8 @@ router.post('/:id/update', [
   req.socialDraft.channel = req.body.channel;
   req.socialDraft.socialAccountId = req.body.socialAccountId || null;
   req.socialDraft.scheduledFor = new Date(req.body.scheduledFor);
+  req.socialDraft.errorMessage = '';
+  if (req.socialDraft.publishStatus === 'failed') req.socialDraft.publishStatus = 'approved';
   await req.socialDraft.save();
   res.redirect(`/projects/${req.project._id}/calendar?success=${encodeURIComponent('Post updated.')}#post-${req.socialDraft._id}`);
 }));
