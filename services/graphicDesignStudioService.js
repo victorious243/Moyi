@@ -107,11 +107,74 @@ function generate3dMockupBlueprint({ project = {}, draft = {}, deviceType = 'mac
   };
 }
 
+/**
+ * Generates a direct-response performance ad creative blueprint for paid social campaigns.
+ */
+function generatePerformanceAdBlueprint({ project = {}, draft = {}, adStyle = 'split-before-after' } = {}) {
+  return {
+    adStyle,
+    layoutStructure: adStyle === 'split-before-after'
+      ? '50/50 Horizontal Split Screen: Problem state (Left, muted/red) vs Solution state (Right, vibrant/green)'
+      : 'Feature-Benefit Matrix with high-contrast social proof badge and friction-reducing CTA',
+    visualHooks: [
+      { type: 'pattern_interrupt', description: 'Bold high-contrast outcome statement in top 20% safe zone' },
+      { type: 'trust_badge', description: 'Verified customer review rating or benchmark result pill' },
+      { type: 'action_trigger', description: 'High-contrast pill CTA button with directional arrow' }
+    ],
+    targetPlatforms: ['facebook', 'instagram', 'linkedin', 'x']
+  };
+}
+
+const GRAPHIC_DESIGN_SKILLS = [
+  {
+    id: 'corporate-flyer',
+    name: 'Corporate Marketing Flyer',
+    badge: 'Standard Flyer',
+    icon: '🎨',
+    description: 'Outcome-focused single-image flyer with integrated logo, Swiss 12-column grid, atomic feature cards, and high-converting CTA.',
+    bestFor: 'LinkedIn updates, X/Twitter posts, Facebook announcements, general campaigns.'
+  },
+  {
+    id: 'b2b-carousel-slide',
+    name: 'Multi-Slide B2B Carousel Deck',
+    badge: '2.1x Engagement',
+    icon: '📱',
+    description: 'Cohesive multi-slide deck with bold pattern-interrupt hook slide, progressive takeaway cards, swipe indicators (Swipe →), and summary CTA.',
+    bestFor: 'LinkedIn document posts, Instagram multi-image carousels, educational guides.'
+  },
+  {
+    id: '3d-device-mockup',
+    name: '3D SaaS Product Mockup',
+    badge: 'High Conversion',
+    icon: '💻',
+    description: 'Software UI displayed inside a floating 3D glass display or Apple hardware frame with dark-mode studio lighting and ambient neon rim glow.',
+    bestFor: 'Product launches, feature announcements, landing page hero cards, software demos.'
+  },
+  {
+    id: 'data-infographic',
+    name: 'Data-Dense Infographic & Matrix',
+    badge: 'Most Reposted',
+    icon: '📊',
+    description: 'McKinsey & Gartner style head-to-head comparison tables, 2x2 strategic grids, step-by-step process diagrams, and bold metric callout badges.',
+    bestFor: 'Industry benchmarks, competitor comparisons, case study proof, thought leadership.'
+  },
+  {
+    id: 'performance-ad-creative',
+    name: 'Direct-Response Performance Ad',
+    badge: 'Paid Ads / Meta',
+    icon: '🎯',
+    description: 'Conversion-engineered ad visual featuring split-screen Before vs After, problem agitation, verified proof badges, and high-CTR CTA buttons.',
+    bestFor: 'Meta Ads (Facebook/Instagram), LinkedIn Sponsored Content, retargeting campaigns.'
+  }
+];
+
 module.exports = {
   resolveBrandDesignTokens,
   buildEnterpriseVisualPrompt,
   generateCarouselDeckPlan,
   generateInfographicBlueprint,
   generate3dMockupBlueprint,
+  generatePerformanceAdBlueprint,
+  GRAPHIC_DESIGN_SKILLS,
   AESTHETIC_PRESETS
 };

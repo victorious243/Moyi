@@ -47,9 +47,12 @@ function extractPosterText(value) {
   return saying ? cleanText(saying[1], 160) : '';
 }
 
-const { resolveBrandDesignTokens } = require('./graphicDesignStudioService');
+const { resolveBrandDesignTokens, buildEnterpriseVisualPrompt } = require('./graphicDesignStudioService');
 
-function detectVisualFormat({ guidance = '', draft = {} } = {}) {
+function detectVisualFormat({ guidance = '', draft = {}, requestedFormat = '' } = {}) {
+  if (['corporate-flyer', 'b2b-carousel-slide', '3d-device-mockup', 'data-infographic', 'performance-ad-creative'].includes(requestedFormat)) {
+    return requestedFormat;
+  }
   const signal = `${guidance} ${draft.title || ''} ${draft.type || ''}`;
   if (/\b(?:carousel|slide deck|slide|multi-slide)\b/i.test(signal)) {
     return 'b2b-carousel-slide';
@@ -60,7 +63,10 @@ function detectVisualFormat({ guidance = '', draft = {} } = {}) {
   if (/\b(?:mockup|3d device|device frame|isometric screen|laptop frame|tablet mockup)\b/i.test(signal)) {
     return '3d-device-mockup';
   }
-  if (/\b(?:flyer|poster|advert(?:isement)?|ad creative|campaign creative|feature announcement|product launch|saas corporate|brochure|banner|one-pager|social graphic)\b/i.test(signal)) {
+  if (/\b(?:ad creative|paid ad|performance ad|direct response|facebook ad|meta ad|sponsored)\b/i.test(signal)) {
+    return 'performance-ad-creative';
+  }
+  if (/\b(?:flyer|poster|advert(?:isement)?|campaign creative|feature announcement|product launch|saas corporate|brochure|banner|one-pager|social graphic)\b/i.test(signal)) {
     return 'corporate-flyer';
   }
   return 'editorial-visual';
@@ -110,7 +116,7 @@ function resolveImageOutputProfile({
   model = env.openaiImageModel
 } = {}) {
   const channel = normalizeChannel(draft);
-  const isFlyer = visualFormat === 'corporate-flyer';
+  const isGraphicAsset = ['corporate-flyer', 'b2b-carousel-slide', '3d-device-mockup', 'data-infographic', 'performance-ad-creative'].includes(visualFormat);
   const supportsFlexibleSize = /^gpt-image-2(?:$|-)/i.test(String(model || ''));
   const flexibleSizes = {
     instagram: '1088x1360',
@@ -128,7 +134,7 @@ function resolveImageOutputProfile({
   };
   const channelSize = supportsFlexibleSize ? flexibleSizes[channel] : legacySizes[channel];
   const size = channelSize
-    || (isFlyer ? (supportsFlexibleSize ? '1088x1360' : '1024x1536') : env.openaiImageSize);
+    || (isGraphicAsset ? (supportsFlexibleSize ? '1088x1360' : '1024x1536') : env.openaiImageSize);
   const [width, height] = /^\d+x\d+$/.test(size)
     ? size.split('x').map(Number)
     : [null, null];
@@ -140,9 +146,9 @@ function resolveImageOutputProfile({
     channel,
     height,
     orientation,
-    outputCompression: isFlyer ? null : 95,
-    outputFormat: isFlyer ? 'png' : 'jpeg',
-    quality: isFlyer || channel ? 'high' : env.openaiImageQuality,
+    outputCompression: isGraphicAsset ? null : 95,
+    outputFormat: isGraphicAsset ? 'png' : 'jpeg',
+    quality: isGraphicAsset || channel ? 'high' : env.openaiImageQuality,
     size,
     width
   };
@@ -154,6 +160,7 @@ function imagePrompt({
   guidance,
   hasBrandLogoReference = false,
   visualFormat = 'editorial-visual',
+  aestheticTheme = '',
   referenceImageInputIndex = null,
   brandLogoInputIndex = null,
   exactPosterText = '',
@@ -166,11 +173,26 @@ function imagePrompt({
   const valueProps = cleanList(profile.valueProps, 4);
   const callsToAction = cleanList(profile.callsToAction || profile.calls_to_action, 3, 180);
   const body = draftBody(draft);
-  const isFlyer = visualFormat === 'corporate-flyer';
-  const logoMustAppear = Boolean(brandLogoInputIndex && (isFlyer || explicitLogoRequest(guidance)));
+  const isGraphicAsset = ['corporate-flyer', 'b2b-carousel-slide', '3d-device-mockup', 'data-infographic', 'performance-ad-creative'].includes(visualFormat);
+  const logoMustAppear = Boolean(brandLogoInputIndex && (isGraphicAsset || explicitLogoRequest(guidance)));
+
+  const brandTokens = resolveBrandDesignTokens({ project, draft });
+  const theme = aestheticTheme || brandTokens.aestheticTheme;
+
+  const enterprisePrompt = buildEnterpriseVisualPrompt({
+    project,
+    draft,
+    visualFormat,
+    aestheticTheme: theme,
+    exactPosterText,
+    guidance,
+    outputProfile,
+    brandTokens
+  });
 
   return [
-    isFlyer
+    enterprisePrompt,
+    isGraphicAsset
       ? 'Act as a senior SaaS art director and production designer. Create one complete, export-ready corporate marketing flyer from the supplied business facts, post, logo, references, and natural-language direction. You own the composition and should make the design decisions yourself.'
       : 'Create one polished visual asset that directly matches the supplied content and its intended business use.',
     `Content type or channel: ${cleanText(draft.type || draft.channel, 120) || 'marketing content asset'}.`,
@@ -205,13 +227,13 @@ function imagePrompt({
     outputProfile && outputProfile.width && outputProfile.height
       ? `Final canvas: ${outputProfile.width} by ${outputProfile.height} pixels in ${outputProfile.orientation} orientation${outputProfile.channel ? `, composed specifically for ${outputProfile.channel}` : ''}. Keep every logo, headline, paragraph, CTA, icon, person, and product fully inside an inner 8% safe margin on all four sides. Nothing may touch, cross, or disappear beyond the canvas edge. Use the whole canvas intentionally and verify the complete composition before returning it.`
       : '',
-    isFlyer
+    isGraphicAsset
       ? 'Infer a strong hierarchy without requiring a technical prompt: integrated brand identity, concise headline, clear value proposition, relevant hero visual or supported product concept, scannable feature groups when useful, and a clear CTA. Follow the Swiss 12-column modular grid, 8pt vertical baseline rhythm, and maintain at least 30% unobstructed negative space. Apply C.R.A.P. design principles: high 4.5:1+ contrast, flush-left alignment, uniform card radii, and proximity-grouped atomic cards. The result must look like a finished premium SaaS campaign asset, not a photograph with a text box pasted on top.'
       : 'Use a premium, credible corporate editorial style with a clear focal subject, Swiss grid balance, and natural composition.',
-    isFlyer
+    isGraphicAsset
       ? 'When the source contains many capabilities, select the most important supported points and arrange them as concise, readable feature groups. Do not invent capabilities, metrics, endorsements, prices, or customer claims.'
       : 'Do not add logos, statistics, product UI, people, locations, or claims that are not supported by the supplied content or reference images.',
-    isFlyer
+    isGraphicAsset
       ? 'A conceptual SaaS interface may be shown only when supported by the supplied content. It must be clearly illustrative with subtle 3D glassmorphism depth, and must not add unsupported product functionality.'
       : '',
     exactPosterText
@@ -219,7 +241,7 @@ function imagePrompt({
       : '',
     'Return only the finished artwork. Do not show design notes, crop marks, dotted safe areas, wireframes, placeholders, labels such as "LOGO AREA", or unfinished layout instructions.',
     'Avoid fake logos, duplicate brand marks, malformed words, garbled text, watermarks, stock-template clutter, and generic AI imagery.',
-    isFlyer
+    isGraphicAsset
       ? 'Any visible copy must be concise, correctly spelled, easy to read, and derived from the supplied content. Do not fill the design with long paragraphs.'
       : 'Do not place text in the image unless the user explicitly asks for it.',
     'Use a balanced composition suitable for a professional marketing content asset.'
@@ -282,7 +304,16 @@ async function saveUploadedImage({ project, draft, userId, file, altText = '', c
   }
 }
 
-async function generateContentImage({ project, draft, userId, guidance = '', referenceImage = null, brandLogoReference = null }) {
+async function generateContentImage({
+  project,
+  draft,
+  userId,
+  guidance = '',
+  referenceImage = null,
+  brandLogoReference = null,
+  visualFormat = '',
+  aestheticTheme = ''
+}) {
   if (!env.openaiApiKey) {
     const error = new Error('OPENAI_API_KEY is required for image generation.');
     error.statusCode = 503;
@@ -290,8 +321,8 @@ async function generateContentImage({ project, draft, userId, guidance = '', ref
   }
 
   const posterText = extractPosterText(guidance);
-  const visualFormat = detectVisualFormat({ guidance, draft });
-  const outputProfile = resolveImageOutputProfile({ draft, visualFormat });
+  const detectedFormat = detectVisualFormat({ guidance, draft, requestedFormat: visualFormat });
+  const outputProfile = resolveImageOutputProfile({ draft, visualFormat: detectedFormat });
   const images = [];
   let referenceImageInputIndex = null;
   let brandLogoInputIndex = null;
@@ -316,7 +347,8 @@ async function generateContentImage({ project, draft, userId, guidance = '', ref
     draft,
     guidance,
     hasBrandLogoReference: Boolean(brandLogoReference),
-    visualFormat,
+    visualFormat: detectedFormat,
+    aestheticTheme,
     referenceImageInputIndex,
     brandLogoInputIndex,
     exactPosterText: posterText,

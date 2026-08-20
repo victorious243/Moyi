@@ -402,6 +402,8 @@ router.post(
         draftModel: 'SocialDraft',
         guidance: req.body.guidance || '',
         referenceImageId: referenceImage ? referenceImage._id : '',
+        visualFormat: req.body.visualFormat || '',
+        aestheticTheme: req.body.aestheticTheme || '',
         redirectPath
       });
       res.redirect(calendarUrl(req.project._id, req.socialDraft._id, {

@@ -213,6 +213,8 @@ router.post(
         draftModel: 'ContentDraft',
         guidance: req.body.guidance || '',
         referenceImageId: referenceImage ? referenceImage._id : '',
+        visualFormat: req.body.visualFormat || '',
+        aestheticTheme: req.body.aestheticTheme || '',
         redirectPath
       });
       res.redirect(contentUrl(req.draft._id, 'visual', {

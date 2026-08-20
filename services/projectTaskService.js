@@ -220,6 +220,8 @@ function createProjectTaskService(deps = {}) {
     draftModel = 'ContentDraft',
     guidance = '',
     referenceImageId = '',
+    visualFormat = '',
+    aestheticTheme = '',
     redirectPath = ''
   }) {
     return enqueueWorkflow({
@@ -231,6 +233,8 @@ function createProjectTaskService(deps = {}) {
         draftModel,
         guidance,
         referenceImageId: referenceImageId || '',
+        visualFormat: visualFormat || '',
+        aestheticTheme: aestheticTheme || '',
         redirectPath
       }
     });
@@ -457,7 +461,9 @@ function createProjectTaskService(deps = {}) {
           userId: job.userId,
           guidance,
           referenceImage,
-          brandLogoReference
+          brandLogoReference,
+          visualFormat: job.payload.visualFormat || '',
+          aestheticTheme: job.payload.aestheticTheme || ''
         });
 
         await onProgress({ currentStep: 'Saving image candidate', progressPercent: 90 });

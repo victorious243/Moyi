@@ -43,7 +43,8 @@ function buildEnterpriseVisualPrompt({
   const isCarousel = visualFormat === 'b2b-carousel-slide';
   const isInfographic = visualFormat === 'data-infographic';
   const isMockup = visualFormat === '3d-device-mockup';
-  const isFlyer = visualFormat === 'corporate-flyer';
+  const isAd = visualFormat === 'performance-ad-creative';
+  const isFlyer = visualFormat === 'corporate-flyer' || (!isCarousel && !isInfographic && !isMockup && !isAd);
 
   return [
     'Act as an elite Enterprise Art Director and Senior Production Designer.',
@@ -86,6 +87,14 @@ function buildEnterpriseVisualPrompt({
 - Present the software user interface inside a sleek, floating 3D glass display or matte-finished Apple hardware frame.
 - Use subtle isometric perspective (15-degree tilt) with soft specular reflections and ambient occlusion shadows.
 - Studio dark-mode lighting with a subtle directional neon rim glow behind the device.`
+      : '',
+
+    isAd
+      ? `--- DIRECT-RESPONSE PERFORMANCE AD CREATIVE SPECIFICATION ---
+- High-converting direct-response layout engineered for Meta Ads / LinkedIn Sponsored posts.
+- Clear visual hierarchy with a bold pattern-interrupt hook or Before-vs-After split-screen problem/solution contrast.
+- Visual trust indicators (verified checkmarks, rating star badges, or client proof callouts).
+- High-contrast, friction-reducing CTA button with clear action text.`
       : '',
 
     isFlyer
