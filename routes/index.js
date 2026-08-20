@@ -205,6 +205,7 @@ async function buildWorkspaceSetupSummary(projects) {
 }
 
 const { COMPARISON_PAGES, SOLUTION_PAGES } = require('../config/programmaticPages');
+const { TUTORIAL_PAGES } = require('../config/tutorialPages');
 const {
   MARKET_STRUGGLES_CATALOG,
   getIntelloHubData,
@@ -239,6 +240,7 @@ router.get('/sitemap.xml', (req, res) => {
     }),
     ...Object.keys(COMPARISON_PAGES).map((slug) => sitemapUrl(`/compare/${slug}`, '0.85', 'weekly')),
     ...Object.keys(SOLUTION_PAGES).map((slug) => sitemapUrl(`/solutions/${slug}`, '0.85', 'weekly')),
+    ...Object.keys(TUTORIAL_PAGES).map((slug) => sitemapUrl(`/docs/tutorials/${slug}`, '0.85', 'monthly')),
     ...MARKET_STRUGGLES_CATALOG.map((s) => sitemapUrl(`/intello/${s.slug}`, '0.9', 'weekly')),
     sitemapUrl('/features/daily-content-intelligence', '0.95', 'weekly'),
     sitemapUrl('/features/intello-daily', '0.9', 'weekly'),
@@ -314,7 +316,8 @@ router.get('/llms.txt', (req, res) => {
     `- Intello Daily: ${publicBaseUrl()}/features/daily-content-intelligence`,
     `- Features: ${publicBaseUrl()}/features`,
     `- How it works: ${publicBaseUrl()}/how-it-works`,
-    `- Documentation: ${publicBaseUrl()}/docs`,
+    `- Documentation & Tutorials: ${publicBaseUrl()}/docs`,
+    ...Object.values(TUTORIAL_PAGES).map((t) => `- Tutorial (${t.title}): ${publicBaseUrl()}/docs/tutorials/${t.slug}`),
     `- Reports guide: ${publicBaseUrl()}/reports`,
     `- Pricing: ${publicBaseUrl()}/pricing`,
     `- AI CMO software: ${publicBaseUrl()}/ai-cmo-software`,
@@ -520,6 +523,21 @@ router.get('/solutions/:slug', (req, res, next) => {
     title: page.title,
     seoDescription: page.metaDescription,
     page
+  });
+});
+
+// Documentation Tutorials & Step-by-Step Walkthroughs
+router.get('/docs/tutorials', (req, res) => {
+  res.redirect(301, '/docs#setup-tutorials');
+});
+
+router.get('/docs/tutorials/:slug', (req, res, next) => {
+  const tutorial = TUTORIAL_PAGES[req.params.slug];
+  if (!tutorial) return next();
+  return res.render('public/tutorial', {
+    title: `${tutorial.seoTitle} | Moyi-CMO`,
+    seoDescription: tutorial.seoDescription,
+    tutorial
   });
 });
 

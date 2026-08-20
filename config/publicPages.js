@@ -3,17 +3,93 @@ module.exports = {
     eyebrow: 'Product capabilities',
     title: 'One system for evidence-led marketing work',
     seoTitle: 'One System for Evidence-Led Marketing Work | Moyi-CMO',
-    seoDescription: 'Discover core Moyi-CMO features: website audits, Search Console query mining, AI CMO plans, Content Studio, and 1-click social distribution.',
-    intro: 'Moyi connects website intelligence, prioritization, content production, campaign operations, and measurement inside one accountable project workspace.',
+    seoDescription: 'Discover core Moyi-CMO features: Intello Daily, 5-engine Graphic Design Studio, Search Console striking-distance mining, AI CMO plans, and 1-click social distribution.',
+    intro: 'Moyi connects website intelligence, autonomous daily content intelligence, graphic design, omni-channel distribution, and closed-loop revenue attribution inside one accountable project workspace.',
     primaryAction: { label: 'Start Free', href: '/register' },
-    secondaryAction: { label: 'See How It Works', href: '/how-it-works' },
+    secondaryAction: { label: 'Explore Visual Studio', href: '/features/daily-content-intelligence#visual-studio-gallery' },
     sections: [
-      { id: 'intelligence', title: 'Website intelligence', body: 'Crawl authorized websites and record page structure, metadata, headings, content signals, internal links, supported technical findings, and failed-page evidence.', bullets: ['Scan-specific evidence remains traceable.', 'Public quick scans expose a limited factual preview.', 'Full scans feed project recommendations and planning.'] },
-      { id: 'strategy', title: 'AI CMO planning', body: 'Turn recorded project evidence into ranked opportunities, business risks, quick wins, and a practical weekly operating plan.', bullets: ['Recommendations include reasons, impact, effort, and target pages.', 'Accept, reject, restore, and completion states keep the queue controlled.', 'Missing evidence is reported instead of replaced with guesses.'] },
-      { id: 'content', title: 'Content Studio', body: 'Generate website assets, articles, and campaign posts using the project’s audience, offer, goal, brand tone, and available evidence.', bullets: ['SEO strategist, copywriter, and editor stages for long-form drafts', 'Comparison, alternatives, and product-led templates', 'Single-post, weekly, and monthly campaign planning'] },
-      { id: 'visuals', title: 'Visual review', body: 'Generate or upload post images, compare candidates with the actual copy, edit accessibility details, and select the final image before approval.', bullets: ['Machine or object-storage files instead of image binaries in MongoDB', 'Candidate, selected, rejected, and restored states', 'Combined image and post preview'] },
-      { id: 'operations', title: 'Campaign operations', body: 'Use the content calendar to edit, schedule, approve, and publish campaign posts to connected social accounts.', bullets: ['Posts remain grouped under campaign objectives.', 'Only approved drafts can be published.', 'Each connected account receives its own visible job status.'] },
-      { id: 'measurement', title: 'Measurement and reporting', body: 'Connect supported data sources, monitor search and social performance, and prepare recurring decision reports.', bullets: ['Social engagement snapshots from supported providers', 'Google Search Console and first-party conversion signals', 'Weekly and monthly evidence-based reporting'] }
+      {
+        id: 'intello-daily',
+        title: 'Intello Daily (Autonomous Content Intelligence)',
+        body: 'Wake up every morning at 7:00 AM to fresh, ready-to-publish social drafts, Swiss-grid carousels, 3D device mockups, and performance ads tailored to your brand.',
+        bullets: [
+          '05:00 AM autonomous query mining from Google Search Console & competitor movements',
+          'Platform-native direct-response copywriting using PAS, AIDA, and BAB frameworks',
+          'Morning brief delivered to your email and in-app bell with 1-click human approval',
+          'Strict "Moyi proposes. Humans decide." governance ensures zero unsupervised publishing'
+        ]
+      },
+      {
+        id: 'visual-studio',
+        title: 'Enterprise Graphic Design Studio (5 Visual Engines)',
+        body: 'Go beyond generic stock photos with 5 specialized visual engines built on a Swiss 12-column modular grid with high-contrast C.R.A.P. design principles.',
+        bullets: [
+          'B2B Multi-Slide Carousel Decks: 5-to-10 slide progressive narratives with swipe indicators',
+          '3D Glassmorphic Device Mockups: 15° isometric hardware framing with dark studio lighting',
+          'Data-Dense Infographics & Matrices: 2-column comparison tables and oversized metric badges',
+          'Performance Ad Creatives: 50/50 Before-vs-After problem/solution split-screens',
+          'Corporate Marketing Flyers: Outcome-focused posters with protected logo safe space'
+        ]
+      },
+      {
+        id: 'intello-kb',
+        title: 'Intello Knowledge Base (Public Solution Playbooks)',
+        body: 'A living, searchable public knowledge base that uncovers real searcher pain points and provides step-by-step resolution guides.',
+        bullets: [
+          'Deduplicated daily struggle discovery prevents keyword cannibalization',
+          '11-part deep-dive playbooks with symptom diagnosis, root cause analysis, and manual fixes',
+          'Demonstrates how Moyi eliminates manual friction while keeping humans in control',
+          'Full Google Article & FAQPage JSON-LD schema for high-ranking Rich Snippets'
+        ]
+      },
+      {
+        id: 'search-console',
+        title: 'Search Console Striking-Distance Engine',
+        body: 'Connect read-only Google Search Console data to automatically surface striking-distance queries (positions 8–20) with high impression velocity.',
+        bullets: [
+          'Identifies low-hanging SEO traffic opportunities without needing 50 new backlinks',
+          'Drafts targeted H2 sub-intent additions and internal linking plans in Content Studio',
+          'Continuous rank-tracking and impression velocity telemetry'
+        ]
+      },
+      {
+        id: 'attribution',
+        title: 'Closed-Loop Social Attribution & Tracking',
+        body: 'Publish across LinkedIn, X, Instagram, Facebook, Threads, Bluesky, TikTok, and YouTube with first-party UTM parameters and conversion telemetry.',
+        bullets: [
+          'Multi-platform scheduling tailored to platform-specific character limits and aspect ratios',
+          'Tamper-proof first-party UTM tags attribute social traffic to signups and pipeline',
+          'Engagement snapshots measure real business outcomes instead of vanity metrics'
+        ]
+      },
+      {
+        id: 'competitor-war-room',
+        title: 'Competitor Intelligence & Comparison Pages',
+        body: 'Track competitor website changes, keyword movements, and pricing shifts to publish objective, high-converting "vs" and "alternatives" pages.',
+        bullets: [
+          'Automated competitor crawl diagnostics and feature comparison matrices',
+          'Objective, balanced comparison page drafts that win high-intent consideration searches',
+          'Protects brand search queries from competitor ad hijacking'
+        ]
+      },
+      {
+        id: 'intelligence',
+        title: 'Website intelligence & audits',
+        body: 'Crawl authorized websites and record page structure, metadata, headings, content signals, internal links, supported technical findings, and failed-page evidence.',
+        bullets: ['Scan-specific evidence remains traceable.', 'Public quick scans expose a limited factual preview.', 'Full scans feed project recommendations and planning.']
+      },
+      {
+        id: 'strategy',
+        title: 'AI CMO planning & ranking queue',
+        body: 'Turn recorded project evidence into ranked opportunities, business risks, quick wins, and a practical weekly operating plan.',
+        bullets: ['Recommendations include reasons, impact, effort, and target pages.', 'Accept, reject, restore, and completion states keep the queue controlled.', 'Missing evidence is reported instead of replaced with guesses.']
+      },
+      {
+        id: 'content',
+        title: 'Content Studio',
+        body: 'Generate website assets, articles, and campaign posts using the project’s audience, offer, goal, brand tone, and available evidence.',
+        bullets: ['SEO strategist, copywriter, and editor stages for long-form drafts', 'Comparison, alternatives, and product-led templates', 'Single-post, weekly, and monthly campaign planning']
+      }
     ]
   },
   'how-it-works': {
@@ -36,7 +112,7 @@ module.exports = {
     eyebrow: 'Product documentation',
     title: 'Use Moyi from evidence to execution',
     seoTitle: 'Moyi-CMO Documentation & User Guides | Moyi-CMO',
-    seoDescription: 'Explore the complete Moyi-CMO documentation: workspace setup, crawl evidence, AI CMO plans, content studio, and multi-channel publishing.',
+    seoDescription: 'Explore the complete Moyi-CMO documentation: interactive tutorials, workspace setup, crawl evidence, AI CMO plans, content studio, and multi-channel publishing.',
     intro: 'A structured guide to Moyi. The sections follow the same order as the product flow: set up the workspace, collect evidence, decide what matters, create content, attach visuals, plan campaigns, connect channels, publish safely, measure results, manage billing, and troubleshoot when needed.',
     primaryAction: { label: 'Open Dashboard', href: '/dashboard' },
     secondaryAction: { label: 'Create Account', href: '/register' },
@@ -57,51 +133,73 @@ module.exports = {
       },
       {
         id: 'setup-tutorials',
-        title: 'Configuration tutorials',
-        body: 'Use these short guides when you only need to configure one part of the workspace. Each tutorial focuses on one setup task and points to the exact place to finish it.',
+        title: 'Step-by-step tutorial guides',
+        body: 'Interactive walkthroughs explaining exactly how to use each core module of Moyi-CMO from onboarding to daily autonomous growth.',
         tutorials: [
           {
-            title: 'Connect Search Console',
-            href: '/integrations',
-            summary: 'Connect Google Search Console so Moyi can read real search evidence and surface CTR, query, and page opportunities.',
+            title: '1. Connecting Google Search Console & Launching Your 1st Audit',
+            href: '/docs/tutorials/connecting-google-search-console',
+            summary: 'How to grant read-only GSC permissions, crawl your domain, and discover high-intent striking-distance keywords.',
             steps: [
-              'Open Integrations from the workspace.',
-              'Sign in with the same Google account that owns or can view the property.',
-              'Choose the verified Search Console property.',
-              'Confirm the connection and refresh the workspace.'
+              'Navigate to Integrations in your project workspace.',
+              'Click "Connect Google Search Console" and authenticate with your verified Google account.',
+              'Select your website property (domain or URL-prefix) and click Confirm.',
+              'Trigger a fresh Website Scan. Within 2 minutes, Moyi maps your query landscape and flags striking-distance terms.'
             ]
           },
           {
-            title: 'Set up social accounts',
-            href: '/projects/new',
-            summary: 'Connect the platforms you want to publish to, then reconnect any account that needs new scopes or expired access.',
+            title: '2. Using Intello Daily & 1-Click Morning Approvals',
+            href: '/docs/tutorials/intello-daily-morning-approvals',
+            summary: 'How to receive, review, edit, and approve your 7:00 AM daily content packages from desktop or mobile.',
             steps: [
-              'Open Social Accounts from a project.',
-              'Connect LinkedIn, X, Bluesky, Meta, Threads, TikTok, or YouTube.',
-              'Grant the requested publishing and insights permissions.',
-              'Return to the calendar and confirm the connected targets.'
+              'Set your project timezone and morning delivery time in Project Settings (defaults to 07:00 AM).',
+              'Check your email or in-app red topbar notification bell for the morning briefing.',
+              'Open the Intello Daily queue to preview the PAS copy, hashtag strategy, and Swiss visual deck.',
+              'Click "Approve & Schedule" to push the post into your peak social engagement window, or click "Edit" to tweak the copy.'
             ]
           },
           {
-            title: 'Enable tracking',
-            href: '/integrations',
-            summary: 'Install the tracking script and define conversion goals so Moyi can measure outcomes instead of guessing.',
+            title: '3. Crafting Swiss Carousels & 3D Mockups in Visual Studio',
+            href: '/docs/tutorials/graphic-design-studio-carousels-mockups',
+            summary: 'How to generate 12-column B2B carousel decks, 3D glassmorphic device mockups, and performance ads.',
             steps: [
-              'Open Tracking setup inside the project.',
-              'Copy the tracking snippet into the website.',
-              'Create conversion goals for the events that matter.',
-              'Check the dashboard until telemetry is healthy.'
+              'Upload your official transparent PNG logo under Project Settings to ensure crisp brand watermark alignment.',
+              'Open Content Studio and choose your visual skill: Carousel Deck, 3D Mockup, Infographic, Performance Ad, or Flyer.',
+              'Select an aesthetic preset: Minimalist SaaS, Fintech Glass, Warm Editorial, or High-Voltage Growth.',
+              'Review candidate variations in the visual review stage, select your favorite, and link it to your social draft.'
             ]
           },
           {
-            title: 'Review billing and limits',
-            href: '/billing',
-            summary: 'Check the current plan, usage, and monthly limits before handing the workspace to a customer or team.',
+            title: '4. Setting Up Multi-Platform Publishing with Closed-Loop Attribution',
+            href: '/docs/tutorials/social-media-publishing-utm-attribution',
+            summary: 'How to connect LinkedIn, X, Meta, Instagram, and Bluesky while tracking revenue conversion paths.',
             steps: [
-              'Open Billing from the main menu.',
-              'Review the current plan and monthly usage counters.',
-              'Upgrade only when the team is ready for more volume.',
-              'Use the account page for API keys and data export if needed.'
+              'Connect your target social accounts in the Social Integrations tab.',
+              'Install the lightweight Moyi Tracking Snippet in your website <head> to record first-party conversion events.',
+              'Create conversion goals (e.g. Trial Signup, Demo Request, Checkout).',
+              'Every post scheduled through Moyi automatically receives first-party UTM tags, giving you closed-loop revenue attribution.'
+            ]
+          },
+          {
+            title: '5. Competitor War Room: Tracking Competitors & Winning "vs" Keywords',
+            href: '/docs/tutorials/competitor-war-room-battlecards',
+            summary: 'How to monitor competitor ranking shifts, feature matrices, and publish objective comparison pages.',
+            steps: [
+              'Add up to 5 top competitors in your project calibration settings.',
+              'Moyi runs automated competitor crawls to map ranking gaps and feature differences.',
+              'Open Recommendations and accept the "Competitor Comparison Brief" opportunity.',
+              'Content Studio drafts an objective, balanced "vs" comparison page optimized for high-intent searchers.'
+            ]
+          },
+          {
+            title: '6. Customizing Brand Tone & Setting Up Operator Approvals',
+            href: '/docs/tutorials/customizing-brand-voice-governance',
+            summary: 'How to configure brand voice guidelines, banned words, and team permission roles.',
+            steps: [
+              'In Project Calibration, specify your primary brand tone (e.g. Bold & Technical, Editorial, Conversational).',
+              'Configure custom voice rules (e.g. "Never use corporate jargon like synergy or next-gen").',
+              'Invite team members with role-based access: Admin (can approve & publish) or Member (drafting only).',
+              'All AI proposals remain held in your review queue until an authorized operator clicks Approve.'
             ]
           }
         ]
