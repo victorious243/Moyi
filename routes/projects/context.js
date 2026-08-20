@@ -35,6 +35,11 @@ const SocialDraft = require('../../models/SocialDraft');
 const SocialAccount = require('../../models/SocialAccount');
 const SocialOAuthSession = require('../../models/SocialOAuthSession');
 const AnalyticsSnapshot = require('../../models/AnalyticsSnapshot');
+const GrowthAlert = require('../../models/GrowthAlert');
+const MarketingGoal = require('../../models/MarketingGoal');
+const NotificationDelivery = require('../../models/NotificationDelivery');
+const NotificationEndpoint = require('../../models/NotificationEndpoint');
+const NotificationRoute = require('../../models/NotificationRoute');
 const AppError = require('../../utils/appError');
 const handleValidation = require('../../utils/validate');
 const { normalizeUrl } = require('../../utils/url');
@@ -90,6 +95,11 @@ function buildProjectsContext(overrides = {}) {
     SocialAccount,
     SocialOAuthSession,
     AnalyticsSnapshot,
+    GrowthAlert,
+    MarketingGoal,
+    NotificationDelivery,
+    NotificationEndpoint,
+    NotificationRoute,
     AppError,
     handleValidation,
     normalizeUrl,
@@ -136,21 +146,7 @@ function buildProjectsContext(overrides = {}) {
       mainOffer: req.body.mainOffer || '',
       brandTone: req.body.brandTone || '',
       competitors: parseCompetitors(req.body.competitors),
-      webhookUrl: req.body.webhookUrl || '',
-      cmoNotifications: {
-        weeklyBriefing: {
-          enabled: req.body.weeklyBriefingEnabled !== undefined ? req.body.weeklyBriefingEnabled === 'on' || req.body.weeklyBriefingEnabled === 'true' || req.body.weeklyBriefingEnabled === true : true,
-          deliveryDay: req.body.weeklyBriefingDeliveryDay || 'monday',
-          recipientEmails: (req.body.briefingRecipientEmails || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
-        },
-        growthAlerts: {
-          enabled: req.body.growthAlertsEnabled !== undefined ? req.body.growthAlertsEnabled === 'on' || req.body.growthAlertsEnabled === 'true' || req.body.growthAlertsEnabled === true : true,
-          minSeverity: req.body.growthAlertsMinSeverity || 'high'
-        },
-        contentApprovalNudges: {
-          enabled: req.body.contentApprovalNudgesEnabled !== undefined ? req.body.contentApprovalNudgesEnabled === 'on' || req.body.contentApprovalNudgesEnabled === 'true' || req.body.contentApprovalNudgesEnabled === true : true
-        }
-      }
+      webhookUrl: req.body.webhookUrl || ''
     };
   }
 
@@ -362,6 +358,11 @@ function buildProjectsContext(overrides = {}) {
         ? deps.SocialOAuthSession.deleteMany({ platform: 'bluesky', kind: 'session', key: { $in: sessionKeys } })
         : Promise.resolve(),
       deps.AnalyticsSnapshot.deleteMany({ project: project._id }),
+      deps.GrowthAlert.deleteMany({ projectId: project._id }),
+      deps.MarketingGoal.deleteMany({ projectId: project._id }),
+      deps.NotificationDelivery.deleteMany({ projectId: project._id }),
+      deps.NotificationEndpoint.deleteMany({ projectId: project._id }),
+      deps.NotificationRoute.deleteMany({ projectId: project._id }),
       deps.ProjectMember.deleteMany({ projectId: project._id })
     ]);
     await deps.ApiCredential.updateMany({ projectIds: project._id }, { $pull: { projectIds: project._id } });

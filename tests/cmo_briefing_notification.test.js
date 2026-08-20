@@ -12,6 +12,7 @@ const ContentDraft = require('../models/ContentDraft');
 const SocialDraft = require('../models/SocialDraft');
 const Scan = require('../models/Scan');
 const GrowthAlert = require('../models/GrowthAlert');
+const MarketingGoal = require('../models/MarketingGoal');
 const emailService = require('../services/emailService');
 const {
   buildWeeklyBriefingData,
@@ -64,6 +65,7 @@ test('Autonomous CMO Briefing & Growth Alert Engine', async (t) => {
     const origContentDraftFind = ContentDraft.find;
     const origSocialDraftFind = SocialDraft.find;
     const origScanFindOne = Scan.findOne;
+    const origMarketingGoalFind = MarketingGoal.find;
 
     Project.findById = () => ({
       populate: async () => mockProject
@@ -131,6 +133,7 @@ test('Autonomous CMO Briefing & Growth Alert Engine', async (t) => {
     Scan.findOne = () => ({
       sort: async () => ({ score: 92 })
     });
+    MarketingGoal.find = () => ({ sort: () => ({ lean: async () => [] }) });
 
     try {
       const data = await buildWeeklyBriefingData(projectId);
@@ -161,6 +164,7 @@ test('Autonomous CMO Briefing & Growth Alert Engine', async (t) => {
       ContentDraft.find = origContentDraftFind;
       SocialDraft.find = origSocialDraftFind;
       Scan.findOne = origScanFindOne;
+      MarketingGoal.find = origMarketingGoalFind;
     }
   });
 
@@ -175,6 +179,7 @@ test('Autonomous CMO Briefing & Growth Alert Engine', async (t) => {
     const origScanFindOne = Scan.findOne;
     const origSendEmail = emailService.sendEmail;
     const origGrowthAlertCreate = GrowthAlert.create;
+    const origMarketingGoalFind = MarketingGoal.find;
 
     let emailSent = null;
     let alertCreated = null;
@@ -189,6 +194,7 @@ test('Autonomous CMO Briefing & Growth Alert Engine', async (t) => {
     ContentDraft.find = () => ({ sort: () => ({ limit: async () => [] }) });
     SocialDraft.find = () => ({ sort: () => ({ limit: async () => [] }) });
     Scan.findOne = () => ({ sort: async () => null });
+    MarketingGoal.find = () => ({ sort: () => ({ lean: async () => [] }) });
 
     emailService.sendEmail = async (params) => {
       emailSent = params;
@@ -226,6 +232,7 @@ test('Autonomous CMO Briefing & Growth Alert Engine', async (t) => {
       Scan.findOne = origScanFindOne;
       emailService.sendEmail = origSendEmail;
       GrowthAlert.create = origGrowthAlertCreate;
+      MarketingGoal.find = origMarketingGoalFind;
     }
   });
 

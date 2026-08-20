@@ -1,5 +1,11 @@
 <%- include('../partials/header') %>
 <%- include('../partials/navbar') %>
+<% const displayGoalValue = (goal, value) => {
+  const amount = Number(value || 0).toLocaleString();
+  if (goal.unit === '%') return `${amount}%`;
+  if (['£', '$', '€'].includes(goal.unit)) return `${goal.unit}${amount}`;
+  return [amount, goal.unit].filter(Boolean).join(' ');
+}; %>
 
 <div class="app-layout">
   <%- include('../partials/project-sidebar', { activeSection: 'growth-intelligence', project }) %>
@@ -101,6 +107,18 @@
           </div>
         </div>
       </div>
+
+      <section class="panel operational-section">
+        <div class="panel-title">
+          <div><p class="eyebrow">Accountability</p><h2>Goal pace</h2></div>
+          <a class="button" href="/projects/<%= project._id %>/goals">Manage goals</a>
+        </div>
+        <% if (goals && goals.length) { %>
+          <div class="table-wrap"><table class="data-table"><thead><tr><th>Goal</th><th>Current</th><th>Forecast</th><th>Target</th><th>Status</th></tr></thead><tbody>
+            <% goals.slice(0, 5).forEach((goal) => { %><tr><td><strong><%= goal.name %></strong></td><td><%= displayGoalValue(goal, goal.currentValue) %></td><td><%= displayGoalValue(goal, goal.forecastValue) %></td><td><%= displayGoalValue(goal, goal.targetValue) %></td><td><span class="status goal-status-<%= goal.status %>"><%= goal.status.replace(/_/g, ' ') %></span></td></tr><% }) %>
+          </tbody></table></div>
+        <% } else { %><p class="empty">No accountable marketing goals are configured for this project.</p><% } %>
+      </section>
 
       <!-- Key Wins & Sustained Risks Side-by-Side -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(400px, 1fr));gap:20px;margin-bottom:32px;">

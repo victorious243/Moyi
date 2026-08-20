@@ -3,6 +3,7 @@ const Competitor = require('../models/Competitor');
 const CompetitorInsight = require('../models/CompetitorInsight');
 const ContentDraft = require('../models/ContentDraft');
 const GrowthAlert = require('../models/GrowthAlert');
+const MarketingGoal = require('../models/MarketingGoal');
 const Project = require('../models/Project');
 const Recommendation = require('../models/Recommendation');
 const Scan = require('../models/Scan');
@@ -11,6 +12,9 @@ const SocialDraft = require('../models/SocialDraft');
 const User = require('../models/User');
 const env = require('../config/env');
 const emailService = require('./emailService');
+const { buildGoalBriefingSummary, formatGoalValue, metricLabel } = require('./goalIntelligenceService');
+const { createAndDispatchNotification } = require('./notificationDeliveryService');
+const { getProjectLocalTime, isLocalDeliveryDue } = require('./dailyGrowthScheduler');
 
 function escapeHtml(value) {
   return String(value || '')
@@ -99,6 +103,11 @@ async function buildWeeklyBriefingData(projectId) {
 
   // 5. Latest Website Scan Score
   const latestScan = await Scan.findOne({ projectId: project._id }).sort({ createdAt: -1 });
+  const goals = await MarketingGoal.find({
+    projectId: project._id,
+    status: { $ne: 'paused' }
+  }).sort({ status: 1, periodEnd: 1 }).lean();
+  const goalSummary = buildGoalBriefingSummary(goals);
 
   return {
     project: {
@@ -143,13 +152,24 @@ async function buildWeeklyBriefingData(projectId) {
       upcomingSocialCount: upcomingSocialDrafts.length
     },
     scanScore: latestScan ? (latestScan.score || latestScan.healthScore || 85) : null,
+    goals,
+    goalSummary,
     dashboardUrl: `${env.appUrl}/projects/${project._id}`,
-    settingsUrl: `${env.appUrl}/projects/${project._id}/edit`
+    settingsUrl: `${env.appUrl}/projects/${project._id}/settings/notifications`
   };
 }
 
 function renderWeeklyBriefingHtml(briefing) {
-  const { project, search, recommendations, competitors, contentPipeline, scanScore, dashboardUrl } = briefing;
+  const { project, search, recommendations, competitors, contentPipeline, scanScore, dashboardUrl, goals = [], goalSummary = {} } = briefing;
+
+  const goalRowsHtml = goals.length
+    ? goals.slice(0, 5).map((goal) => `
+      <tr>
+        <td style="padding:9px 12px;border-bottom:1px solid #232a30;color:#e1e7ec;font-size:13px;">${escapeHtml(goal.name)}</td>
+        <td style="padding:9px 12px;border-bottom:1px solid #232a30;color:#8b949e;font-size:12px;">${escapeHtml(String(goal.status || '').replace(/_/g, ' '))}</td>
+        <td style="padding:9px 12px;border-bottom:1px solid #232a30;color:#55e6cf;font-size:12px;text-align:right;">${escapeHtml(formatGoalValue(goal, goal.forecastValue))} / ${escapeHtml(formatGoalValue(goal, goal.targetValue))}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="3" style="padding:12px;color:#8b949e;text-align:center;font-size:13px;">No project goals are defined yet.</td></tr>';
 
   const topQueriesHtml = search.topQueries.length
     ? search.topQueries
@@ -227,7 +247,7 @@ function renderWeeklyBriefingHtml(briefing) {
                   <td>
                     <span style="font-size:11px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#55e6cf;">Moyi Executive Briefing</span>
                     <h1 style="margin:6px 0 2px;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.02em;">${escapeHtml(project.name)} Growth Report</h1>
-                    <p style="margin:0;font-size:13px;color:#8b949e;">Autonomous weekly performance, competitor gaps, and strategic priorities.</p>
+                    <p style="margin:0;font-size:13px;color:#8b949e;">Performance, accountable goals, risks, and strategic priorities.</p>
                   </td>
                   <td align="right" valign="top">
                     ${scanScore ? `<div style="text-align:center;background:#171c20;border:1px solid rgba(85,230,207,0.3);border-radius:10px;padding:8px 12px;"><span style="font-size:18px;font-weight:900;color:#55e6cf;display:block;">${scanScore}</span><span style="font-size:9px;color:#8b949e;text-transform:uppercase;font-weight:700;">Health</span></div>` : ''}
@@ -240,6 +260,18 @@ function renderWeeklyBriefingHtml(briefing) {
           <!-- Main Content Body -->
           <tr>
             <td style="padding:28px 32px;">
+
+              <h2 style="font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:#8b949e;margin:0 0 14px;">Executive outcome review</h2>
+              <div style="background:#121619;border:1px solid #232a30;border-radius:10px;padding:16px;margin-bottom:20px;">
+                <p style="margin:0 0 7px;color:#e1e7ec;font-size:13px;"><strong>On track:</strong> ${goalSummary.activeCount ? `${goalSummary.onTrackCount} of ${goalSummary.activeCount} active goals` : 'No accountable goals configured'}</p>
+                <p style="margin:0 0 7px;color:#e1e7ec;font-size:13px;"><strong>Biggest risk:</strong> ${escapeHtml(goalSummary.biggestRisk ? `${metricLabel(goalSummary.biggestRisk)} is ${String(goalSummary.biggestRisk.status).replace(/_/g, ' ')}` : 'No goal is currently flagged at risk')}</p>
+                <p style="margin:0 0 7px;color:#e1e7ec;font-size:13px;"><strong>Biggest opportunity:</strong> ${escapeHtml(goalSummary.biggestOpportunity ? goalSummary.biggestOpportunity.name : (recommendations[0] ? recommendations[0].title : 'Review emerging demand signals'))}</p>
+                <p style="margin:0;color:#e1e7ec;font-size:13px;"><strong>Next:</strong> ${escapeHtml(goalSummary.nextAction || (recommendations[0] ? recommendations[0].title : 'Confirm this period\'s primary marketing outcome'))}</p>
+              </div>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#121619;border:1px solid #232a30;border-radius:10px;overflow:hidden;margin-bottom:28px;">
+                <thead><tr style="background:#171c20;"><th style="padding:8px 12px;color:#8b949e;text-align:left;font-size:11px;text-transform:uppercase;">Goal</th><th style="padding:8px 12px;color:#8b949e;text-align:left;font-size:11px;text-transform:uppercase;">Status</th><th style="padding:8px 12px;color:#8b949e;text-align:right;font-size:11px;text-transform:uppercase;">Forecast / target</th></tr></thead>
+                <tbody>${goalRowsHtml}</tbody>
+              </table>
 
               <!-- Search Performance Grid -->
               <h2 style="font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:#8b949e;margin:0 0 14px;">1. Search Console Traction (7-Day)</h2>
@@ -329,41 +361,51 @@ async function sendWeeklyBriefingEmail({ project, recipientEmail = '', force = f
     return { skipped: true, reason: 'Weekly briefings disabled in project settings.' };
   }
 
-  const to = recipientEmail || (targetProject.owner && targetProject.owner.email);
-  if (!to) {
-    throw new Error('No valid recipient email found for project briefing.');
-  }
-
   const briefingData = await buildWeeklyBriefingData(targetProject._id);
   const html = renderWeeklyBriefingHtml(briefingData);
   const subject = `Weekly CMO Growth Briefing: ${targetProject.name}`;
-
-  await emailService.sendEmail({
-    to,
-    subject,
-    html,
-    text: `Weekly CMO Growth Briefing for ${targetProject.name}\n\nReview your search performance, competitor moves, and pending recommendations at ${briefingData.dashboardUrl}`
-  });
-
-  // Record GrowthAlert log
-  await GrowthAlert.create({
-    projectId: targetProject._id,
-    userId: targetProject.owner ? targetProject.owner._id : null,
-    type: 'weekly_briefing',
-    severity: 'info',
-    title: `Weekly CMO Briefing delivered`,
-    summary: `Dispatched weekly executive briefing with ${briefingData.search.clicks} clicks and ${briefingData.recommendations.length} priority actions.`,
-    evidenceData: {
-      clicks: briefingData.search.clicks,
-      impressions: briefingData.search.impressions,
-      recommendationCount: briefingData.recommendations.length
-    },
-    ctaUrl: briefingData.dashboardUrl,
-    ctaLabel: 'View Workspace',
-    recipientEmail: to,
-    deliveryStatus: 'sent',
-    sentAt: new Date()
-  });
+  const text = `Weekly CMO Growth Briefing for ${targetProject.name}\n\nReview goals, performance, risks, and priority actions at ${briefingData.dashboardUrl}`;
+  let recipient = recipientEmail;
+  if (recipientEmail) {
+    await emailService.sendEmail({ to: recipientEmail, subject, html, text });
+    await GrowthAlert.create({
+      projectId: targetProject._id,
+      userId: targetProject.owner ? targetProject.owner._id : null,
+      recipientUserIds: targetProject.owner ? [targetProject.owner._id] : [],
+      type: 'weekly_briefing',
+      category: 'executive_briefing',
+      severity: 'info',
+      title: 'Weekly CMO Briefing delivered',
+      summary: `Dispatched weekly executive briefing with ${briefingData.goalSummary.onTrackCount || 0} goals on track and ${briefingData.recommendations.length} priority actions.`,
+      evidenceData: { clicks: briefingData.search.clicks, impressions: briefingData.search.impressions, recommendationCount: briefingData.recommendations.length, goalCount: briefingData.goals.length },
+      ctaUrl: briefingData.dashboardUrl,
+      ctaLabel: 'View Workspace',
+      recipientEmail,
+      channels: ['in_app', 'email'],
+      deliveryStatus: 'sent',
+      sentAt: new Date()
+    });
+  } else {
+    const dispatch = await createAndDispatchNotification({
+      project: targetProject,
+      force: true,
+      type: 'weekly_briefing',
+      category: 'executive_briefing',
+      severity: 'info',
+      urgency: 'normal',
+      confidence: 90,
+      title: 'Weekly CMO Briefing ready',
+      summary: `${briefingData.goalSummary.onTrackCount || 0} goals are on track, ${briefingData.goalSummary.atRiskCount || 0} need attention, and ${briefingData.recommendations.length} priority actions are ready.`,
+      businessImpact: 'This briefing aligns marketing activity with accountable project outcomes.',
+      recommendedAction: briefingData.goalSummary.nextAction || (briefingData.recommendations[0] && briefingData.recommendations[0].title) || 'Confirm the next marketing priority.',
+      evidenceData: { clicks: briefingData.search.clicks, impressions: briefingData.search.impressions, recommendationCount: briefingData.recommendations.length, goalCount: briefingData.goals.length },
+      ctaUrl: briefingData.dashboardUrl,
+      ctaLabel: 'Open Weekly Brief',
+      customEmail: { subject, html, text },
+      dedupeKey: `weekly-brief:${targetProject._id}:${getProjectLocalTime(targetProject.timezone || 'UTC').dateString}`
+    });
+    recipient = `${dispatch.sent || 0} deliveries`;
+  }
 
   // Update lastSentAt on project
   targetProject.cmoNotifications = targetProject.cmoNotifications || {};
@@ -371,12 +413,44 @@ async function sendWeeklyBriefingEmail({ project, recipientEmail = '', force = f
   targetProject.cmoNotifications.weeklyBriefing.lastSentAt = new Date();
   await targetProject.save();
 
-  return { success: true, recipient: to, project: targetProject.name };
+  return { success: true, recipient, project: targetProject.name };
+}
+
+async function sendMonthlyStrategyReview({ project, force = false }) {
+  const targetProject = typeof project === 'object' && project._id ? project : await Project.findById(project).populate('owner');
+  if (!targetProject) throw new Error('Project not found for monthly strategy review.');
+  const config = targetProject.cmoNotifications && targetProject.cmoNotifications.monthlyStrategyReview || {};
+  if (!force && config.enabled === false) return { skipped: true, reason: 'Monthly strategy review disabled.' };
+  const briefingData = await buildWeeklyBriefingData(targetProject._id);
+  const html = renderWeeklyBriefingHtml(briefingData).replace(/Weekly CMO Briefing/g, 'Monthly Strategy Review');
+  const subject = `Monthly Marketing Strategy Review: ${targetProject.name}`;
+  const text = `Monthly strategy review for ${targetProject.name}\n\nReview accountable goals, risks, opportunities, and next decisions at ${briefingData.dashboardUrl}`;
+  const dispatch = await createAndDispatchNotification({
+    project: targetProject,
+    force: true,
+    type: 'monthly_strategy_review',
+    category: 'executive_briefing',
+    severity: 'info',
+    urgency: 'normal',
+    confidence: 90,
+    title: 'Monthly Strategy Review ready',
+    summary: `${briefingData.goalSummary.onTrackCount || 0} goals are on track and ${briefingData.goalSummary.atRiskCount || 0} require a decision.`,
+    businessImpact: 'The review connects marketing execution to this month’s agreed business outcomes.',
+    recommendedAction: briefingData.goalSummary.nextAction || 'Confirm next month’s primary outcome and accountable owner.',
+    evidenceData: { goalCount: briefingData.goals.length, recommendationCount: briefingData.recommendations.length },
+    ctaUrl: briefingData.dashboardUrl,
+    ctaLabel: 'Open Strategy Review',
+    customEmail: { subject, html, text },
+    dedupeKey: `monthly-review:${targetProject._id}:${getProjectLocalTime(targetProject.timezone || 'UTC').dateString.slice(0, 7)}`
+  });
+  targetProject.cmoNotifications.monthlyStrategyReview.lastSentAt = new Date();
+  await targetProject.save();
+  return { success: true, deliveries: dispatch.sent || 0, project: targetProject.name };
 }
 
 async function sendProactiveGrowthAlert({
   project,
-  type = 'growth_opportunity',
+  type = 'recommendation_urgent',
   severity = 'growth_opportunity',
   title,
   summary,
@@ -421,7 +495,9 @@ async function sendProactiveGrowthAlert({
   await GrowthAlert.create({
     projectId: targetProject._id,
     userId: targetProject.owner._id,
+    recipientUserIds: [targetProject.owner._id],
     type,
+    category: 'growth',
     severity,
     title,
     summary,
@@ -429,6 +505,7 @@ async function sendProactiveGrowthAlert({
     ctaUrl: targetUrl,
     ctaLabel,
     recipientEmail: to,
+    channels: ['in_app', 'email'],
     deliveryStatus: 'sent',
     sentAt: new Date()
   });
@@ -437,8 +514,7 @@ async function sendProactiveGrowthAlert({
 }
 
 async function triggerWeeklyBriefingBatch({ force = false } = {}) {
-  const currentDayName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][new Date().getDay()];
-  const fiveDaysAgo = daysAgo(5);
+  const now = new Date();
 
   const projects = await Project.find({
     status: 'approved'
@@ -449,11 +525,11 @@ async function triggerWeeklyBriefingBatch({ force = false } = {}) {
     try {
       const config = (project.cmoNotifications && project.cmoNotifications.weeklyBriefing) || {};
       if (!force && config.enabled === false) continue;
-
+      const local = getProjectLocalTime(project.timezone || 'UTC', now);
       const targetDay = config.deliveryDay || 'monday';
-      if (!force && targetDay !== currentDayName) continue;
-
-      if (!force && config.lastSentAt && config.lastSentAt > fiveDaysAgo) continue;
+      if (!force && targetDay !== local.weekday) continue;
+      if (!force && !isLocalDeliveryDue(local, config.deliveryTime || '08:00')) continue;
+      if (!force && config.lastSentAt && getProjectLocalTime(project.timezone || 'UTC', new Date(config.lastSentAt)).dateString === local.dateString) continue;
 
       const res = await sendWeeklyBriefingEmail({ project, force });
       results.push(res);
@@ -465,10 +541,34 @@ async function triggerWeeklyBriefingBatch({ force = false } = {}) {
   return results;
 }
 
+async function triggerMonthlyStrategyReviewBatch({ force = false, now = new Date() } = {}) {
+  const projects = await Project.find({ status: 'approved' }).populate('owner');
+  const results = [];
+  for (const project of projects) {
+    try {
+      const config = project.cmoNotifications && project.cmoNotifications.monthlyStrategyReview || {};
+      if (!force && config.enabled === false) continue;
+      const local = getProjectLocalTime(project.timezone || 'UTC', now);
+      if (!force && local.dayOfMonth !== Number(config.deliveryDate || 1)) continue;
+      if (!force && !isLocalDeliveryDue(local, config.deliveryTime || '08:00')) continue;
+      if (!force && config.lastSentAt) {
+        const previous = getProjectLocalTime(project.timezone || 'UTC', new Date(config.lastSentAt));
+        if (previous.dateString.slice(0, 7) === local.dateString.slice(0, 7)) continue;
+      }
+      results.push(await sendMonthlyStrategyReview({ project, force }));
+    } catch (error) {
+      results.push({ success: false, project: project.name, error: error.message });
+    }
+  }
+  return results;
+}
+
 module.exports = {
   buildWeeklyBriefingData,
   renderWeeklyBriefingHtml,
   sendWeeklyBriefingEmail,
+  sendMonthlyStrategyReview,
   sendProactiveGrowthAlert,
-  triggerWeeklyBriefingBatch
+  triggerWeeklyBriefingBatch,
+  triggerMonthlyStrategyReviewBatch
 };

@@ -333,6 +333,10 @@ Phase 2 requires Redis plus a running worker and FFmpeg/FFprobe on the media-wor
 
 Phase 3 collects rate-limit-friendly engagement snapshots after publication, adds provider-aware retries and dead-letter recovery, supports agency client workspaces, feeds normalized performance signals into the Growth Brain, and exposes an optional project-scoped API. The complete role matrix, collection cadence, recovery behavior, provider metrics permissions, migration sequence, and API examples are in [the Phase 3 closed-loop guide](docs/content-distribution-phase-3.md).
 
+## Operational Excellence
+
+Phase 4 adds project-level notification schedules, stakeholder routing, encrypted Slack/Teams/Discord/webhook delivery, delivery retries and logs, accountable marketing goals, forecasts, and goal-aware executive briefings. Run `npm run migrate:operational` once after deployment. Setup, security behavior, payload examples, scheduler details, and limitations are documented in [the Phase 4 operational excellence guide](docs/operational-excellence-phase-4.md).
+
 End-to-end test for each provider:
 
 1. Open a project's `Social Accounts` page and connect the provider.

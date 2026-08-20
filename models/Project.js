@@ -160,6 +160,24 @@ const projectSchema = new mongoose.Schema(
           min: 0,
           max: 23
         },
+        deliveryTime: {
+          type: String,
+          default: '07:00'
+        },
+        lastGeneratedAt: {
+          type: Date,
+          default: null
+        }
+      },
+      dailyContentIntelligence: {
+        enabled: {
+          type: Boolean,
+          default: false
+        },
+        deliveryTime: {
+          type: String,
+          default: '09:00'
+        },
         lastGeneratedAt: {
           type: Date,
           default: null
@@ -175,6 +193,10 @@ const projectSchema = new mongoose.Schema(
           enum: ['monday', 'friday', 'sunday'],
           default: 'monday'
         },
+        deliveryTime: {
+          type: String,
+          default: '08:00'
+        },
         lastSentAt: {
           type: Date,
           default: null
@@ -182,6 +204,26 @@ const projectSchema = new mongoose.Schema(
         recipientEmails: {
           type: [String],
           default: []
+        }
+      },
+      monthlyStrategyReview: {
+        enabled: {
+          type: Boolean,
+          default: false
+        },
+        deliveryDate: {
+          type: Number,
+          min: 1,
+          max: 28,
+          default: 1
+        },
+        deliveryTime: {
+          type: String,
+          default: '08:00'
+        },
+        lastSentAt: {
+          type: Date,
+          default: null
         }
       },
       growthAlerts: {
@@ -195,9 +237,17 @@ const projectSchema = new mongoose.Schema(
         },
         minSeverity: {
           type: String,
-          enum: ['all', 'high', 'critical'],
+          enum: ['all', 'important', 'high', 'critical'],
           default: 'high'
         }
+      },
+      channels: {
+        inApp: { type: Boolean, default: true },
+        email: { type: Boolean, default: true },
+        slack: { type: Boolean, default: false },
+        teams: { type: Boolean, default: false },
+        discord: { type: Boolean, default: false },
+        webhook: { type: Boolean, default: false }
       },
       contentApprovalNudges: {
         enabled: {

@@ -1,0 +1,66 @@
+<%- include('../partials/header') %>
+<% const displayGoalValue = (goal, value) => {
+  const amount = Number(value || 0).toLocaleString();
+  if (goal.unit === '%') return `${amount}%`;
+  if (['£', '$', '€'].includes(goal.unit)) return `${goal.unit}${amount}`;
+  return [amount, goal.unit].filter(Boolean).join(' ');
+}; %>
+
+<div class="app-layout">
+  <%- include('../partials/project-sidebar', { project, activeSection: 'goals' }) %>
+
+  <section class="app-main operational-page">
+    <div class="page-heading">
+      <div><p class="eyebrow">Marketing Accountability</p><h1>Goals &amp; KPIs</h1></div>
+      <span class="status"><%= goals.length %> goals</span>
+    </div>
+    <% if (message) { %><div class="image-success-message"><%= message %></div><% } %>
+    <% if (goalError) { %><div class="notice-panel"><strong>Goal issue</strong><p><%= goalError %></p></div><% } %>
+
+    <section class="panel operational-section">
+      <div class="panel-title"><div><p class="eyebrow">Scorecard</p><h2>Current targets</h2></div></div>
+      <% if (!goals.length) { %><p class="empty">No marketing goals have been defined for this project.</p><% } else { %>
+        <div class="table-wrap"><table class="data-table goals-table"><thead><tr><th>Goal</th><th>Owner</th><th>Current / target</th><th>Forecast</th><th>Progress</th><th>Status</th><% if (canManageProject) { %><th>Update</th><% } %></tr></thead><tbody>
+          <% goals.forEach((goal) => { %>
+            <tr>
+              <td><strong><%= goal.name %></strong><small><%= goal.metric.replace(/_/g, ' ') %> · <%= goal.period %></small></td>
+              <td><%= goal.ownerUserId ? goal.ownerUserId.name : 'Unassigned' %></td>
+              <td><%= displayGoalValue(goal, goal.currentValue) %> / <%= displayGoalValue(goal, goal.targetValue) %></td>
+              <td><%= displayGoalValue(goal, goal.forecastValue) %></td>
+              <td><div class="goal-progress"><span style="width:<%= Math.min(100, Math.max(0, goal.progressPercent || 0)) %>%"></span></div><small><%= Math.round(goal.progressPercent || 0) %>%</small></td>
+              <td><span class="status goal-status-<%= goal.status %>"><%= goal.status.replace(/_/g, ' ') %></span></td>
+              <% if (canManageProject) { %><td>
+                <form class="goal-update-form" action="/projects/<%= project._id %>/goals/<%= goal._id %>/progress" method="post"><input type="number" min="0" step="any" name="currentValue" value="<%= goal.currentValue %>" aria-label="Current value for <%= goal.name %>" required><button class="button" type="submit">Update</button></form>
+                <form action="/projects/<%= project._id %>/goals/<%= goal._id %>/remove" method="post" onsubmit="return confirm('Remove this marketing goal?');"><button class="text-danger-button" type="submit">Remove</button></form>
+              </td><% } %>
+            </tr>
+          <% }) %>
+        </tbody></table></div>
+      <% } %>
+    </section>
+
+    <% if (canManageProject) { %>
+      <section class="panel operational-section">
+        <div class="panel-title"><div><p class="eyebrow">New Target</p><h2>Create a marketing goal</h2></div></div>
+        <form class="form goal-form" action="/projects/<%= project._id %>/goals" method="post">
+          <label>Goal name <input name="name" maxlength="120" placeholder="Monthly qualified leads" required></label>
+          <label>Metric <select name="metric" required><% goalMetrics.forEach((metric) => { %><option value="<%= metric %>"><%= metric.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()) %></option><% }) %></select></label>
+          <label>Custom KPI name <input name="customMetricName" maxlength="100" placeholder="Used when metric is Custom KPI"></label>
+          <label>Target <input type="number" min="0" step="any" name="targetValue" required></label>
+          <label>Current value <input type="number" min="0" step="any" name="currentValue" value="0"></label>
+          <label>Unit <input name="unit" maxlength="24" placeholder="£, %, leads"></label>
+          <label>Target period <select name="period" required><option value="weekly">Weekly</option><option value="monthly" selected>Monthly</option><option value="quarterly">Quarterly</option><option value="annual">Annual</option><option value="custom">Custom</option></select></label>
+          <label>Period start <input type="date" name="periodStart"></label>
+          <label>Period end <input type="date" name="periodEnd"></label>
+          <label>Owner <select name="ownerUserId"><% stakeholders.forEach((user) => { %><option value="<%= user._id %>"><%= user.name %> · <%= user.email %></option><% }) %></select></label>
+          <label>Data source <select name="dataSource"><option value="manual">Manual</option><option value="search_console">Search Console</option><option value="tracking">Moyi tracking</option><option value="social">Social analytics</option><option value="ads">Advertising platform</option><option value="crm">CRM</option><option value="custom">Custom source</option></select></label>
+          <label>Warning threshold (%) <input type="number" min="1" max="100" name="warningThreshold" value="85" required></label>
+          <label class="full">Notes <textarea name="notes" maxlength="1000" rows="3"></textarea></label>
+          <div class="row-actions full"><button class="button button-primary" type="submit">Create goal</button></div>
+        </form>
+      </section>
+    <% } %>
+  </section>
+</div>
+
+<%- include('../partials/footer') %>

@@ -1,43 +1,69 @@
-const { triggerWeeklyBriefingBatch } = require('./cmoBriefingService');
-const { startDailyGrowthScheduler, stopDailyGrowthScheduler, triggerDailyGrowthBatch } = require('./dailyGrowthScheduler');
+const Project = require('../models/Project');
+const {
+  triggerMonthlyStrategyReviewBatch,
+  triggerWeeklyBriefingBatch
+} = require('./cmoBriefingService');
+const { triggerDailyContentBatch } = require('./dailyContentScheduler');
+const { triggerDailyGrowthBatch } = require('./dailyGrowthScheduler');
+const { evaluateProjectGoals } = require('./goalIntelligenceService');
 
 let schedulerTimer = null;
+let initialTimer = null;
+let runInProgress = false;
 
-function startCmoBriefingScheduler(intervalMs = 60 * 60 * 1000) {
-  // Start daily growth intelligence scheduler
-  startDailyGrowthScheduler(intervalMs);
+async function triggerGoalEvaluationBatch() {
+  const projects = await Project.find({ status: 'approved' }).select('_id').lean();
+  const results = [];
+  for (const project of projects) {
+    try {
+      const evaluations = await evaluateProjectGoals(project._id);
+      results.push({ projectId: project._id, evaluated: evaluations.length });
+    } catch (error) {
+      results.push({ projectId: project._id, error: error.message });
+    }
+  }
+  return results;
+}
 
+async function runOperationalSchedules() {
+  if (runInProgress) return { skipped: true, reason: 'Previous operational schedule run is still active.' };
+  runInProgress = true;
+  try {
+    const [dailyGrowth, dailyContent, weeklyBriefs, monthlyReviews, goals] = await Promise.all([
+      triggerDailyGrowthBatch(),
+      triggerDailyContentBatch(),
+      triggerWeeklyBriefingBatch(),
+      triggerMonthlyStrategyReviewBatch(),
+      triggerGoalEvaluationBatch()
+    ]);
+    return { dailyGrowth, dailyContent, weeklyBriefs, monthlyReviews, goals };
+  } finally {
+    runInProgress = false;
+  }
+}
+
+function startCmoBriefingScheduler(intervalMs = 15 * 60 * 1000) {
   if (schedulerTimer) return;
-
-  // Run initial check after 2 minutes to let database settle
-  setTimeout(async () => {
-    try {
-      await triggerWeeklyBriefingBatch();
-    } catch (err) {
-      console.error('[CMO Briefing Scheduler] Run error:', err.message);
-    }
+  initialTimer = setTimeout(() => {
+    runOperationalSchedules().catch((error) => console.error('[CMO Operations Scheduler] Initial run error:', error.message));
   }, 120000);
-
-  // Hourly recurring check
-  schedulerTimer = setInterval(async () => {
-    try {
-      await triggerWeeklyBriefingBatch();
-    } catch (err) {
-      console.error('[CMO Briefing Scheduler] Interval error:', err.message);
-    }
+  schedulerTimer = setInterval(() => {
+    runOperationalSchedules().catch((error) => console.error('[CMO Operations Scheduler] Run error:', error.message));
   }, intervalMs);
 }
 
 function stopCmoBriefingScheduler() {
-  stopDailyGrowthScheduler();
-  if (schedulerTimer) {
-    clearInterval(schedulerTimer);
-    schedulerTimer = null;
-  }
+  if (initialTimer) clearTimeout(initialTimer);
+  if (schedulerTimer) clearInterval(schedulerTimer);
+  initialTimer = null;
+  schedulerTimer = null;
+  runInProgress = false;
 }
 
 module.exports = {
+  runOperationalSchedules,
   startCmoBriefingScheduler,
   stopCmoBriefingScheduler,
-  triggerDailyGrowthBatch
+  triggerDailyGrowthBatch,
+  triggerGoalEvaluationBatch
 };

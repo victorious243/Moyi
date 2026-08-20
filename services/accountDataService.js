@@ -37,13 +37,18 @@ const AuditLog = require('../models/AuditLog');
 const Organization = require('../models/Organization');
 const OrganizationMember = require('../models/OrganizationMember');
 const ApiCredential = require('../models/ApiCredential');
+const GrowthAlert = require('../models/GrowthAlert');
+const MarketingGoal = require('../models/MarketingGoal');
+const NotificationDelivery = require('../models/NotificationDelivery');
+const NotificationEndpoint = require('../models/NotificationEndpoint');
+const NotificationRoute = require('../models/NotificationRoute');
 const { deleteContentImagesForProject } = require('./contentImageService');
 const { deleteMediaAssetsForProject } = require('./mediaAssetCleanupService');
 
 function redactIntegration(integration) {
   if (!integration) return integration;
   const copy = integration.toObject ? integration.toObject() : { ...integration };
-  ['accessToken', 'refreshToken', 'webhookSecret', 'encryptedPayload', 'apiToken', 'appPassword', 'accessTokenEncrypted', 'apiTokenEncrypted', 'appPasswordEncrypted'].forEach((key) => {
+  ['accessToken', 'refreshToken', 'webhookSecret', 'encryptedPayload', 'encryptedUrl', 'encryptedSigningSecret', 'apiToken', 'appPassword', 'accessTokenEncrypted', 'apiTokenEncrypted', 'appPasswordEncrypted'].forEach((key) => {
     if (copy[key]) copy[key] = '[encrypted credential redacted]';
   });
   return copy;
@@ -90,6 +95,11 @@ function createAccountDataService(deps = {}) {
     Organization,
     OrganizationMember,
     ApiCredential,
+    GrowthAlert,
+    MarketingGoal,
+    NotificationDelivery,
+    NotificationEndpoint,
+    NotificationRoute,
     deleteContentImagesForProject,
     deleteMediaAssetsForProject,
     ...deps
@@ -136,7 +146,12 @@ function createAccountDataService(deps = {}) {
       growthSignals,
       organizations,
       organizationMemberships,
-      apiCredentials
+      apiCredentials,
+      growthAlerts,
+      marketingGoals,
+      notificationDeliveries,
+      notificationEndpoints,
+      notificationRoutes
     ] = await Promise.all([
       models.Scan.find({ projectId: { $in: projectIds } }).lean(),
       models.Page.find({ projectId: { $in: projectIds } }).lean(),
@@ -179,7 +194,12 @@ function createAccountDataService(deps = {}) {
       }).lean(),
       models.Organization.find({ ownerId: userId }).lean(),
       models.OrganizationMember.find({ userId }).populate('organizationId', 'name slug status').lean(),
-      models.ApiCredential.find({ userId }).select('+prefix').populate('projectIds', 'name').lean()
+      models.ApiCredential.find({ userId }).select('+prefix').populate('projectIds', 'name').lean(),
+      models.GrowthAlert.find({ projectId: { $in: projectIds } }).lean(),
+      models.MarketingGoal.find({ projectId: { $in: projectIds } }).lean(),
+      models.NotificationDelivery.find({ projectId: { $in: projectIds } }).lean(),
+      models.NotificationEndpoint.find({ projectId: { $in: projectIds } }).lean(),
+      models.NotificationRoute.find({ projectId: { $in: projectIds } }).lean()
     ]);
 
     return {
@@ -225,6 +245,11 @@ function createAccountDataService(deps = {}) {
       organizations,
       organizationMemberships,
       apiCredentials,
+      growthAlerts,
+      marketingGoals,
+      notificationDeliveries,
+      notificationEndpoints: notificationEndpoints.map(redactIntegration),
+      notificationRoutes,
       auditLogs
     };
   }
@@ -285,6 +310,11 @@ function createAccountDataService(deps = {}) {
         ? models.SocialOAuthSession.deleteMany({ platform: 'bluesky', kind: 'session', key: { $in: sessionKeys } })
         : Promise.resolve(),
       models.AnalyticsSnapshot.deleteMany({ project: projectId }),
+      models.GrowthAlert.deleteMany({ projectId }),
+      models.MarketingGoal.deleteMany({ projectId }),
+      models.NotificationDelivery.deleteMany({ projectId }),
+      models.NotificationEndpoint.deleteMany({ projectId }),
+      models.NotificationRoute.deleteMany({ projectId }),
       models.ProjectMember.deleteMany({ projectId })
     ]);
     await models.ApiCredential.updateMany({ projectIds: projectId }, { $pull: { projectIds: projectId } });

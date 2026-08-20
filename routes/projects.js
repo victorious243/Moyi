@@ -43,6 +43,7 @@ const { registerPrioritizationRoutes } = require('./projects/prioritizationRoute
 const { registerExecutionRoutes } = require('./projects/executionRoutes');
 const { registerMeasurementRoutes } = require('./projects/measurementRoutes');
 const { registerIntegrationRoutes } = require('./projects/integrationRoutes');
+const { registerOperationalRoutes } = require('./projects/operationalRoutes');
 
 const router = express.Router();
 const context = buildProjectsContext();
@@ -84,6 +85,7 @@ registerPrioritizationRoutes(router, context, sharedServices);
 registerExecutionRoutes(router, context, sharedServices);
 registerMeasurementRoutes(router, context, sharedServices);
 registerIntegrationRoutes(router, context, sharedServices);
+registerOperationalRoutes(router, context, sharedServices);
 registerProjectDetailRoutes(router, context, sharedServices);
 
 module.exports = router;

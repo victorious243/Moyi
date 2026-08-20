@@ -25,6 +25,7 @@ const { findAccessibleProjects } = require('../services/projectAccessService');
 const { readinessPayload } = require('../services/runtimeHealthService');
 const { statusPagePayload } = require('../services/enterpriseHardeningService');
 const {
+  canChangeProjectRole,
   canPublishProjectRole,
   projectAccessRole
 } = require('../services/projectAccessService');
@@ -715,30 +716,53 @@ router.post('/account/test-email', requireAuth, requirePlatformAdmin, asyncHandl
   }
 }));
 
+function notificationAccessFilter({ userId, projectIds }) {
+  return {
+    projectId: { $in: projectIds },
+    channels: 'in_app',
+    $or: [
+      { recipientUserIds: userId },
+      {
+        $and: [
+          { $or: [{ recipientUserIds: { $exists: false } }, { recipientUserIds: { $size: 0 } }] },
+          { 'recipientRouting.category': { $exists: false } }
+        ]
+      }
+    ]
+  };
+}
+
+function alertReadByUser(alert, userId) {
+  if ((alert.readBy || []).some((entry) => String(entry.userId) === String(userId))) return true;
+  const hasRecipientRouting = Boolean(alert.recipientRouting && alert.recipientRouting.category);
+  return !hasRecipientRouting && Boolean(alert.readAt);
+}
+
 router.get('/api/notifications', requireAuth, asyncHandler(async (req, res) => {
   const accessibleProjects = await findAccessibleProjects(req.user._id, { select: '_id' });
   const projectIds = accessibleProjects.map((p) => p._id);
 
-  const notifications = await GrowthAlert.find({
-    $or: [{ userId: req.user._id }, { projectId: { $in: projectIds } }]
-  })
+  const notifications = await GrowthAlert.find(notificationAccessFilter({ userId: req.user._id, projectIds }))
     .sort({ createdAt: -1 })
     .limit(25)
     .populate('projectId', 'name');
 
-  const unreadCount = notifications.filter((n) => !n.readAt).length;
+  const unreadCount = notifications.filter((notification) => !alertReadByUser(notification, req.user._id)).length;
 
   res.json({
     notifications: notifications.map((n) => ({
       _id: n._id,
       type: n.type,
+      category: n.category,
       severity: n.severity,
+      urgency: n.urgency,
       title: n.title,
       summary: n.summary,
       projectName: (n.projectId && n.projectId.name) || '',
       ctaUrl: n.ctaUrl || (n.projectId ? `/projects/${n.projectId._id}` : '/dashboard'),
       ctaLabel: n.ctaLabel || 'View in Moyi',
-      isUnread: !n.readAt,
+      resolutionStatus: n.resolutionStatus,
+      isUnread: !alertReadByUser(n, req.user._id),
       createdAt: n.createdAt
     })),
     unreadCount
@@ -746,9 +770,14 @@ router.get('/api/notifications', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 router.post('/api/notifications/:id/read', requireAuth, asyncHandler(async (req, res) => {
-  const alert = await GrowthAlert.findById(req.params.id);
+  const accessibleProjects = await findAccessibleProjects(req.user._id, { select: '_id' });
+  const projectIds = accessibleProjects.map((project) => project._id);
+  const alert = await GrowthAlert.findOne({
+    _id: req.params.id,
+    ...notificationAccessFilter({ userId: req.user._id, projectIds })
+  });
   if (alert) {
-    alert.readAt = new Date();
+    if (!alertReadByUser(alert, req.user._id)) alert.readBy.push({ userId: req.user._id, readAt: new Date() });
     await alert.save();
   }
   res.json({ success: true });
@@ -760,13 +789,25 @@ router.post('/api/notifications/read-all', requireAuth, asyncHandler(async (req,
 
   await GrowthAlert.updateMany(
     {
-      $or: [{ userId: req.user._id }, { projectId: { $in: projectIds } }],
-      readAt: null
+      ...notificationAccessFilter({ userId: req.user._id, projectIds }),
+      readBy: { $not: { $elemMatch: { userId: req.user._id } } }
     },
-    { $set: { readAt: new Date() } }
+    { $push: { readBy: { userId: req.user._id, readAt: new Date() } } }
   );
 
   res.json({ success: true });
+}));
+
+router.post('/api/notifications/:id/resolve', requireAuth, asyncHandler(async (req, res) => {
+  const alert = await GrowthAlert.findById(req.params.id);
+  if (!alert) throw new AppError('Notification not found.', 404);
+  const role = await projectAccessRole({ projectId: alert.projectId, userId: req.user._id });
+  if (!canChangeProjectRole(role)) throw new AppError('You do not have permission to resolve this notification.', 403);
+  alert.resolutionStatus = req.body.status === 'dismissed' ? 'dismissed' : 'resolved';
+  alert.resolvedAt = new Date();
+  alert.resolvedBy = req.user._id;
+  await alert.save();
+  res.json({ success: true, resolutionStatus: alert.resolutionStatus });
 }));
 
 router.post('/api/cmo-chat', requireAuth, asyncHandler(async (req, res) => {

@@ -2,6 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
 
+process.env.OPENAI_API_KEY = '';
+
 const Page = require('../models/Page');
 const SeoIssue = require('../models/SeoIssue');
 const Project = require('../models/Project');

@@ -18,6 +18,7 @@
     "worker": "node ./workers/scanWorker.js",
     "check:social": "node ./scripts/check-social-readiness.js",
     "migrate:distribution": "node ./scripts/migrate-content-distribution.js",
+    "migrate:operational": "node ./scripts/migrate-operational-excellence.js",
     "generate:bluesky-key": "node ./scripts/generate-bluesky-key.mjs",
     "pretest": "npm run build:distribution",
     "test": "node --test tests/*.test.js"

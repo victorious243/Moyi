@@ -11,9 +11,9 @@
 
 const Project = require('../models/Project');
 const DailyGrowthIntelligence = require('../models/DailyGrowthIntelligence');
-const GrowthAlert = require('../models/GrowthAlert');
 const { generateDailyGrowthIntelligenceReport, normalizeDate } = require('./dailyGrowthIntelligenceService');
 const { updateProjectGrowthBaselines } = require('./growthBaselineLearningService');
+const { createAndDispatchNotification } = require('./notificationDeliveryService');
 
 let schedulerInterval = null;
 
@@ -25,7 +25,9 @@ function getProjectLocalTime(timezone = 'UTC', baseDate = new Date()) {
     const formatter = new Intl.DateTimeFormat('en-US', {
       timeZone: timezone || 'UTC',
       hour: 'numeric',
+      minute: '2-digit',
       hour12: false,
+      weekday: 'long',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit'
@@ -33,21 +35,39 @@ function getProjectLocalTime(timezone = 'UTC', baseDate = new Date()) {
     const parts = formatter.formatToParts(baseDate);
     const hourPart = parts.find((p) => p.type === 'hour');
     const dayPart = parts.find((p) => p.type === 'day');
+    const minutePart = parts.find((p) => p.type === 'minute');
+    const weekdayPart = parts.find((p) => p.type === 'weekday');
     const monthPart = parts.find((p) => p.type === 'month');
     const yearPart = parts.find((p) => p.type === 'year');
 
     const hour = parseInt(hourPart ? hourPart.value : baseDate.getUTCHours(), 10) % 24;
     const dateString = `${yearPart ? yearPart.value : baseDate.getUTCFullYear()}-${monthPart ? monthPart.value : '01'}-${dayPart ? dayPart.value : '01'}`;
 
-    return { hour, dateString, valid: true };
+    return {
+      hour,
+      minute: parseInt(minutePart ? minutePart.value : baseDate.getUTCMinutes(), 10),
+      weekday: String(weekdayPart ? weekdayPart.value : '').toLowerCase(),
+      dayOfMonth: parseInt(dayPart ? dayPart.value : baseDate.getUTCDate(), 10),
+      dateString,
+      valid: true
+    };
   } catch (err) {
     // Fallback to UTC if timezone is invalid
     return {
       hour: baseDate.getUTCHours(),
+      minute: baseDate.getUTCMinutes(),
+      weekday: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][baseDate.getUTCDay()],
+      dayOfMonth: baseDate.getUTCDate(),
       dateString: baseDate.toISOString().slice(0, 10),
       valid: false
     };
   }
+}
+
+function isLocalDeliveryDue(localTime, deliveryTime = '07:00') {
+  const [hour, minute] = String(deliveryTime || '07:00').split(':').map(Number);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute)) return false;
+  return (localTime.hour * 60 + localTime.minute) >= (hour * 60 + minute);
 }
 
 /**
@@ -78,19 +98,24 @@ async function processProjectDailyGrowthRun(project, options = {}) {
   // 3. Dispatch Proactive In-App Alert for Opportunities / Risks
   if (report.reportMode === 'opportunity' || report.reportMode === 'performance_alert') {
     const isOpp = report.reportMode === 'opportunity';
-    await GrowthAlert.create({
-      projectId: project._id,
-      type: isOpp ? 'daily_content_intelligence' : 'competitor_spike',
-      severity: isOpp ? 'medium' : 'high',
+    await createAndDispatchNotification({
+      project,
+      type: 'daily_growth_intelligence',
+      category: 'growth',
+      severity: isOpp ? 'growth_opportunity' : 'warning',
+      urgency: isOpp ? 'normal' : 'high',
+      confidence: 82,
       title: isOpp ? 'Daily Growth Opportunity Detected' : 'Social Performance Alert',
       summary: report.executiveSummary,
-      actionUrl: `/projects/${project._id}/growth-intelligence`,
-      actionLabel: 'View Diagnosis & Actions',
-      metadata: {
-        reportId: report._id,
+      businessImpact: isOpp ? 'A measurable growth opportunity is ready for review.' : 'A performance decline may require a campaign or content decision.',
+      recommendedAction: 'Review the diagnosis, confirm the strongest evidence, and assign the highest-impact action.',
+      ctaUrl: `/projects/${project._id}/growth-intelligence`,
+      ctaLabel: 'View Diagnosis & Actions',
+      evidenceData: {
         score: report.performanceScore,
         reportMode: report.reportMode
-      }
+      },
+      dedupeKey: `daily-growth:${project._id}:${reportDate.toISOString().slice(0, 10)}:${report.reportMode}`
     });
   }
 
@@ -129,11 +154,12 @@ async function triggerDailyGrowthBatch(options = {}) {
       }
 
       const timezone = project.timezone || 'UTC';
-      const reportingHour = typeof config.reportingHour === 'number' ? config.reportingHour : 7;
-      const { hour: localHour, dateString } = getProjectLocalTime(timezone, now);
+      const deliveryTime = config.deliveryTime || `${String(typeof config.reportingHour === 'number' ? config.reportingHour : 7).padStart(2, '0')}:00`;
+      const localTime = getProjectLocalTime(timezone, now);
+      const { dateString } = localTime;
 
       // In automated scheduled mode, only run if current local hour matches reporting hour
-      if (!options.force && localHour !== reportingHour) {
+      if (!options.force && !isLocalDeliveryDue(localTime, deliveryTime)) {
         results.skipped += 1;
         continue;
       }
@@ -199,6 +225,7 @@ function stopDailyGrowthScheduler() {
 
 module.exports = {
   getProjectLocalTime,
+  isLocalDeliveryDue,
   processProjectDailyGrowthRun,
   triggerDailyGrowthBatch,
   startDailyGrowthScheduler,

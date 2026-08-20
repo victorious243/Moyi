@@ -1,0 +1,180 @@
+<%- include('../partials/header') %>
+
+<div class="app-layout">
+  <%- include('../partials/project-sidebar', { project, activeSection: 'notifications' }) %>
+
+  <section class="app-main operational-page">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">Project Settings</p>
+        <h1>Notifications &amp; Briefings</h1>
+      </div>
+      <a class="button" href="/projects/<%= project._id %>/briefing/preview" target="_blank" rel="noopener">Preview weekly brief</a>
+    </div>
+
+    <% if (message) { %><div class="image-success-message"><%= message %></div><% } %>
+    <% if (settingsError) { %><div class="notice-panel"><strong>Settings issue</strong><p><%= settingsError %></p></div><% } %>
+
+    <form class="form" action="/projects/<%= project._id %>/settings/notifications" method="post">
+      <section class="panel operational-section">
+        <div class="panel-title">
+          <div><p class="eyebrow">Schedule</p><h2>Intelligence delivery</h2></div>
+          <label class="compact-field">Project timezone
+            <select name="timezone" required>
+              <% timezoneOptions.forEach((zone) => { %><option value="<%= zone %>" <%= project.timezone === zone ? 'selected' : '' %>><%= zone %></option><% }) %>
+            </select>
+          </label>
+        </div>
+
+        <div class="settings-columns">
+          <fieldset class="settings-group">
+            <legend>Daily intelligence</legend>
+            <label class="toggle-row">
+              <input type="checkbox" name="dailyGrowthEnabled" <%= project.cmoNotifications.dailyGrowthIntelligence.enabled !== false ? 'checked' : '' %>>
+              <span><strong>Daily Growth Intelligence</strong><small>Business performance and growth signals</small></span>
+            </label>
+            <label>Delivery time <input type="time" name="dailyGrowthDeliveryTime" value="<%= project.cmoNotifications.dailyGrowthIntelligence.deliveryTime || '07:00' %>" required></label>
+            <label class="toggle-row">
+              <input type="checkbox" name="dailyContentEnabled" <%= project.cmoNotifications.dailyContentIntelligence.enabled === true ? 'checked' : '' %>>
+              <span><strong>Daily Content Intelligence</strong><small>Draft and approval opportunities</small></span>
+            </label>
+            <label>Delivery time <input type="time" name="dailyContentDeliveryTime" value="<%= project.cmoNotifications.dailyContentIntelligence.deliveryTime || '09:00' %>" required></label>
+          </fieldset>
+
+          <fieldset class="settings-group">
+            <legend>Executive reporting</legend>
+            <label class="toggle-row">
+              <input type="checkbox" name="weeklyBriefingEnabled" <%= project.cmoNotifications.weeklyBriefing.enabled !== false ? 'checked' : '' %>>
+              <span><strong>Weekly CMO Brief</strong><small>Performance, goals, risks, and decisions</small></span>
+            </label>
+            <div class="inline-fields">
+              <label>Day
+                <select name="weeklyDeliveryDay">
+                  <% ['monday', 'friday', 'sunday'].forEach((day) => { %><option value="<%= day %>" <%= project.cmoNotifications.weeklyBriefing.deliveryDay === day ? 'selected' : '' %>><%= day[0].toUpperCase() + day.slice(1) %></option><% }) %>
+                </select>
+              </label>
+              <label>Time <input type="time" name="weeklyDeliveryTime" value="<%= project.cmoNotifications.weeklyBriefing.deliveryTime || '08:00' %>" required></label>
+            </div>
+            <label class="toggle-row">
+              <input type="checkbox" name="monthlyReviewEnabled" <%= project.cmoNotifications.monthlyStrategyReview.enabled === true ? 'checked' : '' %>>
+              <span><strong>Monthly Strategy Review</strong><small>Outcome review and next-month priorities</small></span>
+            </label>
+            <div class="inline-fields">
+              <label>Day of month <input type="number" min="1" max="28" name="monthlyDeliveryDate" value="<%= project.cmoNotifications.monthlyStrategyReview.deliveryDate || 1 %>" required></label>
+              <label>Time <input type="time" name="monthlyDeliveryTime" value="<%= project.cmoNotifications.monthlyStrategyReview.deliveryTime || '08:00' %>" required></label>
+            </div>
+          </fieldset>
+        </div>
+      </section>
+
+      <section class="panel operational-section">
+        <div class="panel-title"><div><p class="eyebrow">Policy</p><h2>Alert sensitivity &amp; channels</h2></div></div>
+        <div class="settings-columns">
+          <fieldset class="settings-group">
+            <legend>Alert policy</legend>
+            <label class="toggle-row"><input type="checkbox" name="alertsEnabled" <%= project.cmoNotifications.growthAlerts.enabled !== false ? 'checked' : '' %>><span><strong>Operational alerts</strong><small>Notify stakeholders when action is warranted</small></span></label>
+            <label>Sensitivity
+              <select name="minSeverity">
+                <% [['all','All'],['important','Important'],['high','High+'],['critical','Critical only']].forEach(([value,label]) => { %><option value="<%= value %>" <%= project.cmoNotifications.growthAlerts.minSeverity === value ? 'selected' : '' %>><%= label %></option><% }) %>
+              </select>
+            </label>
+            <label class="toggle-row"><input type="checkbox" name="contentNudgesEnabled" <%= project.cmoNotifications.contentApprovalNudges.enabled !== false ? 'checked' : '' %>><span><strong>Content approval nudges</strong><small>Notify when review is needed</small></span></label>
+          </fieldset>
+
+          <fieldset class="settings-group">
+            <legend>Available channels</legend>
+            <% [
+              ['in_app','In-app','inApp'], ['email','Email','email'], ['slack','Slack','slack'],
+              ['teams','Microsoft Teams','teams'], ['discord','Discord','discord'], ['webhook','Generic webhook','webhook']
+            ].forEach(([value,label,key]) => { %>
+              <label class="toggle-row"><input type="checkbox" name="channels" value="<%= value %>" <%= project.cmoNotifications.channels[key] ? 'checked' : '' %>><span><strong><%= label %></strong></span></label>
+            <% }) %>
+          </fieldset>
+        </div>
+        <div class="row-actions"><button class="button button-primary" type="submit">Save preferences</button></div>
+      </section>
+    </form>
+
+    <section class="panel operational-section">
+      <div class="panel-title"><div><p class="eyebrow">Destinations</p><h2>Delivery endpoints</h2></div><span class="status"><%= endpoints.length %> configured</span></div>
+      <% if (endpoints.length) { %>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Name</th><th>Channel</th><th>Destination</th><th>Health</th><th>Last attempt</th><th>Actions</th></tr></thead>
+            <tbody>
+              <% endpoints.forEach((endpoint) => { %>
+                <tr>
+                  <td><strong><%= endpoint.name %></strong></td><td><%= endpoint.channel %></td><td><code><%= endpoint.urlHint %></code></td>
+                  <td><span class="status <%= endpoint.status === 'active' ? 'status-success' : 'status-warning' %>"><%= endpoint.status %></span></td>
+                  <td><%= endpoint.lastAttemptAt ? new Date(endpoint.lastAttemptAt).toLocaleString() : 'Never' %></td>
+                  <td class="table-actions">
+                    <form action="/projects/<%= project._id %>/settings/notifications/endpoints/<%= endpoint._id %>/test" method="post"><button class="button" type="submit">Test</button></form>
+                    <form action="/projects/<%= project._id %>/settings/notifications/endpoints/<%= endpoint._id %>/remove" method="post" onsubmit="return confirm('Remove this notification endpoint?');"><button class="button danger-button" type="submit">Remove</button></form>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } else { %><p class="empty">No external delivery endpoints configured.</p><% } %>
+
+      <form class="form endpoint-form" action="/projects/<%= project._id %>/settings/notifications/endpoints" method="post">
+        <label>Name <input name="name" maxlength="100" placeholder="Leadership Slack" required></label>
+        <label>Channel <select name="channel" required><option value="slack">Slack</option><option value="teams">Microsoft Teams</option><option value="discord">Discord</option><option value="webhook">Generic webhook</option></select></label>
+        <label class="endpoint-url-field">Incoming webhook URL <input type="url" name="url" placeholder="https://..." autocomplete="off" required></label>
+        <label>Signing secret <input type="password" name="signingSecret" minlength="16" maxlength="200" autocomplete="new-password" placeholder="Generic webhook only"></label>
+        <button class="button button-primary" type="submit">Add endpoint</button>
+      </form>
+    </section>
+
+    <section class="panel operational-section">
+      <div class="panel-title"><div><p class="eyebrow">Routing</p><h2>Stakeholder routes</h2></div></div>
+      <div class="route-list">
+        <% routeCategories.forEach(([category, label]) => {
+          const route = routeByCategory.get(category);
+          const selectedMembers = new Set((route && route.memberIds || []).map(String));
+          const selectedEndpoints = new Set((route && route.endpointIds || []).map(String));
+          const selectedChannels = new Set((route && route.channels && route.channels.length ? route.channels : ['in_app','email']).map(String));
+        %>
+          <details class="route-editor">
+            <summary><span><strong><%= label %></strong><small><%= route && route.enabled === false ? 'Disabled' : 'Active' %></small></span><span class="status"><%= route ? `${(route.memberIds || []).length + (route.includeOwner !== false ? 1 : 0)} people` : 'Owner' %></span></summary>
+            <form class="form" action="/projects/<%= project._id %>/settings/notifications/routes/<%= category %>" method="post">
+              <div class="settings-columns">
+                <fieldset class="settings-group">
+                  <legend>Recipients</legend>
+                  <label class="toggle-row"><input type="checkbox" name="enabled" <%= !route || route.enabled !== false ? 'checked' : '' %>><span><strong>Route enabled</strong></span></label>
+                  <label class="toggle-row"><input type="checkbox" name="includeOwner" <%= !route || route.includeOwner !== false ? 'checked' : '' %>><span><strong>Project owner</strong><small><%= project.owner && project.owner.email || '' %></small></span></label>
+                  <% stakeholders.filter((user) => !project.owner || String(user._id) !== String(project.owner._id)).forEach((user) => { %>
+                    <label class="toggle-row"><input type="checkbox" name="memberIds" value="<%= user._id %>" <%= selectedMembers.has(String(user._id)) ? 'checked' : '' %>><span><strong><%= user.name %></strong><small><%= user.email %></small></span></label>
+                  <% }) %>
+                  <label>External stakeholder emails <input name="externalEmails" value="<%= route ? (route.externalEmails || []).join(', ') : '' %>" placeholder="founder@example.com, client@example.com"></label>
+                </fieldset>
+                <fieldset class="settings-group">
+                  <legend>Channels and destinations</legend>
+                  <% [['in_app','In-app'],['email','Email'],['slack','Slack'],['teams','Microsoft Teams'],['discord','Discord'],['webhook','Generic webhook']].forEach(([value,name]) => { %>
+                    <label class="toggle-row"><input type="checkbox" name="routeChannels" value="<%= value %>" <%= selectedChannels.has(value) ? 'checked' : '' %>><span><strong><%= name %></strong></span></label>
+                  <% }) %>
+                  <% endpoints.forEach((endpoint) => { %>
+                    <label class="toggle-row endpoint-choice"><input type="checkbox" name="endpointIds" value="<%= endpoint._id %>" <%= selectedEndpoints.has(String(endpoint._id)) ? 'checked' : '' %>><span><strong><%= endpoint.name %></strong><small><%= endpoint.channel %> · <%= endpoint.urlHint %></small></span></label>
+                  <% }) %>
+                </fieldset>
+              </div>
+              <button class="button button-primary" type="submit">Save route</button>
+            </form>
+          </details>
+        <% }) %>
+      </div>
+    </section>
+
+    <section class="panel operational-section">
+      <div class="panel-title"><div><p class="eyebrow">Operations</p><h2>Recent deliveries</h2></div></div>
+      <% if (!deliveries.length) { %><p class="empty">No notification deliveries recorded yet.</p><% } else { %>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>Channel</th><th>Recipient</th><th>Status</th><th>Attempts</th><th>Time</th><th>Result</th></tr></thead><tbody>
+          <% deliveries.forEach((delivery) => { %><tr><td><%= delivery.channel %></td><td><%= delivery.recipient || 'In-app audience' %></td><td><span class="status <%= delivery.status === 'sent' ? 'status-success' : 'status-warning' %>"><%= delivery.status %></span></td><td><%= delivery.attempts %></td><td><%= new Date(delivery.createdAt).toLocaleString() %></td><td class="delivery-error"><%= delivery.errorMessage || (delivery.statusCode ? `HTTP ${delivery.statusCode}` : 'Delivered') %></td></tr><% }) %>
+        </tbody></table></div>
+      <% } %>
+    </section>
+  </section>
+</div>
+
+<%- include('../partials/footer') %>

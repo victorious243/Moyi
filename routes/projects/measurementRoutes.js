@@ -25,6 +25,8 @@ const { updateProjectGrowthBaselines } = require('../../services/growthBaselineL
 const DailyGrowthIntelligence = require('../../models/DailyGrowthIntelligence');
 const ContentDraft = require('../../models/ContentDraft');
 const SocialDraft = require('../../models/SocialDraft');
+const MarketingGoal = require('../../models/MarketingGoal');
+const { evaluateGoalForecast } = require('../../services/goalIntelligenceService');
 
 function registerMeasurementRoutes(router, context, services = {}) {
   const {
@@ -83,12 +85,17 @@ function registerMeasurementRoutes(router, context, services = {}) {
   }));
 
   router.get('/:id/growth-intelligence', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
-    const data = await getGrowthIntelligenceDashboardData(req.project._id, { date: req.query.date });
+    const [data, goals] = await Promise.all([
+      getGrowthIntelligenceDashboardData(req.project._id, { date: req.query.date }),
+      MarketingGoal.find({ projectId: req.project._id, status: { $ne: 'paused' } }).sort({ periodEnd: 1 }).lean()
+    ]);
+    const goalScorecard = goals.map((goal) => ({ ...goal, ...evaluateGoalForecast(goal) }));
     res.render('projects/daily-growth-intelligence', {
       title: `${req.project.name} Daily Growth Intelligence`,
       project: req.project,
       report: data.report,
       accounts: data.accounts,
+      goals: goalScorecard,
       successMessage: req.query.success || '',
       errorMessage: req.query.error || ''
     });

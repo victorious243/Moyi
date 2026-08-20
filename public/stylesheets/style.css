@@ -10091,3 +10091,240 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 }
+
+/* Phase 4: operational settings and KPI scorecards */
+.operational-page {
+  min-width: 0;
+}
+
+.operational-section {
+  margin-bottom: 24px;
+}
+
+.settings-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.settings-group {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.settings-group legend {
+  width: 100%;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.toggle-row {
+  display: grid !important;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  padding: 9px 0;
+  cursor: pointer;
+}
+
+.toggle-row input[type='checkbox'] {
+  margin-top: 2px;
+}
+
+.toggle-row span {
+  display: grid;
+  gap: 2px;
+}
+
+.toggle-row small,
+.goals-table td small,
+.route-editor summary small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.inline-fields,
+.endpoint-form,
+.goal-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.compact-field {
+  width: min(320px, 100%);
+}
+
+.endpoint-form {
+  grid-template-columns: minmax(140px, .8fr) minmax(140px, .7fr) minmax(260px, 1.6fr) minmax(180px, 1fr) auto;
+  align-items: end;
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+
+.endpoint-form .button {
+  min-height: 48px;
+}
+
+.table-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.table-actions form {
+  margin: 0;
+}
+
+.delivery-error {
+  max-width: 340px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.route-list {
+  border-top: 1px solid var(--line);
+}
+
+.route-editor {
+  border-bottom: 1px solid var(--line);
+}
+
+.route-editor summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 64px;
+  padding: 12px 4px;
+  cursor: pointer;
+  list-style-position: inside;
+}
+
+.route-editor summary > span:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.route-editor > form {
+  padding: 8px 4px 22px;
+}
+
+.endpoint-choice {
+  margin-top: 5px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.goal-progress {
+  width: 120px;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .09);
+}
+
+.goal-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.goal-status-achieved,
+.goal-status-ahead,
+.goal-status-on_track {
+  color: #55e6cf;
+  border-color: rgba(85, 230, 207, .28);
+  background: rgba(85, 230, 207, .09);
+}
+
+.goal-status-at_risk,
+.goal-status-missed {
+  color: #ff9d9d;
+  border-color: rgba(255, 111, 126, .3);
+  background: rgba(255, 111, 126, .1);
+}
+
+.goal-update-form {
+  display: grid;
+  grid-template-columns: minmax(90px, 130px) auto;
+  gap: 6px;
+  margin-bottom: 7px;
+}
+
+.goal-update-form input {
+  min-width: 0;
+}
+
+.text-danger-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #ff9d9d;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.goal-form {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.goal-form .full {
+  grid-column: 1 / -1;
+}
+
+.settings-jump-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-jump-row > div {
+  display: grid;
+  gap: 5px;
+}
+
+@media (max-width: 1180px) {
+  .endpoint-form,
+  .goal-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .endpoint-form .button {
+    width: fit-content;
+  }
+}
+
+@media (max-width: 720px) {
+  .settings-columns,
+  .inline-fields,
+  .endpoint-form,
+  .goal-form {
+    grid-template-columns: 1fr;
+  }
+
+  .page-heading,
+  .settings-jump-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .compact-field,
+  .settings-jump-row .button {
+    width: 100%;
+  }
+}

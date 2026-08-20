@@ -20,9 +20,7 @@ const ContentDraft = require('../models/ContentDraft');
 const SocialDraft = require('../models/SocialDraft');
 const Campaign = require('../models/Campaign');
 const Project = require('../models/Project');
-const User = require('../models/User');
-const GrowthAlert = require('../models/GrowthAlert');
-const { sendContentIntelligenceReadyEmail } = require('./emailService');
+const { createAndDispatchNotification } = require('./notificationDeliveryService');
 const { recordAppLog } = require('./appLogger');
 const { buildContentIntelligencePrompt } = require('../src/prompts/content-intelligence.prompt');
 
@@ -500,43 +498,29 @@ async function executeDailyContentIntelligenceRun({ projectId, autoSaveDraft = t
       }
     }
 
-    // Dispatch Email Alert to Project Owner and Admin
-    const owner = project.owner ? await User.findById(project.owner) : null;
-    const targetUser = owner || await User.findOne({ role: 'admin' }) || { email: 'customersupport@moyi-cmo.com', name: 'Moyi Admin' };
-
-    // Create In-App Notification (GrowthAlert)
     try {
-      await GrowthAlert.create({
-        projectId: project._id,
-        userId: project.owner || null,
+      await createAndDispatchNotification({
+        project,
         type: 'daily_content_intelligence',
+        category: 'content_approval',
         severity: 'growth_opportunity',
+        urgency: 'normal',
+        confidence: 86,
         title: `Daily Content Ready: ${contentPackage.seoPackage.seoTitle}`,
         summary: `Daily Content Intelligence Agent discovered and drafted an 11-part SEO article and 5-asset social suite for "${contentPackage.seoPackage.primaryKeyword}". Awaiting your review.`,
+        businessImpact: 'A ready-to-review content opportunity can support organic demand and social distribution.',
+        recommendedAction: 'Review the draft for brand accuracy, approve it, and choose the appropriate publishing destinations.',
         evidenceData: {
           primaryKeyword: contentPackage.seoPackage.primaryKeyword,
-          contentDraftId: savedDraft._id,
-          socialDraftIds: createdSocialDraftIds
+          draftCount: 1,
+          socialAssetCount: createdSocialDraftIds.length
         },
         ctaUrl: `/projects/${project._id}/content`,
         ctaLabel: 'Review & Approve Draft',
-        channels: ['in_app', 'email'],
-        recipientEmail: targetUser.email || 'customersupport@moyi-cmo.com'
+        dedupeKey: `daily-content:${project._id}:${new Date().toISOString().slice(0, 10)}`
       });
     } catch (alertErr) {
-      recordAppLog({ level: 'warning', message: `[DailyContentIntelligence] Failed to create GrowthAlert: ${alertErr.message}` }).catch(() => null);
-    }
-
-    // Dispatch Email Alert to Project Owner and Admin
-    try {
-      await sendContentIntelligenceReadyEmail({
-        user: targetUser,
-        project,
-        contentPackage,
-        reviewUrl: `${process.env.APP_URL || 'https://moyi-cmo.com'}/projects/${project._id}/content`
-      });
-    } catch (emailErr) {
-      recordAppLog({ level: 'warning', message: `[DailyContentIntelligence] Email alert delivery notice: ${emailErr.message}` }).catch(() => null);
+      recordAppLog({ level: 'warning', message: `[DailyContentIntelligence] Notification delivery notice: ${alertErr.message}` }).catch(() => null);
     }
   }
 
