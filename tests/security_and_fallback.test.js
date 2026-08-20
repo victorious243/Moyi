@@ -71,6 +71,47 @@ test('CSRF Middleware: permits POST requests with matching token', () => {
   assert.ok(nextCalled);
 });
 
+test('CSRF Middleware: permits duplicate hidden form tokens from auto-injected forms', () => {
+  const req = {
+    method: 'POST',
+    cookies: { csrf_token: 'valid_token' },
+    body: { _csrf: ['valid_token', 'valid_token'] },
+    headers: {},
+    path: '/projects/123/growth-intelligence/generate'
+  };
+  const res = {
+    cookie() {},
+    locals: {}
+  };
+  let nextCalled = false;
+  csrfProtection(req, res, (err) => {
+    if (!err) nextCalled = true;
+  });
+
+  assert.ok(nextCalled);
+});
+
+test('CSRF Middleware: rejects duplicate form tokens when none match the cookie', () => {
+  const req = {
+    method: 'POST',
+    cookies: { csrf_token: 'valid_token' },
+    body: { _csrf: ['wrong_token', ''] },
+    headers: {},
+    path: '/projects/123/growth-intelligence/generate'
+  };
+  const res = {
+    cookie() {},
+    locals: {}
+  };
+  let errorVal = null;
+  csrfProtection(req, res, (err) => {
+    errorVal = err;
+  });
+
+  assert.ok(errorVal);
+  assert.equal(errorVal.status, 403);
+});
+
 test('CSRF Middleware: permits signed upload token when CSRF cookie is missing', () => {
   let generatedToken = '';
   csrfProtection({
