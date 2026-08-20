@@ -8,6 +8,8 @@ const SocialAccount = require('../models/SocialAccount');
 const WebhookDelivery = require('../models/WebhookDelivery');
 const AuditLog = require('../models/AuditLog');
 const AppLog = require('../models/AppLog');
+const ContentDraft = require('../models/ContentDraft');
+const SocialDraft = require('../models/SocialDraft');
 const { readinessPayload } = require('./runtimeHealthService');
 const {
   buildEnterpriseHardeningSummary,
@@ -30,7 +32,8 @@ async function buildAdminDashboard() {
     usageRows,
     health,
     failedPublishJobs,
-    reconnectAccounts
+    reconnectAccounts,
+    pendingIntelloDrafts
   ] = await Promise.all([
     User.countDocuments(),
     Project.countDocuments(),
@@ -57,8 +60,28 @@ async function buildAdminDashboard() {
       .populate('projectId', 'name')
       .populate('userId', 'email name')
       .select('-accessToken -refreshToken -webhookSecret')
+      .lean(),
+    ContentDraft.find({
+      type: 'daily_content_intelligence',
+      status: { $in: ['awaiting_review', 'pending_approval', 'draft'] }
+    })
+      .sort({ createdAt: -1 })
+      .limit(25)
+      .populate('projectId', 'name websiteUrl')
       .lean()
   ]);
+
+  const intelloDailyQueue = await Promise.all(
+    pendingIntelloDrafts.map(async (draft) => {
+      const socialDrafts = await SocialDraft.find({
+        sourceContentDraftId: draft._id
+      }).lean();
+      return {
+        ...draft,
+        socialDrafts
+      };
+    })
+  );
 
   const usageTotals = usageRows.reduce((totals, row) => {
     totals.scansUsed += Number(row.scansUsed || 0);
@@ -99,6 +122,7 @@ async function buildAdminDashboard() {
     failedWebhookDeliveries,
     health,
     incidentSummary,
+    intelloDailyQueue,
     periodEnd,
     periodStart,
     projectCount,

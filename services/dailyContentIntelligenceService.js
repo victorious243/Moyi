@@ -20,6 +20,9 @@ const ContentDraft = require('../models/ContentDraft');
 const SocialDraft = require('../models/SocialDraft');
 const Campaign = require('../models/Campaign');
 const Project = require('../models/Project');
+const User = require('../models/User');
+const emailService = require('./emailService');
+const env = require('../config/env');
 const { createAndDispatchNotification } = require('./notificationDeliveryService');
 const { recordAppLog } = require('./appLogger');
 const { buildContentIntelligencePrompt } = require('../src/prompts/content-intelligence.prompt');
@@ -507,21 +510,29 @@ async function executeDailyContentIntelligenceRun({ projectId, autoSaveDraft = t
         urgency: 'normal',
         confidence: 86,
         title: `Daily Content Ready: ${contentPackage.seoPackage.seoTitle}`,
-        summary: `Daily Content Intelligence Agent discovered and drafted an 11-part SEO article and 5-asset social suite for "${contentPackage.seoPackage.primaryKeyword}". Awaiting your review.`,
+        summary: `Daily Content Intelligence Agent discovered and drafted an 11-part SEO article and 5-asset social suite for "${contentPackage.seoPackage.primaryKeyword}". Awaiting operator review.`,
         businessImpact: 'A ready-to-review content opportunity can support organic demand and social distribution.',
-        recommendedAction: 'Review the draft for brand accuracy, approve it, and choose the appropriate publishing destinations.',
+        recommendedAction: 'Review the draft in the Operator Dashboard, approve it, and schedule publishing.',
         evidenceData: {
           primaryKeyword: contentPackage.seoPackage.primaryKeyword,
           draftCount: 1,
           socialAssetCount: createdSocialDraftIds.length
         },
-        ctaUrl: `/projects/${project._id}/content`,
-        ctaLabel: 'Review & Approve Draft',
+        ctaUrl: `/admin#intello-daily`,
+        ctaLabel: 'Review in Operator Dashboard',
         dedupeKey: `daily-content:${project._id}:${new Date().toISOString().slice(0, 10)}`
       });
     } catch (alertErr) {
       recordAppLog({ level: 'warning', message: `[DailyContentIntelligence] Notification delivery notice: ${alertErr.message}` }).catch(() => null);
     }
+
+    // Dispatch email notification to platform admin(s) via Moyi email delivery
+    await sendIntelloDailyOperatorEmail({
+      project,
+      contentPackage,
+      savedDraft,
+      socialDraftCount: createdSocialDraftIds.length
+    });
   }
 
   return {
@@ -533,6 +544,76 @@ async function executeDailyContentIntelligenceRun({ projectId, autoSaveDraft = t
   };
 }
 
+async function sendIntelloDailyOperatorEmail({ project, contentPackage, savedDraft, socialDraftCount = 0 }) {
+  try {
+    const adminUsers = await User.find({ role: 'admin' });
+    const targetAdmins = adminUsers.length > 0
+      ? adminUsers
+      : (project.owner ? [await User.findById(project.owner).lean()].filter(Boolean) : []);
+
+    const operatorUrl = `${String(env.appUrl || 'https://moyi-cmo.com').replace(/\/$/, '')}/admin#intello-daily`;
+    const subject = `🚀 [Intello Daily] New Content Package Ready for Operator Approval — ${project.name}`;
+
+    const bodyHtml = `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#111827;line-height:1.6;">
+        <div style="display:inline-block;padding:4px 10px;border-radius:999px;background:rgba(99,102,241,0.12);color:#6366f1;font-size:12px;font-weight:800;text-transform:uppercase;margin-bottom:12px;">
+          Intello Daily &bull; Operator Approval Required
+        </div>
+        <h2 style="margin:0 0 8px;font-size:22px;color:#111827;">${emailService.escapeHtml(project.name)} — New Content Package Prepared</h2>
+        <p style="color:#4b5563;font-size:15px;margin:0 0 20px;">
+          Intello Daily has mined search queries and drafted an 11-part SEO article and multi-channel social distribution suite. This package requires your operator approval before scheduling or publishing.
+        </p>
+
+        <!-- Opportunity Box -->
+        <div style="background:#0f172a;border-radius:12px;padding:20px;color:#ffffff;margin-bottom:24px;">
+          <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.05em;color:#94a3b8;font-weight:700;margin-bottom:6px;">Target SEO Opportunity</div>
+          <div style="font-size:20px;font-weight:900;color:#55e6cf;line-height:1.2;margin-bottom:8px;">${emailService.escapeHtml(contentPackage.seoPackage.primaryKeyword || '')}</div>
+          <div style="font-size:14px;color:#e2e8f0;font-weight:700;">${emailService.escapeHtml(contentPackage.seoPackage.seoTitle || '')}</div>
+        </div>
+
+        <!-- Article Summary -->
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:20px;font-size:13.5px;color:#334155;">
+          <strong>Article Outline:</strong>
+          <p style="margin:6px 0 0;line-height:1.5;">${emailService.escapeHtml(contentPackage.article.introduction ? contentPackage.article.introduction.slice(0, 300) : '')}...</p>
+        </div>
+
+        <!-- Social Suite Summary -->
+        <div style="background:#f0fdf4;border-left:4px solid #10b981;border-radius:6px;padding:14px;margin-bottom:24px;">
+          <strong style="color:#065f46;font-size:14px;">Multi-Channel Social Suite (${socialDraftCount} Drafts Ready)</strong>
+          <p style="color:#047857;margin:4px 0 0;font-size:13px;">Optimized for LinkedIn, X (Twitter), and Facebook with Swiss-grid visual specifications.</p>
+        </div>
+
+        <div style="text-align:center;margin-top:28px;">
+          <a href="${operatorUrl}" style="display:inline-block;background:#6366f1;color:#ffffff;font-weight:800;font-size:14px;padding:14px 28px;border-radius:8px;text-decoration:none;box-shadow:0 4px 14px rgba(99,102,241,0.35);">
+            Open Operator Approval Queue &rarr;
+          </a>
+        </div>
+      </div>
+    `;
+
+    const text = `${subject}\n\nProject: ${project.name}\nKeyword: ${contentPackage.seoPackage.primaryKeyword}\nTitle: ${contentPackage.seoPackage.seoTitle}\n\nReview in Operator Dashboard: ${operatorUrl}`;
+
+    for (const admin of targetAdmins) {
+      if (admin.email) {
+        await emailService.sendEmail({
+          to: admin.email,
+          subject,
+          html: emailService.wrapEmail({
+            heading: 'Intello Daily Package Ready',
+            intro: `Operator approval required for ${project.name}`,
+            bodyHtml,
+            ctaUrl: operatorUrl,
+            ctaLabel: 'Review in Operator Dashboard'
+          }),
+          text
+        });
+      }
+    }
+  } catch (err) {
+    recordAppLog({ level: 'warning', message: `[DailyContentIntelligence] Operator email dispatch error: ${err.message}` }).catch(() => null);
+  }
+}
+
 module.exports = {
   isTopicEligibleForMoyi,
   checkExistingContentCoverage,
@@ -540,5 +621,6 @@ module.exports = {
   runDailyOpportunityDiscovery,
   buildCompleteArticlePackage,
   executeDailyContentIntelligenceRun,
+  sendIntelloDailyOperatorEmail,
   OFF_TOPIC_REJECTION_PATTERNS
 };

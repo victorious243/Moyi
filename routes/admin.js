@@ -9,7 +9,8 @@ const { recordAuditEvent } = require('../services/auditLogService');
 const { sendCustomerEmail, sendNewsletterEmail } = require('../services/emailService');
 const { retryPublishAction } = require('../services/publishRetryService');
 const { retryPublishJob } = require('../services/contentDistributionEngineService');
-const { collectMetricsForJob } = require('../services/engagementMetricsService');
+const ContentDraft = require('../models/ContentDraft');
+const SocialDraft = require('../models/SocialDraft');
 const PublishJob = require('../models/PublishJob');
 const { retryWebhookDelivery } = require('../services/webhookService');
 const { deleteAccountData } = require('../services/accountDataService');
@@ -208,6 +209,64 @@ router.post('/email/newsletter', [
   }
   await recordAuditEvent({ user: req.user, eventType: 'admin_newsletter_sent', metadata: { count: uniqueRecipients.length, subject: req.body.subject }, req });
   res.redirect('/admin');
+}));
+
+router.get('/intello-daily', (req, res) => {
+  res.redirect('/admin#intello-daily');
+});
+
+router.post('/intello-daily/:id/approve', [
+  param('id').isMongoId(),
+  handleValidation
+], asyncHandler(async (req, res, next) => {
+  const draft = await ContentDraft.findById(req.params.id);
+  if (!draft) return next(new AppError('Intello Daily draft not found.', 404));
+
+  draft.status = 'approved';
+  draft.reviewNotes = `Approved by Operator (${req.user.email}) at ${new Date().toISOString()}`;
+  await draft.save();
+
+  // Approve accompanying social drafts
+  await SocialDraft.updateMany(
+    { sourceContentDraftId: draft._id },
+    { $set: { status: 'approved', publishStatus: 'scheduled' } }
+  );
+
+  await recordAuditEvent({
+    user: req.user,
+    eventType: 'admin_intello_daily_approved',
+    metadata: { draftId: draft._id, title: draft.title, projectId: draft.projectId },
+    req
+  });
+
+  res.redirect('/admin#intello-daily');
+}));
+
+router.post('/intello-daily/:id/reject', [
+  param('id').isMongoId(),
+  body('reason').optional({ checkFalsy: true }).trim().isLength({ max: 300 }),
+  handleValidation
+], asyncHandler(async (req, res, next) => {
+  const draft = await ContentDraft.findById(req.params.id);
+  if (!draft) return next(new AppError('Intello Daily draft not found.', 404));
+
+  draft.status = 'rejected';
+  draft.reviewNotes = req.body.reason || `Rejected by Operator (${req.user.email})`;
+  await draft.save();
+
+  await SocialDraft.updateMany(
+    { sourceContentDraftId: draft._id },
+    { $set: { status: 'rejected' } }
+  );
+
+  await recordAuditEvent({
+    user: req.user,
+    eventType: 'admin_intello_daily_rejected',
+    metadata: { draftId: draft._id, title: draft.title, projectId: draft.projectId, reason: req.body.reason },
+    req
+  });
+
+  res.redirect('/admin#intello-daily');
 }));
 
 module.exports = router;
