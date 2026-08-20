@@ -70,6 +70,159 @@ function isLocalDeliveryDue(localTime, deliveryTime = '07:00') {
   return (localTime.hour * 60 + localTime.minute) >= (hour * 60 + minute);
 }
 
+const emailService = require('./emailService');
+const env = require('../config/env');
+
+function renderDailyGrowthBriefingHtml(project, report) {
+  const score = report.performanceScore || {};
+  const subScores = score.subScores || {};
+  const champions = report.platformChampions || {};
+  const isOpp = report.reportMode === 'opportunity';
+  const isAlert = report.reportMode === 'performance_alert';
+  const modeColor = isAlert ? '#ef4444' : (isOpp ? '#10b981' : '#6366f1');
+  const modeLabel = isAlert ? 'Performance Risk Alert' : (isOpp ? 'Growth Opportunity Detected' : 'Daily Morning Brief');
+
+  return `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#111827;line-height:1.6;">
+      <div style="display:inline-block;padding:4px 10px;border-radius:999px;background:${modeColor}15;color:${modeColor};font-size:12px;font-weight:800;text-transform:uppercase;margin-bottom:12px;">
+        ${modeLabel}
+      </div>
+      <h2 style="margin:0 0 8px;font-size:22px;color:#111827;">${emailService.escapeHtml(project.name)} — Daily Growth Intelligence</h2>
+      <p style="color:#4b5563;font-size:15px;margin:0 0 20px;">${emailService.escapeHtml(report.executiveSummary || '')}</p>
+
+      <!-- Score Box -->
+      <div style="background:#0f172a;border-radius:12px;padding:20px;color:#ffffff;margin-bottom:24px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:14px;margin-bottom:14px;">
+          <div>
+            <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.05em;color:#94a3b8;font-weight:700;">6D Growth Score</div>
+            <div style="font-size:36px;font-weight:900;color:#55e6cf;line-height:1;">${score.overallScore ?? 65}<span style="font-size:18px;color:#94a3b8;">/100</span> <span style="font-size:16px;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:6px;vertical-align:middle;">Grade ${score.grade || 'B'}</span></div>
+          </div>
+          <div style="text-align:right;max-width:280px;font-size:13px;color:#cbd5e1;">
+            ${emailService.escapeHtml(score.scoreMovementExplanation || 'Performance is tracking on baseline.')}
+          </div>
+        </div>
+
+        <table style="width:100%;font-size:12px;color:#94a3b8;" cellspacing="0" cellpadding="4">
+          <tr>
+            <td>Audience: <strong style="color:#fff;">${subScores.audienceGrowth ?? 65}/100</strong></td>
+            <td>Content: <strong style="color:#fff;">${subScores.contentPerformance ?? 65}/100</strong></td>
+            <td>Engagement: <strong style="color:#fff;">${subScores.engagementRate ?? 65}/100</strong></td>
+          </tr>
+          <tr>
+            <td>Acquisition: <strong style="color:#fff;">${subScores.websiteAcquisition ?? 60}/100</strong></td>
+            <td>Conversion: <strong style="color:#fff;">${subScores.conversionFunnel ?? 55}/100</strong></td>
+            <td>Visibility: <strong style="color:#fff;">${subScores.brandVisibility ?? 65}/100</strong></td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Champions -->
+      <h3 style="font-size:16px;margin:0 0 10px;color:#111827;">🏆 Platform Champions</h3>
+      <table style="width:100%;border:1px solid #e2e8f0;border-radius:8px;border-collapse:collapse;margin-bottom:24px;font-size:13px;" cellpadding="8">
+        <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0;text-align:left;">
+          <th style="color:#64748b;">Objective</th>
+          <th style="color:#64748b;">Champion</th>
+          <th style="color:#64748b;">Metric</th>
+        </tr>
+        <tr style="border-bottom:1px solid #f1f5f9;">
+          <td><strong>Reach & Impressions</strong></td>
+          <td style="text-transform:capitalize;">${emailService.escapeHtml(champions.bestForReach?.platform || 'N/A')}</td>
+          <td>${(champions.bestForReach?.impressions || 0).toLocaleString()} views</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f1f5f9;">
+          <td><strong>Engagement Rate</strong></td>
+          <td style="text-transform:capitalize;">${emailService.escapeHtml(champions.bestForEngagement?.platform || 'N/A')}</td>
+          <td>${(champions.bestForEngagement?.engagementRate || 0)}% ER</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f1f5f9;">
+          <td><strong>Website Traffic</strong></td>
+          <td style="text-transform:capitalize;">${emailService.escapeHtml(champions.bestForWebsiteTraffic?.platform || 'N/A')}</td>
+          <td>${(champions.bestForWebsiteTraffic?.sessions || 0)} sessions</td>
+        </tr>
+        <tr>
+          <td><strong>Attributed Revenue</strong></td>
+          <td style="text-transform:capitalize;">${emailService.escapeHtml(champions.bestForRevenue?.platform || 'N/A')}</td>
+          <td>€${(champions.bestForRevenue?.revenue || 0).toLocaleString()}</td>
+        </tr>
+      </table>
+
+      <!-- Top Opportunities & Recommended Actions -->
+      ${report.opportunities && report.opportunities.length ? `
+        <h3 style="font-size:16px;margin:0 0 10px;color:#111827;">💡 Detected Growth Opportunities</h3>
+        <div style="background:#f0fdf4;border-left:4px solid #10b981;border-radius:6px;padding:14px;margin-bottom:20px;">
+          <strong style="color:#065f46;font-size:14px;">${emailService.escapeHtml(report.opportunities[0].title)}</strong>
+          <p style="color:#047857;margin:4px 0 8px;font-size:13px;">${emailService.escapeHtml(report.opportunities[0].rationale)}</p>
+          <div style="font-size:12px;color:#065f46;"><strong>Recommended action:</strong> ${emailService.escapeHtml(report.opportunities[0].actionableRecommendation)}</div>
+        </div>
+      ` : ''}
+
+      ${report.risks && report.risks.length ? `
+        <h3 style="font-size:16px;margin:0 0 10px;color:#991b1b;">⚠️ Performance Risks Requiring Attention</h3>
+        <div style="background:#fef2f2;border-left:4px solid #ef4444;border-radius:6px;padding:14px;margin-bottom:20px;">
+          <strong style="color:#991b1b;font-size:14px;">${emailService.escapeHtml(report.risks[0].title)}</strong>
+          <p style="color:#b91c1c;margin:4px 0 8px;font-size:13px;">${emailService.escapeHtml(report.risks[0].description)}</p>
+          <div style="font-size:12px;color:#991b1b;"><strong>Diagnosis:</strong> ${emailService.escapeHtml(report.risks[0].recommendedCorrection)}</div>
+        </div>
+      ` : ''}
+
+      <div style="text-align:center;margin-top:28px;">
+        <a href="${env.appUrl}/projects/${project._id}/growth-intelligence" style="display:inline-block;background:#6366f1;color:#ffffff;font-weight:800;font-size:14px;padding:14px 28px;border-radius:8px;text-decoration:none;box-shadow:0 4px 14px rgba(99,102,241,0.35);">
+          Open Morning Briefing in Moyi &rarr;
+        </a>
+      </div>
+    </div>
+  `;
+}
+
+async function sendDailyGrowthBriefingEmail({ project, report, force = true }) {
+  const targetProject = typeof project === 'object' && project._id
+    ? project
+    : await Project.findById(project).populate('owner');
+  if (!targetProject) throw new Error('Project not found for daily growth briefing dispatch.');
+
+  const isOpp = report.reportMode === 'opportunity';
+  const isAlert = report.reportMode === 'performance_alert';
+  const score = report.performanceScore || {};
+  const subject = isAlert
+    ? `⚠️ [Alert] Social Performance Risk: ${targetProject.name} (Score: ${score.overallScore ?? 65}/100)`
+    : (isOpp
+      ? `🚀 [Opportunity] Daily Growth Breakout: ${targetProject.name} (Score: ${score.overallScore ?? 65}/100)`
+      : `🌅 Daily Growth Intelligence Brief: ${targetProject.name} (Score: ${score.overallScore ?? 65}/100 - Grade ${score.grade || 'B'})`);
+
+  const html = renderDailyGrowthBriefingHtml(targetProject, report);
+  const text = `${subject}\n\n${report.executiveSummary || ''}\n\nReview your full morning briefing at ${env.appUrl}/projects/${targetProject._id}/growth-intelligence`;
+
+  const reportDateStr = (report.date ? new Date(report.date) : new Date()).toISOString().slice(0, 10);
+  const dedupeKey = `daily-growth-brief:${targetProject._id}:${reportDateStr}:${report.reportMode || 'normal'}`;
+
+  const dispatchResult = await createAndDispatchNotification({
+    project: targetProject,
+    force: true,
+    type: 'daily_growth_intelligence',
+    category: 'growth',
+    severity: isAlert ? 'warning' : 'growth_opportunity',
+    urgency: isAlert ? 'high' : 'normal',
+    confidence: 88,
+    title: isOpp ? 'Daily Growth Opportunity Detected' : (isAlert ? 'Social Performance Alert' : 'Daily Growth Morning Brief Ready'),
+    summary: report.executiveSummary || `Your daily growth intelligence briefing is ready with a 6D score of ${score.overallScore ?? 65}/100.`,
+    businessImpact: isOpp
+      ? 'A measurable growth opportunity is ready for 1-click review.'
+      : (isAlert ? 'A performance decline was detected and root-cause diagnosed.' : 'Daily performance tracking on baseline across all channels.'),
+    recommendedAction: (report.opportunities && report.opportunities[0] && report.opportunities[0].actionableRecommendation) || 'Review yesterday\'s performance breakdown and today\'s action plan.',
+    ctaUrl: `/projects/${targetProject._id}/growth-intelligence`,
+    ctaLabel: 'Open Morning Briefing',
+    evidenceData: {
+      score: report.performanceScore,
+      reportMode: report.reportMode,
+      champions: report.platformChampions
+    },
+    customEmail: { subject, html, text },
+    dedupeKey
+  });
+
+  return dispatchResult;
+}
+
 /**
  * Execute daily intelligence generation for a single project
  */
@@ -95,29 +248,12 @@ async function processProjectDailyGrowthRun(project, options = {}) {
   // 2. Update Rolling Historical Baselines
   await updateProjectGrowthBaselines(project._id, 60);
 
-  // 3. Dispatch Proactive In-App Alert for Opportunities / Risks
-  if (report.reportMode === 'opportunity' || report.reportMode === 'performance_alert') {
-    const isOpp = report.reportMode === 'opportunity';
-    await createAndDispatchNotification({
-      project,
-      type: 'daily_growth_intelligence',
-      category: 'growth',
-      severity: isOpp ? 'growth_opportunity' : 'warning',
-      urgency: isOpp ? 'normal' : 'high',
-      confidence: 82,
-      title: isOpp ? 'Daily Growth Opportunity Detected' : 'Social Performance Alert',
-      summary: report.executiveSummary,
-      businessImpact: isOpp ? 'A measurable growth opportunity is ready for review.' : 'A performance decline may require a campaign or content decision.',
-      recommendedAction: 'Review the diagnosis, confirm the strongest evidence, and assign the highest-impact action.',
-      ctaUrl: `/projects/${project._id}/growth-intelligence`,
-      ctaLabel: 'View Diagnosis & Actions',
-      evidenceData: {
-        score: report.performanceScore,
-        reportMode: report.reportMode
-      },
-      dedupeKey: `daily-growth:${project._id}:${reportDate.toISOString().slice(0, 10)}:${report.reportMode}`
-    });
-  }
+  // 3. Dispatch In-App GrowthAlert & Morning Briefing Email to Admin and Stakeholders
+  await sendDailyGrowthBriefingEmail({
+    project,
+    report,
+    force: options.force !== false
+  });
 
   // 4. Update Project lastGeneratedAt
   await Project.findByIdAndUpdate(project._id, {
@@ -229,5 +365,7 @@ module.exports = {
   processProjectDailyGrowthRun,
   triggerDailyGrowthBatch,
   startDailyGrowthScheduler,
-  stopDailyGrowthScheduler
+  stopDailyGrowthScheduler,
+  sendDailyGrowthBriefingEmail,
+  renderDailyGrowthBriefingHtml
 };
