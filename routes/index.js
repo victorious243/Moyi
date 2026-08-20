@@ -202,6 +202,8 @@ async function buildWorkspaceSetupSummary(projects) {
       .slice(0, 4),
     blockers: blockerCounts
   };
+}
+
 const { COMPARISON_PAGES, SOLUTION_PAGES } = require('../config/programmaticPages');
 const {
   MARKET_STRUGGLES_CATALOG,
