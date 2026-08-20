@@ -71,6 +71,10 @@ const socialDraftSchema = new mongoose.Schema(
       type: String,
       default: ''
     },
+    metadata: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {}
+    },
     scheduledFor: {
       type: Date,
       required: true,

@@ -198,6 +198,86 @@ test('projects measurement route generates a weekly report and redirects to repo
   assert.equal(response.redirectedTo, '/projects/proj_1/reports?job=job_1&queued=1');
 });
 
+test('projects measurement route accepts growth opportunity into a valid social draft', async () => {
+  const DailyGrowthIntelligence = require('../models/DailyGrowthIntelligence');
+  const SocialDraft = require('../models/SocialDraft');
+  const Campaign = require('../models/Campaign');
+  const originalReportFindOne = DailyGrowthIntelligence.findOne;
+  const originalDraftCreate = SocialDraft.create;
+  const originalCampaignFindOne = Campaign.findOne;
+  const originalCampaignCreate = Campaign.create;
+
+  const savedReport = {
+    opportunities: [
+      {
+        id: 'opp-optimal-timing',
+        title: 'Schedule Tomorrow in Peak Window',
+        description: 'Publishing on X during the peak window produced better engagement.',
+        evidence: 'Validated across 2 historical posts.',
+        actionType: 'schedule_slot',
+        actionPayload: { platform: 'x', window: '08:00 - 12:00 UTC' },
+        status: 'pending'
+      }
+    ],
+    save: async function() {
+      this.saved = true;
+      return this;
+    }
+  };
+  let createdDraft = null;
+
+  DailyGrowthIntelligence.findOne = () => ({
+    sort: async () => savedReport
+  });
+  Campaign.findOne = () => ({
+    sort: async () => null
+  });
+  Campaign.create = async (payload) => ({ _id: 'campaign_1', ...payload });
+  SocialDraft.create = async (payload) => {
+    createdDraft = payload;
+    assert.ok(payload.campaignId, 'campaignId should be set');
+    assert.equal(payload.channel, 'x');
+    assert.ok(payload.scheduledFor instanceof Date, 'scheduledFor should be a Date');
+    assert.equal(payload.publishStatus, 'pending_approval');
+    return { _id: 'draft_1', ...payload };
+  };
+
+  try {
+    const router = express.Router();
+    const context = {
+      handleValidation: noop,
+      gscOpportunityDraftValidation: [],
+      conversionGoalValidation: [],
+      loadProject: (req, res, next) => {
+        req.project = { _id: 'proj_1', name: 'Moyi' };
+        res.locals.project = req.project;
+        next();
+      }
+    };
+    registerMeasurementRoutes(router, context, {});
+    const response = await runRoute(router, {
+      method: 'post',
+      path: '/:id/growth-intelligence/opportunities/:oppId/accept',
+      req: {
+        body: {},
+        user: { _id: 'user_1' },
+        params: { id: 'proj_1', oppId: 'opp-optimal-timing' },
+        query: {}
+      }
+    });
+
+    assert.ok(savedReport.saved);
+    assert.equal(savedReport.opportunities[0].status, 'accepted');
+    assert.ok(createdDraft);
+    assert.equal(response.redirectedTo, '/projects/proj_1/content?success=Opportunity%20accepted!%20Draft%20post%20has%20been%20prepared%20in%20Content%20Studio%20for%20your%20review.');
+  } finally {
+    DailyGrowthIntelligence.findOne = originalReportFindOne;
+    SocialDraft.create = originalDraftCreate;
+    Campaign.findOne = originalCampaignFindOne;
+    Campaign.create = originalCampaignCreate;
+  }
+});
+
 test('projects prioritization route queues AI report generation and redirects to latest view', async () => {
   const router = express.Router();
   const context = {
@@ -367,4 +447,3 @@ test('projects discovery route queues competitor report generation as a backgrou
 
   assert.equal(response.redirectedTo, '/projects/proj_1/competitors?jobId=report_job_1');
 });
-

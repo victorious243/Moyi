@@ -25,8 +25,49 @@ const { updateProjectGrowthBaselines } = require('../../services/growthBaselineL
 const DailyGrowthIntelligence = require('../../models/DailyGrowthIntelligence');
 const ContentDraft = require('../../models/ContentDraft');
 const SocialDraft = require('../../models/SocialDraft');
+const Campaign = require('../../models/Campaign');
 const MarketingGoal = require('../../models/MarketingGoal');
 const { evaluateGoalForecast } = require('../../services/goalIntelligenceService');
+
+const SOCIAL_DRAFT_CHANNELS = ['bluesky', 'linkedin', 'facebook', 'x', 'instagram', 'threads', 'youtube', 'tiktok', 'email', 'webhook'];
+
+function channelFromOpportunity(opp = {}) {
+  const platform = opp.actionPayload && opp.actionPayload.platform;
+  return SOCIAL_DRAFT_CHANNELS.includes(platform) ? platform : 'x';
+}
+
+function scheduledForOpportunity(opp = {}) {
+  const date = new Date(Date.now() + 2 * 60 * 60 * 1000);
+  if (opp.actionType === 'schedule_slot') {
+    const window = String((opp.actionPayload && opp.actionPayload.window) || '');
+    const hourMatch = window.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
+    date.setUTCDate(date.getUTCDate() + 1);
+    if (hourMatch) {
+      date.setUTCHours(Number(hourMatch[1]), Number(hourMatch[2]), 0, 0);
+    }
+  }
+  return date;
+}
+
+async function findOrCreateGrowthOpportunityCampaign(project, opp = {}) {
+  const now = new Date();
+  const existing = await Campaign.findOne({
+    projectId: project._id,
+    status: { $in: ['planned', 'active'] },
+    name: /^Growth Intelligence Opportunities/
+  }).sort({ updatedAt: -1 });
+  if (existing) return existing;
+  return Campaign.create({
+    projectId: project._id,
+    name: `Growth Intelligence Opportunities: ${project.name}`.slice(0, 140),
+    goal: 'Turn Daily Growth Intelligence opportunities into human-approved social content.',
+    channel: 'multi',
+    cadence: 'custom',
+    startDate: now,
+    endDate: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000),
+    status: 'planned'
+  });
+}
 
 function registerMeasurementRoutes(router, context, services = {}) {
   const {
@@ -138,13 +179,18 @@ function registerMeasurementRoutes(router, context, services = {}) {
     // Create Draft following Human Decision Governance
     const draftTitle = opp.title || 'Growth Opportunity Draft';
     const draftBody = `${opp.description}\n\n${opp.evidence || ''}`;
+    const channel = channelFromOpportunity(opp);
+    const campaign = await findOrCreateGrowthOpportunityCampaign(req.project, opp);
 
     await SocialDraft.create({
       projectId: req.project._id,
+      campaignId: campaign._id,
+      channel,
       title: draftTitle,
       body: draftBody,
-      targetPlatforms: opp.actionPayload && opp.actionPayload.platform ? [opp.actionPayload.platform] : ['linkedin', 'x'],
       status: 'draft',
+      publishStatus: 'pending_approval',
+      scheduledFor: scheduledForOpportunity(opp),
       metadata: {
         source: 'growth_intelligence_opportunity',
         opportunityId: opp.id
