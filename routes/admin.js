@@ -11,6 +11,8 @@ const { retryPublishAction } = require('../services/publishRetryService');
 const { retryPublishJob } = require('../services/contentDistributionEngineService');
 const ContentDraft = require('../models/ContentDraft');
 const SocialDraft = require('../models/SocialDraft');
+const IntelloArticle = require('../models/IntelloArticle');
+const { publishIntelloArticle, rejectIntelloArticle } = require('../services/intelloKnowledgeBaseService');
 const PublishJob = require('../models/PublishJob');
 const { retryWebhookDelivery } = require('../services/webhookService');
 const { deleteAccountData } = require('../services/accountDataService');
@@ -266,6 +268,35 @@ router.post('/intello-daily/:id/reject', [
     req
   });
 
+  res.redirect('/admin#intello-daily');
+}));
+
+router.post('/intello-kb/:id/publish', [
+  param('id').isMongoId(),
+  handleValidation
+], asyncHandler(async (req, res, next) => {
+  const article = await publishIntelloArticle(req.params.id, req.user);
+  await recordAuditEvent({
+    user: req.user,
+    eventType: 'admin_intello_kb_published',
+    metadata: { articleId: article._id, slug: article.slug, title: article.title },
+    req
+  });
+  res.redirect('/admin#intello-daily');
+}));
+
+router.post('/intello-kb/:id/reject', [
+  param('id').isMongoId(),
+  body('reason').optional({ checkFalsy: true }).trim().isLength({ max: 300 }),
+  handleValidation
+], asyncHandler(async (req, res, next) => {
+  const article = await rejectIntelloArticle(req.params.id, req.body.reason, req.user);
+  await recordAuditEvent({
+    user: req.user,
+    eventType: 'admin_intello_kb_rejected',
+    metadata: { articleId: article._id, slug: article.slug, title: article.title, reason: req.body.reason },
+    req
+  });
   res.redirect('/admin#intello-daily');
 }));
 

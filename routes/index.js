@@ -202,13 +202,18 @@ async function buildWorkspaceSetupSummary(projects) {
       .slice(0, 4),
     blockers: blockerCounts
   };
-}
-
 const { COMPARISON_PAGES, SOLUTION_PAGES } = require('../config/programmaticPages');
+const {
+  MARKET_STRUGGLES_CATALOG,
+  getIntelloHubData,
+  getIntelloArticleBySlug,
+  seedInitialIntelloArticles
+} = require('../services/intelloKnowledgeBaseService');
 
 router.get('/sitemap.xml', (req, res) => {
   const urls = [
     sitemapUrl('/', '1.0', 'weekly'),
+    sitemapUrl('/intello', '0.95', 'daily'),
     sitemapUrl('/pricing', '0.9', 'monthly'),
     ...Object.keys(publicPages).map((slug) => {
       const highIntent = [
@@ -232,6 +237,7 @@ router.get('/sitemap.xml', (req, res) => {
     }),
     ...Object.keys(COMPARISON_PAGES).map((slug) => sitemapUrl(`/compare/${slug}`, '0.85', 'weekly')),
     ...Object.keys(SOLUTION_PAGES).map((slug) => sitemapUrl(`/solutions/${slug}`, '0.85', 'weekly')),
+    ...MARKET_STRUGGLES_CATALOG.map((s) => sitemapUrl(`/intello/${s.slug}`, '0.9', 'weekly')),
     sitemapUrl('/features/daily-content-intelligence', '0.95', 'weekly'),
     sitemapUrl('/features/intello-daily', '0.9', 'weekly'),
     sitemapUrl('/status', '0.7', 'daily'),
@@ -302,6 +308,7 @@ router.get('/llms.txt', (req, res) => {
     '',
     '## Important URLs',
     `- Homepage: ${publicBaseUrl()}/`,
+    `- Intello Knowledge Base: ${publicBaseUrl()}/intello`,
     `- Intello Daily: ${publicBaseUrl()}/features/daily-content-intelligence`,
     `- Features: ${publicBaseUrl()}/features`,
     `- How it works: ${publicBaseUrl()}/how-it-works`,
@@ -445,6 +452,41 @@ const renderIntelloDaily = (req, res) => {
 router.get('/features/daily-content-intelligence', renderIntelloDaily);
 router.get('/features/intello-daily', renderIntelloDaily);
 router.get('/intello-daily', renderIntelloDaily);
+
+// Public Intello Knowledge Base Hub & Solution Reader
+router.get('/kb', (req, res) => {
+  res.redirect(301, '/intello');
+});
+
+router.get('/intello', asyncHandler(async (req, res) => {
+  await seedInitialIntelloArticles().catch(() => null);
+  const data = await getIntelloHubData({
+    category: req.query.category,
+    query: req.query.q,
+    page: req.query.page || 1,
+    limit: 12
+  });
+
+  res.render('public/intello/hub', {
+    title: 'Intello Knowledge Base — Solutions to Real Marketing & SEO Struggles | Moyi-CMO',
+    seoDescription: 'Explore actionable problem-solving playbooks for Google Search Console, striking-distance keywords, keyword cannibalization, and social revenue attribution.',
+    ...data
+  });
+}));
+
+router.get('/intello/:slug', asyncHandler(async (req, res, next) => {
+  await seedInitialIntelloArticles().catch(() => null);
+  const data = await getIntelloArticleBySlug(req.params.slug);
+  if (!data || !data.article) {
+    return next();
+  }
+
+  res.render('public/intello/show', {
+    title: `${data.article.title} | Moyi Intello KB`,
+    seoDescription: data.article.seoDescription || data.article.struggleSummary.slice(0, 160),
+    ...data
+  });
+}));
 
 Object.entries(publicPages).forEach(([slug, page]) => {
   router.get(`/${slug}`, (req, res) => {

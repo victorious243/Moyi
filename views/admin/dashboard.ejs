@@ -121,6 +121,41 @@
           <% }) %>
         </div>
       <% } %>
+
+      <!-- Pending Intello Knowledge Base Articles -->
+      <% if (typeof pendingKbArticles !== 'undefined' && pendingKbArticles && pendingKbArticles.length) { %>
+        <div style="margin-top: 32px; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 24px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div>
+              <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #55e6cf;">📚 Intello Public Knowledge Base Drafts</h3>
+              <p style="margin: 4px 0 0; font-size: 13px; color: #94a3b8;">Uncovered market struggles awaiting 1-click publishing to https://moyi-cmo.com/intello</p>
+            </div>
+            <span class="status status-connected"><%= pendingKbArticles.length %> KB drafts</span>
+          </div>
+
+          <div style="display: grid; gap: 16px;">
+            <% pendingKbArticles.forEach((article) => { %>
+              <article class="panel" style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(85, 230, 207, 0.2); border-radius: 10px; padding: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
+                  <div>
+                    <span style="font-size: 11px; font-weight: 800; color: #55e6cf; text-transform: uppercase;"><%= article.category ? article.category.replace(/_/g, ' ') : 'SEO' %></span>
+                    <h4 style="margin: 4px 0; font-size: 16px; font-weight: 800; color: #ffffff;"><%= article.title %></h4>
+                    <p style="margin: 0; font-size: 13px; color: #cbd5e1;"><%= article.struggleSummary %></p>
+                  </div>
+                  <div style="display: flex; gap: 8px;">
+                    <form action="/admin/intello-kb/<%= article._id %>/publish" method="post" onsubmit="return confirm('Publish this guide to the public Intello Knowledge Base at /intello/<%= article.slug %>?');">
+                      <button class="button button-primary" type="submit" style="font-size: 12px; padding: 6px 14px; background: #10b981; border-color: #10b981;">&check; Publish to Public KB</button>
+                    </form>
+                    <form action="/admin/intello-kb/<%= article._id %>/reject" method="post" onsubmit="return confirm('Reject this KB draft?');">
+                      <button class="button" type="submit" style="font-size: 12px; padding: 6px 12px; color: #ef4444;">&cross; Reject</button>
+                    </form>
+                  </div>
+                </div>
+              </article>
+            <% }) %>
+          </div>
+        </div>
+      <% } %>
     </section>
 
     <div class="dashboard-grid">

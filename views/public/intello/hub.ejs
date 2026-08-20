@@ -1,0 +1,128 @@
+<%- include('../../partials/header') %>
+
+<main class="programmatic-page" style="padding-top: 40px; padding-bottom: 80px; max-width: 1200px; margin: 0 auto; padding-left: 20px; padding-right: 20px;">
+  <!-- Hero Section -->
+  <section style="text-align: center; margin-bottom: 48px;">
+    <div style="display: inline-flex; align-items: center; gap: 8px; background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 999px; padding: 6px 16px; margin-bottom: 16px;">
+      <span style="color: #818cf8; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Intello Knowledge Base</span>
+      <span style="background: #10b981; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 999px;">Updated Daily</span>
+    </div>
+    <h1 style="font-size: clamp(32px, 5vw, 48px); font-weight: 900; line-height: 1.15; color: #ffffff; margin: 0 0 16px;">
+      Real Marketing Struggles.<br><span style="background: linear-gradient(135deg, #55e6cf, #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Actionable Daily Solutions.</span>
+    </h1>
+    <p style="font-size: 18px; color: #94a3b8; max-width: 720px; margin: 0 auto 32px; line-height: 1.6;">
+      Every day, Intello identifies real marketing, SEO, and conversion bottlenecks people are struggling with and provides step-by-step resolution playbooks.
+    </p>
+
+    <!-- Search Form -->
+    <form action="/intello" method="get" style="max-width: 580px; margin: 0 auto; display: flex; gap: 10px;">
+      <input 
+        type="text" 
+        name="q" 
+        value="<%= searchQuery %>" 
+        placeholder="Search marketing struggles (e.g., striking distance, cannibalization, attribution)..."
+        style="flex: 1; padding: 14px 18px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.15); background: rgba(15, 23, 42, 0.8); color: #fff; font-size: 15px; outline: none;"
+      >
+      <% if (activeCategory && activeCategory !== 'all') { %>
+        <input type="hidden" name="category" value="<%= activeCategory %>">
+      <% } %>
+      <button type="submit" class="button button-primary" style="padding: 14px 24px; font-size: 15px; font-weight: 700; border-radius: 10px;">Search</button>
+    </form>
+  </section>
+
+  <!-- Category Filter Pills -->
+  <section style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 40px;">
+    <% 
+      const categoryLabels = {
+        all: 'All Struggles',
+        search_console: 'Search Console',
+        seo_rankings: 'SEO & Rankings',
+        social_distribution: 'Social Distribution',
+        conversion_cro: 'Conversion & CRO',
+        competitor_intel: 'Competitor Intel',
+        marketing_strategy: 'Marketing Strategy'
+      };
+    %>
+    <% Object.entries(categoryLabels).forEach(([key, label]) => { %>
+      <a 
+        href="/intello?category=<%= key %><%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>"
+        style="padding: 8px 16px; border-radius: 999px; font-size: 13px; font-weight: 700; text-decoration: none; transition: all 0.2s ease; <%= activeCategory === key ? 'background: #6366f1; color: #ffffff; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);' : 'background: rgba(30, 41, 59, 0.6); color: #94a3b8; border: 1px solid rgba(255, 255, 255, 0.08);' %>"
+      >
+        <%= label %> (<%= categories[key] || 0 %>)
+      </a>
+    <% }) %>
+  </section>
+
+  <!-- Articles Grid -->
+  <% if (!articles || !articles.length) { %>
+    <div style="text-align: center; padding: 60px 20px; background: rgba(15, 23, 42, 0.4); border-radius: 16px; border: 1px dashed rgba(255, 255, 255, 0.1);">
+      <h3 style="font-size: 20px; color: #ffffff; margin-bottom: 8px;">No guides found matching your query</h3>
+      <p style="color: #94a3b8; margin-bottom: 20px;">Try searching for different keywords or explore another category.</p>
+      <a href="/intello" class="button">Clear Filter & View All</a>
+    </div>
+  <% } else { %>
+    <section style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 24px; margin-bottom: 48px;">
+      <% articles.forEach((article) => { %>
+        <article style="background: linear-gradient(180deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.8) 100%); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.2s ease, border-color 0.2s ease;" onmouseover="this.style.borderColor='rgba(99, 102, 241, 0.5)'; this.style.transform='translateY(-2px)';" onmouseout="this.style.borderColor='rgba(255, 255, 255, 0.08)'; this.style.transform='translateY(0)';">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: #55e6cf; letter-spacing: 0.05em; background: rgba(85, 230, 207, 0.1); padding: 3px 8px; border-radius: 6px;">
+                <%= article.category ? article.category.replace(/_/g, ' ') : 'SEO' %>
+              </span>
+              <span style="font-size: 12px; color: #64748b;">
+                <%= article.readingTimeMinutes || 5 %> min read
+              </span>
+            </div>
+
+            <h2 style="font-size: 18px; font-weight: 800; color: #ffffff; margin: 0 0 10px; line-height: 1.35;">
+              <a href="/intello/<%= article.slug %>" style="color: inherit; text-decoration: none;">
+                <%= article.title %>
+              </a>
+            </h2>
+
+            <p style="font-size: 14px; color: #94a3b8; line-height: 1.55; margin: 0 0 16px;">
+              <%= article.struggleSummary ? (article.struggleSummary.length > 150 ? article.struggleSummary.slice(0, 150) + '...' : article.struggleSummary) : '' %>
+            </p>
+          </div>
+
+          <div style="border-top: 1px solid rgba(255, 255, 255, 0.06); padding-top: 16px; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 12px; color: #64748b;">
+              <%= article.publishedAt ? new Date(article.publishedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently Added' %>
+            </span>
+            <a href="/intello/<%= article.slug %>" style="color: #818cf8; font-weight: 700; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+              Read Solution &rarr;
+            </a>
+          </div>
+        </article>
+      <% }) %>
+    </section>
+
+    <!-- Pagination -->
+    <% if (totalPages > 1) { %>
+      <div style="display: flex; justify-content: center; gap: 8px; margin-bottom: 48px;">
+        <% for (let p = 1; p <= totalPages; p++) { %>
+          <a 
+            href="/intello?page=<%= p %><%= activeCategory !== 'all' ? '&category=' + activeCategory : '' %><%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>"
+            style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 14px; font-weight: 700; text-decoration: none; <%= currentPage === p ? 'background: #6366f1; color: #fff;' : 'background: rgba(30, 41, 59, 0.6); color: #94a3b8;' %>"
+          >
+            <%= p %>
+          </a>
+        <% } %>
+      </div>
+    <% } %>
+  <% } %>
+
+  <!-- Bottom CTA Banner -->
+  <section style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(16, 185, 129, 0.15) 100%); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 20px; padding: 48px 32px; text-align: center; margin-top: 32px;">
+    <h2 style="font-size: 28px; font-weight: 900; color: #ffffff; margin: 0 0 12px;">Have an Unresolved Growth Bottleneck?</h2>
+    <p style="font-size: 16px; color: #cbd5e1; max-width: 620px; margin: 0 auto 24px; line-height: 1.6;">
+      Connect your domain to Moyi-CMO. Our autonomous engine continuously detects ranking drops, keyword opportunities, and conversion leaks.
+    </p>
+    <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+      <a href="/register" class="button button-primary" style="padding: 14px 28px; font-size: 15px; font-weight: 800;">Get Started with Moyi Free</a>
+      <a href="/pricing" class="button" style="padding: 14px 24px; font-size: 15px;">View Pricing</a>
+    </div>
+  </section>
+</main>
+
+<%- include('../../partials/footer') %>

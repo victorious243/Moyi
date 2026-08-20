@@ -1,0 +1,203 @@
+<%- include('../../partials/header') %>
+
+<main class="programmatic-page" style="padding-top: 32px; padding-bottom: 80px; max-width: 960px; margin: 0 auto; padding-left: 20px; padding-right: 20px;">
+  <!-- Breadcrumbs -->
+  <nav style="font-size: 13px; color: #64748b; margin-bottom: 24px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+    <a href="/" style="color: #94a3b8; text-decoration: none;">Home</a>
+    <span>&rsaquo;</span>
+    <a href="/intello" style="color: #94a3b8; text-decoration: none;">Intello Knowledge Base</a>
+    <span>&rsaquo;</span>
+    <a href="/intello?category=<%= article.category %>" style="color: #818cf8; text-decoration: none; text-transform: capitalize;">
+      <%= article.category ? article.category.replace(/_/g, ' ') : 'SEO' %>
+    </a>
+  </nav>
+
+  <!-- Article Header -->
+  <header style="margin-bottom: 40px;">
+    <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 16px;">
+      <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: #55e6cf; background: rgba(85, 230, 207, 0.12); padding: 4px 10px; border-radius: 6px; letter-spacing: 0.05em;">
+        <%= article.category ? article.category.replace(/_/g, ' ') : 'SEO' %>
+      </span>
+      <span style="font-size: 13px; color: #94a3b8;">
+        &bull; <%= article.readingTimeMinutes || 5 %> min read
+      </span>
+      <span style="font-size: 13px; color: #94a3b8;">
+        &bull; Published <%= article.publishedAt ? new Date(article.publishedAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : 'Recently' %>
+      </span>
+    </div>
+
+    <h1 style="font-size: clamp(30px, 4.5vw, 44px); font-weight: 900; line-height: 1.2; color: #ffffff; margin: 0 0 20px;">
+      <%= article.title %>
+    </h1>
+
+    <div style="background: rgba(15, 23, 42, 0.6); border-left: 4px solid #6366f1; border-radius: 0 12px 12px 0; padding: 20px; font-size: 16px; color: #cbd5e1; line-height: 1.6;">
+      <strong>The Searcher's Problem:</strong> <%= article.struggleSummary %>
+    </div>
+  </header>
+
+  <!-- Symptoms Warning Box -->
+  <% if (article.struggleSymptoms && article.struggleSymptoms.length) { %>
+    <section class="panel" style="background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 28px; margin-bottom: 36px;">
+      <h2 style="font-size: 20px; font-weight: 800; color: #ffffff; margin: 0 0 16px; display: flex; align-items: center; gap: 8px;">
+        <span>⚠️</span> Key Warning Signs You Might Observe
+      </h2>
+      <ul style="margin: 0; padding-left: 20px; color: #cbd5e1; line-height: 1.8; font-size: 15px;">
+        <% article.struggleSymptoms.forEach((symptom) => { %>
+          <li><%= symptom %></li>
+        <% }) %>
+      </ul>
+    </section>
+  <% } %>
+
+  <!-- Root Cause Analysis -->
+  <% if (article.rootCauseAnalysis) { %>
+    <section class="panel" style="background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 28px; margin-bottom: 36px;">
+      <h2 style="font-size: 20px; font-weight: 800; color: #ffffff; margin: 0 0 16px;">
+        🔬 Root Cause Analysis: Why This Happens
+      </h2>
+      <div style="font-size: 15px; color: #cbd5e1; line-height: 1.7;">
+        <%= article.rootCauseAnalysis %>
+      </div>
+    </section>
+  <% } %>
+
+  <!-- Step-by-Step Manual Solution -->
+  <% if (article.manualSolution) { %>
+    <section class="panel" style="background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 28px; margin-bottom: 36px;">
+      <h2 style="font-size: 20px; font-weight: 800; color: #ffffff; margin: 0 0 16px; display: flex; align-items: center; gap: 8px;">
+        <span>🛠️</span> The Step-by-Step Actionable Solution
+      </h2>
+      <div style="font-size: 15px; color: #cbd5e1; line-height: 1.8; white-space: pre-line;">
+        <%= article.manualSolution %>
+      </div>
+    </section>
+  <% } %>
+
+  <!-- How Moyi Solves It (Autonomous Workflow) -->
+  <% if (article.howMoyiSolves) { %>
+    <section style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.18) 0%, rgba(16, 185, 129, 0.15) 100%); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 20px; padding: 36px; margin-bottom: 40px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);">
+      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 24px;">⚡</span>
+          <h2 style="font-size: 22px; font-weight: 900; color: #ffffff; margin: 0;">How Moyi Solves This Autonomously</h2>
+        </div>
+        <span style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); font-size: 11px; font-weight: 800; text-transform: uppercase; padding: 3px 10px; border-radius: 999px;">
+          Zero Fluff Guarantee
+        </span>
+      </div>
+
+      <p style="font-size: 16px; color: #e2e8f0; line-height: 1.7; margin: 0 0 20px;">
+        <%= article.howMoyiSolves %>
+      </p>
+
+      <div style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 18px; margin-bottom: 24px;">
+        <div style="font-size: 12px; font-weight: 800; text-transform: uppercase; color: #818cf8; margin-bottom: 4px;">The Moyi Governance Rule</div>
+        <p style="font-size: 14px; color: #94a3b8; margin: 0; line-height: 1.5;">
+          <strong>"Moyi proposes. Humans decide."</strong> Moyi automates the continuous data mining, diagnosis, and creative drafting, but never publishes anything without your 1-click human approval.
+        </p>
+      </div>
+
+      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <a href="/register" class="button button-primary" style="padding: 12px 24px; font-size: 14px; font-weight: 800;">Automate This with Moyi &rarr;</a>
+        <a href="/features/daily-content-intelligence" class="button" style="padding: 12px 20px; font-size: 14px;">Explore Intello Daily</a>
+      </div>
+    </section>
+  <% } %>
+
+  <!-- FAQs Section -->
+  <% if (article.faqs && article.faqs.length) { %>
+    <section class="panel" style="background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 28px; margin-bottom: 36px;">
+      <h2 style="font-size: 20px; font-weight: 800; color: #ffffff; margin: 0 0 20px;">
+        Frequently Asked Questions
+      </h2>
+      <div style="display: grid; gap: 16px;">
+        <% article.faqs.forEach((faq) => { %>
+          <details style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 16px; cursor: pointer;">
+            <summary style="font-weight: 700; color: #ffffff; font-size: 15px; outline: none;">
+              <%= faq.question %>
+            </summary>
+            <p style="margin: 12px 0 0; font-size: 14px; color: #cbd5e1; line-height: 1.6;">
+              <%= faq.answer %>
+            </p>
+          </details>
+        <% }) %>
+      </div>
+    </section>
+  <% } %>
+
+  <!-- Sources & Citations -->
+  <% if (article.sources && article.sources.length) { %>
+    <section style="margin-bottom: 40px; font-size: 13px; color: #64748b;">
+      <strong style="color: #94a3b8;">Verified References & Guidelines:</strong>
+      <ul style="margin: 6px 0 0; padding-left: 20px;">
+        <% article.sources.forEach((src) => { %>
+          <li><%= src %></li>
+        <% }) %>
+      </ul>
+    </section>
+  <% } %>
+
+  <!-- Related Solution Guides -->
+  <% if (typeof relatedArticles !== 'undefined' && relatedArticles && relatedArticles.length) { %>
+    <section style="border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 36px; margin-top: 40px;">
+      <h2 style="font-size: 20px; font-weight: 800; color: #ffffff; margin: 0 0 20px;">
+        Related Problem-Solving Playbooks
+      </h2>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px;">
+        <% relatedArticles.forEach((rel) => { %>
+          <a href="/intello/<%= rel.slug %>" style="background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 12px; padding: 18px; text-decoration: none; display: block; transition: border-color 0.2s;" onmouseover="this.style.borderColor='rgba(99, 102, 241, 0.4)';" onmouseout="this.style.borderColor='rgba(255, 255, 255, 0.06)';">
+            <span style="font-size: 11px; font-weight: 700; color: #55e6cf; text-transform: uppercase;"><%= rel.category ? rel.category.replace(/_/g, ' ') : 'SEO' %></span>
+            <h3 style="font-size: 15px; font-weight: 700; color: #ffffff; margin: 6px 0 8px; line-height: 1.4;"><%= rel.title %></h3>
+            <span style="color: #818cf8; font-size: 12px; font-weight: 700;">Read Playbook &rarr;</span>
+          </a>
+        <% }) %>
+      </div>
+    </section>
+  <% } %>
+</main>
+
+<!-- Structured Data: Article & FAQPage JSON-LD -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Article",
+      "headline": "<%= article.title.replace(/"/g, '\\"') %>",
+      "description": "<%= article.struggleSummary.replace(/"/g, '\\"') %>",
+      "datePublished": "<%= article.publishedAt ? new Date(article.publishedAt).toISOString() : new Date().toISOString() %>",
+      "dateModified": "<%= article.updatedAt ? new Date(article.updatedAt).toISOString() : new Date().toISOString() %>",
+      "author": {
+        "@type": "Organization",
+        "name": "Moyi-CMO Intello Research Team"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "Moyi-CMO",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://moyi-cmo.com/assets/images/logo.png"
+        }
+      }
+    }<% if (article.faqs && article.faqs.length) { %>,
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        <% article.faqs.forEach((faq, idx) => { %>
+          {
+            "@type": "Question",
+            "name": "<%= faq.question.replace(/"/g, '\\"') %>",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "<%= faq.answer.replace(/"/g, '\\"') %>"
+            }
+          }<%= idx < article.faqs.length - 1 ? ',' : '' %>
+        <% }) %>
+      ]
+    }
+    <% } %>
+  ]
+}
+</script>
+
+<%- include('../../partials/footer') %>

@@ -10,6 +10,7 @@ const AuditLog = require('../models/AuditLog');
 const AppLog = require('../models/AppLog');
 const ContentDraft = require('../models/ContentDraft');
 const SocialDraft = require('../models/SocialDraft');
+const IntelloArticle = require('../models/IntelloArticle');
 const { readinessPayload } = require('./runtimeHealthService');
 const {
   buildEnterpriseHardeningSummary,
@@ -33,7 +34,8 @@ async function buildAdminDashboard() {
     health,
     failedPublishJobs,
     reconnectAccounts,
-    pendingIntelloDrafts
+    pendingIntelloDrafts,
+    pendingKbArticles
   ] = await Promise.all([
     User.countDocuments(),
     Project.countDocuments(),
@@ -68,6 +70,13 @@ async function buildAdminDashboard() {
       .sort({ createdAt: -1 })
       .limit(25)
       .populate('projectId', 'name websiteUrl')
+      .lean(),
+    IntelloArticle.find({
+      status: { $in: ['awaiting_review', 'draft'] }
+    })
+      .sort({ createdAt: -1 })
+      .limit(25)
+      .populate('sourceProjectId', 'name websiteUrl')
       .lean()
   ]);
 
@@ -123,6 +132,7 @@ async function buildAdminDashboard() {
     health,
     incidentSummary,
     intelloDailyQueue,
+    pendingKbArticles,
     periodEnd,
     periodStart,
     projectCount,
