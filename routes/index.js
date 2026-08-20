@@ -232,6 +232,8 @@ router.get('/sitemap.xml', (req, res) => {
     }),
     ...Object.keys(COMPARISON_PAGES).map((slug) => sitemapUrl(`/compare/${slug}`, '0.85', 'weekly')),
     ...Object.keys(SOLUTION_PAGES).map((slug) => sitemapUrl(`/solutions/${slug}`, '0.85', 'weekly')),
+    sitemapUrl('/features/daily-content-intelligence', '0.95', 'weekly'),
+    sitemapUrl('/features/intello-daily', '0.9', 'weekly'),
     sitemapUrl('/status', '0.7', 'daily'),
     sitemapUrl('/contact', '0.6', 'monthly'),
     sitemapUrl('/privacy', '0.5', 'yearly'),
@@ -300,6 +302,7 @@ router.get('/llms.txt', (req, res) => {
     '',
     '## Important URLs',
     `- Homepage: ${publicBaseUrl()}/`,
+    `- Intello Daily: ${publicBaseUrl()}/features/daily-content-intelligence`,
     `- Features: ${publicBaseUrl()}/features`,
     `- How it works: ${publicBaseUrl()}/how-it-works`,
     `- Documentation: ${publicBaseUrl()}/docs`,
@@ -417,6 +420,31 @@ router.post('/meta-review/oembed', [
     }));
   }
 }));
+
+const renderIntelloDaily = (req, res) => {
+  res.render('public/intello-daily', {
+    title: 'Intello Daily — Autonomous Daily Content Intelligence | Moyi-CMO',
+    seoDescription: 'Every morning at 7:00 AM, Intello Daily turns search queries and competitor shifts into fresh social posts, Swiss-grid carousels, 3D device mockups, and performance ads.',
+    additionalSchemas: [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'WebPage',
+        name: 'Intello Daily — Autonomous Daily Content Intelligence',
+        url: `${publicBaseUrl()}/features/daily-content-intelligence`,
+        description: 'Autonomous Daily Content Intelligence engine delivering ready-to-publish social drafts, Swiss-grid carousels, 3D device mockups, and performance ads every morning at 7:00 AM.',
+        isPartOf: {
+          '@type': 'WebSite',
+          name: 'Moyi-CMO',
+          url: publicBaseUrl()
+        }
+      }
+    ]
+  });
+};
+
+router.get('/features/daily-content-intelligence', renderIntelloDaily);
+router.get('/features/intello-daily', renderIntelloDaily);
+router.get('/intello-daily', renderIntelloDaily);
 
 Object.entries(publicPages).forEach(([slug, page]) => {
   router.get(`/${slug}`, (req, res) => {
