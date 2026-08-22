@@ -33,190 +33,279 @@
     sections: group.ids.map((id) => sectionsById.get(id)).filter(Boolean)
   })).filter((group) => group.sections.length);
 
-  const quickstart = sectionsById.get('first-run');
-  const setupTutorials = sectionsById.get('setup-tutorials');
   const renderSectionTitle = (title = '') => title.replace(/^\d+\.\s*/, '');
+  const sectionGroupLabel = (sectionId) => {
+    const group = guideGroups.find((item) => item.sections.some((section) => section.id === sectionId));
+    return group ? group.label : 'Documentation';
+  };
+  const buildSearchText = (section) => [
+    section.title,
+    section.body,
+    section.note,
+    ...(section.bullets || []),
+    ...(section.steps || []).flatMap((step) => typeof step === 'string' ? [step] : [step.title, step.body]),
+    ...(section.options || []).flatMap((option) => [option.title, option.body]),
+    ...(section.tutorials || []).flatMap((tutorial) => [tutorial.title, tutorial.summary, ...(tutorial.steps || [])])
+  ].filter(Boolean).join(' ').toLowerCase();
 %>
 
-<div class="docs-product-shell">
-  <header class="docs-product-header">
-    <div class="docs-product-brand">
-      <span>Moyi-CMO Docs</span>
+<div class="docs-app-shell">
+  <header class="docs-app-topbar" aria-label="Moyi documentation">
+    <div>
+      <p class="docs-app-kicker">Moyi-CMO Docs</p>
+      <h1>Documentation</h1>
     </div>
-    <nav class="docs-product-tabs" aria-label="Documentation areas">
-      <a class="is-active" href="/docs">Overview</a>
-      <a href="/docs#setup-tutorials">Guides</a>
-      <a href="/docs#integrations">Integrations</a>
-      <a href="/docs#content-distribution-api">API</a>
-      <a href="/docs#troubleshooting">Support</a>
+    <nav class="docs-app-tabs" aria-label="Documentation categories">
+      <button type="button" class="is-active" data-doc-target="overview">Overview</button>
+      <button type="button" data-doc-target="setup-tutorials">Guides</button>
+      <button type="button" data-doc-target="integrations">Integrations</button>
+      <button type="button" data-doc-target="content-distribution-api">API</button>
+      <button type="button" data-doc-target="troubleshooting">Support</button>
     </nav>
-    <div class="docs-product-actions">
-      <label class="docs-search" for="docs-search-input">
+    <div class="docs-app-actions">
+      <label class="docs-app-search" for="docs-search-input">
         <span aria-hidden="true">⌕</span>
-        <input id="docs-search-input" type="search" placeholder="Search documentation" autocomplete="off">
+        <input id="docs-search-input" type="search" placeholder="Search docs" autocomplete="off">
       </label>
-      <a class="docs-dashboard-link" href="/dashboard">Dashboard</a>
+      <a class="docs-app-dashboard" href="/dashboard">Dashboard</a>
     </div>
   </header>
 
-  <div class="docs-product-grid">
-    <aside class="docs-sidebar" aria-label="Documentation navigation">
-      <a class="docs-home-link is-active" href="/docs">Home</a>
+  <div class="docs-app-layout">
+    <aside class="docs-app-sidebar" aria-label="Documentation topics">
+      <button
+        type="button"
+        class="docs-topic-button is-active"
+        data-doc-topic
+        data-doc-target="overview"
+        data-search-text="home overview quickstart evidence execution product documentation"
+        aria-current="page">
+        <span>Home</span>
+        <small>Start here</small>
+      </button>
+
       <% guideGroups.forEach((group) => { %>
-        <div class="docs-nav-group">
-          <strong><%= group.label %></strong>
+        <div class="docs-topic-group">
+          <p><%= group.label %></p>
           <% group.sections.forEach((section) => { %>
-            <a href="#<%= section.id %>"><%= renderSectionTitle(section.title) %></a>
+            <button
+              type="button"
+              class="docs-topic-button"
+              data-doc-topic
+              data-doc-target="<%= section.id %>"
+              data-search-text="<%= buildSearchText(section) %>"
+              aria-controls="docs-panel-<%= section.id %>">
+              <span><%= renderSectionTitle(section.title) %></span>
+              <small><%= group.label %></small>
+            </button>
           <% }) %>
         </div>
       <% }) %>
     </aside>
 
-    <main class="docs-main">
-      <section class="docs-hero">
-        <p class="eyebrow"><%= page.eyebrow %></p>
-        <h1><%= page.title %></h1>
-        <p><%= page.intro %></p>
-        <div class="docs-hero-actions">
-          <a class="button button-primary" href="<%= page.primaryAction.href %>"><%= page.primaryAction.label %></a>
-          <a class="button" href="<%= page.secondaryAction.href %>"><%= page.secondaryAction.label %></a>
+    <main class="docs-detail-stage" aria-live="polite">
+      <section class="docs-detail-panel is-active" id="docs-panel-overview" data-doc-panel="overview">
+        <div class="docs-detail-hero">
+          <p class="eyebrow"><%= page.eyebrow %></p>
+          <h2><%= page.title %></h2>
+          <p><%= page.intro %></p>
+          <div class="docs-detail-actions">
+            <a class="button button-primary" href="<%= page.primaryAction.href %>"><%= page.primaryAction.label %></a>
+            <a class="button" href="<%= page.secondaryAction.href %>"><%= page.secondaryAction.label %></a>
+          </div>
         </div>
-      </section>
 
-      <section class="docs-quickstart-card" aria-labelledby="docs-quickstart-title">
-        <div>
-          <p class="eyebrow">Quickstart</p>
-          <h2 id="docs-quickstart-title">Get your first useful Moyi result</h2>
-          <p>Follow the shortest evidence-led path: create a project, run a scan, review the AI CMO plan, approve one asset, then measure what happens.</p>
-          <div class="docs-card-actions">
-            <a class="button button-primary" href="#first-run">Start quickstart</a>
-            <a class="button" href="#setup-tutorials">Configuration tutorials</a>
+        <div class="docs-quickstart-card">
+          <div>
+            <p class="eyebrow">Quickstart</p>
+            <h3>Get your first useful Moyi result</h3>
+            <p>Follow the shortest evidence-led path: create a project, run a scan, review the AI CMO plan, approve one asset, then measure what happens.</p>
+            <div class="docs-detail-actions">
+              <button type="button" class="button button-primary" data-doc-target="first-run">Start quickstart</button>
+              <button type="button" class="button" data-doc-target="setup-tutorials">Configuration tutorials</button>
+            </div>
           </div>
-        </div>
-        <div class="docs-code-panel" aria-label="Moyi workflow example">
-          <div class="docs-code-topline">
-            <span>Workflow</span>
-            <code>Evidence → Action</code>
-          </div>
-          <pre><code>1. Create project
+          <div class="docs-code-panel" aria-label="Moyi workflow example">
+            <div class="docs-code-topline">
+              <span>Workflow</span>
+              <code>Evidence -> Action</code>
+            </div>
+            <pre><code>1. Create project
 2. Run website scan
 3. Connect real data sources
 4. Generate AI CMO plan
 5. Approve content
 6. Publish and measure</code></pre>
-        </div>
-      </section>
-
-      <section class="docs-build-paths" aria-labelledby="docs-build-paths-title">
-        <h2 id="docs-build-paths-title">Build paths</h2>
-        <div class="docs-path-grid">
-          <% guideGroups.forEach((group) => { %>
-            <article class="docs-path-card">
-              <h3><%= group.label %></h3>
-              <p><%= group.description %></p>
-              <a href="#<%= group.sections[0].id %>">Open path</a>
-            </article>
-          <% }) %>
-        </div>
-      </section>
-
-      <% if (setupTutorials && setupTutorials.tutorials && setupTutorials.tutorials.length) { %>
-        <section class="docs-featured-guides" aria-labelledby="docs-featured-guides-title">
-          <div class="docs-section-heading">
-            <p class="eyebrow">Guides</p>
-            <h2 id="docs-featured-guides-title">Popular setup tutorials</h2>
           </div>
-          <div class="docs-guide-grid">
-            <% setupTutorials.tutorials.slice(0, 4).forEach((tutorial) => { %>
-              <article class="docs-guide-card">
-                <strong><%= tutorial.title %></strong>
-                <p><%= tutorial.summary %></p>
-                <a href="<%= tutorial.href %>">Open guide</a>
+        </div>
+
+        <section class="docs-build-paths" aria-labelledby="docs-build-paths-title">
+          <h3 id="docs-build-paths-title">Build paths</h3>
+          <div class="docs-path-grid">
+            <% guideGroups.forEach((group) => { %>
+              <article class="docs-path-card">
+                <h4><%= group.label %></h4>
+                <p><%= group.description %></p>
+                <button type="button" data-doc-target="<%= group.sections[0].id %>">Open path</button>
               </article>
             <% }) %>
           </div>
         </section>
-      <% } %>
+      </section>
 
-      <div class="docs-content-stack">
-        <% guideGroups.forEach((group) => { %>
-          <section class="docs-group" aria-labelledby="docs-group-<%= group.label.toLowerCase().replace(/[^a-z0-9]+/g, '-') %>">
-            <div class="docs-section-heading">
-              <p class="eyebrow"><%= group.label %></p>
-              <h2 id="docs-group-<%= group.label.toLowerCase().replace(/[^a-z0-9]+/g, '-') %>"><%= group.description %></h2>
+      <% (page.sections || []).forEach((section, index) => { %>
+        <section class="docs-detail-panel" id="docs-panel-<%= section.id %>" data-doc-panel="<%= section.id %>" hidden>
+          <div class="docs-detail-header">
+            <p class="eyebrow"><%= sectionGroupLabel(section.id) %></p>
+            <h2><%= section.title %></h2>
+            <p><%= section.body %></p>
+          </div>
+
+          <% if (section.steps && section.steps.length) { %>
+            <div class="docs-detail-block">
+              <h3>Steps</h3>
+              <ol class="docs-detail-steps">
+                <% section.steps.forEach((step) => { %>
+                  <li>
+                    <span></span>
+                    <div>
+                      <strong><%= typeof step === 'string' ? step : step.title %></strong>
+                      <% if (typeof step !== 'string' && step.body) { %><p><%= step.body %></p><% } %>
+                    </div>
+                  </li>
+                <% }) %>
+              </ol>
             </div>
+          <% } %>
 
-            <% group.sections.forEach((section) => { %>
-              <article id="<%= section.id %>" class="docs-article" data-doc-section data-title="<%= section.title.toLowerCase() %>" data-body="<%= `${section.body || ''} ${(section.bullets || []).join(' ')} ${(section.options || []).map((o) => `${o.title} ${o.body}`).join(' ')}`.toLowerCase() %>">
-                <div class="docs-article-header">
-                  <h3><%= section.title %></h3>
-                  <a href="#<%= section.id %>" aria-label="Copy link to <%= section.title %>">#</a>
-                </div>
-                <p><%= section.body %></p>
+          <% if (section.options && section.options.length) { %>
+            <div class="docs-detail-block">
+              <h3>Reference</h3>
+              <div class="docs-reference-grid">
+                <% section.options.forEach((option) => { %>
+                  <article>
+                    <strong><%= option.title %></strong>
+                    <p><%= option.body %></p>
+                  </article>
+                <% }) %>
+              </div>
+            </div>
+          <% } %>
 
-                <% if (section.bullets && section.bullets.length) { %>
-                  <ul class="docs-bullet-list">
-                    <% section.bullets.forEach((item) => { %><li><%= item %></li><% }) %>
-                  </ul>
-                <% } %>
+          <% if (section.bullets && section.bullets.length) { %>
+            <div class="docs-detail-block">
+              <h3>Key Points</h3>
+              <ul class="docs-detail-bullets">
+                <% section.bullets.forEach((item) => { %><li><%= item %></li><% }) %>
+              </ul>
+            </div>
+          <% } %>
 
-                <% if (section.steps && section.steps.length) { %>
-                  <ol class="docs-step-list docs-step-list-compact">
-                    <% section.steps.forEach((step) => { %>
-                      <li>
-                        <strong><%= step.title %></strong>
-                        <span><%= step.body || step %></span>
-                      </li>
-                    <% }) %>
-                  </ol>
-                <% } %>
+          <% if (section.tutorials && section.tutorials.length) { %>
+            <div class="docs-detail-block">
+              <h3>Tutorials</h3>
+              <div class="docs-tutorial-list">
+                <% section.tutorials.forEach((tutorial) => { %>
+                  <article>
+                    <div>
+                      <strong><%= tutorial.title %></strong>
+                      <p><%= tutorial.summary %></p>
+                    </div>
+                    <a href="<%= tutorial.href %>">Open guide</a>
+                  </article>
+                <% }) %>
+              </div>
+            </div>
+          <% } %>
 
-                <% if (section.options && section.options.length) { %>
-                  <div class="docs-option-grid docs-option-grid-compact">
-                    <% section.options.forEach((option) => { %>
-                      <article>
-                        <strong><%= option.title %></strong>
-                        <p><%= option.body %></p>
-                      </article>
-                    <% }) %>
-                  </div>
-                <% } %>
+          <% if (section.note) { %>
+            <aside class="docs-note"><%= section.note %></aside>
+          <% } %>
 
-                <% if (section.tutorials && section.tutorials.length) { %>
-                  <div class="docs-guide-list">
-                    <% section.tutorials.forEach((tutorial) => { %>
-                      <a href="<%= tutorial.href %>">
-                        <strong><%= tutorial.title %></strong>
-                        <span><%= tutorial.summary %></span>
-                      </a>
-                    <% }) %>
-                  </div>
-                <% } %>
-
-                <% if (section.note) { %>
-                  <aside class="docs-note"><%= section.note %></aside>
-                <% } %>
-              </article>
-            <% }) %>
-          </section>
-        <% }) %>
-      </div>
+          <div class="docs-doc-footer">
+            <% if (index > 0) { %>
+              <button type="button" class="button" data-doc-target="<%= page.sections[index - 1].id %>">Previous</button>
+            <% } else { %>
+              <button type="button" class="button" data-doc-target="overview">Overview</button>
+            <% } %>
+            <% if (index < page.sections.length - 1) { %>
+              <button type="button" class="button button-primary" data-doc-target="<%= page.sections[index + 1].id %>">Next: <%= renderSectionTitle(page.sections[index + 1].title) %></button>
+            <% } %>
+          </div>
+        </section>
+      <% }) %>
     </main>
   </div>
 </div>
 
 <script>
   (() => {
+    const buttons = Array.from(document.querySelectorAll('[data-doc-target]'));
+    const topicButtons = Array.from(document.querySelectorAll('[data-doc-topic]'));
+    const panels = Array.from(document.querySelectorAll('[data-doc-panel]'));
     const input = document.getElementById('docs-search-input');
-    if (!input) return;
-    const sections = Array.from(document.querySelectorAll('[data-doc-section]'));
-    input.addEventListener('input', () => {
-      const query = input.value.trim().toLowerCase();
-      sections.forEach((section) => {
-        const haystack = `${section.dataset.title || ''} ${section.dataset.body || ''}`;
-        section.hidden = query.length > 1 && !haystack.includes(query);
+
+    const findPanel = (id) => panels.find((panel) => panel.dataset.docPanel === id);
+
+    const showPanel = (id, options = {}) => {
+      const panel = findPanel(id);
+      if (!panel) return;
+
+      panels.forEach((item) => {
+        const isActive = item === panel;
+        item.hidden = !isActive;
+        item.classList.toggle('is-active', isActive);
       });
+
+      topicButtons.forEach((button) => {
+        const isActive = button.dataset.docTarget === id;
+        button.classList.toggle('is-active', isActive);
+        if (isActive) {
+          button.setAttribute('aria-current', 'page');
+        } else {
+          button.removeAttribute('aria-current');
+        }
+      });
+
+      document.querySelectorAll('.docs-app-tabs button').forEach((button) => {
+        button.classList.toggle('is-active', button.dataset.docTarget === id);
+      });
+
+      if (options.updateHash !== false) {
+        const nextHash = id === 'overview' ? '/docs' : `/docs#${id}`;
+        window.history.replaceState(null, '', nextHash);
+      }
+
+      if (options.focus !== false) {
+        panel.scrollIntoView({ block: 'start' });
+      }
+    };
+
+    buttons.forEach((button) => {
+      button.addEventListener('click', () => showPanel(button.dataset.docTarget));
     });
+
+    if (input) {
+      input.addEventListener('input', () => {
+        const query = input.value.trim().toLowerCase();
+        let firstMatch = null;
+
+        topicButtons.forEach((button) => {
+          const isMatch = query.length === 0 || (button.dataset.searchText || '').includes(query);
+          button.hidden = !isMatch;
+          if (isMatch && !firstMatch) firstMatch = button;
+        });
+
+        if (query.length > 1 && firstMatch) {
+          showPanel(firstMatch.dataset.docTarget, { focus: false });
+        }
+      });
+    }
+
+    const initialHash = decodeURIComponent(window.location.hash.replace('#', ''));
+    if (initialHash && findPanel(initialHash)) {
+      showPanel(initialHash, { updateHash: false, focus: false });
+    }
   })();
 </script>
 

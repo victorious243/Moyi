@@ -8969,6 +8969,446 @@ input[type="file"]::file-selector-button {
   }
 }
 
+/* Professional documentation browser */
+.docs-app-shell {
+  width: min(100%, 1560px);
+  margin: -22px auto 0;
+  padding-bottom: 78px;
+}
+
+.docs-app-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 24;
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) auto minmax(300px, 1fr);
+  align-items: center;
+  gap: 22px;
+  margin: -28px calc(50% - 50vw) 34px;
+  padding: 18px max(24px, calc((100vw - 1560px) / 2 + 24px));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.11);
+  background: rgba(5, 7, 10, 0.91);
+  backdrop-filter: blur(24px);
+}
+
+.docs-app-kicker {
+  margin: 0 0 2px;
+  color: #26e6c8;
+  font-size: 0.74rem;
+  font-weight: 950;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.docs-app-topbar h1 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 1.14rem;
+  font-weight: 950;
+  letter-spacing: -0.02em;
+}
+
+.docs-app-tabs,
+.docs-app-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.docs-app-tabs button,
+.docs-topic-button,
+.docs-path-card button {
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.docs-app-tabs {
+  justify-content: center;
+}
+
+.docs-app-tabs button,
+.docs-app-dashboard {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 15px;
+  border-radius: 8px;
+  color: rgba(245, 247, 255, 0.7);
+  background: transparent;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.docs-app-tabs button:hover,
+.docs-app-tabs button.is-active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.docs-app-actions {
+  justify-content: flex-end;
+}
+
+.docs-app-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(100%, 300px);
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.075);
+  color: rgba(245, 247, 255, 0.58);
+}
+
+.docs-app-search input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #f8fafc;
+  font: inherit;
+}
+
+.docs-app-search input::placeholder {
+  color: rgba(245, 247, 255, 0.46);
+}
+
+.docs-app-dashboard {
+  background: #f8fafc;
+  color: #07090d;
+}
+
+.docs-app-layout {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: clamp(28px, 4vw, 58px);
+  align-items: start;
+}
+
+.docs-app-sidebar {
+  position: sticky;
+  top: 96px;
+  display: grid;
+  gap: 12px;
+  max-height: calc(100vh - 118px);
+  overflow: auto;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.025)),
+    rgba(9, 12, 15, 0.9);
+  box-shadow: 0 20px 55px rgba(0, 0, 0, 0.22);
+}
+
+.docs-topic-group {
+  display: grid;
+  gap: 6px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.docs-topic-group p {
+  margin: 0 0 4px;
+  color: rgba(245, 247, 255, 0.52);
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.docs-topic-button {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: 8px;
+  color: rgba(245, 247, 255, 0.72);
+  background: transparent;
+  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.docs-topic-button:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.065);
+  transform: translateX(2px);
+}
+
+.docs-topic-button.is-active {
+  color: #ffffff;
+  background:
+    linear-gradient(135deg, rgba(38, 230, 200, 0.16), rgba(91, 76, 255, 0.18)),
+    rgba(255, 255, 255, 0.08);
+  box-shadow: inset 3px 0 0 #26e6c8;
+}
+
+.docs-topic-button span {
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.docs-topic-button small {
+  color: rgba(245, 247, 255, 0.48);
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+
+.docs-detail-stage {
+  min-width: 0;
+}
+
+.docs-detail-panel {
+  scroll-margin-top: 104px;
+}
+
+.docs-detail-panel[hidden] {
+  display: none !important;
+}
+
+.docs-detail-panel.is-active {
+  display: block;
+}
+
+.docs-detail-hero,
+.docs-detail-header,
+.docs-detail-block,
+.docs-quickstart-card,
+.docs-build-paths,
+.docs-doc-footer {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(38, 230, 200, 0.08), transparent 28%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.025)),
+    rgba(12, 15, 19, 0.86);
+}
+
+.docs-detail-hero,
+.docs-detail-header {
+  padding: clamp(28px, 5vw, 56px);
+}
+
+.docs-detail-hero h2,
+.docs-detail-header h2 {
+  max-width: 920px;
+  margin: 8px 0 18px;
+  color: #ffffff;
+  font-size: clamp(2.55rem, 6vw, 5.35rem);
+  line-height: 0.98;
+  letter-spacing: -0.055em;
+}
+
+.docs-detail-header h2 {
+  font-size: clamp(2.2rem, 5vw, 4.25rem);
+}
+
+.docs-detail-hero > p:not(.eyebrow),
+.docs-detail-header > p:not(.eyebrow),
+.docs-quickstart-card p,
+.docs-path-card p,
+.docs-detail-block p,
+.docs-detail-bullets {
+  color: rgba(245, 247, 255, 0.67);
+  line-height: 1.68;
+}
+
+.docs-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.docs-detail-actions .button {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.docs-quickstart-card {
+  grid-template-columns: minmax(0, 0.9fr) minmax(340px, 1.1fr);
+  margin-top: 16px;
+}
+
+.docs-quickstart-card h3,
+.docs-build-paths h3,
+.docs-detail-block h3 {
+  margin: 0 0 12px;
+  color: #ffffff;
+  font-size: clamp(1.45rem, 2.6vw, 2.25rem);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+}
+
+.docs-build-paths {
+  margin-top: 16px;
+  padding: clamp(22px, 4vw, 34px);
+}
+
+.docs-path-grid,
+.docs-reference-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.docs-path-card,
+.docs-reference-grid article,
+.docs-tutorial-list article {
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.docs-path-card h4,
+.docs-reference-grid strong,
+.docs-tutorial-list strong {
+  display: block;
+  margin: 0 0 7px;
+  color: #ffffff;
+  font-size: 1.02rem;
+  font-weight: 900;
+}
+
+.docs-path-card button {
+  margin-top: 8px;
+  padding: 0;
+  color: #26e6c8;
+  background: transparent;
+  font-weight: 900;
+}
+
+.docs-detail-block {
+  margin-top: 16px;
+  padding: clamp(22px, 4vw, 34px);
+}
+
+.docs-detail-steps {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: docs-step;
+}
+
+.docs-detail-steps li {
+  counter-increment: docs-step;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.docs-detail-steps li > span {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: #26e6c8;
+  color: #05100e;
+  font-weight: 950;
+}
+
+.docs-detail-steps li > span::before {
+  content: counter(docs-step);
+}
+
+.docs-detail-steps strong {
+  color: #ffffff;
+  font-weight: 900;
+}
+
+.docs-detail-steps p,
+.docs-reference-grid p,
+.docs-tutorial-list p {
+  margin: 6px 0 0;
+}
+
+.docs-detail-bullets {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.docs-tutorial-list {
+  display: grid;
+  gap: 12px;
+}
+
+.docs-tutorial-list article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+}
+
+.docs-tutorial-list a {
+  color: #26e6c8;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.docs-doc-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 16px;
+}
+
+.docs-doc-footer .button {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+@media (max-width: 980px) {
+  .docs-app-topbar,
+  .docs-app-layout,
+  .docs-quickstart-card,
+  .docs-path-grid,
+  .docs-reference-grid,
+  .docs-tutorial-list article {
+    grid-template-columns: 1fr;
+  }
+
+  .docs-app-topbar {
+    position: relative;
+    margin-top: -28px;
+  }
+
+  .docs-app-tabs,
+  .docs-app-actions {
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .docs-app-search {
+    width: 100%;
+  }
+
+  .docs-app-sidebar {
+    position: relative;
+    top: auto;
+    max-height: none;
+  }
+
+  .docs-doc-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 /* CMO workspace action rows: keep commands readable and prevent global text wrapping from crushing buttons. */
 .workspace-plan-item {
   display: grid;

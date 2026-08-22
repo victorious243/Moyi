@@ -111,7 +111,12 @@ test('public documentation and contact pages render real destinations', async ()
   );
 
   assert.match(docsHtml, /Moyi-CMO Docs/);
-  assert.match(docsHtml, /Search documentation/);
+  assert.match(docsHtml, /docs-app-shell/);
+  assert.match(docsHtml, /Search docs/);
+  assert.match(docsHtml, /data-doc-topic/);
+  assert.match(docsHtml, /data-doc-panel="overview"/);
+  assert.match(docsHtml, /data-doc-panel="product-map"/);
+  assert.match(docsHtml, /data-doc-panel="setup-tutorials"/);
   assert.match(docsHtml, /Build paths/);
   assert.match(docsHtml, /Use Moyi from evidence to execution/);
   assert.match(docsHtml, /How the product fits together/);
