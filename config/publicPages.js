@@ -259,11 +259,11 @@ module.exports = {
         ],
         steps: [
           { title: 'Open a project', body: 'Go to Projects, choose the business, then open Website Scan or Scan History.' },
-          { title: 'Run the scan', body: 'Wait until the status changes from pending/running to completed. Production uses Redis and a worker so scans continue in the background.' },
+          { title: 'Run the scan', body: 'Wait until the status changes from pending/running to completed. Scans process asynchronously in the background so you can freely continue other workspace tasks.' },
           { title: 'Review facts first', body: 'Check pages found, failed pages, critical issues, warnings, and opportunities before generating strategy.' },
           { title: 'Regenerate recommendations', body: 'Recommendations should be based on the latest completed scan evidence.' }
         ],
-        note: 'If a scan stays pending, the web app is working but the background worker or Redis connection needs attention.'
+        note: 'If a scan takes longer than expected, verify that your website is publicly accessible or check our System Status at /status.'
       },
       {
         id: 'recommendations',
@@ -315,7 +315,7 @@ module.exports = {
       {
         id: 'images',
         title: 'Images and logos',
-        body: 'Moyi supports generated images and user uploads. Images are stored as private files, while MongoDB stores only metadata and workflow state.',
+        body: 'Moyi supports generated visual graphics and direct user uploads. Assets are stored securely with strict project-level isolation.',
         options: [
           { title: 'Project logo', body: 'Transparent PNG with no background. Stored once at project level and used as the official brand reference.' },
           { title: 'Upload image', body: 'Upload JPG, PNG, or WebP candidates for a specific content draft.' },
@@ -470,16 +470,16 @@ module.exports = {
       },
       {
         id: 'troubleshooting',
-        title: 'Troubleshooting',
-        body: 'Most issues fall into a few categories: missing environment variables, background worker not running, third-party credentials not ready, or missing data.',
+        title: 'Troubleshooting & Support',
+        body: 'Quick solutions to common questions regarding website scans, AI recommendations, integrations, and asset generation.',
         options: [
-          { title: 'Scan stuck pending', body: 'Check Redis, BullMQ worker, DISABLE_QUEUE, and worker logs.' },
-          { title: 'AI plan gives weak output', body: 'Run a completed scan first, add business context, and make sure OPENAI_API_KEY is configured.' },
-          { title: 'No recommendations', body: 'Confirm the latest scan completed and stored issues/pages. Recommendations should come from actual scan evidence.' },
-          { title: 'Email not sending', body: 'Check SMTP credentials, sender verification, domain authentication, and provider delivery logs.' },
-          { title: 'Image/logo issue', body: 'Use a transparent PNG logo, clear art direction, and reject distorted candidates.' }
+          { title: 'Scan taking longer than expected', body: 'Verify that your website URL is publicly accessible without firewall blocks, or check the System Status page (/status) for service updates.' },
+          { title: 'AI plan needs more context', body: 'Run a full crawl first and calibrate your target audience, core offerings, and competitors in Project Settings.' },
+          { title: 'No recommendations appearing', body: 'Confirm your website scan completed successfully. Moyi generates recommendations strictly from factual scan and Search Console evidence.' },
+          { title: 'Integration or notification issue', body: 'Verify connected account permissions in Integrations and ensure notification email addresses are verified.' },
+          { title: 'Image or brand logo formatting', body: 'Upload a transparent PNG logo with safe margins for clean visual watermark placement across generated graphics.' }
         ],
-        note: 'In production, /readyz is the first place to check. It reports MongoDB, queue state, and configuration problems.'
+        note: 'Check our live System Status at /status for operational updates, or reach our support team directly via /contact.'
       }
     ]
   },

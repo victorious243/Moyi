@@ -1,0 +1,223 @@
+<%- include('../partials/header') %>
+
+<%
+  const sectionsById = new Map((page.sections || []).map((section) => [section.id, section]));
+  const guideGroups = [
+    {
+      label: 'Get Started',
+      description: 'Create the workspace, connect evidence, and get the first useful result.',
+      ids: ['product-map', 'setup-tutorials', 'first-run', 'project-setup']
+    },
+    {
+      label: 'Core Workflows',
+      description: 'Move from website evidence to approved marketing work.',
+      ids: ['scans', 'recommendations', 'content-workspace', 'content-types', 'images', 'campaigns']
+    },
+    {
+      label: 'Distribution',
+      description: 'Connect channels, publish safely, recover failures, and use the API.',
+      ids: ['integrations', 'content-distribution-api']
+    },
+    {
+      label: 'Measurement',
+      description: 'Understand performance, goals, reports, and real-data limits.',
+      ids: ['measurement', 'goals-and-kpis']
+    },
+    {
+      label: 'Admin & Trust',
+      description: 'Manage plan limits, privacy controls, security, and support issues.',
+      ids: ['account-billing', 'gdpr-and-security', 'troubleshooting']
+    }
+  ].map((group) => ({
+    ...group,
+    sections: group.ids.map((id) => sectionsById.get(id)).filter(Boolean)
+  })).filter((group) => group.sections.length);
+
+  const quickstart = sectionsById.get('first-run');
+  const setupTutorials = sectionsById.get('setup-tutorials');
+  const renderSectionTitle = (title = '') => title.replace(/^\d+\.\s*/, '');
+%>
+
+<div class="docs-product-shell">
+  <header class="docs-product-header">
+    <div class="docs-product-brand">
+      <span>Moyi-CMO Docs</span>
+    </div>
+    <nav class="docs-product-tabs" aria-label="Documentation areas">
+      <a class="is-active" href="/docs">Overview</a>
+      <a href="/docs#setup-tutorials">Guides</a>
+      <a href="/docs#integrations">Integrations</a>
+      <a href="/docs#content-distribution-api">API</a>
+      <a href="/docs#troubleshooting">Support</a>
+    </nav>
+    <div class="docs-product-actions">
+      <label class="docs-search" for="docs-search-input">
+        <span aria-hidden="true">⌕</span>
+        <input id="docs-search-input" type="search" placeholder="Search documentation" autocomplete="off">
+      </label>
+      <a class="docs-dashboard-link" href="/dashboard">Dashboard</a>
+    </div>
+  </header>
+
+  <div class="docs-product-grid">
+    <aside class="docs-sidebar" aria-label="Documentation navigation">
+      <a class="docs-home-link is-active" href="/docs">Home</a>
+      <% guideGroups.forEach((group) => { %>
+        <div class="docs-nav-group">
+          <strong><%= group.label %></strong>
+          <% group.sections.forEach((section) => { %>
+            <a href="#<%= section.id %>"><%= renderSectionTitle(section.title) %></a>
+          <% }) %>
+        </div>
+      <% }) %>
+    </aside>
+
+    <main class="docs-main">
+      <section class="docs-hero">
+        <p class="eyebrow"><%= page.eyebrow %></p>
+        <h1><%= page.title %></h1>
+        <p><%= page.intro %></p>
+        <div class="docs-hero-actions">
+          <a class="button button-primary" href="<%= page.primaryAction.href %>"><%= page.primaryAction.label %></a>
+          <a class="button" href="<%= page.secondaryAction.href %>"><%= page.secondaryAction.label %></a>
+        </div>
+      </section>
+
+      <section class="docs-quickstart-card" aria-labelledby="docs-quickstart-title">
+        <div>
+          <p class="eyebrow">Quickstart</p>
+          <h2 id="docs-quickstart-title">Get your first useful Moyi result</h2>
+          <p>Follow the shortest evidence-led path: create a project, run a scan, review the AI CMO plan, approve one asset, then measure what happens.</p>
+          <div class="docs-card-actions">
+            <a class="button button-primary" href="#first-run">Start quickstart</a>
+            <a class="button" href="#setup-tutorials">Configuration tutorials</a>
+          </div>
+        </div>
+        <div class="docs-code-panel" aria-label="Moyi workflow example">
+          <div class="docs-code-topline">
+            <span>Workflow</span>
+            <code>Evidence → Action</code>
+          </div>
+          <pre><code>1. Create project
+2. Run website scan
+3. Connect real data sources
+4. Generate AI CMO plan
+5. Approve content
+6. Publish and measure</code></pre>
+        </div>
+      </section>
+
+      <section class="docs-build-paths" aria-labelledby="docs-build-paths-title">
+        <h2 id="docs-build-paths-title">Build paths</h2>
+        <div class="docs-path-grid">
+          <% guideGroups.forEach((group) => { %>
+            <article class="docs-path-card">
+              <h3><%= group.label %></h3>
+              <p><%= group.description %></p>
+              <a href="#<%= group.sections[0].id %>">Open path</a>
+            </article>
+          <% }) %>
+        </div>
+      </section>
+
+      <% if (setupTutorials && setupTutorials.tutorials && setupTutorials.tutorials.length) { %>
+        <section class="docs-featured-guides" aria-labelledby="docs-featured-guides-title">
+          <div class="docs-section-heading">
+            <p class="eyebrow">Guides</p>
+            <h2 id="docs-featured-guides-title">Popular setup tutorials</h2>
+          </div>
+          <div class="docs-guide-grid">
+            <% setupTutorials.tutorials.slice(0, 4).forEach((tutorial) => { %>
+              <article class="docs-guide-card">
+                <strong><%= tutorial.title %></strong>
+                <p><%= tutorial.summary %></p>
+                <a href="<%= tutorial.href %>">Open guide</a>
+              </article>
+            <% }) %>
+          </div>
+        </section>
+      <% } %>
+
+      <div class="docs-content-stack">
+        <% guideGroups.forEach((group) => { %>
+          <section class="docs-group" aria-labelledby="docs-group-<%= group.label.toLowerCase().replace(/[^a-z0-9]+/g, '-') %>">
+            <div class="docs-section-heading">
+              <p class="eyebrow"><%= group.label %></p>
+              <h2 id="docs-group-<%= group.label.toLowerCase().replace(/[^a-z0-9]+/g, '-') %>"><%= group.description %></h2>
+            </div>
+
+            <% group.sections.forEach((section) => { %>
+              <article id="<%= section.id %>" class="docs-article" data-doc-section data-title="<%= section.title.toLowerCase() %>" data-body="<%= `${section.body || ''} ${(section.bullets || []).join(' ')} ${(section.options || []).map((o) => `${o.title} ${o.body}`).join(' ')}`.toLowerCase() %>">
+                <div class="docs-article-header">
+                  <h3><%= section.title %></h3>
+                  <a href="#<%= section.id %>" aria-label="Copy link to <%= section.title %>">#</a>
+                </div>
+                <p><%= section.body %></p>
+
+                <% if (section.bullets && section.bullets.length) { %>
+                  <ul class="docs-bullet-list">
+                    <% section.bullets.forEach((item) => { %><li><%= item %></li><% }) %>
+                  </ul>
+                <% } %>
+
+                <% if (section.steps && section.steps.length) { %>
+                  <ol class="docs-step-list docs-step-list-compact">
+                    <% section.steps.forEach((step) => { %>
+                      <li>
+                        <strong><%= step.title %></strong>
+                        <span><%= step.body || step %></span>
+                      </li>
+                    <% }) %>
+                  </ol>
+                <% } %>
+
+                <% if (section.options && section.options.length) { %>
+                  <div class="docs-option-grid docs-option-grid-compact">
+                    <% section.options.forEach((option) => { %>
+                      <article>
+                        <strong><%= option.title %></strong>
+                        <p><%= option.body %></p>
+                      </article>
+                    <% }) %>
+                  </div>
+                <% } %>
+
+                <% if (section.tutorials && section.tutorials.length) { %>
+                  <div class="docs-guide-list">
+                    <% section.tutorials.forEach((tutorial) => { %>
+                      <a href="<%= tutorial.href %>">
+                        <strong><%= tutorial.title %></strong>
+                        <span><%= tutorial.summary %></span>
+                      </a>
+                    <% }) %>
+                  </div>
+                <% } %>
+
+                <% if (section.note) { %>
+                  <aside class="docs-note"><%= section.note %></aside>
+                <% } %>
+              </article>
+            <% }) %>
+          </section>
+        <% }) %>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+  (() => {
+    const input = document.getElementById('docs-search-input');
+    if (!input) return;
+    const sections = Array.from(document.querySelectorAll('[data-doc-section]'));
+    input.addEventListener('input', () => {
+      const query = input.value.trim().toLowerCase();
+      sections.forEach((section) => {
+        const haystack = `${section.dataset.title || ''} ${section.dataset.body || ''}`;
+        section.hidden = query.length > 1 && !haystack.includes(query);
+      });
+    });
+  })();
+</script>
+
+<%- include('../partials/footer') %>

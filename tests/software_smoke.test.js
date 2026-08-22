@@ -87,11 +87,12 @@ test('workspace recovery routes are registered', () => {
 
 test('public documentation and contact pages render real destinations', async () => {
   const publicPages = require('../config/publicPages');
-  const infoHtml = await ejs.renderFile(
-    path.join(__dirname, '../views/public/info.ejs'),
+  const docsHtml = await ejs.renderFile(
+    path.join(__dirname, '../views/public/docs.ejs'),
     {
       appName: 'Moyi',
       title: publicPages.docs.title,
+      seoDescription: publicPages.docs.seoDescription,
       currentUser: null,
       page: publicPages.docs
     }
@@ -109,10 +110,13 @@ test('public documentation and contact pages render real destinations', async ()
     }
   );
 
-  assert.match(infoHtml, /Use Moyi from evidence to execution/);
-  assert.match(infoHtml, /How the product fits together/);
-  assert.match(infoHtml, /Configuration tutorials/);
-  assert.match(infoHtml, /Website evidence/);
+  assert.match(docsHtml, /Moyi-CMO Docs/);
+  assert.match(docsHtml, /Search documentation/);
+  assert.match(docsHtml, /Build paths/);
+  assert.match(docsHtml, /Use Moyi from evidence to execution/);
+  assert.match(docsHtml, /How the product fits together/);
+  assert.match(docsHtml, /Configuration tutorials/);
+  assert.match(docsHtml, /Website evidence/);
   assert.match(contactHtml, /action="\/contact" method="post"/);
   assert.match(contactHtml, /support@example\.com/);
   assert.deepEqual(
@@ -131,6 +135,7 @@ test('public documentation and contact pages render real destinations', async ()
       'integrations',
       'content-distribution-api',
       'measurement',
+      'goals-and-kpis',
       'account-billing',
       'gdpr-and-security',
       'troubleshooting'

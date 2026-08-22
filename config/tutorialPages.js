@@ -44,7 +44,7 @@ const TUTORIAL_PAGES = {
         number: 4,
         title: 'Run Your First Factual Website Scan',
         instruction: 'Click "Save & Run Initial Scan". Moyi\'s asynchronous crawler will inspect your homepage and key landing pages for metadata, heading hierarchy, content depth, internal links, and technical health while pairing it with live Search Console query velocity.',
-        proTip: 'Scans run in the background via Redis workers. You can leave the page and you will receive a notification when the scan completes.',
+        proTip: 'Scans run asynchronously in the background. You can leave the page and you will receive a notification when the scan completes.',
         actionLink: '/projects',
         actionText: 'View Scan Status'
       },

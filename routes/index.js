@@ -495,7 +495,7 @@ router.get('/intello/:slug', asyncHandler(async (req, res, next) => {
 
 Object.entries(publicPages).forEach(([slug, page]) => {
   router.get(`/${slug}`, (req, res) => {
-    res.render('public/info', {
+    res.render(slug === 'docs' ? 'public/docs' : 'public/info', {
       title: page.seoTitle || page.title,
       seoDescription: page.seoDescription || page.intro,
       additionalSchemas: publicPageSchema(slug, page),
