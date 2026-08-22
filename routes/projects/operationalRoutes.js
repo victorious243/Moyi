@@ -18,6 +18,7 @@ const {
   metricDirection,
   periodDates
 } = require('../../services/goalIntelligenceService');
+const { queueMarketingGoalEvaluation: queueMarketingGoalEvaluationHelper } = require('../../services/projectTaskService');
 
 const ROUTE_CATEGORIES = [
   ['general', 'General growth'],
@@ -98,7 +99,7 @@ function requireManager(req, context) {
   }
 }
 
-function registerOperationalRoutes(router, context) {
+function registerOperationalRoutes(router, context, services = {}) {
   router.get('/:id/settings/notifications', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
     requireManager(req, context);
     const project = await Project.findById(req.project._id).populate('owner', 'name email');
@@ -262,6 +263,9 @@ function registerOperationalRoutes(router, context) {
       projectStakeholders(project)
     ]);
     goals.forEach((goal) => {
+      if (goal.status === 'calculating' && !goal.lastEvaluatedAt) {
+        return;
+      }
       const current = evaluateGoalForecast(goal);
       goal.status = current.status;
       goal.forecastValue = current.forecastValue;
@@ -319,11 +323,29 @@ function registerOperationalRoutes(router, context) {
       ownerUserId,
       dataSource: req.body.dataSource,
       warningThreshold: Number(req.body.warningThreshold),
-      notes: req.body.notes || ''
+      notes: req.body.notes || '',
+      status: 'calculating'
     });
-    await evaluateGoal(goal, { notify: false });
-    await recordAuditEvent({ user: req.user, projectId: project._id, eventType: 'marketing_goal_created', metadata: { goalId: goal._id, metric: goal.metric, period: goal.period }, req });
-    res.redirect(`/projects/${project._id}/goals?message=${encodeURIComponent('Marketing goal created.')}`);
+
+    const queueEvaluation = services.queueMarketingGoalEvaluation || queueMarketingGoalEvaluationHelper;
+    await queueEvaluation({
+      projectId: project._id,
+      userId: req.user._id,
+      goalId: goal._id,
+      notify: false
+    }).catch((err) => {
+      console.warn(`[MarketingGoalQueue] Failed to enqueue evaluation for goal ${goal._id}:`, err.message);
+      setImmediate(() => evaluateGoal(goal, { notify: false }).catch(() => null));
+    });
+
+    await recordAuditEvent({
+      user: req.user,
+      projectId: project._id,
+      eventType: 'marketing_goal_created',
+      metadata: { goalId: goal._id, metric: goal.metric, period: goal.period },
+      req
+    });
+    res.redirect(`/projects/${project._id}/goals?message=${encodeURIComponent('Marketing goal created. Baseline calculations and AI forecasting are running in the background.')}`);
   }));
 
   router.post('/:id/goals/:goalId/progress', [
@@ -336,7 +358,19 @@ function registerOperationalRoutes(router, context) {
     if (!goal) throw new context.AppError('Marketing goal not found.', 404);
     goal.currentValue = Number(req.body.currentValue);
     goal.currentValueUpdatedAt = new Date();
-    await evaluateGoal(goal, { notify: true });
+    await goal.save();
+
+    const queueEvaluation = services.queueMarketingGoalEvaluation || queueMarketingGoalEvaluationHelper;
+    await queueEvaluation({
+      projectId: req.project._id,
+      userId: req.user._id,
+      goalId: goal._id,
+      notify: true
+    }).catch((err) => {
+      console.warn(`[MarketingGoalProgressQueue] Failed to enqueue evaluation for goal ${goal._id}:`, err.message);
+      setImmediate(() => evaluateGoal(goal, { notify: true }).catch(() => null));
+    });
+
     await recordAuditEvent({
       user: req.user,
       projectId: req.project._id,
@@ -344,7 +378,7 @@ function registerOperationalRoutes(router, context) {
       metadata: { goalId: goal._id, currentValue: goal.currentValue, status: goal.status },
       req
     });
-    res.redirect(`/projects/${req.project._id}/goals?message=${encodeURIComponent('Goal progress updated.')}`);
+    res.redirect(`/projects/${req.project._id}/goals?message=${encodeURIComponent('Goal progress updated. Forecasts are updating in the background.')}`);
   }));
 
   router.post('/:id/goals/:goalId/remove', [

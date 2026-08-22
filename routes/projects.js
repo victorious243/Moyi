@@ -33,7 +33,8 @@ const {
   queueCompetitorReport,
   queuePaidAdsSync,
   queueStrategicIntelligenceRefresh,
-  queueMonthlyStrategyReview
+  queueMonthlyStrategyReview,
+  queueMarketingGoalEvaluation
 } = require('../services/projectTaskService');
 const { buildAttributionReadiness } = require('../services/measurementService');
 const { buildProjectsContext } = require('./projects/context');
@@ -79,6 +80,7 @@ const sharedServices = {
   queuePaidAdsSync,
   queueStrategicIntelligenceRefresh,
   queueMonthlyStrategyReview,
+  queueMarketingGoalEvaluation,
   recordAiOperation,
   recordAiOperationFailure,
   startProjectScan,

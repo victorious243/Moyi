@@ -32,8 +32,8 @@ const marketingGoalSchema = new mongoose.Schema(
     ownerUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
     status: {
       type: String,
-      enum: ['not_started', 'on_track', 'ahead', 'at_risk', 'achieved', 'missed', 'paused'],
-      default: 'not_started',
+      enum: ['not_started', 'on_track', 'ahead', 'at_risk', 'achieved', 'missed', 'paused', 'calculating'],
+      default: 'calculating',
       index: true
     },
     dataSource: {

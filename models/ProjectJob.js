@@ -26,7 +26,8 @@ const projectJobSchema = new mongoose.Schema(
         'competitor_discovery_report',
         'paid_ads_sync',
         'strategic_intelligence_refresh',
-        'monthly_strategy_review'
+        'monthly_strategy_review',
+        'marketing_goal_evaluation'
       ],
       required: true,
       index: true

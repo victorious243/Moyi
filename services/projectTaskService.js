@@ -8,6 +8,8 @@ const Competitor = require('../models/Competitor');
 const CompetitorPage = require('../models/CompetitorPage');
 const CompetitorInsight = require('../models/CompetitorInsight');
 const Page = require('../models/Page');
+const MarketingGoal = require('../models/MarketingGoal');
+const { evaluateGoal } = require('./goalIntelligenceService');
 const { enqueueProjectTask } = require('../queues/projectTaskQueue');
 const {
   generateDraftsForRecommendation,
@@ -60,7 +62,8 @@ function typeLabel(type) {
     competitor_discovery_report: 'competitor report',
     paid_ads_sync: 'paid advertising sync',
     strategic_intelligence_refresh: 'strategic intelligence refresh',
-    monthly_strategy_review: 'monthly strategy review'
+    monthly_strategy_review: 'monthly strategy review',
+    marketing_goal_evaluation: 'goal evaluation and forecasting'
   }[type] || 'job';
 }
 
@@ -115,6 +118,8 @@ function createProjectTaskService(deps = {}) {
     selectDraftTypes,
     buildPerformanceMarketingDashboard,
     syncPaidAdsProject,
+    MarketingGoal,
+    evaluateGoal,
     captureCompetitorSnapshot,
     generateMonthlyStrategyReview,
     refreshStrategicIntelligence,
@@ -286,6 +291,15 @@ function createProjectTaskService(deps = {}) {
     return enqueueWorkflow({ projectId, userId, type: 'monthly_strategy_review', payload: {} });
   }
 
+  async function queueMarketingGoalEvaluation({ projectId, userId, goalId, notify = false }) {
+    return enqueueWorkflow({
+      projectId,
+      userId,
+      type: 'marketing_goal_evaluation',
+      payload: { goalId: String(goalId), notify: Boolean(notify) }
+    });
+  }
+
   async function retryFailedJob({ jobId, projectId, userId }) {
     const failedJob = await services.ProjectJob.findOne({
       _id: jobId,
@@ -424,6 +438,28 @@ function createProjectTaskService(deps = {}) {
           resourceId: review._id,
           resourcePath: `/projects/${project._id}/strategy-intelligence?review=${review._id}`,
           resourceType: 'strategic_review'
+        };
+      } else if (job.type === 'marketing_goal_evaluation') {
+        await onProgress({ currentStep: 'Loading marketing goal and historical telemetry', progressPercent: 20 });
+        const goal = await services.MarketingGoal.findOne({
+          _id: job.payload.goalId,
+          projectId: project._id
+        });
+        if (!goal) {
+          const error = new Error('Marketing goal not found.');
+          error.statusCode = 404;
+          throw error;
+        }
+        await onProgress({ currentStep: 'Calculating AI forecasting trajectories and pacing baselines', progressPercent: 60 });
+        const evaluation = await services.evaluateGoal(goal, { notify: Boolean(job.payload.notify) });
+        await onProgress({ currentStep: 'Goal forecast and evaluation complete', progressPercent: 100 });
+        result = {
+          goalId: goal._id,
+          status: evaluation ? evaluation.status : goal.status,
+          forecastValue: evaluation ? evaluation.forecastValue : goal.forecastValue,
+          progressPercent: evaluation ? evaluation.progressPercent : goal.progressPercent,
+          resourcePath: `/projects/${project._id}/goals`,
+          resourceType: 'marketing_goal'
         };
       } else if (job.type === 'content_pipeline') {
         const recommendation = await services.Recommendation.findOne({
@@ -663,6 +699,7 @@ function createProjectTaskService(deps = {}) {
     queuePaidAdsSync,
     queueStrategicIntelligenceRefresh,
     queueMonthlyStrategyReview,
+    queueMarketingGoalEvaluation,
     retryFailedJob
   };
 }

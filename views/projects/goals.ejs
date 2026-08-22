@@ -26,9 +26,24 @@
               <td><strong><%= goal.name %></strong><small><%= goal.metric.replace(/_/g, ' ') %> · <%= goal.period %></small></td>
               <td><%= goal.ownerUserId ? goal.ownerUserId.name : 'Unassigned' %></td>
               <td><%= displayGoalValue(goal, goal.currentValue) %> / <%= displayGoalValue(goal, goal.targetValue) %></td>
-              <td><%= displayGoalValue(goal, goal.forecastValue) %></td>
-              <td><div class="goal-progress"><span style="width:<%= Math.min(100, Math.max(0, goal.progressPercent || 0)) %>%"></span></div><small><%= Math.round(goal.progressPercent || 0) %>%</small></td>
-              <td><span class="status goal-status-<%= goal.status %>"><%= goal.status.replace(/_/g, ' ') %></span></td>
+              <td>
+                <% if (goal.status === 'calculating') { %>
+                  <span style="color: var(--saas-primary, #5b4dff); font-size: 12px; font-weight: 600;">⚡ Calculating AI forecast...</span>
+                <% } else { %>
+                  <%= displayGoalValue(goal, goal.forecastValue) %>
+                <% } %>
+              </td>
+              <td>
+                <div class="goal-progress"><span style="width:<%= Math.min(100, Math.max(0, goal.progressPercent || 0)) %>%"></span></div>
+                <small><%= Math.round(goal.progressPercent || 0) %>%</small>
+              </td>
+              <td>
+                <% if (goal.status === 'calculating') { %>
+                  <span class="status goal-status-calculating" style="background: rgba(91, 77, 255, 0.12); color: #5b4dff; border: 1px solid rgba(91, 77, 255, 0.3); font-weight: 600;">⚡ Calculating</span>
+                <% } else { %>
+                  <span class="status goal-status-<%= goal.status %>"><%= goal.status.replace(/_/g, ' ') %></span>
+                <% } %>
+              </td>
               <% if (canManageProject) { %><td>
                 <form class="goal-update-form" action="/projects/<%= project._id %>/goals/<%= goal._id %>/progress" method="post"><input type="number" min="0" step="any" name="currentValue" value="<%= goal.currentValue %>" aria-label="Current value for <%= goal.name %>" required><button class="button" type="submit">Update</button></form>
                 <form action="/projects/<%= project._id %>/goals/<%= goal._id %>/remove" method="post" onsubmit="return confirm('Remove this marketing goal?');"><button class="text-danger-button" type="submit">Remove</button></form>
