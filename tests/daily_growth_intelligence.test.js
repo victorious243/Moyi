@@ -11,7 +11,8 @@ const {
   detectContentCategory,
   analyzePlatformChampions,
   runDailyDiagnosisEngine,
-  detectGrowthOpportunities
+  detectGrowthOpportunities,
+  calculateGrowthScoreBreakdown
 } = require('../services/dailyGrowthIntelligenceService');
 
 test('Daily Growth Intelligence: Platform Support & Data Normalization', async (t) => {
@@ -255,7 +256,6 @@ test('Daily Growth Intelligence: Daily Diagnosis & Opportunity Engine', async (t
   });
 
   await t.test('computes 6-dimensional growth score and score movement explanation', () => {
-    const { calculateGrowthScoreBreakdown } = require('../services/dailyGrowthIntelligenceService');
     const breakdown = calculateGrowthScoreBreakdown(
       { impressions: 5000, engagements: 220, engagementRate: 4.4, referralSessions: 18, leadsGenerated: 3, conversions: 1, followersGained: 12 },
       { impressions: 3000 }
@@ -269,6 +269,26 @@ test('Daily Growth Intelligence: Daily Diagnosis & Opportunity Engine', async (t
     assert.ok(breakdown.conversion >= 70);
     assert.ok(breakdown.brandVisibility >= 70);
     assert.ok(breakdown.movementExplanation.length > 10);
+    assert.equal(breakdown.dataQuality.hasVerifiedData, true);
+    assert.ok(breakdown.dataQuality.observedMetrics.includes('impressions'));
+  });
+
+  await t.test('does not assign a growth score when no verified metrics are available', () => {
+    const breakdown = calculateGrowthScoreBreakdown(
+      { impressions: 0, engagements: 0, engagementRate: 0, referralSessions: 0, leadsGenerated: 0, conversions: 0 },
+      { impressions: 0 }
+    );
+
+    assert.equal(breakdown.overallScore, null);
+    assert.equal(breakdown.scoreDelta, null);
+    assert.equal(breakdown.audienceGrowth, null);
+    assert.equal(breakdown.contentPerformance, null);
+    assert.equal(breakdown.engagement, null);
+    assert.equal(breakdown.websiteAcquisition, null);
+    assert.equal(breakdown.conversion, null);
+    assert.equal(breakdown.brandVisibility, null);
+    assert.equal(breakdown.dataQuality.hasVerifiedData, false);
+    assert.match(breakdown.movementExplanation, /not collected enough verified provider metrics/i);
   });
 
   await t.test('detects negative risk patterns and reach contractions', () => {

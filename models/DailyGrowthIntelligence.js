@@ -20,7 +20,7 @@ const dailyGrowthIntelligenceSchema = new mongoose.Schema(
     },
     reportMode: {
       type: String,
-      enum: ['normal', 'opportunity', 'performance_alert', 'milestone'],
+      enum: ['normal', 'opportunity', 'performance_alert', 'milestone', 'insufficient_data'],
       default: 'normal'
     },
     executiveSummary: {
@@ -30,26 +30,31 @@ const dailyGrowthIntelligenceSchema = new mongoose.Schema(
     },
     performanceScore: {
       type: Number,
-      default: 75,
+      default: null,
       min: 0,
       max: 100
     },
     performanceGrade: {
       type: String,
-      enum: ['A+', 'A', 'B', 'C', 'D'],
-      default: 'B'
+      enum: ['A+', 'A', 'B', 'C', 'D', 'N/A'],
+      default: 'N/A'
     },
     // Configurable 6-Dimensional Growth Score Breakdown
     growthScoreBreakdown: {
-      overallScore: { type: Number, default: 75 },
-      scoreDelta: { type: Number, default: 0 },
+      overallScore: { type: Number, default: null },
+      scoreDelta: { type: Number, default: null },
       movementExplanation: { type: String, default: '' },
-      audienceGrowth: { type: Number, default: 70 },
-      contentPerformance: { type: Number, default: 75 },
-      engagement: { type: Number, default: 70 },
-      websiteAcquisition: { type: Number, default: 65 },
-      conversion: { type: Number, default: 60 },
-      brandVisibility: { type: Number, default: 75 }
+      audienceGrowth: { type: Number, default: null },
+      contentPerformance: { type: Number, default: null },
+      engagement: { type: Number, default: null },
+      websiteAcquisition: { type: Number, default: null },
+      conversion: { type: Number, default: null },
+      brandVisibility: { type: Number, default: null },
+      dataQuality: {
+        hasVerifiedData: { type: Boolean, default: false },
+        reason: { type: String, default: '' },
+        observedMetrics: [{ type: String }]
+      }
     },
     // Key Wins & High-Impact Positives
     keyWins: [{ type: String, trim: true }],

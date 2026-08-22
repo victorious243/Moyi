@@ -10,6 +10,9 @@
   const activeColor = color || '#2563eb';
   return `background:${champion && champion.platform ? activeColor : 'rgba(255,255,255,0.08)'};color:#fff;font-weight:800;text-transform:capitalize;padding:2px 8px;border-radius:4px;font-size:11px;`;
 }; %>
+<% const growthScore = report.growthScoreBreakdown || {}; %>
+<% const hasVerifiedGrowthScore = !!(growthScore.dataQuality && growthScore.dataQuality.hasVerifiedData && Number.isFinite(growthScore.overallScore)); %>
+<% const scoreValue = (value) => Number.isFinite(value) ? value : 'N/A'; %>
 
 <div class="app-layout">
   <%- include('../partials/project-sidebar', { activeSection: 'growth-intelligence', project }) %>
@@ -29,6 +32,8 @@
               <span class="badge" style="background:#ef4444;color:#fff;font-weight:800;padding:2px 8px;border-radius:4px;font-size:11px;text-transform:uppercase;">Performance Alert</span>
             <% } else if (report.reportMode === 'milestone') { %>
               <span class="badge" style="background:#8b5cf6;color:#fff;font-weight:800;padding:2px 8px;border-radius:4px;font-size:11px;text-transform:uppercase;">Milestone Reached</span>
+            <% } else if (report.reportMode === 'insufficient_data') { %>
+              <span class="badge" style="background:rgba(255,255,255,0.08);color:var(--saas-text-muted);font-weight:800;padding:2px 8px;border-radius:4px;font-size:11px;text-transform:uppercase;">Awaiting Verified Data</span>
             <% } %>
           </div>
           <h1 style="margin:0;font-size:28px;font-weight:900;letter-spacing:-0.02em;color:var(--saas-text);">Daily Growth Intelligence</h1>
@@ -68,9 +73,9 @@
             <p style="margin:0 0 12px;color:var(--saas-text, #ffffff);font-size:15px;line-height:1.65;font-weight:500;">
               <%= report.executiveSummary %>
             </p>
-            <% if (report.growthScoreBreakdown && report.growthScoreBreakdown.movementExplanation) { %>
+            <% if (growthScore && growthScore.movementExplanation) { %>
               <div style="font-size:13px;color:var(--saas-text-muted);background:rgba(255,255,255,0.03);padding:8px 12px;border-radius:6px;border-left:3px solid var(--saas-cyan);">
-                <strong style="color:#ffffff;">Why Score Moved:</strong> <%= report.growthScoreBreakdown.movementExplanation %>
+                <strong style="color:#ffffff;"><%= hasVerifiedGrowthScore ? 'Why Score Moved:' : 'Measurement Status:' %></strong> <%= growthScore.movementExplanation %>
               </div>
             <% } %>
           </div>
@@ -80,30 +85,38 @@
               <div>
                 <div style="font-size:11px;color:var(--saas-text-muted);text-transform:uppercase;font-weight:700;letter-spacing:0.05em;">Growth Score</div>
                 <div style="font-size:26px;font-weight:900;color:var(--saas-cyan, #55e6cf);">
-                  <%= (report.growthScoreBreakdown && report.growthScoreBreakdown.overallScore) || report.performanceScore %>
-                  <span style="font-size:13px;color:var(--saas-text-muted);font-weight:600;">/100</span>
-                  <% if (report.growthScoreBreakdown && report.growthScoreBreakdown.scoreDelta) { %>
+                  <% if (hasVerifiedGrowthScore) { %>
+                    <%= growthScore.overallScore %>
+                    <span style="font-size:13px;color:var(--saas-text-muted);font-weight:600;">/100</span>
+                  <% } else { %>
+                    <span style="font-size:18px;color:#ffffff;">Awaiting data</span>
+                  <% } %>
+                  <% if (hasVerifiedGrowthScore && growthScore.scoreDelta) { %>
                     <span style="font-size:13px;font-weight:800;color:<%= report.growthScoreBreakdown.scoreDelta > 0 ? '#12c99b' : '#ef4444' %>;margin-left:4px;">
-                      <%= report.growthScoreBreakdown.scoreDelta > 0 ? '+' : '' %><%= report.growthScoreBreakdown.scoreDelta %>
+                      <%= growthScore.scoreDelta > 0 ? '+' : '' %><%= growthScore.scoreDelta %>
                     </span>
                   <% } %>
                 </div>
               </div>
               <div style="text-align:right;">
                 <div style="font-size:11px;color:var(--saas-text-muted);text-transform:uppercase;font-weight:700;letter-spacing:0.05em;">Grade</div>
-                <div style="font-size:26px;font-weight:900;color:<%= report.performanceGrade.startsWith('A') ? '#12c99b' : (report.performanceGrade === 'B' ? '#5b4dff' : '#f59e0b') %>;"><%= report.performanceGrade %></div>
+                <div style="font-size:26px;font-weight:900;color:<%= hasVerifiedGrowthScore && report.performanceGrade.startsWith('A') ? '#12c99b' : (hasVerifiedGrowthScore && report.performanceGrade === 'B' ? '#5b4dff' : '#f59e0b') %>;"><%= hasVerifiedGrowthScore ? report.performanceGrade : 'N/A' %></div>
               </div>
             </div>
 
             <!-- 6-Dimensional Score Matrix -->
-            <% if (report.growthScoreBreakdown) { %>
+            <% if (hasVerifiedGrowthScore) { %>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;color:var(--saas-text-muted);border-top:1px solid rgba(255,255,255,0.08);padding-top:10px;">
-                <div>Audience: <strong style="color:#fff;"><%= report.growthScoreBreakdown.audienceGrowth %></strong></div>
-                <div>Content: <strong style="color:#fff;"><%= report.growthScoreBreakdown.contentPerformance %></strong></div>
-                <div>Engagement: <strong style="color:#fff;"><%= report.growthScoreBreakdown.engagement %></strong></div>
-                <div>Acquisition: <strong style="color:#fff;"><%= report.growthScoreBreakdown.websiteAcquisition %></strong></div>
-                <div>Conversion: <strong style="color:#fff;"><%= report.growthScoreBreakdown.conversion %></strong></div>
-                <div>Visibility: <strong style="color:#fff;"><%= report.growthScoreBreakdown.brandVisibility %></strong></div>
+                <div>Audience: <strong style="color:#fff;"><%= scoreValue(growthScore.audienceGrowth) %></strong></div>
+                <div>Content: <strong style="color:#fff;"><%= scoreValue(growthScore.contentPerformance) %></strong></div>
+                <div>Engagement: <strong style="color:#fff;"><%= scoreValue(growthScore.engagement) %></strong></div>
+                <div>Acquisition: <strong style="color:#fff;"><%= scoreValue(growthScore.websiteAcquisition) %></strong></div>
+                <div>Conversion: <strong style="color:#fff;"><%= scoreValue(growthScore.conversion) %></strong></div>
+                <div>Visibility: <strong style="color:#fff;"><%= scoreValue(growthScore.brandVisibility) %></strong></div>
+              </div>
+            <% } else { %>
+              <div style="font-size:12px;color:var(--saas-text-muted);border-top:1px solid rgba(255,255,255,0.08);padding-top:10px;line-height:1.5;">
+                Moyi will show the 6D score after the report window contains verified provider metrics or tracked attribution.
               </div>
             <% } %>
           </div>

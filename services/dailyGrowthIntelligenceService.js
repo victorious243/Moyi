@@ -62,6 +62,32 @@ function calculateDelta(current, previous) {
   };
 }
 
+function verifiedMetricNames(data = {}) {
+  const metricMap = {
+    impressions: 'impressions',
+    reach: 'reach',
+    engagements: 'engagements',
+    likes: 'likes',
+    comments: 'comments',
+    shares: 'shares',
+    linkClicks: 'link clicks',
+    videoViews: 'video views',
+    referralSessions: 'tracked referral sessions',
+    leadsGenerated: 'tracked leads',
+    conversions: 'tracked conversions',
+    attributedRevenue: 'attributed revenue',
+    followersGained: 'follower growth'
+  };
+
+  return Object.entries(metricMap)
+    .filter(([key]) => safeNumber(data[key], 0) > 0)
+    .map(([, label]) => label);
+}
+
+function hasVerifiedGrowthData(data = {}) {
+  return verifiedMetricNames(data).length > 0;
+}
+
 /**
  * Generate standard first-party tracking UTM link for social publishing
  */
@@ -819,6 +845,26 @@ function detectRisksAndProblems(windowComparisons = {}) {
  * 8. Configurable 6-Dimensional Growth Score Calculation
  */
 function calculateGrowthScoreBreakdown(yData = {}, prevData = {}) {
+  const observedMetrics = verifiedMetricNames(yData);
+  if (!observedMetrics.length) {
+    return {
+      overallScore: null,
+      scoreDelta: null,
+      movementExplanation: 'Moyi has not collected enough verified provider metrics or tracked attribution for this reporting window to score growth honestly.',
+      audienceGrowth: null,
+      contentPerformance: null,
+      engagement: null,
+      websiteAcquisition: null,
+      conversion: null,
+      brandVisibility: null,
+      dataQuality: {
+        hasVerifiedData: false,
+        reason: 'No positive provider metrics or first-party attribution events were available for the report window.',
+        observedMetrics: []
+      }
+    };
+  }
+
   const imp = yData.impressions || 0;
   const prevImp = prevData.impressions || 0;
   const eng = yData.engagements || 0;
@@ -863,7 +909,12 @@ function calculateGrowthScoreBreakdown(yData = {}, prevData = {}) {
     engagement,
     websiteAcquisition,
     conversion,
-    brandVisibility
+    brandVisibility,
+    dataQuality: {
+      hasVerifiedData: true,
+      reason: `Score is based on observed ${observedMetrics.join(', ')}.`,
+      observedMetrics
+    }
   };
 }
 
@@ -920,7 +971,8 @@ async function generateDailyGrowthIntelligenceReport(projectId, targetDate = new
   // 9. 6-Dimensional Growth Score
   const growthScoreBreakdown = calculateGrowthScoreBreakdown(yData, prevData);
   const score = growthScoreBreakdown.overallScore;
-  const grade = score >= 90 ? 'A+' : (score >= 80 ? 'A' : (score >= 70 ? 'B' : (score >= 60 ? 'C' : 'D')));
+  const hasScore = Number.isFinite(score);
+  const grade = !hasScore ? 'N/A' : (score >= 90 ? 'A+' : (score >= 80 ? 'A' : (score >= 70 ? 'B' : (score >= 60 ? 'C' : 'D'))));
 
   // 10. Key Wins
   const keyWins = [];
@@ -939,7 +991,9 @@ async function generateDailyGrowthIntelligenceReport(projectId, targetDate = new
 
   // 11. Adaptive Report Mode
   let reportMode = 'normal';
-  if (opportunities.length && opportunities.some((o) => o.priority === 'critical')) {
+  if (!hasScore) {
+    reportMode = 'insufficient_data';
+  } else if (opportunities.length && opportunities.some((o) => o.priority === 'critical')) {
     reportMode = 'opportunity';
   } else if (risksAndProblems.length && risksAndProblems.some((r) => r.severity === 'critical')) {
     reportMode = 'performance_alert';
@@ -956,7 +1010,7 @@ async function generateDailyGrowthIntelligenceReport(projectId, targetDate = new
     executiveSummary = `PERFORMANCE ALERT: ${risksAndProblems[0].title}. Primary signal: ${risksAndProblems[0].primarySignal}`;
   } else if (reportMode === 'milestone') {
     executiveSummary = `GROWTH MILESTONE: Multi-channel social ecosystem reached high-volume distribution yesterday with ${(yData.impressions || 0).toLocaleString()} impressions and ${downstreamAttribution.totalReferralTraffic} inbound visitors.`;
-  } else if (!topPlatform) {
+  } else if (reportMode === 'insufficient_data' || !topPlatform) {
     executiveSummary = `Yesterday, ${project.name}'s social channels had no verified provider metrics or tracked referral sessions available yet. Moyi will wait for real platform data before naming a strongest channel.`;
   } else {
     executiveSummary = `Yesterday, ${project.name}'s social channels generated ${(yData.impressions || 0).toLocaleString()} impressions and ${(yData.engagements || 0).toLocaleString()} engagements across active channels. ${capitalize(topPlatform)} was your strongest brand exposure driver, delivering ${downstreamAttribution.totalReferralTraffic} website referral visits. Performance is tracking on baseline.`;
@@ -1049,6 +1103,8 @@ module.exports = {
   normalizeDate,
   daysAgo,
   calculateDelta,
+  verifiedMetricNames,
+  hasVerifiedGrowthData,
   generateSocialUtmLink,
   detectContentFormat,
   detectContentCategory,

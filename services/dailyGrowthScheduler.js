@@ -75,13 +75,16 @@ const emailService = require('./emailService');
 const env = require('../config/env');
 
 function renderDailyGrowthBriefingHtml(project, report) {
-  const score = report.performanceScore || {};
-  const subScores = score.subScores || {};
+  const score = report.growthScoreBreakdown || {};
+  const subScores = score || {};
   const champions = report.platformChampions || {};
   const isOpp = report.reportMode === 'opportunity';
   const isAlert = report.reportMode === 'performance_alert';
+  const hasVerifiedScore = Boolean(score.dataQuality && score.dataQuality.hasVerifiedData && Number.isFinite(score.overallScore));
   const modeColor = isAlert ? '#ef4444' : (isOpp ? '#10b981' : '#6366f1');
-  const modeLabel = isAlert ? 'Performance Risk Alert' : (isOpp ? 'Growth Opportunity Detected' : 'Daily Morning Brief');
+  const modeLabel = report.reportMode === 'insufficient_data'
+    ? 'Awaiting Verified Data'
+    : (isAlert ? 'Performance Risk Alert' : (isOpp ? 'Growth Opportunity Detected' : 'Daily Morning Brief'));
 
   return `
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#111827;line-height:1.6;">
@@ -91,31 +94,39 @@ function renderDailyGrowthBriefingHtml(project, report) {
       <h2 style="margin:0 0 8px;font-size:22px;color:#111827;">${emailService.escapeHtml(project.name)} — Daily Growth Intelligence</h2>
       <p style="color:#4b5563;font-size:15px;margin:0 0 20px;">${emailService.escapeHtml(report.executiveSummary || '')}</p>
 
+      ${hasVerifiedScore ? `
       <!-- Score Box -->
       <div style="background:#0f172a;border-radius:12px;padding:20px;color:#ffffff;margin-bottom:24px;">
         <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:14px;margin-bottom:14px;">
           <div>
             <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.05em;color:#94a3b8;font-weight:700;">6D Growth Score</div>
-            <div style="font-size:36px;font-weight:900;color:#55e6cf;line-height:1;">${score.overallScore ?? 65}<span style="font-size:18px;color:#94a3b8;">/100</span> <span style="font-size:16px;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:6px;vertical-align:middle;">Grade ${score.grade || 'B'}</span></div>
+            <div style="font-size:36px;font-weight:900;color:#55e6cf;line-height:1;">${score.overallScore}<span style="font-size:18px;color:#94a3b8;">/100</span> <span style="font-size:16px;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:6px;vertical-align:middle;">Grade ${report.performanceGrade || 'N/A'}</span></div>
           </div>
           <div style="text-align:right;max-width:280px;font-size:13px;color:#cbd5e1;">
-            ${emailService.escapeHtml(score.scoreMovementExplanation || 'Performance is tracking on baseline.')}
+            ${emailService.escapeHtml(score.movementExplanation || '')}
           </div>
         </div>
 
         <table style="width:100%;font-size:12px;color:#94a3b8;" cellspacing="0" cellpadding="4">
           <tr>
-            <td>Audience: <strong style="color:#fff;">${subScores.audienceGrowth ?? 65}/100</strong></td>
-            <td>Content: <strong style="color:#fff;">${subScores.contentPerformance ?? 65}/100</strong></td>
-            <td>Engagement: <strong style="color:#fff;">${subScores.engagementRate ?? 65}/100</strong></td>
+            <td>Audience: <strong style="color:#fff;">${subScores.audienceGrowth}/100</strong></td>
+            <td>Content: <strong style="color:#fff;">${subScores.contentPerformance}/100</strong></td>
+            <td>Engagement: <strong style="color:#fff;">${subScores.engagement}/100</strong></td>
           </tr>
           <tr>
-            <td>Acquisition: <strong style="color:#fff;">${subScores.websiteAcquisition ?? 60}/100</strong></td>
-            <td>Conversion: <strong style="color:#fff;">${subScores.conversionFunnel ?? 55}/100</strong></td>
-            <td>Visibility: <strong style="color:#fff;">${subScores.brandVisibility ?? 65}/100</strong></td>
+            <td>Acquisition: <strong style="color:#fff;">${subScores.websiteAcquisition}/100</strong></td>
+            <td>Conversion: <strong style="color:#fff;">${subScores.conversion}/100</strong></td>
+            <td>Visibility: <strong style="color:#fff;">${subScores.brandVisibility}/100</strong></td>
           </tr>
         </table>
       </div>
+      ` : `
+      <div style="background:#0f172a;border-radius:12px;padding:20px;color:#ffffff;margin-bottom:24px;">
+        <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.05em;color:#94a3b8;font-weight:700;margin-bottom:8px;">Growth Score</div>
+        <div style="font-size:24px;font-weight:900;color:#f8fafc;line-height:1.2;">Awaiting verified data</div>
+        <p style="font-size:13px;color:#cbd5e1;margin:10px 0 0;">${emailService.escapeHtml(score.movementExplanation || 'Moyi will score growth after provider metrics or tracked attribution are available.')}</p>
+      </div>
+      `}
 
       <!-- Champions -->
       <h3 style="font-size:16px;margin:0 0 10px;color:#111827;">🏆 Platform Champions</h3>
@@ -183,12 +194,16 @@ async function sendDailyGrowthBriefingEmail({ project, report, force = true }) {
 
   const isOpp = report.reportMode === 'opportunity';
   const isAlert = report.reportMode === 'performance_alert';
-  const score = report.performanceScore || {};
+  const score = report.growthScoreBreakdown || {};
+  const hasVerifiedScore = Boolean(score.dataQuality && score.dataQuality.hasVerifiedData && Number.isFinite(score.overallScore));
+  const scoreSubjectSuffix = hasVerifiedScore
+    ? `Score: ${score.overallScore}/100 - Grade ${report.performanceGrade || 'N/A'}`
+    : 'Awaiting verified data';
   const subject = isAlert
-    ? `⚠️ [Alert] Social Performance Risk: ${targetProject.name} (Score: ${score.overallScore ?? 65}/100)`
+    ? `⚠️ [Alert] Social Performance Risk: ${targetProject.name} (${scoreSubjectSuffix})`
     : (isOpp
-      ? `🚀 [Opportunity] Daily Growth Breakout: ${targetProject.name} (Score: ${score.overallScore ?? 65}/100)`
-      : `🌅 Daily Growth Intelligence Brief: ${targetProject.name} (Score: ${score.overallScore ?? 65}/100 - Grade ${score.grade || 'B'})`);
+      ? `🚀 [Opportunity] Daily Growth Breakout: ${targetProject.name} (${scoreSubjectSuffix})`
+      : `🌅 Daily Growth Intelligence Brief: ${targetProject.name} (${scoreSubjectSuffix})`);
 
   const html = renderDailyGrowthBriefingHtml(targetProject, report);
   const text = `${subject}\n\n${report.executiveSummary || ''}\n\nReview your full morning briefing at ${env.appUrl}/projects/${targetProject._id}/growth-intelligence`;
@@ -205,10 +220,12 @@ async function sendDailyGrowthBriefingEmail({ project, report, force = true }) {
     urgency: isAlert ? 'high' : 'normal',
     confidence: 88,
     title: isOpp ? 'Daily Growth Opportunity Detected' : (isAlert ? 'Social Performance Alert' : 'Daily Growth Morning Brief Ready'),
-    summary: report.executiveSummary || `Your daily growth intelligence briefing is ready with a 6D score of ${score.overallScore ?? 65}/100.`,
+    summary: report.executiveSummary || (hasVerifiedScore
+      ? `Your daily growth intelligence briefing is ready with a 6D score of ${score.overallScore}/100.`
+      : 'Your daily growth intelligence briefing is ready, but Moyi is waiting for verified provider metrics before scoring growth.'),
     businessImpact: isOpp
       ? 'A measurable growth opportunity is ready for 1-click review.'
-      : (isAlert ? 'A performance decline was detected and root-cause diagnosed.' : 'Daily performance tracking on baseline across all channels.'),
+      : (isAlert ? 'A performance decline was detected and root-cause diagnosed.' : (hasVerifiedScore ? 'Daily performance tracking on baseline across all channels.' : 'No business outcome score was assigned because verified metrics are not available yet.')),
     recommendedAction: (report.opportunities && report.opportunities[0] && report.opportunities[0].actionableRecommendation) || 'Review yesterday\'s performance breakdown and today\'s action plan.',
     ctaUrl: `/projects/${targetProject._id}/growth-intelligence`,
     ctaLabel: 'Open Morning Briefing',
