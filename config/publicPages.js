@@ -201,6 +201,17 @@ module.exports = {
               'Invite team members with role-based access: Admin (can approve & publish) or Member (drafting only).',
               'All AI proposals remain held in your review queue until an authorized operator clicks Approve.'
             ]
+          },
+          {
+            title: '7. Setting Up Marketing Goals, Pacing Forecasts & KPI Scorecards',
+            href: '/docs/tutorials/setting-up-marketing-goals-kpis',
+            summary: 'How to define revenue and CAC targets, configure warning thresholds, and let background AI predict outcomes.',
+            steps: [
+              'Open the Goals tab in your project workspace and enter your target name and KPI.',
+              'Define target values, units, and custom measurement periods (weekly, monthly, quarterly).',
+              'Set a Warning Threshold (e.g. 85%) and assign a responsible team stakeholder.',
+              'Moyi calculates pacing trajectories in background workers and triggers proactive alerts if pacing drops.'
+            ]
           }
         ]
       },
@@ -393,6 +404,32 @@ module.exports = {
           { title: 'Generate reports after activity exists', body: 'Reports become stronger after scans, recommendations, drafts, campaigns, and tracking data accumulate.' },
           { title: 'Read limitations', body: 'If a report says data is missing, fix the data source instead of treating the report as complete.' }
         ]
+      },
+      {
+        id: 'goals-and-kpis',
+        title: 'Goals & KPIs Scorecard',
+        body: 'Moyi tracks business and marketing targets against live evidence with background AI forecasting, pacing analysis, and early risk alerts. Each goal defines a clear KPI milestone with an assigned owner.',
+        options: [
+          { title: 'Goal Name', body: 'A descriptive title for the business milestone (e.g. "Q3 Enterprise Inbound MQLs" or "Monthly E-Commerce Revenue").' },
+          { title: 'Metric (KPI)', body: 'The primary metric being tracked: Revenue, Attributed Revenue, Qualified Leads, Signups, Conversion Rate, Organic Traffic, Paid Traffic, CAC, CPA, ROAS, Followers, Engagement, or Custom KPI.' },
+          { title: 'Custom KPI Name', body: 'Required when Metric is set to Custom KPI. Allows tracking bespoke metrics such as "Podcast Downloads", "Partner Referrals", or "Demo Bookings".' },
+          { title: 'Direction', body: 'Automatically inferred by Moyi. Higher is better for revenue, leads, and traffic; lower is better for cost metrics like CAC and CPA.' },
+          { title: 'Target Value & Unit', body: 'The numerical objective by period end, alongside the unit symbol (£, $, €, %, leads, signups).' },
+          { title: 'Current Value (Baseline)', body: 'The starting value or current progress number. Can be updated directly from the Scorecard table at any time.' },
+          { title: 'Target Period', body: 'Measurement cadence: Weekly, Monthly (default calendar month), Quarterly (Q1–Q4), Annual, or Custom date range.' },
+          { title: 'Owner (Stakeholder)', body: 'The assigned team member or executive responsible for this milestone. Receives automatic notification alerts if pacing falters.' },
+          { title: 'Data Source', body: 'Source of truth: Manual, Search Console, Moyi Tracking, Social Analytics, Paid Ads, CRM, or Custom Source.' },
+          { title: 'Warning Threshold (%)', body: 'Pacing threshold (default: 85%) that triggers proactive "At Risk" alerts before targets are missed.' },
+          { title: 'Notes & Hypotheses', body: 'Contextual notes, strategic assumptions, campaign channels, or operational dependencies.' }
+        ],
+        steps: [
+          { title: '1. Open Project Goals', body: 'Navigate to Goals in the operational sidebar menu of your project workspace.' },
+          { title: '2. Define Target & Metric', body: 'Enter your Goal Name, select your KPI (or define a Custom KPI), and set your Target Value and Unit.' },
+          { title: '3. Choose Period & Assign Owner', body: 'Select Weekly, Monthly, Quarterly, Annual, or Custom dates, and assign a responsible stakeholder.' },
+          { title: '4. Set Warning Threshold & Save', body: 'Set your Warning Threshold (e.g. 85%) and click "Create goal". AI forecasting computes in the background without lag.' },
+          { title: '5. Update Progress & Monitor Pacing', body: 'Update current values in the Scorecard table anytime to trigger instant background AI recalculations.' }
+        ],
+        note: 'Goal calculations run asynchronously in background workers to eliminate timeouts. Statuses automatically update to Ahead, On Track, At Risk, Achieved, or Missed.'
       },
       {
         id: 'account-billing',

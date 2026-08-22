@@ -26,7 +26,8 @@ test('TUTORIAL_PAGES contains required step-by-step guides with actionable metad
     'graphic-design-studio-carousels-mockups',
     'social-media-publishing-utm-attribution',
     'competitor-war-room-battlecards',
-    'customizing-brand-voice-governance'
+    'customizing-brand-voice-governance',
+    'setting-up-marketing-goals-kpis'
   ];
 
   for (const slug of slugs) {
@@ -64,6 +65,33 @@ test('views/public/tutorial.ejs renders interactive tutorial guide with schema',
   assert.match(html, /schema\.org/);
   assert.match(html, /HowTo/);
   assert.match(html, /HowToStep/);
+});
+
+test('views/public/tutorial.ejs renders Goals & KPIs tutorial with all options explained', async () => {
+  const tutorial = TUTORIAL_PAGES['setting-up-marketing-goals-kpis'];
+  const html = await ejs.renderFile(
+    path.join(__dirname, '../views/public/tutorial.ejs'),
+    {
+      appName: 'Moyi',
+      title: `${tutorial.seoTitle} | Moyi-CMO`,
+      seoDescription: tutorial.seoDescription,
+      currentUser: null,
+      tutorial
+    }
+  );
+
+  assert.match(html, /Setting Up Marketing Goals/);
+  assert.match(html, /Pacing Forecasts/);
+  assert.match(html, /Warning Threshold/);
+  assert.match(html, /Scorecard/);
+});
+
+test('docs configuration includes dedicated goals-and-kpis section', () => {
+  const sectionIds = docs.sections.map((s) => s.id);
+  assert.ok(sectionIds.includes('goals-and-kpis'), 'docs should include goals-and-kpis');
+  const goalsSection = docs.sections.find((s) => s.id === 'goals-and-kpis');
+  assert.equal(goalsSection.title, 'Goals & KPIs Scorecard');
+  assert.ok(goalsSection.options.length >= 8, 'goals-and-kpis should explain all form options');
 });
 
 test('routes/index.js registers tutorial routes and updates sitemap and llms.txt', () => {

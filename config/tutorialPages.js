@@ -459,6 +459,104 @@ const TUTORIAL_PAGES = {
       }
     ],
     nextTutorial: {
+      slug: 'setting-up-marketing-goals-kpis',
+      title: 'Setting Up Marketing Goals, Pacing Forecasts & KPI Scorecards'
+    }
+  },
+  'setting-up-marketing-goals-kpis': {
+    slug: 'setting-up-marketing-goals-kpis',
+    category: 'Accountability & KPIs',
+    readTime: '5 min read',
+    difficulty: 'Beginner',
+    title: 'Setting Up Marketing Goals, Pacing Forecasts & KPI Scorecards',
+    seoTitle: 'How to Set Up Marketing Goals & KPI Forecasts in Moyi-CMO (Tutorial)',
+    seoDescription: 'Complete step-by-step guide explaining how to define marketing goals, set warning thresholds, configure custom KPIs, and leverage background AI trajectory forecasts.',
+    heroHeadline: 'How to Set Up Marketing Goals & Pacing Forecasts in Moyi-CMO',
+    heroSubheadline: 'Master marketing accountability by turning high-level targets into real-time pacing trajectories with automated stakeholder alerts and risk detection.',
+    summary: 'The Goals & KPIs engine in Moyi-CMO provides evidence-grounded performance tracking. Instead of waiting until the end of the month to discover missed targets, Moyi continuously calculates background AI trajectories, evaluates pacing against your warning thresholds, and alerts assigned stakeholders before performance dips off track.',
+    prerequisites: [
+      'An active Moyi-CMO project workspace',
+      'Administrator or Project Manager permissions'
+    ],
+    steps: [
+      {
+        number: 1,
+        title: 'Navigate to Goals & KPIs in Your Project Workspace',
+        instruction: 'Select your project from the top workspace navigation and click on "Goals" in the operational sidebar menu (or navigate directly to /projects/:id/goals). You will see your existing targets scorecard and the "Create a marketing goal" creation panel.',
+        proTip: 'Scorecards display real-time progress bars, forecasted outcome values, and color-coded status badges.',
+        actionLink: '/projects',
+        actionText: 'Open Project Goals'
+      },
+      {
+        number: 2,
+        title: 'Name Your Target & Select the Core Metric (KPI)',
+        instruction: 'Enter a clear, descriptive Goal Name (e.g. "Q3 Enterprise Inbound MQLs" or "Monthly E-Commerce Revenue"). Then select your primary Metric from the dropdown: Revenue, Attributed Revenue, Qualified Leads, Signups, Conversion Rate, Organic Traffic, Paid Traffic, CAC, CPA, ROAS, Followers, Engagement, or Custom KPI.',
+        proTip: 'If your business tracks an industry-specific metric (like "Demo Bookings" or "Partner Signups"), select "Custom KPI" and enter your Custom KPI Name.',
+        actionLink: null,
+        actionText: null
+      },
+      {
+        number: 3,
+        title: 'Define Target Value, Baseline Current Value & Unit',
+        instruction: 'Specify the numerical Target Value you intend to achieve by the end of the period, along with your Current Value baseline (defaults to 0 for new periods). In the Unit field, enter the appropriate symbol or descriptor (£, $, €, %, leads, signups, etc.).',
+        proTip: 'For cost metrics like CAC and CPA, Moyi automatically recognizes "decrease" direction, meaning lower numbers represent winning performance.',
+        actionLink: null,
+        actionText: null
+      },
+      {
+        number: 4,
+        title: 'Select the Target Period Cadence & Date Range',
+        instruction: 'Choose your measurement timeframe: Weekly, Monthly (default calendar month), Quarterly (Q1–Q4), Annual, or Custom. When selecting "Custom", pick your exact Period Start and Period End dates in the calendar picker.',
+        proTip: 'Setting quarterly targets allows the AI forecasting engine to model mid-quarter acceleration and seasonal momentum more accurately.',
+        actionLink: null,
+        actionText: null
+      },
+      {
+        number: 5,
+        title: 'Assign a Stakeholder Owner & Data Source',
+        instruction: 'Assign a project team member or stakeholder as the Owner from the dropdown list. Next, choose your Data Source: Manual, Search Console, Moyi Tracking, Social Analytics, Paid Ads, CRM, or Custom Source.',
+        proTip: 'Assigned owners automatically receive notifications and executive briefing digests whenever their KPI transitions into an "at risk" or "ahead" state.',
+        actionLink: null,
+        actionText: null
+      },
+      {
+        number: 6,
+        title: 'Configure Warning Threshold (%) & Strategic Context Notes',
+        instruction: 'Set your Warning Threshold percentage (default: 85%). If background AI trajectory forecasting determines that progress has dropped below this percentage of the expected pacing milestone, Moyi automatically flags the goal as "At Risk". In the Notes field, record key hypotheses, strategic assumptions, or campaign dependencies.',
+        proTip: 'Setting a tighter warning threshold (e.g. 90%) ensures early intervention for high-priority pipeline targets.',
+        actionLink: null,
+        actionText: null
+      },
+      {
+        number: 7,
+        title: 'Create Goal & Monitor Non-Blocking Background AI Forecasts',
+        instruction: 'Click "Create goal". The goal is instantly saved to your database and enqueued to the background worker queue (status: "⚡ Calculating"). The background worker calculates linear and seasonal pacing baselines, and your scorecard updates automatically without freezing your browser.',
+        proTip: 'To update progress at any time during the period, simply enter the latest metric in the Update column and click "Update" to trigger a fresh background forecast.',
+        actionLink: '/projects',
+        actionText: 'View Goals Scorecard'
+      }
+    ],
+    keyTakeaways: [
+      'Goals & KPIs calculations run asynchronously in background workers to eliminate timeouts and lag.',
+      'Moyi automatically handles metric direction—maximizing revenue/leads while minimizing cost per acquisition (CAC/CPA).',
+      'Configurable warning thresholds trigger proactive executive alerts before targets are missed.',
+      'Assigning owners establishes clear marketing accountability across team members and client stakeholders.'
+    ],
+    faqs: [
+      {
+        question: 'What do the different goal status badges mean?',
+        answer: 'Ahead (green): Pacing at >= 105% of target. On Track (blue): Pacing between warning threshold and 104% of target. At Risk (amber): Pacing below your warning threshold (e.g. < 85%). Achieved (green): Target value reached. Missed (red): Period ended without reaching target. Calculating (purple): Background AI forecast is actively computing.'
+      },
+      {
+        question: 'Can I track custom business metrics that are not listed in the default dropdown?',
+        answer: 'Yes. Select "Custom KPI" in the metric dropdown and enter your custom name in the "Custom KPI name" field (e.g., "Webinar Registrations" or "Partner Referrals").'
+      },
+      {
+        question: 'How do progress updates work for manual and external sources?',
+        answer: 'For manual goals or external CRM metrics, team managers can type the latest numerical value directly in the Scorecard table and click "Update". Moyi immediately saves the new progress and recalculates the end-of-period forecast in the background.'
+      }
+    ],
+    nextTutorial: {
       slug: 'connecting-google-search-console',
       title: 'Connecting Google Search Console & Launching Your 1st Audit'
     }
