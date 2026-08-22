@@ -802,6 +802,7 @@ function socialPerformanceApiPayload(dashboard) {
       id: post.id,
       platform: post.platform,
       accountName: post.accountName,
+      title: post.title,
       publishedAt: post.publishedAt,
       platformUrl: post.platformUrl,
       metricsStatus: post.metricsStatus,
@@ -811,6 +812,9 @@ function socialPerformanceApiPayload(dashboard) {
       campaignName: post.campaignName,
       contentType: post.contentType,
       metrics: post.metrics,
+      exposureField: post.exposureField,
+      exposure: post.exposure,
+      engagements: post.engagements,
       engagementRate: post.engagementRate
     }))
   };

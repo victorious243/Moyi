@@ -30,11 +30,11 @@
     <% if (successMessage) { %><div class="image-success-message"><%= successMessage %></div><% } %>
     <% if (errorMessage) { %><div class="form-error"><%= errorMessage %></div><% } %>
 
-    <section class="studio-summary" aria-label="Social performance summary">
-      <div><span>Published</span><strong><%= formatNumber(dashboard.totals.posts) %></strong></div>
-      <div><span>Measured</span><strong><%= formatNumber(dashboard.totals.measuredPosts) %></strong></div>
-      <div><span>Exposure</span><strong><%= formatMetricNumber(dashboard.totals.exposure) %></strong></div>
-      <div><span>Engagements</span><strong><%= formatMetricNumber(dashboard.totals.engagements) %></strong></div>
+    <section class="studio-summary" aria-label="Social performance summary" data-social-live-summary>
+      <div><span>Published</span><strong data-social-total="posts"><%= formatNumber(dashboard.totals.posts) %></strong></div>
+      <div><span>Measured</span><strong data-social-total="measuredPosts"><%= formatNumber(dashboard.totals.measuredPosts) %></strong></div>
+      <div><span>Exposure</span><strong data-social-total="exposure"><%= formatMetricNumber(dashboard.totals.exposure) %></strong></div>
+      <div><span>Engagements</span><strong data-social-total="engagements"><%= formatMetricNumber(dashboard.totals.engagements) %></strong></div>
     </section>
 
     <section class="panel social-growth-panel">
@@ -353,36 +353,39 @@
       <% } %>
     </section>
 
-    <section class="panel">
+    <section class="panel" data-social-live-panel data-project-id="<%= project._id %>" data-days="<%= dashboard.days %>" data-refresh-url="/projects/<%= project._id %>/social-performance/data?days=<%= dashboard.days %>">
       <div class="panel-title">
         <div>
           <h2>Published posts</h2>
-          <p>Latest metrics are snapshots; providers can revise counters after a post is published.</p>
+          <p>Live monitoring checks for fresh provider snapshots automatically; counters can still be revised by each platform.</p>
         </div>
-        <% if (dashboard.lastMetricsSyncAt) { %><span class="status">Updated <%= new Date(dashboard.lastMetricsSyncAt).toLocaleString() %></span><% } %>
+        <div class="social-live-status">
+          <span class="status status-success" data-social-live-state>Live monitoring</span>
+          <span class="status" data-social-live-updated><%= dashboard.lastMetricsSyncAt ? `Updated ${new Date(dashboard.lastMetricsSyncAt).toLocaleString()}` : 'Waiting for first snapshot' %></span>
+        </div>
       </div>
       <% if (!dashboard.recentPosts.length) { %>
-        <p class="empty">Published posts will appear here after Moyi sends them to a connected account.</p>
+        <p class="empty" data-social-live-empty>Published posts will appear here after Moyi sends them to a connected account.</p>
       <% } else { %>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Post</th><th>Account</th><th>Published</th><th>Exposure</th><th>Engagements</th><th>Metrics</th><th></th></tr></thead>
-            <tbody>
+            <tbody data-social-posts-body>
               <% dashboard.recentPosts.forEach((post) => { %>
-                <tr>
-                  <td><strong><%= post.title || `${post.platform} post` %></strong><br><small><%= post.platform %></small></td>
-                  <td><%= post.accountName %></td>
-                  <td><%= post.publishedAt ? new Date(post.publishedAt).toLocaleString() : '' %></td>
-                  <td><%= post.exposureField ? `${formatNumber(post.exposure)} ${label(post.exposureField)}` : 'Unavailable' %></td>
-                  <td><%= formatMetricNumber(post.engagements) %></td>
+                <tr data-social-post-row="<%= post.id %>">
+                  <td><strong data-post-title><%= post.title || `${post.platform} post` %></strong><br><small data-post-platform><%= post.platform %></small></td>
+                  <td data-post-account><%= post.accountName %></td>
+                  <td data-post-published><%= post.publishedAt ? new Date(post.publishedAt).toLocaleString() : '' %></td>
+                  <td data-post-exposure><%= post.exposureField ? `${formatNumber(post.exposure)} ${label(post.exposureField)}` : 'Unavailable' %></td>
+                  <td data-post-engagements><%= formatMetricNumber(post.engagements) %></td>
                   <td>
-                    <span class="status <%= post.metricsStatus === 'active' ? 'status-success' : '' %>"><%= label(post.metricsStatus) %></span>
-                    <% if (post.availableFields.length) { %><br><small><%= post.availableFields.map(label).join(', ') %></small><% } %>
+                    <span data-post-status class="status <%= post.metricsStatus === 'active' ? 'status-success' : '' %>"><%= label(post.metricsStatus) %></span>
+                    <br><small data-post-fields><%= post.availableFields.length ? post.availableFields.map(label).join(', ') : '' %></small>
                   </td>
                   <td>
                     <div class="row-actions">
-                      <% if (post.platformUrl) { %><a class="button button-small" href="<%= post.platformUrl %>" target="_blank" rel="noopener">View post</a><% } %>
-                      <form method="post" action="/projects/<%= project._id %>/social-performance/jobs/<%= post.id %>/metrics">
+                      <% if (post.platformUrl) { %><a class="button button-small" data-post-url href="<%= post.platformUrl %>" target="_blank" rel="noopener">View post</a><% } %>
+                      <form data-social-refresh-form method="post" action="/projects/<%= project._id %>/social-performance/jobs/<%= post.id %>/metrics">
                         <input type="hidden" name="days" value="<%= dashboard.days %>">
                         <button class="button button-small" type="submit">Refresh metrics</button>
                       </form>

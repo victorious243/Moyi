@@ -109,6 +109,7 @@
       if (document.querySelector('[data-terminal-scan]')) loadScript('/js/terminal-scan.js');
       if (document.querySelector('[data-live-scan]')) loadScript('/js/scan-status.js');
       if (document.querySelector('[data-live-job]')) loadScript('/js/project-job-status.js');
+      if (document.querySelector('[data-social-live-panel]')) loadScript('/js/social-performance-live.js');
       if (new URLSearchParams(window.location.search).get('overflowAudit') === '1' || window.localStorage.getItem('moyiOverflowAudit') === '1') {
         loadScript('/js/overflow-audit.js');
       }

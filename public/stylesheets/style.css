@@ -10293,6 +10293,35 @@ textarea:focus {
   color: #34d399 !important;
 }
 
+.social-live-status {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.social-live-status [data-social-live-state].status-success::before {
+  animation: social-live-pulse 1.8s ease-in-out infinite;
+  background: currentColor;
+  border-radius: 999px;
+  content: "";
+  display: inline-block;
+  height: 7px;
+  margin-right: 8px;
+  width: 7px;
+}
+
+[data-social-refresh-form] button[disabled] {
+  cursor: progress;
+  opacity: 0.72;
+}
+
+@keyframes social-live-pulse {
+  0%, 100% { opacity: 0.45; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
 .status.status-warning {
   border-color: rgba(245, 158, 11, 0.35) !important;
   background: rgba(245, 158, 11, 0.12) !important;

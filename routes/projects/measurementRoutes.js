@@ -107,6 +107,7 @@ function registerMeasurementRoutes(router, context, services = {}) {
   ], context.loadProject, asyncHandler(async (req, res) => {
     const days = normalizeAnalyticsDays(req.body.days || req.query.days);
     const redirectBase = `/projects/${req.project._id}/social-performance?days=${days}`;
+    const wantsJson = req.xhr || (typeof req.accepts === 'function' && req.accepts(['json', 'html']) === 'json');
     const job = await context.PublishJob.findOne({
       _id: req.params.jobId,
       ...destinationProjectFilter(req.project._id),
@@ -114,10 +115,27 @@ function registerMeasurementRoutes(router, context, services = {}) {
     }).select('_id').lean();
 
     if (!job) {
+      if (wantsJson) {
+        return res.status(404).json({
+          success: false,
+          error: 'Metrics can only be refreshed for a published post in this project.'
+        });
+      }
       return res.redirect(`${redirectBase}&error=${encodeURIComponent('Metrics can only be refreshed for a published post in this project.')}`);
     }
 
     const result = await collectMetricsForJob(job._id);
+    const dashboard = await buildSocialPerformanceDashboard({ projectId: req.project._id, days });
+    if (wantsJson) {
+      return res.status(result.success ? 200 : 422).json({
+        success: Boolean(result.success),
+        skipped: Boolean(result.skipped),
+        message: result.success
+          ? (result.skipped ? 'Metrics refresh is already running for this post.' : 'Metrics refreshed for this post.')
+          : (result.error || 'Metrics refresh failed.'),
+        dashboard: socialPerformanceApiPayload(dashboard)
+      });
+    }
     if (!result.success) {
       return res.redirect(`${redirectBase}&error=${encodeURIComponent(result.error || 'Metrics refresh failed.')}`);
     }

@@ -96,12 +96,16 @@ test('metric normalization preserves unavailable fields and calculates interacti
 test('metric cadence slows with post age and stops after ninety days', () => {
   const now = new Date('2026-08-13T12:00:00.000Z');
   assert.equal(
+    nextMetricsSyncAt({ publishedAt: new Date('2026-08-13T11:45:00.000Z') }, now).toISOString(),
+    '2026-08-13T12:02:00.000Z'
+  );
+  assert.equal(
     nextMetricsSyncAt({ publishedAt: new Date('2026-08-13T10:00:00.000Z') }, now).toISOString(),
-    '2026-08-13T12:30:00.000Z'
+    '2026-08-13T12:05:00.000Z'
   );
   assert.equal(
     nextMetricsSyncAt({ publishedAt: new Date('2026-08-12T12:00:00.000Z') }, now).toISOString(),
-    '2026-08-13T15:00:00.000Z'
+    '2026-08-13T12:30:00.000Z'
   );
   assert.equal(
     nextMetricsSyncAt({ publishedAt: new Date('2026-08-03T12:00:00.000Z') }, now).toISOString(),

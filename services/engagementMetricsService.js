@@ -68,8 +68,9 @@ function engagementSummary(metrics = {}) {
 function nextMetricsSyncAt(job, capturedAt = new Date()) {
   const ageMs = Math.max(0, capturedAt.getTime() - new Date(job.publishedAt || capturedAt).getTime());
   let delayMs;
-  if (ageMs < 6 * 60 * 60 * 1000) delayMs = 30 * 60 * 1000;
-  else if (ageMs < 48 * 60 * 60 * 1000) delayMs = 3 * 60 * 60 * 1000;
+  if (ageMs < 30 * 60 * 1000) delayMs = 2 * 60 * 1000;
+  else if (ageMs < 6 * 60 * 60 * 1000) delayMs = 5 * 60 * 1000;
+  else if (ageMs < 48 * 60 * 60 * 1000) delayMs = 30 * 60 * 1000;
   else if (ageMs < 14 * 24 * 60 * 60 * 1000) delayMs = 24 * 60 * 60 * 1000;
   else if (ageMs < MAX_METRICS_AGE_MS) delayMs = 7 * 24 * 60 * 60 * 1000;
   else return null;

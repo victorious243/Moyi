@@ -15,6 +15,7 @@
     '/js/terminal-scan.js',
     '/js/scan-status.js',
     '/js/project-job-status.js',
+    '/js/social-performance-live.js',
     '/js/overflow-audit.js'
   ]);
   const prefetchedPages = new Map();
@@ -121,6 +122,7 @@
     if (document.querySelector('[data-terminal-scan]')) await loadScriptOnce('/js/terminal-scan.js');
     if (document.querySelector('[data-live-scan]')) await loadScriptOnce('/js/scan-status.js');
     if (document.querySelector('[data-live-job]')) await loadScriptOnce('/js/project-job-status.js');
+    if (document.querySelector('[data-social-live-panel]')) await loadScriptOnce('/js/social-performance-live.js');
     if (new URLSearchParams(window.location.search).get('overflowAudit') === '1' || window.localStorage.getItem('moyiOverflowAudit') === '1') {
       await loadScriptOnce('/js/overflow-audit.js');
     }
