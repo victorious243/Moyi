@@ -6,7 +6,7 @@ function requirePlatformAdmin(req, res, next) {
   }
 
   if (req.user.role !== 'admin') {
-    return next(new AppError('Administrator access is required.', 403));
+    return next(new AppError('Page not found.', 404));
   }
 
   next();

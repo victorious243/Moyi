@@ -643,7 +643,7 @@ test('social draft routes support calendar editing and removal', () => {
   assert.ok(routes.some((route) => route.path === '/:id/tiktok-creator-info' && route.methods.includes('get')));
 });
 
-test('platform admin middleware blocks non-admin users', () => {
+test('platform admin middleware hides operator routes from non-admin users', () => {
   const { requirePlatformAdmin } = require('../middleware/platformAdmin');
   const req = { user: { role: 'owner' } };
   let error = null;
@@ -652,5 +652,25 @@ test('platform admin middleware blocks non-admin users', () => {
   });
 
   assert.ok(error);
-  assert.equal(error.statusCode, 403);
+  assert.equal(error.statusCode, 404);
+  assert.equal(error.message, 'Page not found.');
+});
+
+test('platform admin middleware allows platform admins only after authentication', () => {
+  const { requirePlatformAdmin } = require('../middleware/platformAdmin');
+  const adminReq = { user: { role: 'admin' } };
+  const anonymousReq = {};
+  let adminError = 'not called';
+  let anonymousError = null;
+
+  requirePlatformAdmin(adminReq, {}, (err) => {
+    adminError = err || null;
+  });
+  requirePlatformAdmin(anonymousReq, {}, (err) => {
+    anonymousError = err || null;
+  });
+
+  assert.equal(adminError, null);
+  assert.ok(anonymousError);
+  assert.equal(anonymousError.statusCode, 401);
 });
