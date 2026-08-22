@@ -257,3 +257,51 @@ test('distribution models accept rich media and provider-processing jobs', () =>
   assert.equal(media.validateSync(), undefined);
   assert.equal(job.validateSync(), undefined);
 });
+
+test('views/projects/integrations/social.ejs renders Available soon instead of Missing env when OAuth is unconfigured', async () => {
+  const path = require('path');
+  const ejs = require('ejs');
+
+  const project = {
+    _id: new mongoose.Types.ObjectId().toString(),
+    name: 'Test Business',
+    websiteUrl: 'https://example.com'
+  };
+
+  const socialReadiness = {
+    providers: {
+      bluesky: { ready: false, enabled: false, missingKeys: ['BLUESKY_CLIENT_ID'], callbackUrl: 'https://example.com/callback' },
+      x: { ready: false, enabled: false, missingKeys: ['TWITTER_CLIENT_ID', 'TWITTER_REDIRECT_URI'], callbackUrl: 'https://example.com/callback' },
+      linkedin: { ready: false, enabled: false, missingKeys: ['LINKEDIN_CLIENT_ID'], callbackUrl: 'https://example.com/callback' },
+      meta: { ready: false, enabled: false, missingKeys: ['META_APP_ID'], callbackUrl: 'https://example.com/callback' },
+      threads: { ready: false, enabled: false, missingKeys: ['THREADS_APP_ID'], callbackUrl: 'https://example.com/callback' },
+      tiktok: { ready: false, enabled: false, missingKeys: ['TIKTOK_CLIENT_KEY'], callbackUrl: 'https://example.com/callback' },
+      youtube: { ready: false, enabled: false, missingKeys: ['YOUTUBE_CLIENT_ID'], callbackUrl: 'https://example.com/callback' }
+    }
+  };
+
+  const html = await ejs.renderFile(
+    path.join(__dirname, '../views/projects/integrations/social.ejs'),
+    {
+      appName: 'Moyi',
+      title: 'Social Accounts | Moyi',
+      seoDescription: 'Connect social accounts',
+      currentUser: { _id: new mongoose.Types.ObjectId().toString(), email: 'admin@example.com' },
+      canManageProject: true,
+      project,
+      accounts: [],
+      recentActions: [],
+      errorMessage: null,
+      successMessage: null,
+      socialReadiness
+    }
+  );
+
+  // Must include "Available soon" badges and buttons
+  assert.match(html, /Available soon/);
+  // Must NOT leak internal .env or Missing env messages to users
+  assert.doesNotMatch(html, /Missing env/);
+  assert.doesNotMatch(html, /TWITTER_CLIENT_ID/);
+  assert.doesNotMatch(html, /Setup required/);
+});
+

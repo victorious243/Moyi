@@ -91,7 +91,7 @@
 
     <section class="studio-summary" aria-label="Social publishing summary">
       <div><span>Connected</span><strong><%= accounts.filter((account) => account.status === 'connected').length %></strong></div>
-      <div><span>OAuth ready</span><strong><%= readyNativeProviders.length %>/<%= nativeProviderKeys.length %></strong></div>
+      <div><span>Active Channels</span><strong><%= readyNativeProviders.length %>/<%= nativeProviderKeys.length %></strong></div>
       <div><span>Publish actions</span><strong><%= recentActions.length %></strong></div>
       <div><span>Human approval</span><strong>On</strong></div>
     </section>
@@ -101,7 +101,7 @@
       <div class="panel-title">
         <div>
           <h2>One-click account connection</h2>
-          <p>Use OAuth for the cleanest customer setup. Provider apps still need the right live credentials and approved permissions.</p>
+          <p>Connect your verified brand channels for scheduled and instant multi-platform publishing.</p>
         </div>
       </div>
       <div class="social-connect-grid">
@@ -117,7 +117,7 @@
           %>
           <article class="social-connect-card">
             <div>
-              <span class="status <%= platformAccounts.length ? 'status-success' : '' %>"><%= platformAccounts.length ? 'Connected' : (providerInfo && !providerInfo.enabled ? 'Disabled' : 'Not connected') %></span>
+              <span class="status <%= platformAccounts.length ? 'status-success' : (providerInfo && !providerInfo.ready ? 'status-available-soon' : '') %>" <%= !platformAccounts.length && providerInfo && !providerInfo.ready ? 'style="background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.28); font-weight: 600;"' : '' %>><%= platformAccounts.length ? 'Connected' : (providerInfo && !providerInfo.ready ? 'Available soon' : 'Not connected') %></span>
               <h3><%= provider.label %></h3>
               <p><%= provider.body %></p>
             </div>
@@ -132,12 +132,8 @@
               </ul>
             <% } %>
             <% if (providerInfo && !providerInfo.ready) { %>
-              <% if (!providerInfo.enabled) { %><p class="empty">Enable this provider after its OAuth app and review are ready.</p><% } %>
-              <% if (providerInfo.missingKeys.length) { %><p class="empty">Missing env: <%= providerInfo.missingKeys.join(', ') %></p><% } %>
-              <p class="empty">Callback: <code><%= providerInfo.callbackUrl %></code></p>
-            <% } %>
-            <% if (providerInfo && !providerInfo.ready) { %>
-              <span class="button" aria-disabled="true">Setup required</span>
+              <p class="empty" style="color: var(--saas-text-muted, rgba(245, 247, 255, 0.6)); font-size: 0.88rem;">1-click connection for <%= provider.label %> will be available soon.</p>
+              <button class="button" type="button" disabled style="opacity: 0.6; cursor: not-allowed;">Available soon</button>
             <% } else if (provider.needsHandle) { %>
               <form class="form social-handle-connect" action="/integrations/social/bluesky/connect" method="get">
                 <input type="hidden" name="projectId" value="<%= project._id %>">

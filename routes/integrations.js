@@ -167,7 +167,12 @@ router.get('/social/:platform/connect', asyncHandler(async (req, res) => {
     res.redirect(authUrl);
   } catch (error) {
     clearSocialOauthCookies(res);
-    res.redirect(`${redirectPath}?error=${encodeURIComponent(error.message)}`);
+    let friendlyMessage = error.message;
+    if (/not configured|missing|env|client_id|redirect_uri/i.test(error.message)) {
+      const displayName = platform === 'meta' ? 'Facebook & Instagram' : (platform === 'x' ? 'X' : platform.charAt(0).toUpperCase() + platform.slice(1));
+      friendlyMessage = `1-click connection for ${displayName} will be available soon.`;
+    }
+    res.redirect(`${redirectPath}?error=${encodeURIComponent(friendlyMessage)}`);
   }
 }));
 
