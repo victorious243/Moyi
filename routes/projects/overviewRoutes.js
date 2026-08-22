@@ -5,6 +5,8 @@ const multer = require('multer');
 const { buildWorkspaceSummary } = require('../../services/projectWorkspaceService');
 const { auditTelemetry } = require('../../services/telemetryAuditor');
 const { findAccessibleProjects } = require('../../services/projectAccessService');
+const { sendTeamInviteEmail } = require('../../services/emailService');
+const env = require('../../config/env');
 
 const logoUpload = multer({
   storage: multer.memoryStorage(),
@@ -258,7 +260,43 @@ function registerProjectDetailRoutes(router, context) {
       metadata: { memberUserId: targetUser._id, memberEmail: targetUser.email, role: membership.role },
       req
     });
-    res.redirect(`/projects/${req.project._id}/team?message=${encodeURIComponent('Team access updated.')}`);
+
+    // 1. In-App Notification Alert for the invited user
+    await context.GrowthAlert.create({
+      projectId: req.project._id,
+      userId: targetUser._id,
+      recipientUserIds: [targetUser._id],
+      type: 'team_invite',
+      severity: 'info',
+      category: 'general',
+      urgency: 'high',
+      title: `You were invited to ${req.project.name}`,
+      summary: `${req.user.name || req.user.email} invited you to collaborate on ${req.project.name} as a ${membership.role || 'member'}.`,
+      ctaUrl: `/projects/${req.project._id}`,
+      ctaLabel: 'Open Project',
+      channels: ['in_app', 'email'],
+      evidenceData: {
+        inviterId: req.user._id,
+        inviterName: req.user.name || req.user.email,
+        role: membership.role
+      }
+    }).catch((err) => {
+      console.warn(`[TeamInviteAlert] Failed to create in-app alert for user ${targetUser._id}:`, err.message);
+    });
+
+    // 2. Rich Email Notification dispatched via Moyi email delivery
+    const inviteUrl = `${String(env.appUrl || '').replace(/\/$/, '')}/projects/${req.project._id}`;
+    await sendTeamInviteEmail({
+      to: targetUser.email,
+      inviterName: req.user.name || req.user.email,
+      projectName: req.project.name,
+      inviteUrl,
+      role: membership.role
+    }).catch((err) => {
+      console.warn(`[TeamInviteEmail] Failed to dispatch email to ${targetUser.email}:`, err.message);
+    });
+
+    res.redirect(`/projects/${req.project._id}/team?message=${encodeURIComponent('Team access updated, and email and in-app alerts sent.')}`);
   }));
 
   router.post('/:id/team/:memberId/remove', [param('id').isMongoId(), param('memberId').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {

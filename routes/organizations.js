@@ -14,6 +14,8 @@ const {
   listAccessibleOrganizations,
   organizationRole
 } = require('../services/organizationService');
+const { sendTeamInviteEmail } = require('../services/emailService');
+const env = require('../config/env');
 const AppError = require('../utils/appError');
 const handleValidation = require('../utils/validate');
 
@@ -138,7 +140,19 @@ router.post('/:id/members', [
     metadata: { organizationId: req.organization._id, memberUserId: targetUser._id, role: membership.role },
     req
   });
-  res.redirect(`/organizations/${req.organization._id}?message=${encodeURIComponent('Agency member access updated.')}`);
+
+  const inviteUrl = `${String(env.appUrl || '').replace(/\/$/, '')}/organizations/${req.organization._id}`;
+  await sendTeamInviteEmail({
+    to: targetUser.email,
+    inviterName: req.user.name || req.user.email,
+    projectName: `${req.organization.name} (Agency Workspace)`,
+    inviteUrl,
+    role: membership.role
+  }).catch((err) => {
+    console.warn(`[OrgInviteEmail] Failed to dispatch email to ${targetUser.email}:`, err.message);
+  });
+
+  res.redirect(`/organizations/${req.organization._id}?message=${encodeURIComponent('Agency member access updated, and email notification sent.')}`);
 }));
 
 router.post('/:id/members/:memberId/remove', [

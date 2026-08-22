@@ -31,16 +31,19 @@
 
     <% if (canManageProject) { %>
       <section class="panel">
-        <h2>Add Existing User</h2>
+        <h2>Invite Team Member</h2>
+        <p style="color: var(--saas-text-muted); font-size: 13.5px; margin-bottom: 16px;">
+          Invite an existing Moyi user to this project workspace. When added, an <strong>email invitation</strong> is automatically dispatched to their email address and an <strong>in-app alert</strong> is sent to their notification center.
+        </p>
         <form class="form" action="/projects/<%= project._id %>/team" method="post">
-          <label>Email <input type="email" name="email" autocomplete="email" required></label>
+          <label>Email <input type="email" name="email" autocomplete="email" placeholder="teammate@company.com" required></label>
           <label>Role
             <select name="role" required>
-              <option value="member">Member - view only</option>
-              <option value="admin">Admin - manage project</option>
+              <option value="member">Member (View & Review Drafts)</option>
+              <option value="admin">Admin (Full Workspace Management)</option>
             </select>
           </label>
-          <button class="button button-primary" type="submit">Add Team Member</button>
+          <button class="button button-primary" type="submit">Invite Team Member</button>
         </form>
       </section>
     <% } %>

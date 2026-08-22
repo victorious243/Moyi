@@ -488,19 +488,34 @@ function createEmailService(deps = {}) {
     });
   }
 
-  async function sendTeamInviteEmail({ to, inviterName, projectName, inviteUrl }) {
+  async function sendTeamInviteEmail({ to, inviterName, projectName, inviteUrl, role = 'member' }) {
+    const formattedRole = String(role || 'member').charAt(0).toUpperCase() + String(role || 'member').slice(1);
     return sendEmail({
       to,
       subject: `You were invited to ${projectName} on Moyi-CMO`,
       html: wrapEmail({
         heading: 'You have a workspace invite',
-        intro: `${inviterName || 'A teammate'} invited you to collaborate on ${projectName} in Moyi-CMO.`,
+        intro: `${inviterName || 'A teammate'} invited you to collaborate on <strong>${escapeHtml(projectName)}</strong> as a <strong>${escapeHtml(formattedRole)}</strong> in Moyi-CMO.`,
         bodyHtml: `
-          <p style="margin:0;color:#4b5563;">Join the workspace to review recommendations, content drafts, reports, and campaign actions.</p>
+          <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6;">
+            You have been granted access to collaborate in the <strong>${escapeHtml(projectName)}</strong> project workspace.
+          </p>
+          ${infoCard({
+            title: 'Workspace Invitation Details',
+            body: `
+              <p style="margin:0 0 6px;color:#111827;"><strong>Project:</strong> ${escapeHtml(projectName)}</p>
+              <p style="margin:0 0 6px;color:#4b5563;"><strong>Invited By:</strong> ${escapeHtml(inviterName || 'Workspace Admin')}</p>
+              <p style="margin:0;color:#4b5563;"><strong>Assigned Role:</strong> <span style="display:inline-block;padding:2px 8px;background:#eef2ff;color:#4338ca;border-radius:4px;font-weight:700;font-size:12px;">${escapeHtml(formattedRole)}</span></p>
+            `,
+            tone: 'success'
+          })}
+          <p style="margin:16px 0 0;color:#6b7280;font-size:13px;line-height:1.5;">
+            Join the workspace to review SEO audits, striking-distance keywords, AI CMO plans, content drafts, and campaign actions.
+          </p>
         `,
         ctaUrl: inviteUrl,
-        ctaLabel: 'Accept invite',
-        footerNote: 'This invite was sent by a Moyi-CMO workspace member.',
+        ctaLabel: 'Open Project Workspace',
+        footerNote: 'This invite was sent by an authorized Moyi-CMO project manager.',
         targetEnv
       })
     });

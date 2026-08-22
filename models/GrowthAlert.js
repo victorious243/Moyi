@@ -21,6 +21,8 @@ const growthAlertSchema = new mongoose.Schema(
     type: {
       type: String,
       enum: [
+        'team_invite',
+        'project_member_invite',
         'weekly_briefing',
         'competitor_move',
         'keyword_breakthrough',
