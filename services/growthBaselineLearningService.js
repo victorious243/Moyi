@@ -12,6 +12,7 @@ const ProjectGrowthBaseline = require('../models/ProjectGrowthBaseline');
 const DailySocialSnapshot = require('../models/DailySocialSnapshot');
 const PublishJob = require('../models/PublishJob');
 const TrackingEvent = require('../models/TrackingEvent');
+const ExperimentLearning = require('../models/ExperimentLearning');
 const {
   daysAgo,
   detectContentFormat,
@@ -41,7 +42,7 @@ function detectCtaType(text = '') {
 async function updateProjectGrowthBaselines(projectId, windowDays = 60) {
   const startDate = daysAgo(windowDays);
 
-  const [snapshots, jobs, trackingEvents] = await Promise.all([
+  const [snapshots, jobs, trackingEvents, experimentLearningRows] = await Promise.all([
     DailySocialSnapshot.find({ projectId, date: { $gte: startDate } }).lean(),
     PublishJob.find({
       $or: [{ projectId }, { destinationProjectId: projectId }],
@@ -50,7 +51,8 @@ async function updateProjectGrowthBaselines(projectId, windowDays = 60) {
     })
       .populate('draftId')
       .lean(),
-    TrackingEvent.find({ projectId, createdAt: { $gte: startDate } }).lean()
+    TrackingEvent.find({ projectId, createdAt: { $gte: startDate } }).lean(),
+    ExperimentLearning.find({ projectId, status: 'active' }).sort({ appliedAt: -1 }).limit(25).lean()
   ]);
 
   // 1. Overall Daily Baselines
@@ -224,6 +226,16 @@ async function updateProjectGrowthBaselines(projectId, windowDays = 60) {
     avgClicks: Math.round((c.totalClicks / c.sampleSize) * 10) / 10,
     avgConversionRate: 0
   }));
+  const experimentLearnings = experimentLearningRows.map((learning) => ({
+    experimentId: learning.experimentId,
+    experimentType: learning.experimentType,
+    channel: learning.channel,
+    primaryMetric: learning.primaryMetric,
+    result: learning.result,
+    decision: learning.decision,
+    confidence: learning.confidence,
+    appliedAt: learning.appliedAt
+  }));
 
   const baselineDoc = await ProjectGrowthBaseline.findOneAndUpdate(
     { projectId },
@@ -238,6 +250,7 @@ async function updateProjectGrowthBaselines(projectId, windowDays = 60) {
         topicBaselines,
         timingBaselines,
         ctaBaselines,
+        experimentLearnings,
         lastCalculatedAt: new Date()
       }
     },

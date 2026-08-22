@@ -42,13 +42,27 @@ const MarketingGoal = require('../models/MarketingGoal');
 const NotificationDelivery = require('../models/NotificationDelivery');
 const NotificationEndpoint = require('../models/NotificationEndpoint');
 const NotificationRoute = require('../models/NotificationRoute');
+const PaidAdAccount = require('../models/PaidAdAccount');
+const PaidAdEntity = require('../models/PaidAdEntity');
+const PaidMetricSnapshot = require('../models/PaidMetricSnapshot');
+const PaidAttribution = require('../models/PaidAttribution');
+const PaidBudgetRecommendation = require('../models/PaidBudgetRecommendation');
+const Experiment = require('../models/Experiment');
+const ExperimentObservation = require('../models/ExperimentObservation');
+const ExperimentLearning = require('../models/ExperimentLearning');
+const StrategicMetricSnapshot = require('../models/StrategicMetricSnapshot');
+const StrategicForecast = require('../models/StrategicForecast');
+const StrategicOpportunity = require('../models/StrategicOpportunity');
+const StrategicDecision = require('../models/StrategicDecision');
+const CompetitorSnapshot = require('../models/CompetitorSnapshot');
+const StrategicReview = require('../models/StrategicReview');
 const { deleteContentImagesForProject } = require('./contentImageService');
 const { deleteMediaAssetsForProject } = require('./mediaAssetCleanupService');
 
 function redactIntegration(integration) {
   if (!integration) return integration;
   const copy = integration.toObject ? integration.toObject() : { ...integration };
-  ['accessToken', 'refreshToken', 'webhookSecret', 'encryptedPayload', 'encryptedUrl', 'encryptedSigningSecret', 'apiToken', 'appPassword', 'accessTokenEncrypted', 'apiTokenEncrypted', 'appPasswordEncrypted'].forEach((key) => {
+  ['accessToken', 'refreshToken', 'webhookSecret', 'encryptedPayload', 'encryptedUrl', 'encryptedSigningSecret', 'apiToken', 'appPassword', 'accessTokenEncrypted', 'apiTokenEncrypted', 'appPasswordEncrypted', 'encryptedAccessToken', 'encryptedRefreshToken'].forEach((key) => {
     if (copy[key]) copy[key] = '[encrypted credential redacted]';
   });
   return copy;
@@ -100,6 +114,20 @@ function createAccountDataService(deps = {}) {
     NotificationDelivery,
     NotificationEndpoint,
     NotificationRoute,
+    PaidAdAccount,
+    PaidAdEntity,
+    PaidMetricSnapshot,
+    PaidAttribution,
+    PaidBudgetRecommendation,
+    Experiment,
+    ExperimentObservation,
+    ExperimentLearning,
+    StrategicMetricSnapshot,
+    StrategicForecast,
+    StrategicOpportunity,
+    StrategicDecision,
+    CompetitorSnapshot,
+    StrategicReview,
     deleteContentImagesForProject,
     deleteMediaAssetsForProject,
     ...deps
@@ -151,7 +179,21 @@ function createAccountDataService(deps = {}) {
       marketingGoals,
       notificationDeliveries,
       notificationEndpoints,
-      notificationRoutes
+      notificationRoutes,
+      paidAdAccounts,
+      paidAdEntities,
+      paidMetricSnapshots,
+      paidAttributions,
+      paidBudgetRecommendations,
+      experiments,
+      experimentObservations,
+      experimentLearnings,
+      strategicMetricSnapshots,
+      strategicForecasts,
+      strategicOpportunities,
+      strategicDecisions,
+      competitorSnapshots,
+      strategicReviews
     ] = await Promise.all([
       models.Scan.find({ projectId: { $in: projectIds } }).lean(),
       models.Page.find({ projectId: { $in: projectIds } }).lean(),
@@ -199,7 +241,21 @@ function createAccountDataService(deps = {}) {
       models.MarketingGoal.find({ projectId: { $in: projectIds } }).lean(),
       models.NotificationDelivery.find({ projectId: { $in: projectIds } }).lean(),
       models.NotificationEndpoint.find({ projectId: { $in: projectIds } }).lean(),
-      models.NotificationRoute.find({ projectId: { $in: projectIds } }).lean()
+      models.NotificationRoute.find({ projectId: { $in: projectIds } }).lean(),
+      models.PaidAdAccount.find({ projectId: { $in: projectIds } }).select('+encryptedAccessToken +encryptedRefreshToken'),
+      models.PaidAdEntity.find({ projectId: { $in: projectIds } }).lean(),
+      models.PaidMetricSnapshot.find({ projectId: { $in: projectIds } }).limit(10000).lean(),
+      models.PaidAttribution.find({ projectId: { $in: projectIds } }).limit(10000).lean(),
+      models.PaidBudgetRecommendation.find({ projectId: { $in: projectIds } }).lean(),
+      models.Experiment.find({ projectId: { $in: projectIds } }).lean(),
+      models.ExperimentObservation.find({ projectId: { $in: projectIds } }).limit(10000).lean(),
+      models.ExperimentLearning.find({ projectId: { $in: projectIds } }).lean(),
+      models.StrategicMetricSnapshot.find({ projectId: { $in: projectIds } }).limit(10000).lean(),
+      models.StrategicForecast.find({ projectId: { $in: projectIds } }).lean(),
+      models.StrategicOpportunity.find({ projectId: { $in: projectIds } }).lean(),
+      models.StrategicDecision.find({ projectId: { $in: projectIds } }).lean(),
+      models.CompetitorSnapshot.find({ projectId: { $in: projectIds } }).lean(),
+      models.StrategicReview.find({ projectId: { $in: projectIds } }).lean()
     ]);
 
     return {
@@ -250,6 +306,26 @@ function createAccountDataService(deps = {}) {
       notificationDeliveries,
       notificationEndpoints: notificationEndpoints.map(redactIntegration),
       notificationRoutes,
+      paidAdvertising: {
+        accounts: paidAdAccounts.map(redactIntegration),
+        entities: paidAdEntities,
+        metricSnapshots: paidMetricSnapshots,
+        attributions: paidAttributions,
+        budgetRecommendations: paidBudgetRecommendations
+      },
+      experimentation: {
+        experiments,
+        observations: experimentObservations,
+        learnings: experimentLearnings
+      },
+      strategicIntelligence: {
+        metricSnapshots: strategicMetricSnapshots,
+        forecasts: strategicForecasts,
+        opportunities: strategicOpportunities,
+        decisions: strategicDecisions,
+        competitorSnapshots,
+        monthlyReviews: strategicReviews
+      },
       auditLogs
     };
   }
@@ -315,6 +391,20 @@ function createAccountDataService(deps = {}) {
       models.NotificationDelivery.deleteMany({ projectId }),
       models.NotificationEndpoint.deleteMany({ projectId }),
       models.NotificationRoute.deleteMany({ projectId }),
+      models.PaidMetricSnapshot.deleteMany({ projectId }),
+      models.PaidAdEntity.deleteMany({ projectId }),
+      models.PaidAttribution.deleteMany({ projectId }),
+      models.PaidBudgetRecommendation.deleteMany({ projectId }),
+      models.PaidAdAccount.deleteMany({ projectId }),
+      models.ExperimentObservation.deleteMany({ projectId }),
+      models.ExperimentLearning.deleteMany({ projectId }),
+      models.Experiment.deleteMany({ projectId }),
+      models.StrategicMetricSnapshot.deleteMany({ projectId }),
+      models.StrategicForecast.deleteMany({ projectId }),
+      models.StrategicOpportunity.deleteMany({ projectId }),
+      models.StrategicDecision.deleteMany({ projectId }),
+      models.CompetitorSnapshot.deleteMany({ projectId }),
+      models.StrategicReview.deleteMany({ projectId }),
       models.ProjectMember.deleteMany({ projectId })
     ]);
     await models.ApiCredential.updateMany({ projectIds: projectId }, { $pull: { projectIds: projectId } });

@@ -20,6 +20,7 @@ const {
 } = require('../services/contentDistributionEngineService');
 const { refreshExpiringSocialAccounts } = require('../services/socialTokenRefreshService');
 const { collectDueMetrics } = require('../services/engagementMetricsService');
+const { evaluateRunningExperiments } = require('../services/experiments/experimentService');
 const { processMediaAsset, recoverMediaAssets } = require('../services/mediaProcessingService');
 
 async function startWorker() {
@@ -48,7 +49,11 @@ async function startWorker() {
     async (job) => {
       if (job.name === 'refresh-social-tokens') return refreshExpiringSocialAccounts();
       if (job.name === 'recover-due-publish-jobs') return recoverDuePublishJobs();
-      if (job.name === 'collect-social-engagement') return collectDueMetrics();
+      if (job.name === 'collect-social-engagement') {
+        const metrics = await collectDueMetrics();
+        const experiments = await evaluateRunningExperiments();
+        return { metrics, experiments };
+      }
       if (job.name === 'check-provider-publish-status') {
         return executeProviderStatusCheck({ jobId: job.data.jobId });
       }

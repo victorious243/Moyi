@@ -40,6 +40,20 @@ const MarketingGoal = require('../../models/MarketingGoal');
 const NotificationDelivery = require('../../models/NotificationDelivery');
 const NotificationEndpoint = require('../../models/NotificationEndpoint');
 const NotificationRoute = require('../../models/NotificationRoute');
+const PaidAdAccount = require('../../models/PaidAdAccount');
+const PaidAdEntity = require('../../models/PaidAdEntity');
+const PaidMetricSnapshot = require('../../models/PaidMetricSnapshot');
+const PaidAttribution = require('../../models/PaidAttribution');
+const PaidBudgetRecommendation = require('../../models/PaidBudgetRecommendation');
+const Experiment = require('../../models/Experiment');
+const ExperimentObservation = require('../../models/ExperimentObservation');
+const ExperimentLearning = require('../../models/ExperimentLearning');
+const StrategicMetricSnapshot = require('../../models/StrategicMetricSnapshot');
+const StrategicForecast = require('../../models/StrategicForecast');
+const StrategicOpportunity = require('../../models/StrategicOpportunity');
+const StrategicDecision = require('../../models/StrategicDecision');
+const CompetitorSnapshot = require('../../models/CompetitorSnapshot');
+const StrategicReview = require('../../models/StrategicReview');
 const AppError = require('../../utils/appError');
 const handleValidation = require('../../utils/validate');
 const { normalizeUrl } = require('../../utils/url');
@@ -100,6 +114,20 @@ function buildProjectsContext(overrides = {}) {
     NotificationDelivery,
     NotificationEndpoint,
     NotificationRoute,
+    PaidAdAccount,
+    PaidAdEntity,
+    PaidMetricSnapshot,
+    PaidAttribution,
+    PaidBudgetRecommendation,
+    Experiment,
+    ExperimentObservation,
+    ExperimentLearning,
+    StrategicMetricSnapshot,
+    StrategicForecast,
+    StrategicOpportunity,
+    StrategicDecision,
+    CompetitorSnapshot,
+    StrategicReview,
     AppError,
     handleValidation,
     normalizeUrl,
@@ -363,6 +391,20 @@ function buildProjectsContext(overrides = {}) {
       deps.NotificationDelivery.deleteMany({ projectId: project._id }),
       deps.NotificationEndpoint.deleteMany({ projectId: project._id }),
       deps.NotificationRoute.deleteMany({ projectId: project._id }),
+      deps.PaidMetricSnapshot.deleteMany({ projectId: project._id }),
+      deps.PaidAdEntity.deleteMany({ projectId: project._id }),
+      deps.PaidAttribution.deleteMany({ projectId: project._id }),
+      deps.PaidBudgetRecommendation.deleteMany({ projectId: project._id }),
+      deps.PaidAdAccount.deleteMany({ projectId: project._id }),
+      deps.ExperimentObservation.deleteMany({ projectId: project._id }),
+      deps.ExperimentLearning.deleteMany({ projectId: project._id }),
+      deps.Experiment.deleteMany({ projectId: project._id }),
+      deps.StrategicMetricSnapshot.deleteMany({ projectId: project._id }),
+      deps.StrategicForecast.deleteMany({ projectId: project._id }),
+      deps.StrategicOpportunity.deleteMany({ projectId: project._id }),
+      deps.StrategicDecision.deleteMany({ projectId: project._id }),
+      deps.CompetitorSnapshot.deleteMany({ projectId: project._id }),
+      deps.StrategicReview.deleteMany({ projectId: project._id }),
       deps.ProjectMember.deleteMany({ projectId: project._id })
     ]);
     await deps.ApiCredential.updateMany({ projectIds: project._id }, { $pull: { projectIds: project._id } });

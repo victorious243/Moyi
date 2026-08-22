@@ -126,6 +126,11 @@
               </form>
             <% }) %>
           </div>
+          <% if (!['rejected', 'done'].includes(recommendation.status)) { %>
+            <form action="/projects/<%= project._id %>/experiments/from-recommendation/<%= recommendation._id %>" method="post">
+              <button class="button" type="submit">Test this recommendation</button>
+            </form>
+          <% } %>
           <% if (['accepted', 'in_progress', 'done'].includes(recommendation.status)) { %>
             <div class="content-generate-panel">
               <strong>Build execution assets</strong>

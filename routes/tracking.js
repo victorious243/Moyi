@@ -37,6 +37,49 @@ router.get('/tracker.js', cors(), (req, res) => {
   })();
 
   const params = new URLSearchParams(location.search);
+  const attributionKey = 'moyi_paid_attribution';
+  const landingAttribution = {
+    utmSource: params.get('utm_source') || '',
+    utmMedium: params.get('utm_medium') || '',
+    utmCampaign: params.get('utm_campaign') || '',
+    utmId: params.get('utm_id') || '',
+    utmTerm: params.get('utm_term') || '',
+    utmContent: params.get('utm_content') || '',
+    gclid: params.get('gclid') || '',
+    gbraid: params.get('gbraid') || '',
+    wbraid: params.get('wbraid') || '',
+    fbclid: params.get('fbclid') || '',
+    liFatId: params.get('li_fat_id') || '',
+    ttclid: params.get('ttclid') || ''
+  };
+  const attribution = (() => {
+    try {
+      const hasPaidSignal = Object.values(landingAttribution).some(Boolean);
+      if (hasPaidSignal) {
+        localStorage.setItem(attributionKey, JSON.stringify(landingAttribution));
+        return landingAttribution;
+      }
+      return JSON.parse(localStorage.getItem(attributionKey) || '{}');
+    } catch (error) {
+      return landingAttribution;
+    }
+  })();
+  const experimentKey = 'moyi_experiment_assignment';
+  const landingExperiment = {
+    experimentId: params.get('moyi_experiment') || '',
+    experimentVariant: params.get('moyi_variant') || ''
+  };
+  const experimentAssignment = (() => {
+    try {
+      if (landingExperiment.experimentId && landingExperiment.experimentVariant) {
+        localStorage.setItem(experimentKey, JSON.stringify(landingExperiment));
+        return landingExperiment;
+      }
+      return JSON.parse(localStorage.getItem(experimentKey) || '{}');
+    } catch (error) {
+      return landingExperiment;
+    }
+  })();
   const deviceType = /mobile|iphone|android/i.test(navigator.userAgent) ? 'mobile' : (/ipad|tablet/i.test(navigator.userAgent) ? 'tablet' : 'desktop');
   const browser = (() => {
     const ua = navigator.userAgent;
@@ -53,9 +96,8 @@ router.get('/tracker.js', cors(), (req, res) => {
       sessionId,
       url: location.href,
       referrer: document.referrer || '',
-      utmSource: params.get('utm_source') || '',
-      utmMedium: params.get('utm_medium') || '',
-      utmCampaign: params.get('utm_campaign') || '',
+      ...attribution,
+      ...experimentAssignment,
       deviceType,
       browser,
       ...payload
@@ -74,8 +116,12 @@ router.get('/tracker.js', cors(), (req, res) => {
     }).catch(() => {});
   };
 
-  send({ eventType: 'page_view' });
-  window.moyiTrack = (eventType = 'custom', eventName = '') => send({ eventType, eventName });
+  send({ eventType: 'page_view', funnelStage: 'visit' });
+  window.moyiTrack = (eventType = 'custom', eventName = '', properties = {}) => send({
+    eventType,
+    eventName,
+    ...(properties && typeof properties === 'object' ? properties : {})
+  });
 })();`);
 });
 
@@ -86,6 +132,10 @@ router.post(
   [
     body('projectKey').trim().notEmpty().withMessage('Project key is required.'),
     body('eventType').optional({ checkFalsy: true }).isIn(['page_view', 'conversion', 'custom']).withMessage('Event type is invalid.'),
+    body('funnelStage').optional({ checkFalsy: true }).isIn(['visit', 'lead', 'qualified_lead', 'signup', 'purchase', 'revenue']).withMessage('Funnel stage is invalid.'),
+    body('experimentId').optional({ checkFalsy: true }).isMongoId().withMessage('Experiment identifier is invalid.'),
+    body('experimentVariant').optional({ checkFalsy: true }).trim().isLength({ max: 80 }).withMessage('Experiment variant is invalid.'),
+    body('value').optional().isFloat({ min: 0 }).withMessage('Event value cannot be negative.'),
     body('sessionId').optional({ checkFalsy: true }).trim().isLength({ max: 120 }).withMessage('Session is too long.'),
     body('url').trim().notEmpty().isLength({ max: 1000 }).withMessage('URL is required.'),
     handleValidation

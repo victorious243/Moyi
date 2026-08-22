@@ -14,6 +14,7 @@ const DailyGrowthIntelligence = require('../models/DailyGrowthIntelligence');
 const { generateDailyGrowthIntelligenceReport, normalizeDate } = require('./dailyGrowthIntelligenceService');
 const { updateProjectGrowthBaselines } = require('./growthBaselineLearningService');
 const { createAndDispatchNotification } = require('./notificationDeliveryService');
+const { refreshStrategicIntelligence } = require('./strategy/strategicIntelligenceService');
 
 let schedulerInterval = null;
 
@@ -248,6 +249,15 @@ async function processProjectDailyGrowthRun(project, options = {}) {
   // 2. Update Rolling Historical Baselines
   await updateProjectGrowthBaselines(project._id, 60);
 
+  // Strategy refresh is isolated so sparse or temporarily unavailable sources do not block the daily briefing.
+  let strategicIntelligence = null;
+  try {
+    strategicIntelligence = await refreshStrategicIntelligence(project, { now: targetDate });
+  } catch (error) {
+    strategicIntelligence = { error: error.message };
+    console.error(`[Daily Growth Scheduler] Strategic refresh failed for project ${project._id}:`, error.message);
+  }
+
   // 3. Dispatch In-App GrowthAlert & Morning Briefing Email to Admin and Stakeholders
   await sendDailyGrowthBriefingEmail({
     project,
@@ -262,7 +272,15 @@ async function processProjectDailyGrowthRun(project, options = {}) {
     }
   });
 
-  return { success: true, reportId: report._id, score: report.performanceScore, mode: report.reportMode };
+  return {
+    success: true,
+    reportId: report._id,
+    score: report.performanceScore,
+    mode: report.reportMode,
+    strategicIntelligence: strategicIntelligence && strategicIntelligence.error
+      ? { refreshed: false, error: strategicIntelligence.error }
+      : { refreshed: true, opportunities: strategicIntelligence ? strategicIntelligence.opportunities.length : 0 }
+  };
 }
 
 /**

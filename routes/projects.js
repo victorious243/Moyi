@@ -30,7 +30,10 @@ const {
   queueSearchConsoleSync,
   queueStrategyPlan,
   queueCompetitorScan,
-  queueCompetitorReport
+  queueCompetitorReport,
+  queuePaidAdsSync,
+  queueStrategicIntelligenceRefresh,
+  queueMonthlyStrategyReview
 } = require('../services/projectTaskService');
 const { buildAttributionReadiness } = require('../services/measurementService');
 const { buildProjectsContext } = require('./projects/context');
@@ -44,6 +47,9 @@ const { registerExecutionRoutes } = require('./projects/executionRoutes');
 const { registerMeasurementRoutes } = require('./projects/measurementRoutes');
 const { registerIntegrationRoutes } = require('./projects/integrationRoutes');
 const { registerOperationalRoutes } = require('./projects/operationalRoutes');
+const { registerPerformanceMarketingRoutes } = require('./projects/performanceMarketingRoutes');
+const { registerExperimentRoutes } = require('./projects/experimentRoutes');
+const { registerStrategyIntelligenceRoutes } = require('./projects/strategyIntelligenceRoutes');
 
 const router = express.Router();
 const context = buildProjectsContext();
@@ -70,6 +76,9 @@ const sharedServices = {
   queueStrategyPlan,
   queueCompetitorScan,
   queueCompetitorReport,
+  queuePaidAdsSync,
+  queueStrategicIntelligenceRefresh,
+  queueMonthlyStrategyReview,
   recordAiOperation,
   recordAiOperationFailure,
   startProjectScan,
@@ -84,6 +93,9 @@ registerDiscoveryRoutes(router, context, sharedServices);
 registerPrioritizationRoutes(router, context, sharedServices);
 registerExecutionRoutes(router, context, sharedServices);
 registerMeasurementRoutes(router, context, sharedServices);
+registerPerformanceMarketingRoutes(router, context, sharedServices);
+registerExperimentRoutes(router, context, sharedServices);
+registerStrategyIntelligenceRoutes(router, context, sharedServices);
 registerIntegrationRoutes(router, context, sharedServices);
 registerOperationalRoutes(router, context, sharedServices);
 registerProjectDetailRoutes(router, context, sharedServices);

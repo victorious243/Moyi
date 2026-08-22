@@ -1,0 +1,189 @@
+<%- include('../partials/header') %>
+
+<%
+  const statusLabel = (value) => String(value || '').replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const percent = (value) => value === null || value === undefined ? 'Awaiting data' : `${(Number(value) * 100).toFixed(2)}%`;
+  const outcomeValue = (item, metricKind) => item.outcome && item.outcome.metricValue !== null
+    ? (metricKind === 'rate' ? percent(item.outcome.metricValue) : Number(item.outcome.metricValue).toFixed(2))
+    : 'Awaiting data';
+  const sourceIds = (item, source) => {
+    if (!item || !item.sourceRefs) return '';
+    if (source === 'social') return (item.sourceRefs.publishJobIds || []).join(', ');
+    if (source === 'paid') return (item.sourceRefs.externalEntityIds || []).join(', ');
+    return '';
+  };
+%>
+
+<div class="app-layout">
+  <%- include('../partials/project-sidebar', { project, activeSection: 'experiments' }) %>
+  <section class="app-main experiments-page">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow"><%= project.name %></p>
+        <h1>Experiments</h1>
+        <p>Turn recommendations into measurable tests, protect decisions from tiny samples, and retain what the project actually learns.</p>
+      </div>
+      <% if (experiment) { %><a class="button" href="/projects/<%= project._id %>/experiments">All experiments</a><% } %>
+    </div>
+
+    <% if (successMessage) { %><div class="image-success-message"><%= successMessage %></div><% } %>
+    <% if (errorMessage) { %><div class="form-error"><%= errorMessage %></div><% } %>
+
+    <% if (experiment) { %>
+      <section class="experiment-hero panel">
+        <div>
+          <span class="status"><%= statusLabel(experiment.status) %></span>
+          <h2><%= experiment.name %></h2>
+          <p><strong>Hypothesis:</strong> <%= experiment.hypothesis %></p>
+          <p><%= statusLabel(experiment.type) %> · <%= experiment.channel || 'Channel not set' %> · <%= experiment.primaryMetric %></p>
+        </div>
+        <div class="experiment-actions">
+          <% if (experiment.status === 'draft') { %>
+            <form method="post" action="/projects/<%= project._id %>/experiments/<%= experiment._id %>/status"><input type="hidden" name="action" value="start"><button class="button button-primary" type="submit">Start experiment</button></form>
+          <% } else if (experiment.status === 'running') { %>
+            <form method="post" action="/projects/<%= project._id %>/experiments/<%= experiment._id %>/evaluate"><button class="button button-primary" type="submit">Refresh evidence</button></form>
+            <form method="post" action="/projects/<%= project._id %>/experiments/<%= experiment._id %>/status"><input type="hidden" name="action" value="pause"><button class="button" type="submit">Pause</button></form>
+          <% } else if (experiment.status === 'paused') { %>
+            <form method="post" action="/projects/<%= project._id %>/experiments/<%= experiment._id %>/status"><input type="hidden" name="action" value="resume"><button class="button button-primary" type="submit">Resume</button></form>
+          <% } %>
+          <% if (['draft', 'running', 'paused'].includes(experiment.status)) { %>
+            <form method="post" action="/projects/<%= project._id %>/experiments/<%= experiment._id %>/status"><input type="hidden" name="action" value="stop"><button class="button" type="submit">Stop</button></form>
+          <% } %>
+        </div>
+      </section>
+
+      <section class="experiment-gates" aria-label="Decision gates">
+        <article><span>Minimum sample</span><strong><%= experiment.minimumSamplePerVariant.toLocaleString() %></strong><small>per variant</small></article>
+        <article><span>Minimum duration</span><strong><%= experiment.minimumDurationDays %> days</strong><small>before a decision</small></article>
+        <article><span>Required confidence</span><strong><%= experiment.requiredConfidence %>%</strong><small>winner threshold</small></article>
+        <article><span>Current confidence</span><strong><%= experiment.confidence === null ? 'Awaiting data' : `${experiment.confidence.toFixed(1)}%` %></strong><small><%= experiment.lastEvaluatedAt ? `updated ${new Date(experiment.lastEvaluatedAt).toLocaleString()}` : 'not evaluated' %></small></article>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title"><div><h2>Variant evidence</h2><p>These results are calculated from bound tracker, social, or paid records.</p></div></div>
+        <div class="experiment-variant-grid">
+          <% experiment.variants.forEach((variant) => { %>
+            <article class="experiment-variant <%= variant.isControl ? 'is-control' : '' %>">
+              <span><%= variant.isControl ? 'Control' : 'Variant' %></span>
+              <h3><%= variant.name %></h3>
+              <p><%= variant.description || 'No description supplied.' %></p>
+              <dl>
+                <div><dt>Sample</dt><dd><%= Number(variant.outcome && variant.outcome.sampleSize || 0).toLocaleString() %></dd></div>
+                <div><dt><%= experiment.primaryMetric %></dt><dd><%= outcomeValue(variant, experiment.metricKind) %></dd></div>
+                <div><dt>Uplift</dt><dd><%= variant.isControl || !variant.outcome || variant.outcome.upliftVsControl === null ? 'Control baseline' : percent(variant.outcome.upliftVsControl) %></dd></div>
+                <div><dt>Confidence</dt><dd><%= variant.isControl || !variant.outcome || variant.outcome.confidenceVsControl === null ? '—' : `${variant.outcome.confidenceVsControl.toFixed(1)}%` %></dd></div>
+              </dl>
+            </article>
+          <% }) %>
+        </div>
+        <% if (experiment.result) { %><div class="measurement-trust-note"><strong>Result:</strong> <%= experiment.result %></div><% } %>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title"><div><h2>Real-data setup</h2><p>No manually invented observations are accepted by this workflow.</p></div></div>
+        <% if (experiment.measurementSource === 'tracking') { const target = experiment.measurementConfig && experiment.measurementConfig.targetUrl; %>
+          <p>Add `moyi_experiment` and `moyi_variant` to each test URL. The tracker keeps the assignment through the visitor session.</p>
+          <% if (target) { %>
+            <% experiment.variants.forEach((variant) => { const joiner = target.includes('?') ? '&' : '?'; %>
+              <code class="experiment-binding"><%= `${target}${joiner}moyi_experiment=${experiment._id}&moyi_variant=${variant.key}` %></code>
+            <% }) %>
+          <% } else { %><p class="empty">No target URL is configured. Use the experiment ID `<%= experiment._id %>` and variant keys shown above in your tested URLs.</p><% } %>
+        <% } else { %>
+          <p>This experiment reads only the <%= experiment.measurementSource %> source identifiers stored on each variant. Refresh evidence after those records have collected real performance.</p>
+        <% } %>
+
+        <% if (['draft', 'paused'].includes(experiment.status)) { %>
+          <form method="post" action="/projects/<%= project._id %>/experiments/<%= experiment._id %>/configuration" class="grid-form experiment-form experiment-configuration-form">
+            <label>Measurement source<select name="measurementSource"><% ['tracking', 'social', 'paid'].forEach((source) => { %><option value="<%= source %>" <%= experiment.measurementSource === source ? 'selected' : '' %>><%= source === 'tracking' ? 'First-party tracker' : statusLabel(source) %></option><% }) %></select></label>
+            <label>Primary metric<input name="primaryMetric" value="<%= experiment.primaryMetric %>" required></label>
+            <label>Metric kind<select name="metricKind"><option value="rate" <%= experiment.metricKind === 'rate' ? 'selected' : '' %>>Rate / proportion</option><option value="continuous" <%= experiment.metricKind === 'continuous' ? 'selected' : '' %>>Continuous value</option></select></label>
+            <label>Channel<input name="channel" value="<%= experiment.channel || '' %>" placeholder="website, x, linkedin, google_ads"></label>
+            <label>Audience<input name="audience" value="<%= experiment.audience || '' %>" placeholder="New visitors, founders, remarketing"></label>
+            <label>Target URL<input name="targetUrl" type="url" value="<%= experiment.measurementConfig && experiment.measurementConfig.targetUrl || '' %>" placeholder="https://example.com/landing-page"></label>
+            <label>Success event<input name="successEventName" value="<%= experiment.measurementConfig && experiment.measurementConfig.successEventName || '' %>" placeholder="form_submit"></label>
+            <label>Eligible-session event<input name="denominatorEventName" value="<%= experiment.measurementConfig && experiment.measurementConfig.denominatorEventName || '' %>" placeholder="landing_page_view"></label>
+            <label>Minimum sample per variant<input name="minimumSamplePerVariant" type="number" min="2" value="<%= experiment.minimumSamplePerVariant %>" required></label>
+            <label>Minimum duration in days<input name="minimumDurationDays" type="number" min="1" value="<%= experiment.minimumDurationDays %>" required></label>
+            <label>Required confidence<input name="requiredConfidence" type="number" min="80" max="99.9" step="0.1" value="<%= experiment.requiredConfidence %>" required></label>
+            <label>End date<input name="endDate" type="date" value="<%= experiment.endDate ? new Date(experiment.endDate).toISOString().slice(0, 10) : '' %>"></label>
+            <label>Control source IDs<input name="controlSourceRefs" value="<%= sourceIds(experiment.variants[0], experiment.measurementSource) %>" placeholder="Publish job or paid entity IDs"></label>
+            <label>Variant source IDs<input name="variantSourceRefs" value="<%= sourceIds(experiment.variants[1], experiment.measurementSource) %>" placeholder="Publish job or paid entity IDs"></label>
+            <p class="full-width measurement-trust-note">Social tests require PublishJob IDs. Paid tests require provider campaign, ad set, ad group, or creative IDs already synchronized into Moyi. Tracker tests use the experiment and variant URL parameters shown above.</p>
+            <button class="button button-primary" type="submit">Save measurement setup</button>
+          </form>
+        <% } %>
+      </section>
+    <% } else { %>
+      <section class="experiment-summary-grid">
+        <article><span>Active</span><strong><%= experimentDashboard.active.length %></strong></article>
+        <article><span>Winners</span><strong><%= experimentDashboard.winners.length %></strong></article>
+        <article><span>Inconclusive</span><strong><%= experimentDashboard.inconclusive.length %></strong></article>
+        <article><span>Retained learnings</span><strong><%= experimentDashboard.learnings.length %></strong></article>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title"><div><h2>Active experiments</h2><p>Running and paused tests with their current evidence state.</p></div></div>
+        <% if (!experimentDashboard.active.length) { %><p class="empty">No experiments are running yet.</p><% } %>
+        <div class="experiment-list">
+          <% experimentDashboard.active.forEach((item) => { %><a href="/projects/<%= project._id %>/experiments/<%= item._id %>"><div><span><%= statusLabel(item.status) %></span><h3><%= item.name %></h3><p><%= item.hypothesis %></p></div><strong><%= item.confidence === null ? 'Gathering data' : `${item.confidence.toFixed(1)}% confidence` %></strong></a><% }) %>
+        </div>
+      </section>
+
+      <div class="dashboard-grid experiment-dashboard-grid">
+        <section class="panel">
+          <div class="panel-title"><div><h2>Measured winners</h2><p>Only tests that cleared every configured gate.</p></div></div>
+          <% if (!experimentDashboard.winners.length) { %><p class="empty">No statistically supported winner yet.</p><% } %>
+          <div class="experiment-list"><% experimentDashboard.winners.forEach((item) => { %><a href="/projects/<%= project._id %>/experiments/<%= item._id %>"><div><h3><%= item.name %></h3><p><%= item.result %></p></div><strong><%= item.confidence.toFixed(1) %>%</strong></a><% }) %></div>
+        </section>
+        <section class="panel">
+          <div class="panel-title"><div><h2>Inconclusive tests</h2><p>Tests that ended without enough defensible evidence.</p></div></div>
+          <% if (!experimentDashboard.inconclusive.length) { %><p class="empty">No inconclusive tests.</p><% } %>
+          <div class="experiment-list"><% experimentDashboard.inconclusive.forEach((item) => { %><a href="/projects/<%= project._id %>/experiments/<%= item._id %>"><div><h3><%= item.name %></h3><p><%= item.result %></p></div></a><% }) %></div>
+        </section>
+      </div>
+
+      <section class="panel">
+        <div class="panel-title"><div><h2>Project learnings</h2><p>Reusable knowledge retained from completed experiments.</p></div></div>
+        <% if (!experimentDashboard.learnings.length) { %><p class="empty">Learnings appear only after a test finds a measured winner.</p><% } %>
+        <div class="experiment-learning-list"><% experimentDashboard.learnings.forEach((learning) => { %><article><span><%= learning.confidence.toFixed(1) %>% confidence</span><h3><%= learning.hypothesis %></h3><p><%= learning.result %></p><strong><%= learning.decision %></strong></article><% }) %></div>
+      </section>
+
+      <% if (croSignals.length) { %><section class="panel"><div class="panel-title"><div><h2>CRO signals</h2><p>Observed website leaks that are suitable for controlled testing.</p></div></div><div class="paid-alert-list"><% croSignals.forEach((signal) => { %><article><span><%= statusLabel(signal.type) %></span><h3><%= signal.title %></h3><p><%= signal.summary %></p><small><%= signal.recommendedAction %></small></article><% }) %></div></section><% } %>
+
+      <section class="panel experiment-create-panel">
+        <div class="panel-title"><div><h2>Create an experiment</h2><p>Define the decision gates before collecting results.</p></div></div>
+        <form method="post" action="/projects/<%= project._id %>/experiments" class="grid-form experiment-form">
+          <label>Name<input name="name" required maxlength="160"></label>
+          <label>Experiment type<select name="type" required><% ['social_caption','cta','hook','creative','posting_time','email_subject','landing_page','campaign_audience','paid_creative','offer','messaging_angle','custom'].forEach((type) => { %><option value="<%= type %>"><%= statusLabel(type) %></option><% }) %></select></label>
+          <label class="full-width">Hypothesis<textarea name="hypothesis" required maxlength="1000" placeholder="Founder-led messaging will increase qualified lead rate because..."></textarea></label>
+          <label>Measurement source<select name="measurementSource"><option value="tracking">First-party tracker</option><option value="social">Published social metrics</option><option value="paid">Paid advertising metrics</option></select></label>
+          <label>Primary metric<input name="primaryMetric" value="conversion_rate" required></label>
+          <label>Metric kind<select name="metricKind"><option value="rate">Rate / proportion</option><option value="continuous">Continuous value</option></select></label>
+          <label>Channel<input name="channel" placeholder="website, x, linkedin, google_ads"></label>
+          <label>Audience<input name="audience" placeholder="New visitors, founders, remarketing"></label>
+          <label>Target URL<input name="targetUrl" type="url" placeholder="https://example.com/landing-page"></label>
+          <label>Success event<input name="successEventName" placeholder="form_submit"></label>
+          <label>Minimum sample per variant<input name="minimumSamplePerVariant" type="number" min="2" value="100" required></label>
+          <label>Minimum duration in days<input name="minimumDurationDays" type="number" min="1" value="7" required></label>
+          <label>Required confidence<input name="requiredConfidence" type="number" min="80" max="99.9" step="0.1" value="95" required></label>
+          <label>End date<input name="endDate" type="date"></label>
+          <label>Control name<input name="controlName" value="Current approach"></label>
+          <label>Variant name<input name="variantName" value="Variant B"></label>
+          <label>Control source IDs<input name="controlSourceRefs" placeholder="Comma-separated social job or paid entity IDs"></label>
+          <label>Variant source IDs<input name="variantSourceRefs" placeholder="Comma-separated social job or paid entity IDs"></label>
+          <label class="full-width">Control description<textarea name="controlDescription"></textarea></label>
+          <label class="full-width">Variant description<textarea name="variantDescription"></textarea></label>
+          <button class="button button-primary" type="submit">Create experiment draft</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title"><div><h2>Suggested experiments</h2><p>Existing recommendations that can become controlled tests.</p></div></div>
+        <% if (!experimentDashboard.suggested.length) { %><p class="empty">No suitable open recommendations.</p><% } %>
+        <div class="experiment-list"><% experimentDashboard.suggested.forEach((recommendation) => { %><div class="experiment-suggestion"><div><h3><%= recommendation.title %></h3><p><%= recommendation.reason %></p></div><form method="post" action="/projects/<%= project._id %>/experiments/from-recommendation/<%= recommendation._id %>"><button class="button" type="submit">Test this recommendation</button></form></div><% }) %></div>
+      </section>
+    <% } %>
+  </section>
+</div>
+
+<%- include('../partials/footer') %>

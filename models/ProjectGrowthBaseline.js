@@ -71,6 +71,16 @@ const projectGrowthBaselineSchema = new mongoose.Schema(
       avgClicks: { type: Number, default: 0 },
       avgConversionRate: { type: Number, default: 0 }
     }],
+    experimentLearnings: [{
+      experimentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Experiment', required: true },
+      experimentType: { type: String, required: true },
+      channel: { type: String, default: '' },
+      primaryMetric: { type: String, required: true },
+      result: { type: String, required: true },
+      decision: { type: String, required: true },
+      confidence: { type: Number, min: 0, max: 100, required: true },
+      appliedAt: { type: Date, required: true }
+    }],
     lastCalculatedAt: {
       type: Date,
       default: Date.now

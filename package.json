@@ -19,6 +19,9 @@
     "check:social": "node ./scripts/check-social-readiness.js",
     "migrate:distribution": "node ./scripts/migrate-content-distribution.js",
     "migrate:operational": "node ./scripts/migrate-operational-excellence.js",
+    "migrate:paid-performance": "node ./scripts/migrate-paid-performance.js",
+    "migrate:experimentation": "node ./scripts/migrate-experimentation.js",
+    "migrate:strategic-intelligence": "node ./scripts/migrate-strategic-intelligence.js",
     "generate:bluesky-key": "node ./scripts/generate-bluesky-key.mjs",
     "pretest": "npm run build:distribution",
     "test": "node --test tests/*.test.js"

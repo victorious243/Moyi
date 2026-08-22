@@ -1,0 +1,95 @@
+<%- include('../partials/header') %>
+
+<%
+  const label = (value) => String(value || '').replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const value = (item) => item && item.forecastValue !== null && item.forecastValue !== undefined ? Number(item.forecastValue).toLocaleString(undefined, { maximumFractionDigits: 2 }) : 'Unavailable';
+  const range = (item) => item && item.lowerBound !== null && item.upperBound !== null ? `${Number(item.lowerBound).toLocaleString()}–${Number(item.upperBound).toLocaleString()}` : 'Needs more history';
+  const monthForecasts = dashboard.forecasts.filter((item) => item.horizon === 'end_of_month');
+  const openOpportunities = dashboard.opportunities.filter((item) => item.status === 'open');
+  const strategicRisks = dashboard.alerts.filter((item) => ['warning', 'critical'].includes(item.severity));
+  const shifts = dashboard.alerts.filter((item) => ['channel_shift', 'audience_shift', 'search_demand_shift', 'competitor_strategy_change', 'share_of_voice_shift', 'positioning_drift'].includes(item.type));
+  const reviewLabels = {
+    whatChanged: 'What Changed?', performanceVsGoals: 'Performance vs Goals', revenuePipeline: 'Revenue & Pipeline', winningChannels: 'Winning Channels', underperformingChannels: 'Underperforming Channels', competitiveMovement: 'Competitive Movement', audienceChanges: 'Audience Changes', searchDemand: 'Search Demand', campaignResults: 'Campaign Results', majorRisks: 'Major Risks', majorOpportunities: 'Major Opportunities', whatToStop: 'What To Stop', whatToContinue: 'What To Continue', whatToIncrease: 'What To Increase', whatToTest: 'What To Test', nextMonthPriorities: 'Priorities for Next Month'
+  };
+%>
+
+<div class="app-layout">
+  <%- include('../partials/project-sidebar', { project, activeSection: 'strategy-intelligence' }) %>
+  <section class="app-main strategy-intelligence-page">
+    <div class="page-heading strategy-heading">
+      <div>
+        <p class="eyebrow"><%= project.name %></p>
+        <h1>Strategy Intelligence</h1>
+        <p>Forecast outcomes, detect strategic movement, and retain the decisions that shape growth.</p>
+      </div>
+      <div class="strategy-actions">
+        <form method="post" action="/projects/<%= project._id %>/strategy-intelligence/refresh"><button class="button button-primary" type="submit">Refresh intelligence</button></form>
+        <form method="post" action="/projects/<%= project._id %>/strategy-intelligence/monthly-review"><button class="button" type="submit">Generate monthly review</button></form>
+      </div>
+    </div>
+
+    <% if (successMessage) { %><div class="image-success-message"><%= successMessage %></div><% } %>
+    <% if (errorMessage) { %><div class="form-error"><%= errorMessage %></div><% } %>
+
+    <section class="strategy-kpi-grid" aria-label="End-of-month forecast">
+      <% ['revenue', 'leads', 'qualified_leads', 'traffic', 'cac', 'roas'].forEach((metric) => { const item = monthForecasts.find((forecast) => forecast.metric === metric); %>
+        <article>
+          <span><%= label(metric) %></span>
+          <strong><%= value(item) %></strong>
+          <small><%= item ? `${range(item)} · ${label(item.confidence.band)} confidence` : 'No connected history' %></small>
+        </article>
+      <% }) %>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title"><div><h2>Goals and forecast</h2><p>Probability and ranges are shown only when Moyi has enough observed daily values.</p></div></div>
+      <% if (!dashboard.goals.length) { %><p class="empty">No accountable marketing goals are configured.</p><% } else { %>
+        <div class="table-wrap"><table class="app-table strategy-table"><thead><tr><th>Goal</th><th>Current</th><th>Target</th><th>Forecast</th><th>Probability</th><th>Confidence</th></tr></thead><tbody>
+          <% dashboard.goals.forEach((goal) => { %><tr><td><strong><%= goal.name %></strong><small><%= label(goal.metric) %></small></td><td><%= Number(goal.currentValue || 0).toLocaleString() %></td><td><%= Number(goal.targetValue || 0).toLocaleString() %></td><td><%= goal.forecastValue == null ? 'Unavailable' : `${Number(goal.forecastValue).toLocaleString()} (${goal.forecastLowerBound ?? 'n/a'}–${goal.forecastUpperBound ?? 'n/a'})` %></td><td><%= goal.goalAchievementProbability == null ? 'Unavailable' : `${goal.goalAchievementProbability}%` %></td><td><%= goal.forecastConfidence == null ? 'Insufficient history' : `${goal.forecastConfidence}/100` %></td></tr><% }) %>
+        </tbody></table></div>
+      <% } %>
+    </section>
+
+    <div class="strategy-two-column">
+      <section class="panel">
+        <div class="panel-title"><div><h2>Growth opportunities</h2><p>Deduplicated opportunities supported by stored evidence.</p></div><span class="status"><%= openOpportunities.length %> open</span></div>
+        <% if (!openOpportunities.length) { %><p class="empty">No evidence-backed strategic opportunity is currently open.</p><% } %>
+        <div class="strategy-list"><% openOpportunities.forEach((item) => { %><article>
+          <div class="strategy-item-heading"><span><%= label(item.type) %></span><strong><%= item.confidence %>% confidence</strong></div>
+          <h3><%= item.title %></h3><p><%= item.opportunity %></p>
+          <dl><div><dt>Evidence</dt><dd><%= item.evidenceSummary %></dd></div><div><dt>Impact / difficulty</dt><dd><%= label(item.potentialImpact) %> / <%= label(item.difficulty) %></dd></div><div><dt>Action</dt><dd><%= item.recommendedAction %></dd></div></dl>
+          <div class="strategy-inline-actions"><form method="post" action="/projects/<%= project._id %>/strategy-intelligence/opportunities/<%= item._id %>"><input type="hidden" name="action" value="accept"><button class="button button-primary" type="submit">Accept</button></form><form method="post" action="/projects/<%= project._id %>/strategy-intelligence/opportunities/<%= item._id %>"><input type="hidden" name="action" value="dismiss"><button class="button" type="submit">Dismiss</button></form></div>
+        </article><% }) %></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title"><div><h2>Strategic risks</h2><p>Signals that may require an executive decision.</p></div><span class="status"><%= strategicRisks.length %> open</span></div>
+        <% if (!strategicRisks.length) { %><p class="empty">No supported strategic risk is currently open.</p><% } %>
+        <div class="strategy-list"><% strategicRisks.forEach((item) => { %><article class="is-risk"><div class="strategy-item-heading"><span><%= label(item.type) %></span><strong><%= item.confidence %>% confidence</strong></div><h3><%= item.title %></h3><p><%= item.summary %></p><small><%= item.recommendedAction %></small></article><% }) %></div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="panel-title"><div><h2>Market, audience, and competitor shifts</h2><p>Search demand is kept separate from ranking movement; demographic traits are never inferred.</p></div></div>
+      <% if (!shifts.length) { %><p class="empty">No material shift has cleared the current evidence thresholds.</p><% } %>
+      <div class="strategy-shift-grid"><% shifts.forEach((item) => { %><article><span><%= label(item.type) %></span><h3><%= item.title %></h3><p><%= item.summary %></p><small><%= item.confidence %>% confidence</small></article><% }) %></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title"><div><h2>Strategic decisions</h2><p>What Moyi recommended, what humans decided, and whether it was executed.</p></div></div>
+      <% if (!dashboard.decisions.length) { %><p class="empty">Accepted opportunities will appear here as accountable decisions.</p><% } %>
+      <div class="table-wrap"><table class="app-table strategy-table"><thead><tr><th>Decision</th><th>Evidence confidence</th><th>Human decision</th><th>Execution</th><th>Outcome</th><th>Action</th></tr></thead><tbody><% dashboard.decisions.forEach((item) => { %><tr><td><strong><%= item.title %></strong><small><%= item.recommendation %></small></td><td><%= item.confidenceAtDecision %>%</td><td><%= label(item.decision) %></td><td><%= label(item.executionStatus) %></td><td><%= item.measuredAt ? item.outcome.summary : 'Measurement pending' %></td><td><div class="strategy-table-actions"><% if (item.decision === 'accepted' && item.executionStatus === 'not_started') { %><form method="post" action="/projects/<%= project._id %>/strategy-intelligence/decisions/<%= item._id %>"><input type="hidden" name="action" value="start"><button class="button" type="submit">Start</button></form><% } %><% if (item.executionStatus === 'in_progress') { %><form method="post" action="/projects/<%= project._id %>/strategy-intelligence/decisions/<%= item._id %>"><input type="hidden" name="action" value="complete"><button class="button" type="submit">Complete</button></form><% } %></div></td></tr><% }) %></tbody></table></div>
+    </section>
+
+    <section class="panel monthly-strategy-review">
+      <div class="panel-title"><div><h2>Monthly CMO strategy review</h2><p>An executive narrative assembled from stored evidence, not an analytics export.</p></div><% if (selectedReview) { %><span class="status"><%= new Date(selectedReview.periodStart).toLocaleDateString() %>–<%= new Date(selectedReview.periodEnd).toLocaleDateString() %></span><% } %></div>
+      <% if (!selectedReview) { %><p class="empty">Generate the first monthly review after forecasts and signals have been refreshed.</p><% } else { %>
+        <p class="strategy-review-summary"><%= selectedReview.executiveSummary %></p>
+        <div class="strategy-review-sections"><% Object.entries(reviewLabels).forEach(([key, heading]) => { const items = selectedReview.sections && selectedReview.sections[key] || []; %><section><h3><%= heading %></h3><% if (!items.length) { %><p class="empty">No defensible conclusion from connected data.</p><% } else { %><ul><% items.forEach((item) => { %><li><%= item %></li><% }) %></ul><% } %></section><% }) %></div>
+        <% if (selectedReview.limitations && selectedReview.limitations.length) { %><div class="measurement-trust-note"><strong>Limitations:</strong> <%= selectedReview.limitations.join(' ') %></div><% } %>
+      <% } %>
+    </section>
+  </section>
+</div>
+
+<%- include('../partials/footer') %>

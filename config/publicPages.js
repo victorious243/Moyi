@@ -133,7 +133,7 @@ module.exports = {
       },
       {
         id: 'setup-tutorials',
-        title: 'Step-by-step tutorial guides',
+        title: 'Configuration tutorials',
         body: 'Interactive walkthroughs explaining exactly how to use each core module of Moyi-CMO from onboarding to daily autonomous growth.',
         tutorials: [
           {
@@ -975,4 +975,3 @@ module.exports = {
     ]
   }
 };
-

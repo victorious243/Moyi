@@ -23,6 +23,22 @@ const conversionGoalSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: ''
+    },
+    funnelStage: {
+      type: String,
+      enum: ['lead', 'qualified_lead', 'signup', 'purchase', 'revenue'],
+      default: 'lead'
+    },
+    defaultValue: {
+      type: Number,
+      min: 0,
+      default: 0
+    },
+    currency: {
+      type: String,
+      uppercase: true,
+      trim: true,
+      default: ''
     }
   },
   { timestamps: true }

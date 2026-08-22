@@ -23,7 +23,10 @@ const projectJobSchema = new mongoose.Schema(
         'content_pipeline',
         'content_image_generation',
         'competitor_scan',
-        'competitor_discovery_report'
+        'competitor_discovery_report',
+        'paid_ads_sync',
+        'strategic_intelligence_refresh',
+        'monthly_strategy_review'
       ],
       required: true,
       index: true

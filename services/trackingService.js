@@ -3,6 +3,7 @@ const env = require('../config/env');
 const ConversionGoal = require('../models/ConversionGoal');
 const Project = require('../models/Project');
 const TrackingEvent = require('../models/TrackingEvent');
+const { recordPaidAttribution } = require('./paidAds/attributionService');
 
 function sanitize(value, max = 500) {
   return String(value || '').trim().slice(0, max);
@@ -49,10 +50,15 @@ function eventType(value) {
   return ['page_view', 'conversion', 'custom'].includes(value) ? value : 'page_view';
 }
 
+function objectIdOrNull(value) {
+  const clean = sanitize(value, 24);
+  return /^[a-f\d]{24}$/i.test(clean) ? clean : null;
+}
+
 async function matchingGoalEvent(projectId, url) {
   const goals = await ConversionGoal.find({ projectId, urlPattern: { $ne: '' } }).lean();
   const match = goals.find((goal) => String(url || '').includes(goal.urlPattern));
-  return match ? match.eventName : '';
+  return match || null;
 }
 
 async function recordTrackingEvent(req) {
@@ -69,10 +75,10 @@ async function recordTrackingEvent(req) {
   const cleanUrl = sanitize(body.url, 1000);
   let type = eventType(body.eventType);
   let name = sanitize(body.eventName, 120);
-  const matchedGoal = type === 'page_view' ? await matchingGoalEvent(project._id, cleanUrl) : '';
+  const matchedGoal = type === 'page_view' ? await matchingGoalEvent(project._id, cleanUrl) : null;
   if (matchedGoal) {
     type = 'conversion';
-    name = matchedGoal;
+    name = matchedGoal.eventName;
   }
 
   const event = await TrackingEvent.create({
@@ -90,11 +96,34 @@ async function recordTrackingEvent(req) {
     utmSource: sanitize(body.utmSource, 160),
     utmMedium: sanitize(body.utmMedium, 160),
     utmCampaign: sanitize(body.utmCampaign, 160),
+    utmId: sanitize(body.utmId, 160),
+    utmTerm: sanitize(body.utmTerm, 240),
+    utmContent: sanitize(body.utmContent, 240),
+    experimentId: objectIdOrNull(body.experimentId),
+    experimentVariant: sanitize(body.experimentVariant, 80),
+    clickIds: {
+      gclid: sanitize(body.gclid || (body.clickIds && body.clickIds.gclid), 300),
+      gbraid: sanitize(body.gbraid || (body.clickIds && body.clickIds.gbraid), 300),
+      wbraid: sanitize(body.wbraid || (body.clickIds && body.clickIds.wbraid), 300),
+      fbclid: sanitize(body.fbclid || (body.clickIds && body.clickIds.fbclid), 300),
+      liFatId: sanitize(body.liFatId || (body.clickIds && body.clickIds.liFatId), 300),
+      ttclid: sanitize(body.ttclid || (body.clickIds && body.clickIds.ttclid), 300)
+    },
+    funnelStage: sanitize(
+      body.funnelStage || (matchedGoal && matchedGoal.funnelStage) || (type === 'page_view' ? 'visit' : ''),
+      40
+    ),
+    eventValue: Math.max(0, Number(body.value ?? body.eventValue ?? (matchedGoal && matchedGoal.defaultValue) ?? 0) || 0),
+    currency: sanitize(body.currency || (matchedGoal && matchedGoal.currency), 8).toUpperCase(),
     deviceType: sanitize(body.deviceType, 40) || detectDevice(userAgent),
     browser: sanitize(body.browser, 80) || detectBrowser(userAgent),
     userAgent,
     ipHash: hashIp(clientIp(req)),
     country: countryFromHeaders(req)
+  });
+
+  await recordPaidAttribution(event).catch((error) => {
+    console.warn(`Paid attribution could not be recorded for event ${event._id}: ${error.message}`);
   });
 
   return event;

@@ -1,0 +1,218 @@
+<%- include('../partials/header') %>
+
+<%
+  const providerName = (value) => ({ google_ads: 'Google Ads', meta_ads: 'Meta Ads', linkedin_ads: 'LinkedIn Ads', tiktok_ads: 'TikTok Ads' }[value] || value);
+  const metric = (value, options = {}) => {
+    if (value === null || value === undefined) return 'Awaiting data';
+    if (options.percent) return `${(Number(value) * 100).toFixed(options.digits ?? 2)}%`;
+    if (options.multiple) return `${Number(value).toFixed(2)}x`;
+    if (options.money) return new Intl.NumberFormat('en', { style: 'currency', currency: options.currency || 'EUR', maximumFractionDigits: 2 }).format(Number(value));
+    return Number(value).toLocaleString('en', { maximumFractionDigits: options.digits ?? 0 });
+  };
+  const totalCurrency = dashboard.currencies[0] || 'EUR';
+  const hasData = Boolean(dashboard.totals);
+  const syncRunning = latestSyncJob && ['queued', 'running'].includes(latestSyncJob.status);
+%>
+
+<div class="app-layout">
+  <%- include('../partials/project-sidebar', { project, activeSection: 'performance-marketing' }) %>
+
+  <section class="app-main performance-marketing-page">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow"><%= project.name %></p>
+        <h1>Performance Marketing</h1>
+        <p>Follow paid acquisition from spend to revenue, find funnel leakage, and review evidence-backed budget decisions.</p>
+      </div>
+      <div class="row-actions">
+        <div class="segmented-links" aria-label="Reporting period">
+          <% [7, 14, 30, 90].forEach((value) => { %>
+            <a class="<%= days === value ? 'active' : '' %>" href="/projects/<%= project._id %>/performance-marketing?days=<%= value %>"><%= value %>d</a>
+          <% }) %>
+        </div>
+        <form method="post" action="/projects/<%= project._id %>/performance-marketing/sync">
+          <input type="hidden" name="days" value="<%= Math.max(days, 30) %>">
+          <button class="button button-primary" type="submit" <%= syncRunning ? 'disabled' : '' %>><%= syncRunning ? 'Sync in progress' : 'Sync paid data' %></button>
+        </form>
+      </div>
+    </div>
+
+    <% if (successMessage) { %><div class="image-success-message"><%= successMessage %></div><% } %>
+    <% if (errorMessage) { %><div class="form-error"><%= errorMessage %></div><% } %>
+    <% if (latestSyncJob && latestSyncJob.status === 'failed') { %>
+      <div class="form-error">Last paid data sync failed: <%= latestSyncJob.errorMessage || 'Open the connected account status below.' %></div>
+    <% } %>
+    <% if (dashboard.hasMixedCurrencies) { %>
+      <div class="measurement-trust-note">Moyi found multiple account currencies. Channel and campaign rows remain accurate, but the executive total is withheld because currencies are not converted automatically.</div>
+    <% } %>
+
+    <section class="paid-executive-grid" aria-label="Paid acquisition executive summary">
+      <article><span>Spend</span><strong><%= hasData ? metric(dashboard.totals.spend, { money: true, currency: totalCurrency }) : 'Awaiting data' %></strong></article>
+      <article><span>Leads</span><strong><%= hasData ? metric(dashboard.totals.leads) : 'Awaiting data' %></strong></article>
+      <article><span>Qualified leads</span><strong><%= hasData ? metric(dashboard.totals.qualifiedLeads) : 'Awaiting data' %></strong></article>
+      <article><span>Revenue</span><strong><%= hasData ? metric(dashboard.totals.attributedRevenue ?? dashboard.totals.conversionValue, { money: true, currency: totalCurrency }) : 'Awaiting data' %></strong></article>
+      <article><span>CAC</span><strong><%= hasData ? metric(dashboard.totals.cac, { money: true, currency: totalCurrency }) : 'Awaiting data' %></strong></article>
+      <article><span>ROAS</span><strong><%= hasData ? metric(dashboard.totals.roas, { multiple: true }) : 'Awaiting data' %></strong></article>
+    </section>
+
+    <section class="panel paid-connections-panel">
+      <div class="panel-title">
+        <div>
+          <h2>Advertising accounts</h2>
+          <p>Provider tokens stay encrypted on the server and are never sent to this page.</p>
+        </div>
+        <span class="status"><%= dashboard.accounts.length %> connected</span>
+      </div>
+      <div class="paid-provider-grid">
+        <% dashboard.providerCatalog.forEach((provider) => { const accounts = dashboard.accounts.filter((account) => account.provider === provider.id); %>
+          <article class="paid-provider-card">
+            <div class="paid-provider-heading">
+              <div><strong><%= provider.name %></strong><span><%= provider.live ? 'Reporting integration' : 'Approval gated' %></span></div>
+              <a class="button" href="/projects/<%= project._id %>/performance-marketing/connect/<%= provider.id %>"><%= accounts.length ? 'Connect another' : 'Connect' %></a>
+            </div>
+            <% if (!accounts.length) { %>
+              <p class="empty"><%= provider.live ? 'No account connected.' : 'Adapter contract is ready; provider API approval is still required.' %></p>
+            <% } %>
+            <% accounts.forEach((account) => { %>
+              <div class="paid-account-row">
+                <div>
+                  <strong><%= account.accountName || account.externalAccountId %></strong>
+                  <small><%= account.currency || 'Currency unavailable' %> · <%= account.syncStatus.replace(/_/g, ' ') %><% if (account.lastSyncedAt) { %> · <%= new Date(account.lastSyncedAt).toLocaleString() %><% } %></small>
+                  <% if (account.lastSyncError) { %><span class="paid-account-error"><%= account.lastSyncError %></span><% } %>
+                </div>
+                <form method="post" action="/projects/<%= project._id %>/performance-marketing/accounts/<%= account._id %>/disconnect" onsubmit="return confirm('Disconnect this advertising account and remove its imported metrics?');">
+                  <button class="button button-small" type="submit">Disconnect</button>
+                </form>
+              </div>
+            <% }) %>
+          </article>
+        <% }) %>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <div><h2>Channel comparison</h2><p>Channels are compared only within their original currency.</p></div>
+      </div>
+      <% if (!dashboard.channels.length) { %>
+        <p class="empty">Connect an ad account and sync performance to compare spend with business outcomes.</p>
+      <% } else { %>
+        <div class="table-wrap">
+          <table class="data-table paid-performance-table">
+            <thead><tr><th>Channel</th><th>Spend</th><th>Clicks</th><th>CTR</th><th>Leads</th><th>CPA</th><th>Revenue</th><th>ROAS</th></tr></thead>
+            <tbody>
+              <% dashboard.channels.forEach((channel) => { %>
+                <tr>
+                  <td><strong><%= providerName(channel.provider) %></strong><small><%= channel.campaignCount %> campaigns</small></td>
+                  <td><%= metric(channel.metrics.spend, { money: true, currency: channel.currency }) %></td>
+                  <td><%= metric(channel.metrics.clicks) %></td>
+                  <td><%= metric(channel.metrics.ctr, { percent: true }) %></td>
+                  <td><%= metric(channel.metrics.leads) %></td>
+                  <td><%= metric(channel.metrics.cpa, { money: true, currency: channel.currency }) %></td>
+                  <td><%= metric(channel.metrics.attributedRevenue ?? channel.metrics.conversionValue, { money: true, currency: channel.currency }) %></td>
+                  <td><%= metric(channel.metrics.roas, { multiple: true }) %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title"><div><h2>Paid and organic opportunities</h2><p>Moyi only compares signals that share a defensible measurement basis.</p></div></div>
+      <% if (!dashboard.paidOrganicOpportunities.length) { %><p class="empty">No paid-organic crossover has enough measured evidence in this period.</p><% } %>
+      <div class="paid-alert-list">
+        <% dashboard.paidOrganicOpportunities.forEach((item) => { %>
+          <article>
+            <span><%= item.type.replace(/_/g, ' ') %> · <%= item.confidence %>% confidence</span>
+            <h3><%= item.title %></h3>
+            <p><%= item.evidence %></p>
+            <small><%= item.recommendation %></small>
+          </article>
+        <% }) %>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title"><div><h2>Campaign health</h2><p>Efficiency, conversion quality, pacing, freshness, saturation, and landing-page evidence.</p></div></div>
+      <% if (!dashboard.campaigns.length) { %><p class="empty">Campaign health will appear after the first successful provider sync.</p><% } %>
+      <div class="paid-campaign-list">
+        <% dashboard.campaigns.forEach((campaign) => { %>
+          <article>
+            <div class="paid-campaign-title">
+              <div><span><%= providerName(campaign.provider) %></span><h3><%= campaign.name %></h3></div>
+              <div class="paid-health-score"><strong><%= campaign.health.score === null ? '—' : campaign.health.score %></strong><span><%= campaign.health.grade %> · <%= campaign.health.coverage %>% coverage</span></div>
+            </div>
+            <div class="paid-campaign-metrics">
+              <span>Spend <strong><%= metric(campaign.metrics.spend, { money: true, currency: campaign.currency }) %></strong></span>
+              <span>Conversions <strong><%= metric(campaign.metrics.conversions) %></strong></span>
+              <span>CPA <strong><%= metric(campaign.metrics.cpa, { money: true, currency: campaign.currency }) %></strong></span>
+              <span>ROAS <strong><%= metric(campaign.metrics.roas, { multiple: true }) %></strong></span>
+              <span>Pacing <strong><%= campaign.pacing.status.replace(/_/g, ' ') %></strong></span>
+              <span>Attribution <strong><%= campaign.attributionConfidence ? `${campaign.attributionConfidence.band} (${campaign.attributionConfidence.score})` : 'Provider reported only' %></strong></span>
+            </div>
+          </article>
+        <% }) %>
+      </div>
+    </section>
+
+    <div class="dashboard-grid paid-decision-grid">
+      <section class="panel">
+        <div class="panel-title"><div><h2>Budget opportunities</h2><p>Proposals require explicit human approval and never change provider budgets automatically.</p></div></div>
+        <% if (!dashboard.recommendations.length) { %><p class="empty">Moyi needs at least two channels with three measured outcomes each before recommending reallocation.</p><% } %>
+        <% dashboard.recommendations.forEach((recommendation) => { %>
+          <article class="paid-recommendation">
+            <span class="status"><%= recommendation.confidence %>% confidence</span>
+            <h3><%= recommendation.title %></h3>
+            <ul><% recommendation.evidence.forEach((item) => { %><li><%= item %></li><% }) %></ul>
+            <p><strong>Proposed change:</strong> <%= recommendation.proposedChange %></p>
+            <p><strong>Expected outcome:</strong> <%= recommendation.expectedOutcome %></p>
+            <p><strong>Risk:</strong> <%= recommendation.risk %></p>
+            <% if (recommendation._id) { %>
+              <form method="post" action="/projects/<%= project._id %>/performance-marketing/recommendations/<%= recommendation._id %>/approve">
+                <button class="button button-primary" type="submit">Approve recommendation</button>
+              </form>
+            <% } else { %><small>Run a sync to save this recommendation for approval.</small><% } %>
+          </article>
+        <% }) %>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title"><div><h2>Risks and alerts</h2><p>Thresholds compare the selected period with the immediately preceding period.</p></div></div>
+        <% if (!dashboard.alerts.length) { %><p class="empty"><%= dashboard.campaigns.length ? 'No paid performance threshold is currently breached.' : 'Alerts will appear after enough campaign data is collected.' %></p><% } %>
+        <div class="paid-alert-list">
+          <% dashboard.alerts.slice(0, 12).forEach((item) => { %>
+            <article class="<%= item.severity === 'critical' ? 'critical' : '' %>">
+              <span><%= item.type.replace(/_/g, ' ') %></span>
+              <h3><%= item.title %></h3>
+              <p><%= item.summary %></p>
+              <small><%= item.recommendedAction %></small>
+            </article>
+          <% }) %>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="panel-title"><div><h2>Creative performance</h2><p>Creative-level reporting remains unavailable where a provider does not expose the metric.</p></div></div>
+      <% if (!dashboard.creativePerformance.length) { %><p class="empty">No creative-level performance has been imported.</p><% } %>
+      <div class="paid-creative-grid">
+        <% dashboard.creativePerformance.slice(0, 12).forEach((creative) => { %>
+          <article><span><%= providerName(creative.provider) %></span><h3><%= creative.name %></h3><strong><%= metric(creative.metrics.roas, { multiple: true }) %> ROAS</strong><small><%= metric(creative.metrics.spend, { money: true, currency: creative.currency }) %> spend · <%= metric(creative.metrics.ctr, { percent: true }) %> CTR</small></article>
+        <% }) %>
+      </div>
+    </section>
+
+    <section class="panel attribution-chain-panel">
+      <div class="panel-title"><div><h2>Attribution chain</h2><p>Moyi combines provider reporting with first-party events and labels uncertain matches.</p></div><a class="button" href="/projects/<%= project._id %>/tracking/setup">Review tracking</a></div>
+      <div class="attribution-chain">
+        <% ['Campaign', 'Click', 'Website session', 'Lead', 'Qualified lead', 'Signup', 'Purchase', 'Revenue'].forEach((stage, index) => { %>
+          <span><strong><%= index + 1 %></strong><%= stage %></span>
+        <% }) %>
+      </div>
+    </section>
+  </section>
+</div>
+
+<%- include('../partials/footer') %>

@@ -24,6 +24,9 @@ const { crawlCompetitor } = require('./competitorCrawlerService');
 const { discoverCompetitorsForProject } = require('./competitorDiscoveryService');
 const { generateCompetitorInsights } = require('./competitorInsightService');
 const { hasProjectLogo, projectLogoReference } = require('./projectLogoService');
+const { buildPerformanceMarketingDashboard, syncPaidAdsProject } = require('./paidAds/performanceService');
+const { captureCompetitorSnapshot } = require('./strategy/competitorMonitoringService');
+const { generateMonthlyStrategyReview, refreshStrategicIntelligence } = require('./strategy/strategicIntelligenceService');
 const {
   incrementUsage,
   recordAiOperation,
@@ -54,7 +57,10 @@ function typeLabel(type) {
     content_pipeline: 'content pipeline',
     content_image_generation: 'image generation',
     competitor_scan: 'competitor scan',
-    competitor_discovery_report: 'competitor report'
+    competitor_discovery_report: 'competitor report',
+    paid_ads_sync: 'paid advertising sync',
+    strategic_intelligence_refresh: 'strategic intelligence refresh',
+    monthly_strategy_review: 'monthly strategy review'
   }[type] || 'job';
 }
 
@@ -107,6 +113,11 @@ function createProjectTaskService(deps = {}) {
     incrementUsage,
     recordAiOperation,
     selectDraftTypes,
+    buildPerformanceMarketingDashboard,
+    syncPaidAdsProject,
+    captureCompetitorSnapshot,
+    generateMonthlyStrategyReview,
+    refreshStrategicIntelligence,
     ...deps
   };
 
@@ -258,6 +269,23 @@ function createProjectTaskService(deps = {}) {
     });
   }
 
+  async function queuePaidAdsSync({ projectId, userId, days = 30 }) {
+    return enqueueWorkflow({
+      projectId,
+      userId,
+      type: 'paid_ads_sync',
+      payload: { days: Math.min(90, Math.max(1, Number(days || 30))) }
+    });
+  }
+
+  async function queueStrategicIntelligenceRefresh({ projectId, userId }) {
+    return enqueueWorkflow({ projectId, userId, type: 'strategic_intelligence_refresh', payload: {} });
+  }
+
+  async function queueMonthlyStrategyReview({ projectId, userId }) {
+    return enqueueWorkflow({ projectId, userId, type: 'monthly_strategy_review', payload: {} });
+  }
+
   async function retryFailedJob({ jobId, projectId, userId }) {
     const failedJob = await services.ProjectJob.findOne({
       _id: jobId,
@@ -354,6 +382,48 @@ function createProjectTaskService(deps = {}) {
           rowsSynced: output.rowsSynced,
           startDate: output.startDate,
           endDate: output.endDate
+        };
+      } else if (job.type === 'paid_ads_sync') {
+        await onProgress({ currentStep: 'Refreshing advertising account tokens', progressPercent: 12 });
+        const days = Math.min(90, Math.max(1, Number(job.payload.days || 30)));
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setUTCDate(startDate.getUTCDate() - (days - 1));
+        await onProgress({ currentStep: 'Importing paid campaign performance', progressPercent: 30 });
+        const syncResults = await services.syncPaidAdsProject(project._id, { startDate, endDate });
+        await onProgress({ currentStep: 'Evaluating campaign health and budget opportunities', progressPercent: 82 });
+        const dashboard = await services.buildPerformanceMarketingDashboard(project._id, days, { persist: true });
+        result = {
+          accountCount: syncResults.length,
+          failedAccountCount: syncResults.filter((item) => item.error).length,
+          rowsSynced: syncResults.reduce((sum, item) => sum + Number(item.rowsSynced || 0), 0),
+          alertCount: dashboard.alerts.length,
+          recommendationCount: dashboard.recommendations.length,
+          resourcePath: `/projects/${project._id}/performance-marketing?days=${days}`,
+          resourceType: 'paid_performance',
+          syncResults
+        };
+      } else if (job.type === 'strategic_intelligence_refresh') {
+        await onProgress({ currentStep: 'Normalizing KPI history and calculating transparent forecasts', progressPercent: 25 });
+        const output = await services.refreshStrategicIntelligence(project, { persist: true });
+        await onProgress({ currentStep: 'Detecting strategic risks, shifts, and opportunities', progressPercent: 88 });
+        result = {
+          forecastCount: output.forecasts.length,
+          opportunityCount: output.opportunities.length,
+          searchSignalCount: output.searchDemand.length,
+          audienceSignalCount: output.audience.signals.length,
+          resourcePath: `/projects/${project._id}/strategy-intelligence`,
+          resourceType: 'strategic_intelligence'
+        };
+      } else if (job.type === 'monthly_strategy_review') {
+        await onProgress({ currentStep: 'Assembling the monthly executive evidence pack', progressPercent: 30 });
+        await services.refreshStrategicIntelligence(project, { persist: true });
+        const review = await services.generateMonthlyStrategyReview(project, job.userId);
+        result = {
+          reviewId: review._id,
+          resourceId: review._id,
+          resourcePath: `/projects/${project._id}/strategy-intelligence?review=${review._id}`,
+          resourceType: 'strategic_review'
         };
       } else if (job.type === 'content_pipeline') {
         const recommendation = await services.Recommendation.findOne({
@@ -495,6 +565,7 @@ function createProjectTaskService(deps = {}) {
           projectId: project._id,
           competitor
         });
+        await services.captureCompetitorSnapshot({ projectId: project._id, competitorId: competitor._id });
 
         await onProgress({ currentStep: 'Competitor page crawl completed', progressPercent: 95 });
         const message = resultScan.skippedByRobots
@@ -538,6 +609,7 @@ function createProjectTaskService(deps = {}) {
             const pct = Math.round(25 + ((i + 1) / competitors.length) * 45);
             await onProgress({ currentStep: `Crawling ${comp.name} (${i + 1}/${competitors.length})`, progressPercent: pct });
             await services.crawlCompetitor({ projectId: project._id, competitor: comp });
+            await services.captureCompetitorSnapshot({ projectId: project._id, competitorId: comp._id });
           }
 
           await onProgress({ currentStep: 'Synthesizing competitor insights and gap matrix', progressPercent: 85 });
@@ -588,6 +660,9 @@ function createProjectTaskService(deps = {}) {
     queueStrategyPlan,
     queueCompetitorScan,
     queueCompetitorReport,
+    queuePaidAdsSync,
+    queueStrategicIntelligenceRefresh,
+    queueMonthlyStrategyReview,
     retryFailedJob
   };
 }
