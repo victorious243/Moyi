@@ -51,6 +51,11 @@ const { resolveBrandDesignTokens, buildEnterpriseVisualPrompt } = require('./gra
 
 const VISUAL_FORMATS = new Set([
   'human-editorial-poster',
+  'fashion-editorial',
+  'ecommerce-product-scene',
+  'minimal-product-visual',
+  'ugc-lifestyle',
+  'art-direction-campaign',
   'corporate-flyer',
   'b2b-carousel-slide',
   '3d-device-mockup',
@@ -58,13 +63,48 @@ const VISUAL_FORMATS = new Set([
   'performance-ad-creative'
 ]);
 
-const GRAPHIC_ASSET_FORMATS = new Set([...VISUAL_FORMATS]);
+const GRAPHIC_ASSET_FORMATS = new Set([
+  'corporate-flyer',
+  'b2b-carousel-slide',
+  '3d-device-mockup',
+  'data-infographic',
+  'performance-ad-creative'
+]);
+
+const IMAGE_FIRST_FORMATS = new Set([
+  'editorial-visual',
+  'human-editorial-poster',
+  'fashion-editorial',
+  'ecommerce-product-scene',
+  'minimal-product-visual',
+  'ugc-lifestyle',
+  'art-direction-campaign'
+]);
+
+function textIsExplicitlyRequested(value) {
+  return /\b(?:add|include|show|use|write|render|with)\s+(?:the\s+)?(?:text|headline|copy|words?|caption|cta|call[-\s]?to[-\s]?action)\b|\b(?:text|headline|copy|saying|say|cta)\b\s*:/i.test(String(value || ''));
+}
 
 function detectVisualFormat({ guidance = '', draft = {}, requestedFormat = '' } = {}) {
   if (VISUAL_FORMATS.has(requestedFormat)) {
     return requestedFormat;
   }
   const signal = `${guidance} ${draft.title || ''} ${draft.type || ''}`;
+  if (/\b(?:fashion|apparel|clothing|streetwear|beauty|cosmetic|jewelry|jewellery|skincare|lookbook|runway|editorial shoot|model shoot)\b/i.test(signal)) {
+    return 'fashion-editorial';
+  }
+  if (/\b(?:e[-\s]?commerce|shop|store|product photo|product photography|product scene|packaging|catalog|catalogue|merch|retail|d2c|shoppable)\b/i.test(signal)) {
+    return 'ecommerce-product-scene';
+  }
+  if (/\b(?:minimal|simple|clean|no text|without text|no words|image only|product only|less writing|not many words|caption will explain)\b/i.test(signal)) {
+    return 'minimal-product-visual';
+  }
+  if (/\b(?:ugc|creator|influencer|selfie|phone shot|handheld|customer photo|founder video still|lifestyle shot)\b/i.test(signal)) {
+    return 'ugc-lifestyle';
+  }
+  if (/\b(?:art direction|art[-\s]?house|creative campaign|conceptual|surreal|symbolic|gallery|culture|visual metaphor|abstract but tasteful)\b/i.test(signal)) {
+    return 'art-direction-campaign';
+  }
   if (/\b(?:human|authentic|natural|editorial|documentary|candid|ugc|real[-\s]?world|lifestyle|people|photo(?:graphic)?|less ai|not ai|human vibe)\b/i.test(signal)) {
     return 'human-editorial-poster';
   }
@@ -134,6 +174,7 @@ function resolveImageOutputProfile({
 } = {}) {
   const channel = normalizeChannel(draft);
   const isGraphicAsset = GRAPHIC_ASSET_FORMATS.has(visualFormat);
+  const isImageFirst = IMAGE_FIRST_FORMATS.has(visualFormat);
   const supportsFlexibleSize = /^gpt-image-2(?:$|-)/i.test(String(model || ''));
   const flexibleSizes = {
     instagram: '1088x1360',
@@ -163,9 +204,9 @@ function resolveImageOutputProfile({
     channel,
     height,
     orientation,
-    outputCompression: isGraphicAsset ? null : 95,
+    outputCompression: isGraphicAsset ? null : 94,
     outputFormat: isGraphicAsset ? 'png' : 'jpeg',
-    quality: isGraphicAsset || channel ? 'high' : env.openaiImageQuality,
+    quality: isGraphicAsset || isImageFirst || channel ? 'high' : env.openaiImageQuality,
     size,
     width
   };
@@ -191,8 +232,15 @@ function imagePrompt({
   const callsToAction = cleanList(profile.callsToAction || profile.calls_to_action, 3, 180);
   const body = draftBody(draft);
   const isGraphicAsset = GRAPHIC_ASSET_FORMATS.has(visualFormat);
+  const isImageFirst = IMAGE_FIRST_FORMATS.has(visualFormat);
   const isHumanEditorial = visualFormat === 'human-editorial-poster';
-  const logoMustAppear = Boolean(brandLogoInputIndex && (isGraphicAsset || explicitLogoRequest(guidance)));
+  const isFashionEditorial = visualFormat === 'fashion-editorial';
+  const isEcommerceProduct = visualFormat === 'ecommerce-product-scene';
+  const isMinimalProduct = visualFormat === 'minimal-product-visual';
+  const isUgcLifestyle = visualFormat === 'ugc-lifestyle';
+  const isArtCampaign = visualFormat === 'art-direction-campaign';
+  const explicitText = textIsExplicitlyRequested(guidance) || Boolean(exactPosterText);
+  const logoMustAppear = Boolean(brandLogoInputIndex && (explicitLogoRequest(guidance) || (!isImageFirst && isGraphicAsset)));
 
   const brandTokens = resolveBrandDesignTokens({ project, draft });
   const theme = aestheticTheme || brandTokens.aestheticTheme;
@@ -210,7 +258,7 @@ function imagePrompt({
 
   return [
     enterprisePrompt,
-    isHumanEditorial
+    isImageFirst
       ? 'Act as a human-first brand art director and editorial photographer. Create a believable finished marketing image that feels culturally current, warm, and made by people with taste. Avoid anything that looks like a generic AI SaaS poster.'
       : isGraphicAsset
       ? 'Act as a senior SaaS art director and production designer. Create one complete, export-ready corporate marketing flyer from the supplied business facts, post, logo, references, and natural-language direction. You own the composition and should make the design decisions yourself.'
@@ -247,18 +295,36 @@ function imagePrompt({
     outputProfile && outputProfile.width && outputProfile.height
       ? `Final canvas: ${outputProfile.width} by ${outputProfile.height} pixels in ${outputProfile.orientation} orientation${outputProfile.channel ? `, composed specifically for ${outputProfile.channel}` : ''}. Keep every logo, headline, paragraph, CTA, icon, person, and product fully inside an inner 8% safe margin on all four sides. Nothing may touch, cross, or disappear beyond the canvas edge. Use the whole canvas intentionally and verify the complete composition before returning it.`
       : '',
+    isImageFirst
+      ? 'Art direction priority: make a strong image first. The caption outside the image can carry the explanation, so do not turn this into a text-heavy poster.'
+      : '',
+    isFashionEditorial
+      ? 'Fashion and beauty rule: prioritize styling, model direction, fabric, product desire, premium lighting, and tasteful negative space. No feature cards, dashboard screens, CTA buttons, or explanatory paragraphs.'
+      : '',
+    isEcommerceProduct
+      ? 'Ecommerce rule: make the product or purchasable offer the hero. Show realistic material, packaging, texture, scale, and use context. Keep the image simple enough for a storefront or paid social ad.'
+      : '',
+    isMinimalProduct
+      ? 'Minimal visual rule: no headline, no CTA button, no paragraph, no icon grid, and no infographic labels unless the user explicitly asks for visible text. Use composition, light, texture, and product context instead.'
+      : '',
+    isUgcLifestyle
+      ? 'UGC rule: make the scene feel like a credible creator/customer/founder moment with natural imperfections. Avoid glossy stock-photo perfection and synthetic ad-template polish.'
+      : '',
+    isArtCampaign
+      ? 'Art campaign rule: use symbolism, composition, texture, and visual metaphor. It should feel like a memorable human-directed campaign concept, not a generic AI poster.'
+      : '',
     isHumanEditorial
       ? 'Infer a human editorial composition without requiring a technical prompt: one believable subject or environment, natural light, restrained type, real texture, credible brand presence, and a quiet CTA when useful. The result must feel like a real social campaign asset, not a synthetic template, not a UI collage, and not a photograph with a text box pasted on top.'
       : isGraphicAsset
       ? 'Infer a strong hierarchy without requiring a technical prompt: integrated brand identity, concise headline, clear value proposition, relevant hero visual or supported product concept, scannable feature groups when useful, and a clear CTA. Follow the Swiss 12-column modular grid, 8pt vertical baseline rhythm, and maintain at least 30% unobstructed negative space. Apply C.R.A.P. design principles: high 4.5:1+ contrast, flush-left alignment, uniform card radii, and proximity-grouped atomic cards. The result must look like a finished premium SaaS campaign asset, not a photograph with a text box pasted on top.'
       : 'Use a premium, credible corporate editorial style with a clear focal subject, Swiss grid balance, and natural composition.',
-    isHumanEditorial
+    isImageFirst
       ? 'Do not invent testimonials, metrics, interface screens, awards, customers, or exaggerated product moments. Use context, props, environment, and people to communicate the message naturally.'
       : isGraphicAsset
       ? 'When the source contains many capabilities, select the most important supported points and arrange them as concise, readable feature groups. Do not invent capabilities, metrics, endorsements, prices, or customer claims.'
       : 'Do not add logos, statistics, product UI, people, locations, or claims that are not supported by the supplied content or reference images.',
-    isHumanEditorial
-      ? 'Avoid the obvious AI-poster pattern: no neon glow backgrounds, abstract circular orbits, giant 3D letters, floating arrows, glossy dashboard mockups, feature-card grids, blue-purple cyber gradients, or overly perfect smiling stock models.'
+    isImageFirst
+      ? 'Avoid the obvious AI-poster pattern: no neon glow backgrounds, abstract circular orbits, giant 3D letters, floating arrows, glossy dashboard mockups, feature-card grids, blue-purple cyber gradients, overly perfect smiling stock models, or walls of promotional copy.'
       : isGraphicAsset
       ? 'A conceptual SaaS interface may be shown only when supported by the supplied content. It must be clearly illustrative with subtle 3D glassmorphism depth, and must not add unsupported product functionality.'
       : '',
@@ -267,6 +333,11 @@ function imagePrompt({
       : '',
     'Return only the finished artwork. Do not show design notes, crop marks, dotted safe areas, wireframes, placeholders, labels such as "LOGO AREA", or unfinished layout instructions.',
     'Avoid fake logos, duplicate brand marks, malformed words, garbled text, watermarks, stock-template clutter, and generic AI imagery.',
+    explicitText
+      ? 'Because visible text was requested, keep it sparse, correctly spelled, and fully inside safe margins.'
+      : isImageFirst
+        ? 'Do not place visible text in the image. Let the social caption carry the message.'
+        : '',
     isGraphicAsset
       ? 'Any visible copy must be concise, correctly spelled, easy to read, and derived from the supplied content. Do not fill the design with long paragraphs.'
       : 'Do not place text in the image unless the user explicitly asks for it.',

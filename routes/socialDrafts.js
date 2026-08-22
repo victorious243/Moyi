@@ -393,7 +393,7 @@ router.post(
         throw new AppError('Reference image not found for this post.', 404);
       }
       const redirectPath = calendarUrl(req.project._id, req.socialDraft._id, {
-        success: 'Image generation started. Moyi will refresh this post when the poster is ready.'
+        success: 'Image generation started. Moyi will refresh this post when the visual is ready.'
       });
       const job = await queueContentImageGeneration({
         projectId: req.project._id,
@@ -407,7 +407,7 @@ router.post(
         redirectPath
       });
       res.redirect(calendarUrl(req.project._id, req.socialDraft._id, {
-        success: 'Image generation started. Moyi will refresh this post when the poster is ready.',
+        success: 'Image generation started. Moyi will refresh this post when the visual is ready.',
         imageJob: job._id
       }));
     } catch (error) {

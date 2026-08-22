@@ -8,13 +8,21 @@ function resolveBrandDesignTokens({ project = {}, draft = {} } = {}) {
   const industry = String(project.industry || '').toLowerCase();
 
   let aestheticTheme = 'documentary-human';
-  if (/\b(?:human|warm|authentic|editorial|community|creator|local|personal|approachable)\b/.test(brandTone)) {
+  if (/\b(?:fashion|apparel|clothing|streetwear|beauty|cosmetic|jewelry|jewellery|skincare|luxury)\b/.test(industry)) {
+    aestheticTheme = 'luxury-fashion';
+  } else if (/\b(?:ecommerce|e-commerce|d2c|retail|shop|store|consumer goods|product)\b/.test(industry)) {
+    aestheticTheme = 'clean-commerce';
+  } else if (/\b(?:wellness|health|fitness|food|restaurant|hospitality|home|lifestyle)\b/.test(industry)) {
+    aestheticTheme = 'earthy-wellness';
+  } else if (/\b(?:art|music|culture|gallery|creative|design|media|entertainment)\b/.test(industry)) {
+    aestheticTheme = 'art-house';
+  } else if (/\b(?:human|warm|authentic|editorial|community|creator|local|personal|approachable)\b/.test(brandTone)) {
     aestheticTheme = 'documentary-human';
   } else if (/\b(?:security|fintech|finance|crypto|devops|data|api)\b/.test(industry) || /\b(?:secure|technical|precise)\b/.test(brandTone)) {
     aestheticTheme = 'fintech-glass';
   } else if (/\b(?:consulting|legal|editorial|journalism|executive|healthcare)\b/.test(industry) || /\b(?:authoritative|scholarly|editorial)\b/.test(brandTone)) {
     aestheticTheme = 'warm-editorial';
-  } else if (/\b(?:ecommerce|d2c|creator|growth|social|marketing)\b/.test(industry) || /\b(?:bold|energetic|punchy)\b/.test(brandTone)) {
+  } else if (/\b(?:creator|growth|social|marketing)\b/.test(industry) || /\b(?:bold|energetic|punchy)\b/.test(brandTone)) {
     aestheticTheme = 'high-voltage-growth';
   }
 
@@ -135,6 +143,46 @@ const GRAPHIC_DESIGN_SKILLS = [
     icon: '📷',
     description: 'Believable campaign visuals with natural light, real-world context, restrained typography, and no obvious AI SaaS poster patterns.',
     bestFor: 'Founder brands, local services, creators, human-led SaaS launches, organic social posts.'
+  },
+  {
+    id: 'fashion-editorial',
+    name: 'Fashion / Beauty Editorial',
+    badge: 'Magazine-grade',
+    icon: 'Editorial',
+    description: 'Premium fashion, beauty, jewelry, lifestyle, and apparel visuals with real styling, tactile texture, restrained copy, and less obvious AI polish.',
+    bestFor: 'Fashion brands, skincare, cosmetics, apparel drops, lookbooks, jewelry, personal brands.'
+  },
+  {
+    id: 'ecommerce-product-scene',
+    name: 'Ecommerce Product Scene',
+    badge: 'Product-first',
+    icon: 'Product',
+    description: 'Simple shoppable product scenes with realistic scale, packaging, use context, natural shadows, and minimal text.',
+    bestFor: 'Online stores, product launches, D2C brands, retail offers, product-led paid social.'
+  },
+  {
+    id: 'minimal-product-visual',
+    name: 'Minimal No-Text Visual',
+    badge: 'Caption-led',
+    icon: 'Minimal',
+    description: 'Clean image-first creative with strong negative space and no explanatory poster copy unless explicitly requested.',
+    bestFor: 'Premium brands, Instagram posts, X visuals, quiet launches, products where the caption should explain.'
+  },
+  {
+    id: 'ugc-lifestyle',
+    name: 'UGC / Lifestyle Moment',
+    badge: 'Creator feel',
+    icon: 'UGC',
+    description: 'Creator-style, founder-style, or customer-style lifestyle visuals with natural imperfections and credible real-world framing.',
+    bestFor: 'Consumer brands, creators, local businesses, services, testimonials, social-first ads.'
+  },
+  {
+    id: 'art-direction-campaign',
+    name: 'Art-Direction Campaign',
+    badge: 'Distinctive',
+    icon: 'Art',
+    description: 'Conceptual campaign imagery with symbolism, texture, cultural taste, and minimal copy instead of generic ad templates.',
+    bestFor: 'Creative brands, culture, music, events, fashion, hospitality, high-memorability campaigns.'
   },
   {
     id: 'corporate-flyer',

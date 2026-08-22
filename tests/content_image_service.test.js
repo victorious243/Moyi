@@ -57,7 +57,7 @@ test('content image prompt is grounded in the draft, business, proof, and user d
   assert.match(prompt, /Evidence-backed AI CMO planning/);
   assert.match(prompt, /Recommendations are linked to scan findings/);
   assert.match(prompt, /marketing lead reviewing a clear planning board/);
-  assert.match(prompt, /Do not add logos, statistics, product UI, people, locations, or claims/);
+  assert.match(prompt, /Do not invent testimonials, metrics, interface screens/);
 });
 
 test('content image upload validation checks real file signatures', () => {
@@ -129,6 +129,42 @@ test('explicit corporate flyer requests still use the structured SaaS design ski
   const guidance = 'make a corporate flyer with a grid layout and feature cards';
   const visualFormat = detectVisualFormat({ guidance, draft: { title: 'VicPods New Features' } });
   assert.equal(visualFormat, 'corporate-flyer');
+});
+
+test('content image detects non-SaaS creative modes and keeps image-first prompts light on text', () => {
+  assert.equal(
+    detectVisualFormat({ guidance: 'fashion lookbook shoot for a new streetwear drop' }),
+    'fashion-editorial'
+  );
+  assert.equal(
+    detectVisualFormat({ guidance: 'ecommerce product photography with packaging on a clean table' }),
+    'ecommerce-product-scene'
+  );
+  assert.equal(
+    detectVisualFormat({ guidance: 'simple no text image only, caption will explain' }),
+    'minimal-product-visual'
+  );
+  assert.equal(
+    detectVisualFormat({ guidance: 'make it feel like a creator UGC phone shot' }),
+    'ugc-lifestyle'
+  );
+  assert.equal(
+    detectVisualFormat({ guidance: 'art direction campaign using a symbolic visual metaphor' }),
+    'art-direction-campaign'
+  );
+
+  const prompt = imagePrompt({
+    project: { name: 'Mira Atelier', industry: 'Fashion apparel', mainOffer: 'Handmade linen dresses' },
+    draft: { channel: 'instagram', title: 'Summer linen drop', body: 'A quiet launch for warm-weather pieces.' },
+    guidance: 'minimal fashion editorial, no text, natural daylight',
+    visualFormat: 'fashion-editorial',
+    aestheticTheme: 'luxury-fashion'
+  });
+
+  assert.match(prompt, /Fashion and beauty rule/);
+  assert.match(prompt, /make a strong image first/);
+  assert.match(prompt, /Do not place visible text in the image/);
+  assert.match(prompt, /no feature cards, dashboard screens, CTA buttons, or explanatory paragraphs/i);
 });
 
 test('long natural-language feature prompts remain available to the flyer designer', () => {

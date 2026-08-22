@@ -448,7 +448,12 @@
                       >
                         <label>Graphic Design Skill
                           <select name="visualFormat">
-                            <option value="human-editorial-poster">Human Editorial Poster (Natural, believable, less AI)</option>
+                            <option value="minimal-product-visual">Minimal No-Text Visual (simple, premium, caption-led)</option>
+                            <option value="fashion-editorial">Fashion / Beauty Editorial (magazine-grade, human styling)</option>
+                            <option value="ecommerce-product-scene">Ecommerce Product Scene (product-first, shoppable)</option>
+                            <option value="ugc-lifestyle">UGC / Lifestyle Moment (creator/customer feel)</option>
+                            <option value="art-direction-campaign">Art-Direction Campaign (distinctive, conceptual)</option>
+                            <option value="human-editorial-poster">Human Editorial Poster (natural, believable, less AI)</option>
                             <option value="corporate-flyer">Corporate Marketing Flyer (Grid & Feature Cards)</option>
                             <option value="b2b-carousel-slide">📱 Multi-Slide B2B Carousel Deck (2.1x Engagement)</option>
                             <option value="3d-device-mockup">💻 3D SaaS Product Mockup (Isometric Glass Frame)</option>
@@ -459,6 +464,10 @@
                         <label>Aesthetic Theme
                           <select name="aestheticTheme">
                             <option value="documentary-human">Documentary Human Brand (Natural Light & Real Context)</option>
+                            <option value="luxury-fashion">Luxury Fashion Editorial (premium, tactile, restrained)</option>
+                            <option value="clean-commerce">Clean Commerce Studio (product, packaging, realistic shadows)</option>
+                            <option value="art-house">Art-House Campaign (symbolic, cultural, textured)</option>
+                            <option value="earthy-wellness">Earthy Wellness Lifestyle (natural, calm, warm)</option>
                             <option value="minimalist-saas">Minimalist Enterprise SaaS (Stripe/Linear Dark Slate)</option>
                             <option value="fintech-glass">Fintech & Cyber Glass (Frosted Glass & Neon Accents)</option>
                             <option value="warm-editorial">Warm Editorial Corporate (McKinsey/HBR Paper & Serif)</option>
@@ -466,7 +475,7 @@
                           </select>
                         </label>
                         <label>Image direction
-                          <textarea name="guidance" rows="3" maxlength="1500" placeholder="Describe the poster, scene, product placement, audience, offer, or logo use."></textarea>
+                          <textarea name="guidance" rows="3" maxlength="1500" placeholder="Describe the scene, product, styling, camera feel, audience, mood, and what to avoid. Mention text only if you want words inside the image."></textarea>
                         </label>
                         <% if (socialImages.some((image) => image.status !== 'rejected')) { %>
                           <label>Reference image

@@ -24,11 +24,16 @@ test('resolveBrandDesignTokens selects appropriate enterprise aesthetic preset b
   });
   assert.equal(editorialTokens.aestheticTheme, 'warm-editorial');
 
-  // 3. E-Commerce / Growth
-  const growthTokens = resolveBrandDesignTokens({
+  // 3. E-Commerce / D2C
+  const commerceTokens = resolveBrandDesignTokens({
     project: { industry: 'E-Commerce Direct to Consumer', brandTone: 'Bold and energetic' }
   });
-  assert.equal(growthTokens.aestheticTheme, 'high-voltage-growth');
+  assert.equal(commerceTokens.aestheticTheme, 'clean-commerce');
+
+  const fashionTokens = resolveBrandDesignTokens({
+    project: { industry: 'Fashion apparel and beauty', brandTone: 'Premium and human' }
+  });
+  assert.equal(fashionTokens.aestheticTheme, 'luxury-fashion');
 
   // 4. Default SaaS now starts with a human editorial look unless the user asks for a stricter technical style.
   const saasTokens = resolveBrandDesignTokens({
@@ -62,11 +67,40 @@ test('buildEnterpriseVisualPrompt supports human editorial posters and blocks ob
     outputProfile: { width: 1088, height: 1360, orientation: 'portrait', channel: 'instagram' }
   });
 
-  assert.ok(prompt.includes('HUMAN EDITORIAL ART DIRECTION'));
+  assert.ok(prompt.includes('IMAGE-FIRST ART DIRECTION'));
   assert.ok(prompt.includes('believable human or real-world brand moment'));
   assert.ok(prompt.includes('Anti-AI visual ban'));
   assert.ok(prompt.includes('no neon orbs'));
   assert.ok(prompt.includes('HUMAN EDITORIAL POSTER SPECIFICATION'));
+});
+
+test('buildEnterpriseVisualPrompt supports fashion, ecommerce, minimal, UGC, and art campaign modes', () => {
+  const fashion = buildEnterpriseVisualPrompt({
+    visualFormat: 'fashion-editorial',
+    aestheticTheme: 'luxury-fashion'
+  });
+  const commerce = buildEnterpriseVisualPrompt({
+    visualFormat: 'ecommerce-product-scene',
+    aestheticTheme: 'clean-commerce'
+  });
+  const minimal = buildEnterpriseVisualPrompt({
+    visualFormat: 'minimal-product-visual',
+    aestheticTheme: 'clean-commerce'
+  });
+  const ugc = buildEnterpriseVisualPrompt({
+    visualFormat: 'ugc-lifestyle',
+    aestheticTheme: 'documentary-human'
+  });
+  const art = buildEnterpriseVisualPrompt({
+    visualFormat: 'art-direction-campaign',
+    aestheticTheme: 'art-house'
+  });
+
+  assert.ok(fashion.includes('FASHION / BEAUTY EDITORIAL SPECIFICATION'));
+  assert.ok(commerce.includes('ECOMMERCE PRODUCT SCENE SPECIFICATION'));
+  assert.ok(minimal.includes('MINIMAL NO-TEXT PRODUCT VISUAL SPECIFICATION'));
+  assert.ok(ugc.includes('UGC / LIFESTYLE SPECIFICATION'));
+  assert.ok(art.includes('ART-DIRECTION CAMPAIGN SPECIFICATION'));
 });
 
 test('generateCarouselDeckPlan creates structured 5-to-7 slide narrative decks for LinkedIn & Instagram', () => {

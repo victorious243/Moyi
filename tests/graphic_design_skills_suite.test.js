@@ -33,10 +33,15 @@ test('Graphic Design Skills Suite: Blueprints & Design Tokens', async (t) => {
     body: 'Why modern founders replace €5k/mo agency retainers with automated growth intelligence.'
   };
 
-  await t.test('GRAPHIC_DESIGN_SKILLS catalog lists all 6 enterprise design disciplines', () => {
-    assert.equal(GRAPHIC_DESIGN_SKILLS.length, 6);
+  await t.test('GRAPHIC_DESIGN_SKILLS catalog lists enterprise and image-first design disciplines', () => {
+    assert.equal(GRAPHIC_DESIGN_SKILLS.length, 11);
     const skillIds = GRAPHIC_DESIGN_SKILLS.map((s) => s.id);
     assert.ok(skillIds.includes('human-editorial-poster'));
+    assert.ok(skillIds.includes('fashion-editorial'));
+    assert.ok(skillIds.includes('ecommerce-product-scene'));
+    assert.ok(skillIds.includes('minimal-product-visual'));
+    assert.ok(skillIds.includes('ugc-lifestyle'));
+    assert.ok(skillIds.includes('art-direction-campaign'));
     assert.ok(skillIds.includes('corporate-flyer'));
     assert.ok(skillIds.includes('b2b-carousel-slide'));
     assert.ok(skillIds.includes('3d-device-mockup'));
@@ -96,6 +101,13 @@ test('Graphic Design Skills Suite: Prompt Synthesis & Format Detection', async (
     assert.equal(detectVisualFormat({ requestedFormat: 'performance-ad-creative' }), 'performance-ad-creative');
     assert.equal(detectVisualFormat({ requestedFormat: 'corporate-flyer' }), 'corporate-flyer');
     assert.equal(detectVisualFormat({ requestedFormat: 'human-editorial-poster' }), 'human-editorial-poster');
+    assert.equal(detectVisualFormat({ requestedFormat: 'fashion-editorial' }), 'fashion-editorial');
+    assert.equal(detectVisualFormat({ requestedFormat: 'ecommerce-product-scene' }), 'ecommerce-product-scene');
+    assert.equal(detectVisualFormat({ requestedFormat: 'minimal-product-visual' }), 'minimal-product-visual');
+    assert.equal(detectVisualFormat({ requestedFormat: 'ugc-lifestyle' }), 'ugc-lifestyle');
+    assert.equal(detectVisualFormat({ requestedFormat: 'art-direction-campaign' }), 'art-direction-campaign');
+    assert.equal(detectVisualFormat({ guidance: 'fashion lookbook with natural styling' }), 'fashion-editorial');
+    assert.equal(detectVisualFormat({ guidance: 'simple no text product scene' }), 'ecommerce-product-scene');
     assert.equal(detectVisualFormat({ guidance: 'make a poster with human vibe and natural light' }), 'human-editorial-poster');
     assert.equal(detectVisualFormat({ guidance: 'make a poster for this launch' }), 'human-editorial-poster');
   });
@@ -117,12 +129,27 @@ test('Graphic Design Skills Suite: Prompt Synthesis & Format Detection', async (
     assert.match(prompt, /Before-vs-After split-screen/);
   });
 
-  await t.test('resolveImageOutputProfile enforces PNG output for all graphic design skills', () => {
-    const formats = ['human-editorial-poster', 'corporate-flyer', 'b2b-carousel-slide', '3d-device-mockup', 'data-infographic', 'performance-ad-creative'];
-    for (const fmt of formats) {
+  await t.test('resolveImageOutputProfile separates structured PNG designs from image-first JPEG visuals', () => {
+    const structuredFormats = ['corporate-flyer', 'b2b-carousel-slide', '3d-device-mockup', 'data-infographic', 'performance-ad-creative'];
+    for (const fmt of structuredFormats) {
       const profile = resolveImageOutputProfile({ draft: mockDraft, visualFormat: fmt });
       assert.equal(profile.outputFormat, 'png');
       assert.equal(profile.outputCompression, null);
+    }
+
+    const imageFirstFormats = [
+      'human-editorial-poster',
+      'fashion-editorial',
+      'ecommerce-product-scene',
+      'minimal-product-visual',
+      'ugc-lifestyle',
+      'art-direction-campaign'
+    ];
+    for (const fmt of imageFirstFormats) {
+      const profile = resolveImageOutputProfile({ draft: mockDraft, visualFormat: fmt });
+      assert.equal(profile.outputFormat, 'jpeg');
+      assert.equal(profile.outputCompression, 94);
+      assert.equal(profile.quality, 'high');
     }
   });
 });
