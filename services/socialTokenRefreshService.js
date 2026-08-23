@@ -68,7 +68,7 @@ async function refreshSocialAccount(accountOrId) {
   const account = typeof accountOrId === 'object'
     ? accountOrId
     : await SocialAccount.findById(accountOrId);
-  if (!account || account.status !== 'connected') {
+  if (!account || !['connected', 'reconnect_required'].includes(account.status)) {
     const error = new Error('The selected social account is not connected.');
     error.statusCode = 422;
     throw error;
@@ -79,7 +79,7 @@ async function refreshSocialAccount(accountOrId) {
   const claimed = await SocialAccount.findOneAndUpdate(
     {
       _id: lockTarget._id,
-      status: 'connected',
+      status: { $in: ['connected', 'reconnect_required'] },
       $or: [
         { tokenRefreshLockedUntil: null },
         { tokenRefreshLockedUntil: { $exists: false } },

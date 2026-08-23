@@ -143,7 +143,7 @@ async function collectMetricsForJob(jobId) {
   if (!job) return { success: true, skipped: true };
   try {
     const account = await SocialAccount.findOne({ _id: job.accountId, projectId: job.destinationProjectId || job.projectId });
-    if (!account || account.status !== 'connected') {
+    if (!account || !['connected', 'reconnect_required'].includes(account.status)) {
       const error = new Error('Reconnect the social account before Moyi can refresh engagement metrics.');
       error.code = 'social_account_disconnected';
       error.statusCode = 401;
