@@ -128,7 +128,9 @@ function buildTwitterAuthUrl({ state, codeChallenge }) {
   }
 
   const rawScope = env.twitterScopes || 'tweet.read tweet.write users.read media.write offline.access';
-  const cleanScope = rawScope.split(/\s+/).filter(Boolean).join(' ');
+  const scopeList = rawScope.split(/\s+/).filter(Boolean);
+  if (!scopeList.includes('offline.access')) scopeList.push('offline.access');
+  const cleanScope = scopeList.join(' ');
 
   const params = new URLSearchParams({
     response_type: 'code',
@@ -264,16 +266,38 @@ async function exchangeMetaCode(code) {
   });
 
   const response = await axios.get(`https://graph.facebook.com/${env.metaGraphVersion}/oauth/access_token?${params.toString()}`);
-  const accessToken = response.data.access_token;
+  const shortToken = String(response.data?.access_token || '');
+  let userAccessToken = shortToken;
+  let expiresInSeconds = Number(response.data?.expires_in || 5184000);
+
+  // Exchange short-lived token for 60-day long-lived token
+  try {
+    const longLivedRes = await axios.get(`https://graph.facebook.com/${env.metaGraphVersion}/oauth/access_token`, {
+      params: {
+        grant_type: 'fb_exchange_token',
+        client_id: env.metaAppId,
+        client_secret: env.metaAppSecret,
+        fb_exchange_token: shortToken
+      },
+      timeout: 15000
+    });
+    if (longLivedRes.data && longLivedRes.data.access_token) {
+      userAccessToken = String(longLivedRes.data.access_token);
+      expiresInSeconds = Number(longLivedRes.data.expires_in || 5184000);
+    }
+  } catch (exchangeErr) {
+    // Graceful fallback to short-lived token if exchange endpoint is unavailable
+  }
+
   let accountName = 'Meta Page / Account';
   let externalAccountId = '';
-  let pageAccessToken = accessToken;
+  let pageAccessToken = userAccessToken;
   const accounts = [];
 
   try {
     const pagesRes = await axios.get(`https://graph.facebook.com/${env.metaGraphVersion}/me/accounts`, {
       params: {
-        access_token: accessToken,
+        access_token: userAccessToken,
         fields: 'id,name,access_token,instagram_business_account'
       }
     });
@@ -281,14 +305,14 @@ async function exchangeMetaCode(code) {
     if (page) {
       accountName = page.name || 'Meta Page';
       externalAccountId = page.id || '';
-      pageAccessToken = page.access_token || accessToken;
+      pageAccessToken = page.access_token || userAccessToken;
       accounts.push({
         platform: 'facebook',
         accountName,
         externalAccountId,
         accessToken: pageAccessToken,
-        refreshToken: '',
-        expiresInSeconds: response.data.expires_in || 5184000
+        refreshToken: userAccessToken,
+        expiresInSeconds
       });
       if (page.instagram_business_account && page.instagram_business_account.id) {
         accounts.push({
@@ -296,13 +320,13 @@ async function exchangeMetaCode(code) {
           accountName: `${accountName} Instagram`,
           externalAccountId: page.instagram_business_account.id,
           accessToken: pageAccessToken,
-          refreshToken: '',
-          expiresInSeconds: response.data.expires_in || 5184000
+          refreshToken: userAccessToken,
+          expiresInSeconds
         });
       }
     } else {
       const meRes = await axios.get(`https://graph.facebook.com/${env.metaGraphVersion}/me`, {
-        params: { access_token: accessToken }
+        params: { access_token: userAccessToken }
       });
       if (meRes.data) {
         accountName = meRes.data.name || 'Meta Account';
@@ -318,8 +342,8 @@ async function exchangeMetaCode(code) {
     accountName,
     externalAccountId,
     accessToken: pageAccessToken,
-    refreshToken: '',
-    expiresInSeconds: response.data.expires_in || 5184000,
+    refreshToken: userAccessToken,
+    expiresInSeconds,
     accounts
   };
 }

@@ -9,7 +9,7 @@ const {
 const { refreshProviderToken } = require('./socialProviderService');
 
 const PUBLISH_REFRESH_WINDOW_MS = 5 * 60 * 1000;
-const BACKGROUND_REFRESH_WINDOW_MS = 60 * 60 * 1000;
+const BACKGROUND_REFRESH_WINDOW_MS = 48 * 60 * 60 * 1000;
 
 function connectionKey(account) {
   if (account.platform === 'linkedin' && account.metadata && account.metadata.memberUrn) {
@@ -134,8 +134,12 @@ async function ensureFreshSocialAccountCredentials(account) {
 async function refreshExpiringSocialAccounts({ withinMs = BACKGROUND_REFRESH_WINDOW_MS } = {}) {
   const accounts = await SocialAccount.find({
     platform: { $in: NATIVE_SOCIAL_PLATFORMS },
-    status: 'connected',
-    tokenExpiresAt: { $ne: null, $lte: new Date(Date.now() + withinMs) }
+    status: { $in: ['connected', 'reconnect_required'] },
+    refreshToken: { $exists: true, $ne: '' },
+    $or: [
+      { tokenExpiresAt: { $ne: null, $lte: new Date(Date.now() + withinMs) } },
+      { status: 'reconnect_required' }
+    ]
   }).sort({ tokenExpiresAt: 1 });
 
   const uniqueConnections = new Map();
