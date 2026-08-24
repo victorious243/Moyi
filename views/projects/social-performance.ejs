@@ -460,31 +460,6 @@
       <% } %>
     </section>
 
-    <section class="panel">
-      <div class="panel-title">
-        <div><h2>Collection health</h2><p>Provider collection runs in the background using an adaptive age and retry schedule. The browser reads stored evidence and never calls providers on its polling interval.</p></div>
-      </div>
-      <% if (!dashboard.accounts.length) { %>
-        <p class="empty">Connect a social account to begin publishing and collecting performance.</p>
-      <% } else { %>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Platform</th><th>Account</th><th>Connection</th><th>Metrics</th><th>Last sync</th></tr></thead>
-            <tbody>
-              <% dashboard.accounts.forEach((account) => { %>
-                <tr>
-                  <td><strong><%= account.platform %></strong></td>
-                  <td><%= account.accountName %></td>
-                  <td><span class="status <%= account.status === 'connected' ? 'status-success' : 'publish-status-failed' %>"><%= label(account.status) %></span></td>
-                  <td><span class="status <%= account.metricsStatus === 'active' ? 'status-success' : '' %>"><%= label(account.metricsStatus) %></span><% if (account.metricsStatusMessage) { %><br><small><%= account.metricsStatusMessage %></small><% } %></td>
-                  <td><%= account.lastMetricsSyncAt ? new Date(account.lastMetricsSyncAt).toLocaleString() : 'Not collected yet' %></td>
-                </tr>
-              <% }) %>
-            </tbody>
-          </table>
-        </div>
-      <% } %>
-    </section>
   </section>
 </div>
 
