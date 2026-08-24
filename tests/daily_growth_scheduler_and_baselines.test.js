@@ -6,6 +6,7 @@ const ProjectGrowthBaseline = require('../models/ProjectGrowthBaseline');
 const DailyGrowthIntelligence = require('../models/DailyGrowthIntelligence');
 const SocialDraft = require('../models/SocialDraft');
 const { getProjectLocalTime, processProjectDailyGrowthRun } = require('../services/dailyGrowthScheduler');
+const { projectLocalDateKey, projectReportingContext } = require('../services/dailyGrowthIntelligenceService');
 const {
   detectCtaType,
   comparePostAgainstBaseline,
@@ -36,6 +37,17 @@ test('Daily Growth Scheduler: Timezone-Aware Local Time Calculations', async (t)
     assert.equal(res.hour, 14);
     assert.equal(res.dateString, '2026-08-19');
     assert.equal(res.valid, false);
+  });
+
+  await t.test('uses the project-local calendar day and UTC boundaries for reporting', () => {
+    const now = new Date('2026-08-19T22:30:00Z');
+    assert.equal(projectLocalDateKey(now, 'Asia/Tokyo').toISOString(), '2026-08-20T00:00:00.000Z');
+    assert.equal(projectLocalDateKey(now, 'America/New_York').toISOString(), '2026-08-19T00:00:00.000Z');
+
+    const tokyo = projectReportingContext(now, 'Asia/Tokyo');
+    assert.equal(tokyo.reportingDate.toISOString(), '2026-08-19T00:00:00.000Z');
+    assert.equal(tokyo.reportingWindow.start.toISOString(), '2026-08-18T15:00:00.000Z');
+    assert.equal(tokyo.reportingWindow.end.toISOString(), '2026-08-19T15:00:00.000Z');
   });
 });
 

@@ -88,6 +88,16 @@ const trackingEventSchema = new mongoose.Schema(
       default: '',
       index: true
     },
+    moyiPostId: {
+      type: String,
+      default: '',
+      index: true
+    },
+    moyiContentId: {
+      type: String,
+      default: '',
+      index: true
+    },
     experimentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Experiment',
@@ -154,6 +164,7 @@ trackingEventSchema.index({ projectId: 1, eventType: 1, createdAt: -1 });
 trackingEventSchema.index({ projectId: 1, resolvedCustomerId: 1, createdAt: 1 });
 trackingEventSchema.index({ projectId: 1, stripeCustomerId: 1, createdAt: 1 });
 trackingEventSchema.index({ projectId: 1, utmId: 1, funnelStage: 1, createdAt: 1 });
+trackingEventSchema.index({ projectId: 1, moyiPostId: 1, funnelStage: 1, createdAt: 1 });
 trackingEventSchema.index({ projectId: 1, experimentId: 1, experimentVariant: 1, createdAt: 1 });
 trackingEventSchema.index({ projectId: 1, 'clickIds.gclid': 1, createdAt: 1 });
 trackingEventSchema.index({ projectId: 1, 'clickIds.fbclid': 1, createdAt: 1 });

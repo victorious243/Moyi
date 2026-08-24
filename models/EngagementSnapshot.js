@@ -68,6 +68,21 @@ const engagementSnapshotSchema = new mongoose.Schema(
     },
     availableFields: [{ type: String, enum: metricFields }],
     unavailableFields: [{ type: String, enum: metricFields }],
+    metricStates: [{
+      metric: { type: String, enum: metricFields, required: true },
+      value: { type: Number, default: null, min: 0 },
+      status: {
+        type: String,
+        enum: ['verified', 'pending', 'not_connected', 'unsupported', 'permission_denied', 'stale', 'provider_error', 'not_applicable'],
+        required: true
+      },
+      source: { type: String, default: '' },
+      providerMetric: { type: String, default: '' },
+      observedAt: { type: Date, default: null },
+      fetchedAt: { type: Date, default: null },
+      freshness: { type: String, enum: ['fresh', 'aging', 'stale', 'unknown'], default: 'unknown' },
+      syncRunId: { type: String, default: '' }
+    }],
     engagementTotal: {
       type: Number,
       default: null,
@@ -87,7 +102,10 @@ const engagementSnapshotSchema = new mongoose.Schema(
       required: true,
       default: Date.now,
       index: true
-    }
+    },
+    syncRunId: { type: String, default: '', index: true },
+    reconciledAt: { type: Date, default: null },
+    isFinal: { type: Boolean, default: false }
   },
   { timestamps: true }
 );

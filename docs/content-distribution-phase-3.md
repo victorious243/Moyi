@@ -34,7 +34,7 @@ Phase 3 adds these MongoDB models to the Phase 1 and Phase 2 records:
 
 ## Metrics Collection
 
-The publish worker registers `collect-social-engagement` every 15 minutes. Each run claims up to 100 due published jobs with a five-minute database lease and processes them sequentially to avoid bursts against provider APIs.
+The worker registers `collect-provider-analytics` on the dedicated `marketing-analytics` queue every five minutes. Each run claims up to 100 due published jobs with a five-minute database lease and processes them sequentially to avoid bursts against provider APIs. Publishing and analytics collection use separate queues so a slow provider metrics API cannot block publication.
 
 The next collection time depends on post age:
 

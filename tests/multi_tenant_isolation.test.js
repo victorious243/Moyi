@@ -79,10 +79,11 @@ test('Multi-Tenant Isolation: Database Scoping & Metric Segregation', async (t) 
     assert.equal(champions1.bestForWebsiteTraffic.sessions, 120);
     assert.equal(champions1.bestForRevenue.revenue, 1500);
 
-    // Tenant 2 champion must be TikTok and have 0 LinkedIn revenue
+    // Tenant 2 owns the measured reach/traffic, but verified zero revenue is not a "winner".
     assert.equal(champions2.bestForReach.platform, 'tiktok');
     assert.equal(champions2.bestForWebsiteTraffic.sessions, 5);
-    assert.equal(champions2.bestForRevenue.revenue, 0);
+    assert.equal(champions2.bestForRevenue.platform, '');
+    assert.equal(champions2.bestForRevenue.noData, true);
   });
 });
 

@@ -7,9 +7,27 @@ const { getProviderMetrics } = require('./socialProviderService');
 const { ensureFreshSocialAccountCredentials } = require('./socialTokenRefreshService');
 const { classifyPublishError, recordPublishJobEvent } = require('./publishReliabilityService');
 const { markSocialAccountReconnectRequired } = require('./socialAccountService');
+const MetricObservation = require('../models/MetricObservation');
+const ProviderSyncRun = require('../models/ProviderSyncRun');
+const { randomUUID } = require('crypto');
+const { freshnessFor } = require('./analytics/metricStatus');
 
 const METRICS_LEASE_MS = 5 * 60 * 1000;
 const MAX_METRICS_AGE_MS = 90 * 24 * 60 * 60 * 1000;
+
+const METRIC_FAMILIES = Object.freeze({
+  impressions: 'exposure',
+  views: 'exposure',
+  reach: 'unique_reach',
+  likes: 'engagement',
+  comments: 'engagement',
+  shares: 'engagement',
+  quotes: 'engagement',
+  saves: 'engagement',
+  clicks: 'traffic',
+  videoViews: 'video_consumption',
+  watchTimeMs: 'video_consumption'
+});
 
 function numeric(value) {
   if (value === null || value === undefined || value === '') return null;
@@ -141,8 +159,35 @@ async function claimMetricsJob(jobId) {
 async function collectMetricsForJob(jobId) {
   const job = await claimMetricsJob(jobId);
   if (!job) return { success: true, skipped: true };
+  const syncRunId = randomUUID();
+  const syncRun = await ProviderSyncRun.create({
+    syncRunId,
+    projectId: job.destinationProjectId || job.projectId,
+    accountId: job.accountId,
+    publishJobId: job._id,
+    platform: job.platform,
+    status: 'running',
+    postsRequested: 1,
+    windowStart: job.publishedAt || null,
+    windowEnd: new Date()
+  });
+  console.info(JSON.stringify({
+    event: 'provider_metrics_sync_started',
+    syncRunId,
+    projectId: String(job.destinationProjectId || job.projectId),
+    publishJobId: String(job._id),
+    platform: job.platform
+  }));
   try {
-    const account = await SocialAccount.findOne({ _id: job.accountId, projectId: job.destinationProjectId || job.projectId });
+    const targetProjectId = job.destinationProjectId || job.projectId;
+    const account = await SocialAccount.findOne({
+      _id: job.accountId,
+      $or: [
+        { projectId: targetProjectId },
+        { projectId: job.projectId },
+        { sharedWithProjectIds: targetProjectId }
+      ]
+    });
     if (!account || !['connected', 'reconnect_required'].includes(account.status)) {
       const error = new Error('Reconnect the social account before Moyi can refresh engagement metrics.');
       error.code = 'social_account_disconnected';
@@ -163,6 +208,22 @@ async function collectMetricsForJob(jobId) {
     const proposedCapturedAt = result.capturedAt ? new Date(result.capturedAt) : new Date();
     const capturedAt = Number.isNaN(proposedCapturedAt.getTime()) ? new Date() : proposedCapturedAt;
     const summary = engagementSummary(metrics);
+    const freshness = freshnessFor(capturedAt, new Date());
+    const metricStates = METRIC_FIELDS.map((field) => {
+      const hasValue = Object.prototype.hasOwnProperty.call(metrics, field);
+      const unsupported = Array.isArray(result.unavailableFields) && result.unavailableFields.includes(field);
+      return {
+        metric: field,
+        value: hasValue ? metrics[field] : null,
+        status: hasValue ? 'verified' : (unsupported ? 'unsupported' : 'pending'),
+        source: `${job.platform}_api`,
+        providerMetric: field,
+        observedAt: capturedAt,
+        fetchedAt: new Date(),
+        freshness,
+        syncRunId
+      };
+    });
     const snapshot = await EngagementSnapshot.create({
       projectId: job.destinationProjectId || job.projectId,
       sourceProjectId: job.projectId,
@@ -174,12 +235,55 @@ async function collectMetricsForJob(jobId) {
       metrics,
       availableFields,
       unavailableFields: (result.unavailableFields || []).filter((field) => METRIC_FIELDS.includes(field)),
+      metricStates,
       ...summary,
       providerData: safeProviderData(result.providerData || {}),
-      capturedAt
+      capturedAt,
+      syncRunId,
+      reconciledAt: new Date(),
+      isFinal: nextMetricsSyncAt(job, capturedAt) === null
     });
     const nextSync = nextMetricsSyncAt(job, capturedAt);
+    const observationWrites = metricStates.map((state) => ({
+      updateOne: {
+        filter: { projectId: job.destinationProjectId || job.projectId, publishJobId: job._id, metric: state.metric, syncRunId },
+        update: {
+          $set: {
+            accountId: job.accountId,
+            normalizedFamily: METRIC_FAMILIES[state.metric],
+            value: state.value,
+            status: state.status,
+            source: state.source,
+            providerMetric: state.providerMetric,
+            platform: job.platform,
+            entityType: 'post',
+            entityId: job.platformPostId,
+            windowStart: job.publishedAt || null,
+            windowEnd: capturedAt,
+            observedAt: capturedAt,
+            fetchedAt: state.fetchedAt,
+            freshness: state.freshness,
+            rawValue: state.value
+          },
+          $setOnInsert: { projectId: job.destinationProjectId || job.projectId, publishJobId: job._id, metric: state.metric, syncRunId }
+        },
+        upsert: true
+      }
+    }));
     await Promise.all([
+      observationWrites.length ? MetricObservation.bulkWrite(observationWrites, { ordered: false }) : Promise.resolve(),
+      ProviderSyncRun.updateOne({ _id: syncRun._id }, {
+        $set: {
+          status: availableFields.length ? 'success' : 'partial',
+          finishedAt: new Date(),
+          postsFetched: 1,
+          metricsFetched: availableFields.length,
+          dataThrough: capturedAt,
+          permissionStatus: 'ok',
+          tokenStatus: 'valid',
+          nextRetryAt: nextSync
+        }
+      }),
       PublishJob.updateOne({ _id: job._id }, {
         $set: {
           metricsStatus: nextSync ? (availableFields.length ? 'active' : 'limited') : 'complete',
@@ -203,7 +307,17 @@ async function collectMetricsForJob(jobId) {
       updateGrowthSignal({ job, snapshot }),
       recordPublishJobEvent(job, 'metrics_collected', { metadata: { availableFields, capturedAt } })
     ]);
-    return { success: true, jobId: String(job._id), snapshotId: String(snapshot._id), metrics, nextMetricsSyncAt: nextSync };
+    console.info(JSON.stringify({
+      event: 'provider_metrics_sync_completed',
+      syncRunId,
+      projectId: String(job.destinationProjectId || job.projectId),
+      publishJobId: String(job._id),
+      platform: job.platform,
+      status: availableFields.length ? 'success' : 'partial',
+      metricsFetched: availableFields.length,
+      capturedAt: capturedAt.toISOString()
+    }));
+    return { success: true, jobId: String(job._id), snapshotId: String(snapshot._id), syncRunId, metrics, nextMetricsSyncAt: nextSync };
   } catch (error) {
     const classification = classifyPublishError(error);
     const attempts = Number(job.metricsAttempts || 1);
@@ -216,11 +330,23 @@ async function collectMetricsForJob(jobId) {
       !classification.retryable && ['permanent', 'permission'].includes(classification.failureKind)
     );
     const safeMessage = safeMetricText(error.message || 'Metrics collection failed.');
+    const permissionDenied = classification.failureKind === 'permission';
     const accountUpdate = {
       metricsStatus: unsupported ? 'unsupported' : 'error',
       metricsStatusMessage: safeMessage.slice(0, 500)
     };
     await Promise.all([
+      ProviderSyncRun.updateOne({ _id: syncRun._id }, {
+        $set: {
+          status: 'failed',
+          finishedAt: new Date(),
+          permissionStatus: permissionDenied ? 'denied' : 'unknown',
+          tokenStatus: classification.reconnectRequired ? 'reconnect_required' : 'unknown',
+          errorCode: String(error.code || 'metrics_fetch_failed').slice(0, 120),
+          errorMessage: safeMessage,
+          nextRetryAt: terminal ? null : new Date(Date.now() + retryDelay)
+        }
+      }),
       PublishJob.updateOne({ _id: job._id }, {
         $set: {
           metricsStatus: unsupported ? 'unsupported' : (
@@ -243,14 +369,28 @@ async function collectMetricsForJob(jobId) {
         message: safeMessage
       })
     ]);
-    return { success: false, jobId: String(job._id), error: safeMessage, reconnectRequired: classification.reconnectRequired };
+    console.warn(JSON.stringify({
+      event: 'provider_metrics_sync_failed',
+      syncRunId,
+      projectId: String(job.destinationProjectId || job.projectId),
+      publishJobId: String(job._id),
+      platform: job.platform,
+      errorCode: String(error.code || 'metrics_fetch_failed').slice(0, 120),
+      reconnectRequired: Boolean(classification.reconnectRequired),
+      retryScheduled: !terminal
+    }));
+    return { success: false, jobId: String(job._id), syncRunId, error: safeMessage, reconnectRequired: classification.reconnectRequired };
   }
 }
 
-async function collectDueMetrics({ limit = 100 } = {}) {
+async function collectDueMetrics({ limit = 100, projectId = null } = {}) {
   const retentionCutoff = new Date(Date.now() - MAX_METRICS_AGE_MS);
+  const projectScope = projectId
+    ? { $or: [{ projectId }, { destinationProjectId: projectId }] }
+    : {};
   const expired = await PublishJob.updateMany(
     {
+      ...projectScope,
       status: 'published',
       metricsStatus: { $nin: ['unsupported', 'complete'] },
       publishedAt: { $lte: retentionCutoff }
@@ -266,6 +406,7 @@ async function collectDueMetrics({ limit = 100 } = {}) {
     }
   );
   const jobs = await PublishJob.find({
+    ...projectScope,
     status: 'published',
     platformPostId: { $ne: '' },
     metricsStatus: { $nin: ['unsupported', 'complete'] },

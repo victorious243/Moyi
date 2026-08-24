@@ -13,6 +13,7 @@ const DailySocialSnapshot = require('../models/DailySocialSnapshot');
 const PublishJob = require('../models/PublishJob');
 const TrackingEvent = require('../models/TrackingEvent');
 const ExperimentLearning = require('../models/ExperimentLearning');
+const EngagementSnapshot = require('../models/EngagementSnapshot');
 const {
   daysAgo,
   detectContentFormat,
@@ -42,7 +43,7 @@ function detectCtaType(text = '') {
 async function updateProjectGrowthBaselines(projectId, windowDays = 60) {
   const startDate = daysAgo(windowDays);
 
-  const [snapshots, jobs, trackingEvents, experimentLearningRows] = await Promise.all([
+  const [snapshots, jobs, trackingEvents, experimentLearningRows, engagementSnapshots] = await Promise.all([
     DailySocialSnapshot.find({ projectId, date: { $gte: startDate } }).lean(),
     PublishJob.find({
       $or: [{ projectId }, { destinationProjectId: projectId }],
@@ -52,23 +53,42 @@ async function updateProjectGrowthBaselines(projectId, windowDays = 60) {
       .populate('draftId')
       .lean(),
     TrackingEvent.find({ projectId, createdAt: { $gte: startDate } }).lean(),
-    ExperimentLearning.find({ projectId, status: 'active' }).sort({ appliedAt: -1 }).limit(25).lean()
+    ExperimentLearning.find({ projectId, status: 'active' }).sort({ appliedAt: -1 }).limit(25).lean(),
+    EngagementSnapshot.find({ projectId, capturedAt: { $gte: startDate } }).sort({ capturedAt: -1 }).lean()
   ]);
 
   // 1. Overall Daily Baselines
-  const daysCount = Math.max(1, Math.min(windowDays, new Set(snapshots.map((s) => s.date.toISOString().slice(0, 10))).size || 1));
-  const totalDailyImp = snapshots.reduce((sum, s) => sum + (s.impressions || 0), 0);
-  const totalDailyEng = snapshots.reduce((sum, s) => sum + (s.engagements || 0), 0);
-  const totalReferrals = snapshots.reduce((sum, s) => sum + ((s.websiteTraffic && s.websiteTraffic.referralSessions) || 0), 0);
-  const totalConversions = snapshots.reduce((sum, s) => sum + ((s.websiteTraffic && s.websiteTraffic.conversions) || 0), 0);
+  const stateValue = (snapshot, metric) => {
+    const state = snapshot.metricStates && snapshot.metricStates[metric];
+    if (state && state.status === 'verified' && Number.isFinite(Number(state.value))) return Number(state.value);
+    return Number(snapshot[metric]) > 0 ? Number(snapshot[metric]) : null;
+  };
+  const verifiedRows = snapshots.filter((snapshot) => snapshot.dataStatus === 'verified');
+  const verifiedDates = new Set(verifiedRows.map((snapshot) => new Date(snapshot.date).toISOString().slice(0, 10)));
+  const daysCount = verifiedDates.size;
+  const sumMetric = (metric) => verifiedRows.map((snapshot) => stateValue(snapshot, metric)).filter((value) => value !== null).reduce((sum, value) => sum + value, 0);
+  const metricSamples = (metric) => verifiedRows.filter((snapshot) => stateValue(snapshot, metric) !== null).length;
+  const totalDailyImp = sumMetric('impressions');
+  const totalDailyEng = sumMetric('engagements');
+  const trackedRows = snapshots.filter((snapshot) => snapshot.websiteTraffic && snapshot.websiteTraffic.measurementStatus === 'verified');
+  const totalReferrals = trackedRows.reduce((sum, snapshot) => sum + Number(snapshot.websiteTraffic.referralSessions || 0), 0);
+  const totalConversions = trackedRows.reduce((sum, snapshot) => sum + Number(snapshot.websiteTraffic.conversions || 0), 0);
+  const latestEngagementByJob = new Map();
+  engagementSnapshots.forEach((snapshot) => {
+    const key = String(snapshot.publishJobId);
+    if (!latestEngagementByJob.has(key)) latestEngagementByJob.set(key, snapshot);
+  });
+  const measuredPostEngagements = [...latestEngagementByJob.values()]
+    .map((snapshot) => snapshot.engagementTotal)
+    .filter(Number.isFinite);
 
   const overall = {
-    avgDailyImpressions: Math.round(totalDailyImp / daysCount),
-    avgDailyEngagements: Math.round(totalDailyEng / daysCount),
-    avgDailyReferralSessions: Math.round((totalReferrals / daysCount) * 10) / 10,
-    avgDailyConversions: Math.round((totalConversions / daysCount) * 10) / 10,
-    avgEngagementRate: totalDailyImp > 0 ? Math.round((totalDailyEng / totalDailyImp) * 1000) / 10 : 0,
-    avgPostEngagements: jobs.length > 0 ? Math.round(totalDailyEng / jobs.length) : 0
+    avgDailyImpressions: metricSamples('impressions') ? Math.round(totalDailyImp / metricSamples('impressions')) : null,
+    avgDailyEngagements: metricSamples('engagements') ? Math.round(totalDailyEng / metricSamples('engagements')) : null,
+    avgDailyReferralSessions: trackedRows.length ? Math.round((totalReferrals / trackedRows.length) * 10) / 10 : null,
+    avgDailyConversions: trackedRows.length ? Math.round((totalConversions / trackedRows.length) * 10) / 10 : null,
+    avgEngagementRate: totalDailyImp > 0 && metricSamples('engagements') ? Math.round((totalDailyEng / totalDailyImp) * 1000) / 10 : null,
+    avgPostEngagements: measuredPostEngagements.length ? Math.round(measuredPostEngagements.reduce((sum, value) => sum + value, 0) / measuredPostEngagements.length) : null
   };
 
   // 2. Per-Platform Baselines
@@ -80,6 +100,9 @@ async function updateProjectGrowthBaselines(projectId, windowDays = 60) {
       totalImp: 0,
       totalEng: 0,
       totalReferrals: 0,
+      impressionSamples: 0,
+      engagementSamples: 0,
+      referralSamples: 0,
       rates: []
     });
   });
@@ -88,21 +111,33 @@ async function updateProjectGrowthBaselines(projectId, windowDays = 60) {
     const p = s.platform;
     if (platformMap.has(p)) {
       const entry = platformMap.get(p);
+      const impressions = stateValue(s, 'impressions');
+      const engagements = stateValue(s, 'engagements');
+      if (impressions === null && engagements === null) return;
       entry.sampleSize += s.postsPublished || 0;
-      entry.totalImp += s.impressions || 0;
-      entry.totalEng += s.engagements || 0;
-      if (s.websiteTraffic) entry.totalReferrals += s.websiteTraffic.referralSessions || 0;
-      if (s.impressions > 0) entry.rates.push((s.engagements / s.impressions) * 100);
+      if (impressions !== null) {
+        entry.totalImp += impressions;
+        entry.impressionSamples += 1;
+      }
+      if (engagements !== null) {
+        entry.totalEng += engagements;
+        entry.engagementSamples += 1;
+      }
+      if (s.websiteTraffic && s.websiteTraffic.measurementStatus === 'verified' && s.websiteTraffic.referralSessions !== null) {
+        entry.totalReferrals += Number(s.websiteTraffic.referralSessions);
+        entry.referralSamples += 1;
+      }
+      if (impressions > 0 && engagements !== null) entry.rates.push((engagements / impressions) * 100);
     }
   });
 
   const platformBaselines = Array.from(platformMap.values()).map((p) => {
-    const avgImp = Math.round(p.totalImp / daysCount);
-    const avgEng = Math.round(p.totalEng / daysCount);
-    const avgRate = p.totalImp > 0 ? Math.round((p.totalEng / p.totalImp) * 1000) / 10 : 0;
+    const avgImp = daysCount && p.impressionSamples ? Math.round(p.totalImp / daysCount) : null;
+    const avgEng = daysCount && p.engagementSamples ? Math.round(p.totalEng / daysCount) : null;
+    const avgRate = p.totalImp > 0 ? Math.round((p.totalEng / p.totalImp) * 1000) / 10 : null;
     
     // Compute standard deviation of engagement rate
-    let stdDev = 0;
+    let stdDev = null;
     if (p.rates.length > 1) {
       const mean = p.rates.reduce((sum, r) => sum + r, 0) / p.rates.length;
       const variance = p.rates.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / p.rates.length;
@@ -115,7 +150,7 @@ async function updateProjectGrowthBaselines(projectId, windowDays = 60) {
       avgDailyImpressions: avgImp,
       avgDailyEngagements: avgEng,
       avgEngagementRate: avgRate,
-      avgReferralSessions: Math.round((p.totalReferrals / daysCount) * 10) / 10,
+      avgReferralSessions: daysCount && p.referralSamples ? Math.round((p.totalReferrals / daysCount) * 10) / 10 : null,
       stdDevEngagementRate: stdDev
     };
   });
@@ -126,17 +161,19 @@ async function updateProjectGrowthBaselines(projectId, windowDays = 60) {
   const ctaMap = new Map();
   const timingMap = new Map();
 
-  const baselinePostEng = overall.avgPostEngagements || 1;
+  const baselinePostEng = overall.avgPostEngagements;
 
   jobs.forEach((job) => {
-    const metrics = job.metricsLatest || {};
-    const imp = safeNum(metrics.impressions || metrics.reach || metrics.views, 0);
-    const likes = safeNum(metrics.likes, 0);
-    const comments = safeNum(metrics.comments, 0);
-    const shares = safeNum(metrics.shares || metrics.quotes, 0);
-    const saves = safeNum(metrics.saves, 0);
-    const clicks = safeNum(metrics.clicks, 0);
-    const eng = likes + comments + shares + saves + clicks;
+    const measurement = latestEngagementByJob.get(String(job._id));
+    if (!measurement || !Array.isArray(measurement.availableFields) || !measurement.availableFields.length) return;
+    const available = new Set(measurement.availableFields);
+    const metrics = measurement.metrics || {};
+    const exposureField = available.has('impressions') ? 'impressions' : (available.has('views') ? 'views' : (available.has('reach') ? 'reach' : null));
+    const imp = exposureField ? Number(metrics[exposureField]) : null;
+    const interactions = ['likes', 'comments', 'shares', 'quotes', 'saves', 'clicks'].filter((field) => available.has(field));
+    const eng = interactions.length ? interactions.reduce((sum, field) => sum + Number(metrics[field] || 0), 0) : null;
+    const clicks = available.has('clicks') ? Number(metrics.clicks || 0) : null;
+    if (imp === null && eng === null) return;
 
     const format = detectContentFormat(job);
     const text = (job.draftId && job.draftId.body) || (job.content && job.content.text) || '';
@@ -144,24 +181,24 @@ async function updateProjectGrowthBaselines(projectId, windowDays = 60) {
     const cta = detectCtaType(text);
 
     // Format
-    const fEntry = formatMap.get(format) || { format, sampleSize: 0, totalImp: 0, totalEng: 0, totalClicks: 0 };
+    const fEntry = formatMap.get(format) || { format, sampleSize: 0, totalImp: 0, totalEng: 0, totalClicks: 0, impSamples: 0, engSamples: 0, clickSamples: 0 };
     fEntry.sampleSize += 1;
-    fEntry.totalImp += imp;
-    fEntry.totalEng += eng;
-    fEntry.totalClicks += clicks;
+    if (imp !== null) { fEntry.totalImp += imp; fEntry.impSamples += 1; }
+    if (eng !== null) { fEntry.totalEng += eng; fEntry.engSamples += 1; }
+    if (clicks !== null) { fEntry.totalClicks += clicks; fEntry.clickSamples += 1; }
     formatMap.set(format, fEntry);
 
     // Topic
-    const tEntry = topicMap.get(topic) || { topic, sampleSize: 0, totalImp: 0, totalEng: 0 };
+    const tEntry = topicMap.get(topic) || { topic, sampleSize: 0, totalImp: 0, totalEng: 0, impSamples: 0, engSamples: 0 };
     tEntry.sampleSize += 1;
-    tEntry.totalImp += imp;
-    tEntry.totalEng += eng;
+    if (imp !== null) { tEntry.totalImp += imp; tEntry.impSamples += 1; }
+    if (eng !== null) { tEntry.totalEng += eng; tEntry.engSamples += 1; }
     topicMap.set(topic, tEntry);
 
     // CTA
-    const cEntry = ctaMap.get(cta) || { ctaType: cta, sampleSize: 0, totalClicks: 0, totalConversions: 0 };
+    const cEntry = ctaMap.get(cta) || { ctaType: cta, sampleSize: 0, totalClicks: 0, clickSamples: 0 };
     cEntry.sampleSize += 1;
-    cEntry.totalClicks += clicks;
+    if (clicks !== null) { cEntry.totalClicks += clicks; cEntry.clickSamples += 1; }
     ctaMap.set(cta, cEntry);
 
     // Timing
@@ -169,62 +206,64 @@ async function updateProjectGrowthBaselines(projectId, windowDays = 60) {
     const day = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][pubDate.getUTCDay()];
     const hour = pubDate.getUTCHours();
     const hourWindow = hour < 12 ? '08:00 - 12:00 UTC' : (hour < 17 ? '12:00 - 17:00 UTC' : '17:00 - 21:00 UTC');
-    const timingKey = `${job.platform}_${day}_${hourWindow}`;
-    const timeEntry = timingMap.get(timingKey) || { platform: job.platform, dayOfWeek: day, hourWindow, sampleSize: 0, totalEng: 0 };
-    timeEntry.sampleSize += 1;
-    timeEntry.totalEng += eng;
-    timingMap.set(timingKey, timeEntry);
+    if (eng !== null) {
+      const timingKey = `${job.platform}_${day}_${hourWindow}`;
+      const timeEntry = timingMap.get(timingKey) || { platform: job.platform, dayOfWeek: day, hourWindow, sampleSize: 0, totalEng: 0 };
+      timeEntry.sampleSize += 1;
+      timeEntry.totalEng += eng;
+      timingMap.set(timingKey, timeEntry);
+    }
   });
 
   const formatBaselines = Array.from(formatMap.values()).map((f) => {
-    const avgImp = Math.round(f.totalImp / f.sampleSize);
-    const avgEng = Math.round(f.totalEng / f.sampleSize);
-    const avgRate = avgImp > 0 ? Math.round((avgEng / avgImp) * 1000) / 10 : 0;
-    const mult = baselinePostEng > 0 ? Math.round((avgEng / baselinePostEng) * 10) / 10 : 1.0;
+    const avgImp = f.impSamples ? Math.round(f.totalImp / f.impSamples) : null;
+    const avgEng = f.engSamples ? Math.round(f.totalEng / f.engSamples) : null;
+    const avgRate = avgImp > 0 && avgEng !== null ? Math.round((avgEng / avgImp) * 1000) / 10 : null;
+    const mult = baselinePostEng > 0 && avgEng !== null ? Math.round((avgEng / baselinePostEng) * 10) / 10 : null;
     return {
       format: f.format,
       sampleSize: f.sampleSize,
       avgImpressions: avgImp,
       avgEngagements: avgEng,
       avgEngagementRate: avgRate,
-      avgClicks: Math.round(f.totalClicks / f.sampleSize),
-      multiplierVsBaseline: f.sampleSize >= MIN_SAMPLE_THRESHOLD ? mult : 1.0
+      avgClicks: f.clickSamples ? Math.round(f.totalClicks / f.clickSamples) : null,
+      multiplierVsBaseline: f.sampleSize >= MIN_SAMPLE_THRESHOLD ? mult : null
     };
   });
 
   const topicBaselines = Array.from(topicMap.values()).map((t) => {
-    const avgImp = Math.round(t.totalImp / t.sampleSize);
-    const avgEng = Math.round(t.totalEng / t.sampleSize);
-    const avgRate = avgImp > 0 ? Math.round((avgEng / avgImp) * 1000) / 10 : 0;
-    const mult = baselinePostEng > 0 ? Math.round((avgEng / baselinePostEng) * 10) / 10 : 1.0;
+    const avgImp = t.impSamples ? Math.round(t.totalImp / t.impSamples) : null;
+    const avgEng = t.engSamples ? Math.round(t.totalEng / t.engSamples) : null;
+    const avgRate = avgImp > 0 && avgEng !== null ? Math.round((avgEng / avgImp) * 1000) / 10 : null;
+    const mult = baselinePostEng > 0 && avgEng !== null ? Math.round((avgEng / baselinePostEng) * 10) / 10 : null;
     return {
       topic: t.topic,
       sampleSize: t.sampleSize,
       avgImpressions: avgImp,
       avgEngagements: avgEng,
       avgEngagementRate: avgRate,
-      multiplierVsBaseline: t.sampleSize >= MIN_SAMPLE_THRESHOLD ? mult : 1.0
+      multiplierVsBaseline: t.sampleSize >= MIN_SAMPLE_THRESHOLD ? mult : null
     };
   });
 
   const timingBaselines = Array.from(timingMap.values()).map((t) => {
     const avgEng = Math.round(t.totalEng / t.sampleSize);
-    const mult = baselinePostEng > 0 ? Math.round((avgEng / baselinePostEng) * 10) / 10 : 1.0;
+    const mult = baselinePostEng > 0 ? Math.round((avgEng / baselinePostEng) * 10) / 10 : null;
     return {
       platform: t.platform,
       dayOfWeek: t.dayOfWeek,
       hourWindow: t.hourWindow,
       sampleSize: t.sampleSize,
       avgEngagements: avgEng,
-      multiplierVsBaseline: t.sampleSize >= MIN_SAMPLE_THRESHOLD ? mult : 1.0
+      multiplierVsBaseline: t.sampleSize >= MIN_SAMPLE_THRESHOLD ? mult : null
     };
   });
 
   const ctaBaselines = Array.from(ctaMap.values()).map((c) => ({
     ctaType: c.ctaType,
     sampleSize: c.sampleSize,
-    avgClicks: Math.round((c.totalClicks / c.sampleSize) * 10) / 10,
-    avgConversionRate: 0
+    avgClicks: c.clickSamples ? Math.round((c.totalClicks / c.clickSamples) * 10) / 10 : null,
+    avgConversionRate: null
   }));
   const experimentLearnings = experimentLearningRows.map((learning) => ({
     experimentId: learning.experimentId,
@@ -243,7 +282,9 @@ async function updateProjectGrowthBaselines(projectId, windowDays = 60) {
       $set: {
         projectId,
         calculatedWindowDays: windowDays,
-        totalPostsAnalyzed: jobs.length,
+        totalPostsAnalyzed: latestEngagementByJob.size,
+        measurementStatus: daysCount >= 7 && measuredPostEngagements.length >= MIN_SAMPLE_THRESHOLD ? 'ready' : (daysCount || measuredPostEngagements.length ? 'building' : 'insufficient_data'),
+        verifiedBaselineDays: daysCount,
         overall,
         platformBaselines,
         formatBaselines,

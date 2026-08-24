@@ -11,7 +11,11 @@
 
 const Project = require('../models/Project');
 const DailyGrowthIntelligence = require('../models/DailyGrowthIntelligence');
-const { generateDailyGrowthIntelligenceReport, normalizeDate } = require('./dailyGrowthIntelligenceService');
+const {
+  generateDailyGrowthIntelligenceReport,
+  projectLocalDateKey
+} = require('./dailyGrowthIntelligenceService');
+const { collectDueMetrics } = require('./engagementMetricsService');
 const { updateProjectGrowthBaselines } = require('./growthBaselineLearningService');
 const { createAndDispatchNotification } = require('./notificationDeliveryService');
 const { refreshStrategicIntelligence } = require('./strategy/strategicIntelligenceService');
@@ -78,6 +82,8 @@ function renderDailyGrowthBriefingHtml(project, report) {
   const score = report.growthScoreBreakdown || {};
   const subScores = score || {};
   const champions = report.platformChampions || {};
+  const quality = report.dataQuality || {};
+  const metricText = (value, suffix = '') => Number.isFinite(value) ? `${Number(value).toLocaleString()}${suffix}` : 'Awaiting data';
   const isOpp = report.reportMode === 'opportunity';
   const isAlert = report.reportMode === 'performance_alert';
   const hasVerifiedScore = Boolean(score.dataQuality && score.dataQuality.hasVerifiedData && Number.isFinite(score.overallScore));
@@ -128,6 +134,12 @@ function renderDailyGrowthBriefingHtml(project, report) {
       </div>
       `}
 
+      <div style="border:1px solid #e2e8f0;border-radius:8px;padding:14px;margin-bottom:24px;font-size:13px;color:#475569;">
+        <strong style="color:#0f172a;">Data confidence: ${Number(quality.confidence || 0)}%</strong>
+        &nbsp;·&nbsp; ${Number(quality.verifiedMetrics || 0)} of ${Number(quality.expectedMetrics || 0)} expected metrics verified
+        &nbsp;·&nbsp; Baseline: ${quality.hasHistoricalBaseline ? 'ready' : `${Number(quality.baselineDays || 0)} verified days`}
+      </div>
+
       <!-- Champions -->
       <h3 style="font-size:16px;margin:0 0 10px;color:#111827;">🏆 Platform Champions</h3>
       <table style="width:100%;border:1px solid #e2e8f0;border-radius:8px;border-collapse:collapse;margin-bottom:24px;font-size:13px;" cellpadding="8">
@@ -138,23 +150,23 @@ function renderDailyGrowthBriefingHtml(project, report) {
         </tr>
         <tr style="border-bottom:1px solid #f1f5f9;">
           <td><strong>Reach & Impressions</strong></td>
-          <td style="text-transform:capitalize;">${emailService.escapeHtml(champions.bestForReach?.platform || 'N/A')}</td>
-          <td>${(champions.bestForReach?.impressions || 0).toLocaleString()} views</td>
+          <td style="text-transform:capitalize;">${emailService.escapeHtml(champions.bestForReach?.platform || 'No champion assigned')}</td>
+          <td>${metricText(champions.bestForReach?.value, ' impressions')}</td>
         </tr>
         <tr style="border-bottom:1px solid #f1f5f9;">
           <td><strong>Engagement Rate</strong></td>
-          <td style="text-transform:capitalize;">${emailService.escapeHtml(champions.bestForEngagement?.platform || 'N/A')}</td>
-          <td>${(champions.bestForEngagement?.engagementRate || 0)}% ER</td>
+          <td style="text-transform:capitalize;">${emailService.escapeHtml(champions.bestForEngagement?.platform || 'No champion assigned')}</td>
+          <td>${metricText(champions.bestForEngagement?.rate, '% ER')}</td>
         </tr>
         <tr style="border-bottom:1px solid #f1f5f9;">
           <td><strong>Website Traffic</strong></td>
-          <td style="text-transform:capitalize;">${emailService.escapeHtml(champions.bestForWebsiteTraffic?.platform || 'N/A')}</td>
-          <td>${(champions.bestForWebsiteTraffic?.sessions || 0)} sessions</td>
+          <td style="text-transform:capitalize;">${emailService.escapeHtml(champions.bestForWebsiteTraffic?.platform || 'No champion assigned')}</td>
+          <td>${metricText(champions.bestForWebsiteTraffic?.sessions, ' sessions')}</td>
         </tr>
         <tr>
           <td><strong>Attributed Revenue</strong></td>
-          <td style="text-transform:capitalize;">${emailService.escapeHtml(champions.bestForRevenue?.platform || 'N/A')}</td>
-          <td>€${(champions.bestForRevenue?.revenue || 0).toLocaleString()}</td>
+          <td style="text-transform:capitalize;">${emailService.escapeHtml(champions.bestForRevenue?.platform || 'No champion assigned')}</td>
+          <td>${Number.isFinite(champions.bestForRevenue?.revenue) ? `€${Number(champions.bestForRevenue.revenue).toLocaleString()}` : (quality.revenueConfigured ? 'Awaiting attribution' : 'Not configured')}</td>
         </tr>
       </table>
 
@@ -163,17 +175,17 @@ function renderDailyGrowthBriefingHtml(project, report) {
         <h3 style="font-size:16px;margin:0 0 10px;color:#111827;">💡 Detected Growth Opportunities</h3>
         <div style="background:#f0fdf4;border-left:4px solid #10b981;border-radius:6px;padding:14px;margin-bottom:20px;">
           <strong style="color:#065f46;font-size:14px;">${emailService.escapeHtml(report.opportunities[0].title)}</strong>
-          <p style="color:#047857;margin:4px 0 8px;font-size:13px;">${emailService.escapeHtml(report.opportunities[0].rationale)}</p>
-          <div style="font-size:12px;color:#065f46;"><strong>Recommended action:</strong> ${emailService.escapeHtml(report.opportunities[0].actionableRecommendation)}</div>
+          <p style="color:#047857;margin:4px 0 8px;font-size:13px;">${emailService.escapeHtml(report.opportunities[0].evidence || '')}</p>
+          <div style="font-size:12px;color:#065f46;"><strong>Hypothesis:</strong> ${emailService.escapeHtml(report.opportunities[0].hypothesis || '')}</div>
         </div>
       ` : ''}
 
-      ${report.risks && report.risks.length ? `
+      ${report.risksAndProblems && report.risksAndProblems.length ? `
         <h3 style="font-size:16px;margin:0 0 10px;color:#991b1b;">⚠️ Performance Risks Requiring Attention</h3>
         <div style="background:#fef2f2;border-left:4px solid #ef4444;border-radius:6px;padding:14px;margin-bottom:20px;">
-          <strong style="color:#991b1b;font-size:14px;">${emailService.escapeHtml(report.risks[0].title)}</strong>
-          <p style="color:#b91c1c;margin:4px 0 8px;font-size:13px;">${emailService.escapeHtml(report.risks[0].description)}</p>
-          <div style="font-size:12px;color:#991b1b;"><strong>Diagnosis:</strong> ${emailService.escapeHtml(report.risks[0].recommendedCorrection)}</div>
+          <strong style="color:#991b1b;font-size:14px;">${emailService.escapeHtml(report.risksAndProblems[0].title)}</strong>
+          <p style="color:#b91c1c;margin:4px 0 8px;font-size:13px;">${emailService.escapeHtml(report.risksAndProblems[0].primarySignal || '')}</p>
+          <div style="font-size:12px;color:#991b1b;"><strong>Recommended action:</strong> ${emailService.escapeHtml(report.risksAndProblems[0].recommendation || '')}</div>
         </div>
       ` : ''}
 
@@ -218,15 +230,15 @@ async function sendDailyGrowthBriefingEmail({ project, report, force = true }) {
     category: 'growth',
     severity: isAlert ? 'warning' : 'growth_opportunity',
     urgency: isAlert ? 'high' : 'normal',
-    confidence: 88,
+    confidence: Number((report.dataQuality && report.dataQuality.confidence) || 0),
     title: isOpp ? 'Daily Growth Opportunity Detected' : (isAlert ? 'Social Performance Alert' : 'Daily Growth Morning Brief Ready'),
     summary: report.executiveSummary || (hasVerifiedScore
       ? `Your daily growth intelligence briefing is ready with a 6D score of ${score.overallScore}/100.`
       : 'Your daily growth intelligence briefing is ready, but Moyi is waiting for verified provider metrics before scoring growth.'),
     businessImpact: isOpp
       ? 'A measurable growth opportunity is ready for 1-click review.'
-      : (isAlert ? 'A performance decline was detected and root-cause diagnosed.' : (hasVerifiedScore ? 'Daily performance tracking on baseline across all channels.' : 'No business outcome score was assigned because verified metrics are not available yet.')),
-    recommendedAction: (report.opportunities && report.opportunities[0] && report.opportunities[0].actionableRecommendation) || 'Review yesterday\'s performance breakdown and today\'s action plan.',
+      : (isAlert ? 'A performance decline was detected from verified comparison data.' : (hasVerifiedScore ? 'A verified daily performance score is available for the measured dimensions.' : 'No business outcome score was assigned because verified metrics are not available yet.')),
+    recommendedAction: (report.todayActionList && report.todayActionList[0] && report.todayActionList[0].action) || 'Review source health and restore missing measurement connections.',
     ctaUrl: `/projects/${targetProject._id}/growth-intelligence`,
     ctaLabel: 'Open Morning Briefing',
     evidenceData: {
@@ -246,7 +258,7 @@ async function sendDailyGrowthBriefingEmail({ project, report, force = true }) {
  */
 async function processProjectDailyGrowthRun(project, options = {}) {
   const targetDate = options.targetDate || new Date();
-  const reportDate = normalizeDate(targetDate);
+  const reportDate = projectLocalDateKey(targetDate, project.timezone || 'UTC');
 
   // Check duplicate prevention unless forced
   if (!options.force) {
@@ -259,6 +271,9 @@ async function processProjectDailyGrowthRun(project, options = {}) {
       return { skipped: true, reason: 'Report already exists for this date.', reportId: existing._id };
     }
   }
+
+  // Collect provider evidence before analysis. A failed provider remains visible in data health.
+  const collection = await collectDueMetrics({ projectId: project._id, limit: 100 });
 
   // 1. Generate Daily Growth Intelligence Report
   const report = await generateDailyGrowthIntelligenceReport(project._id, targetDate);
@@ -294,6 +309,7 @@ async function processProjectDailyGrowthRun(project, options = {}) {
     reportId: report._id,
     score: report.performanceScore,
     mode: report.reportMode,
+    collection,
     strategicIntelligence: strategicIntelligence && strategicIntelligence.error
       ? { refreshed: false, error: strategicIntelligence.error }
       : { refreshed: true, opportunities: strategicIntelligence ? strategicIntelligence.opportunities.length : 0 }

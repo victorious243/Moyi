@@ -7,6 +7,11 @@ const { processProjectTask } = require('../services/projectTaskService');
 const { runScan } = require('../services/scanRunner');
 const { QUEUE_NAME, closePublishQueue, ensurePublishMaintenanceSchedules } = require('../queues/publishQueue');
 const {
+  ANALYTICS_QUEUE_NAME,
+  closeAnalyticsQueue,
+  ensureAnalyticsSchedules
+} = require('../queues/analyticsQueue');
+const {
   MEDIA_QUEUE_NAME,
   closeMediaQueue,
   ensureMediaMaintenanceSchedule
@@ -30,6 +35,7 @@ async function startWorker() {
   const taskConnection = createRedisConnection({ lazyConnect: false, label: 'project-task-worker' });
   const publishConnection = createRedisConnection({ lazyConnect: false, label: 'social-publish-worker' });
   const mediaConnection = createRedisConnection({ lazyConnect: false, label: 'social-media-worker' });
+  const analyticsConnection = createRedisConnection({ lazyConnect: false, label: 'marketing-analytics-worker' });
   const concurrency = env.workerConcurrency;
 
   const scanWorker = attachRedisErrorHandler(new Worker(
@@ -49,11 +55,6 @@ async function startWorker() {
     async (job) => {
       if (job.name === 'refresh-social-tokens') return refreshExpiringSocialAccounts();
       if (job.name === 'recover-due-publish-jobs') return recoverDuePublishJobs();
-      if (job.name === 'collect-social-engagement') {
-        const metrics = await collectDueMetrics();
-        const experiments = await evaluateRunningExperiments();
-        return { metrics, experiments };
-      }
       if (job.name === 'check-provider-publish-status') {
         return executeProviderStatusCheck({ jobId: job.data.jobId });
       }
@@ -75,6 +76,17 @@ async function startWorker() {
     { connection: publishConnection, concurrency }
   ), 'social publishing worker');
 
+  const analyticsWorker = attachRedisErrorHandler(new Worker(
+    ANALYTICS_QUEUE_NAME,
+    async (job) => {
+      if (job.name !== 'collect-provider-analytics') throw new Error(`Unknown analytics job: ${job.name}`);
+      const metrics = await collectDueMetrics();
+      const experiments = await evaluateRunningExperiments();
+      return { metrics, experiments };
+    },
+    { connection: analyticsConnection, concurrency: Math.max(1, Math.min(3, concurrency)) }
+  ), 'marketing analytics worker');
+
   const mediaWorker = attachRedisErrorHandler(new Worker(
     MEDIA_QUEUE_NAME,
     async (job) => {
@@ -90,6 +102,7 @@ async function startWorker() {
   ), 'social media worker');
 
   await ensurePublishMaintenanceSchedules();
+  await ensureAnalyticsSchedules();
   await ensureMediaMaintenanceSchedule();
   await recoverDuePublishJobs().catch((error) => console.error(`Social publishing recovery failed: ${error.message}`));
   await recoverMediaAssets().catch((error) => console.error(`Media processing recovery failed: ${error.message}`));
@@ -106,15 +119,17 @@ async function startWorker() {
     if (!/^[a-f\d]{24}$/i.test(publishJobId)) return;
     await recoverStalledPublishJob(publishJobId).catch(() => null);
   });
+  analyticsWorker.on('completed', (job) => console.log(`Marketing analytics job completed: ${job.id}`));
+  analyticsWorker.on('failed', (job, error) => console.error(`Marketing analytics job failed: ${job && job.id}`, error.message));
   mediaWorker.on('completed', (job) => console.log(`Media processing job completed: ${job.id}`));
   mediaWorker.on('failed', (job, error) => console.error(`Media processing job failed: ${job && job.id}`, error.message));
 
   installSignalHandlers(
-    [scanWorker, taskWorker, publishWorker, mediaWorker],
-    [scanConnection, taskConnection, publishConnection, mediaConnection]
+    [scanWorker, taskWorker, publishWorker, analyticsWorker, mediaWorker],
+    [scanConnection, taskConnection, publishConnection, analyticsConnection, mediaConnection]
   );
 
-  return { scanWorker, taskWorker, publishWorker, mediaWorker, scanConnection, taskConnection, publishConnection, mediaConnection };
+  return { scanWorker, taskWorker, publishWorker, analyticsWorker, mediaWorker, scanConnection, taskConnection, publishConnection, analyticsConnection, mediaConnection };
 }
 
 if (require.main === module) {
@@ -146,6 +161,7 @@ async function gracefulShutdown(signal, workers, connections) {
   try {
     await Promise.all(workers.map((worker) => worker.close()));
     await closePublishQueue();
+    await closeAnalyticsQueue();
     await closeMediaQueue();
     await Promise.all(connections.map(async (connection) => {
       try {

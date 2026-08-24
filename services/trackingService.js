@@ -99,6 +99,8 @@ async function recordTrackingEvent(req) {
     utmId: sanitize(body.utmId, 160),
     utmTerm: sanitize(body.utmTerm, 240),
     utmContent: sanitize(body.utmContent, 240),
+    moyiPostId: sanitize(body.moyiPostId, 160),
+    moyiContentId: sanitize(body.moyiContentId, 160),
     experimentId: objectIdOrNull(body.experimentId),
     experimentVariant: sanitize(body.experimentVariant, 80),
     clickIds: {

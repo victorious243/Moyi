@@ -23,6 +23,40 @@ const dailyGrowthIntelligenceSchema = new mongoose.Schema(
       enum: ['normal', 'opportunity', 'performance_alert', 'milestone', 'insufficient_data'],
       default: 'normal'
     },
+    schemaVersion: { type: Number, default: 2 },
+    dataQuality: {
+      status: { type: String, enum: ['setup', 'collecting', 'provisional', 'reliable', 'insufficient'], default: 'collecting' },
+      coverage: { type: Number, default: 0 },
+      freshness: { type: Number, default: 0 },
+      confidence: { type: Number, default: 0 },
+      confidenceLabel: { type: String, enum: ['high', 'medium', 'low', 'insufficient'], default: 'insufficient' },
+      verifiedMetrics: { type: Number, default: 0 },
+      expectedMetrics: { type: Number, default: 0 },
+      eligiblePlatforms: { type: Number, default: 0 },
+      verifiedPlatforms: { type: Number, default: 0 },
+      verifiedPlatformNames: [{ type: String }],
+      issues: [{
+        platform: String,
+        type: String,
+        message: String,
+        syncRunId: String,
+        observedAt: Date
+      }],
+      health: [{
+        source: String,
+        label: String,
+        status: String,
+        message: String,
+        lastSyncedAt: Date,
+        syncRunId: String,
+        metricsVerified: Number,
+        metricsExpected: Number,
+        configured: Boolean
+      }],
+      revenueConfigured: { type: Boolean, default: false },
+      hasHistoricalBaseline: { type: Boolean, default: false },
+      baselineDays: { type: Number, default: 0 }
+    },
     executiveSummary: {
       type: String,
       required: true,
@@ -50,6 +84,9 @@ const dailyGrowthIntelligenceSchema = new mongoose.Schema(
       websiteAcquisition: { type: Number, default: null },
       conversion: { type: Number, default: null },
       brandVisibility: { type: Number, default: null },
+      status: { type: String, enum: ['scored', 'insufficient_data', 'building_baseline'], default: 'insufficient_data' },
+      dataConfidence: { type: Number, default: 0 },
+      baselineStatus: { type: String, default: '' },
       dataQuality: {
         hasVerifiedData: { type: Boolean, default: false },
         reason: { type: String, default: '' },
@@ -70,20 +107,21 @@ const dailyGrowthIntelligenceSchema = new mongoose.Schema(
     // Historical Window Comparisons (Storing Raw Values & Deltas)
     windowComparisons: {
       yesterdayVsPrev: {
-        yesterday: { type: mongoose.Schema.Types.Mixed, default: {} },
-        previousDay: { type: mongoose.Schema.Types.Mixed, default: {} },
+        current: { type: mongoose.Schema.Types.Mixed, default: {} },
+        previous: { type: mongoose.Schema.Types.Mixed, default: {} },
         deltas: { type: mongoose.Schema.Types.Mixed, default: {} }
       },
       last7dVsPrev7d: {
-        recent7d: { type: mongoose.Schema.Types.Mixed, default: {} },
-        previous7d: { type: mongoose.Schema.Types.Mixed, default: {} },
+        current: { type: mongoose.Schema.Types.Mixed, default: {} },
+        previous: { type: mongoose.Schema.Types.Mixed, default: {} },
         deltas: { type: mongoose.Schema.Types.Mixed, default: {} }
       },
       last30dVsPrev30d: {
-        recent30d: { type: mongoose.Schema.Types.Mixed, default: {} },
-        previous30d: { type: mongoose.Schema.Types.Mixed, default: {} },
+        current: { type: mongoose.Schema.Types.Mixed, default: {} },
+        previous: { type: mongoose.Schema.Types.Mixed, default: {} },
         deltas: { type: mongoose.Schema.Types.Mixed, default: {} }
-      }
+      },
+      scoringBaseline: { type: mongoose.Schema.Types.Mixed, default: {} }
     },
     // Multi-Objective Platform Champions
     platformChampions: {
@@ -92,6 +130,7 @@ const dailyGrowthIntelligenceSchema = new mongoose.Schema(
         noData: { type: Boolean, default: false },
         value: Number,
         sharePercentage: Number,
+        coverage: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
         rationale: String
       },
       bestForEngagement: {
@@ -99,36 +138,42 @@ const dailyGrowthIntelligenceSchema = new mongoose.Schema(
         noData: { type: Boolean, default: false },
         value: Number,
         rate: Number,
+        coverage: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
         rationale: String
       },
       bestForFollowerGrowth: {
         platform: String,
         noData: { type: Boolean, default: false },
         netGained: Number,
+        coverage: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
         rationale: String
       },
       bestForWebsiteTraffic: {
         platform: String,
         noData: { type: Boolean, default: false },
         sessions: Number,
+        coverage: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
         rationale: String
       },
       bestForLeads: {
         platform: String,
         noData: { type: Boolean, default: false },
         leads: Number,
+        coverage: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
         rationale: String
       },
       bestForConversions: {
         platform: String,
         noData: { type: Boolean, default: false },
         conversions: Number,
+        coverage: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
         rationale: String
       },
       bestForRevenue: {
         platform: String,
         noData: { type: Boolean, default: false },
         revenue: Number,
+        coverage: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
         rationale: String
       }
     },
@@ -173,6 +218,7 @@ const dailyGrowthIntelligenceSchema = new mongoose.Schema(
         observation: String,
         evidence: String,
         confidence: { type: String, enum: ['high', 'medium', 'low', 'early_signal'], default: 'medium' },
+        signalStatus: { type: String, enum: ['proven_pattern', 'emerging_signal'], default: 'emerging_signal' },
         sampleSize: Number,
         multiplier: Number,
         recommendation: String
@@ -194,6 +240,8 @@ const dailyGrowthIntelligenceSchema = new mongoose.Schema(
       confidence: { type: String, enum: ['high', 'medium', 'low', 'early_signal'], default: 'high' },
       businessImpact: { type: String, enum: ['reach', 'traffic', 'conversions', 'brand_equity', 'pipeline'], default: 'traffic' },
       recommendedAction: String,
+      evidenceIds: [{ type: String }],
+      evidenceObjects: [{ type: mongoose.Schema.Types.Mixed }],
       priority: { type: String, enum: ['critical', 'high', 'medium', 'low'], default: 'high' }
     }],
     // Proactive Opportunity Detection
@@ -206,6 +254,11 @@ const dailyGrowthIntelligenceSchema = new mongoose.Schema(
       title: String,
       description: String,
       evidence: String,
+      evidenceIds: [{ type: String }],
+      confidence: { type: Number, default: 0 },
+      hypothesis: String,
+      expectedOutcome: String,
+      measurement: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
       actionType: String,
       actionPayload: mongoose.Schema.Types.Mixed,
       priority: { type: String, enum: ['critical', 'high', 'medium', 'low'], default: 'high' },
@@ -213,12 +266,15 @@ const dailyGrowthIntelligenceSchema = new mongoose.Schema(
     }],
     // Downstream Closed-Loop Attribution
     downstreamAttribution: {
-      totalReferralTraffic: { type: Number, default: 0 },
-      totalLeads: { type: Number, default: 0 },
-      totalConversions: { type: Number, default: 0 },
-      totalRevenue: { type: Number, default: 0 },
+      measurementStatus: { type: String, enum: ['verified', 'pending', 'not_connected', 'unsupported', 'provider_error'], default: 'pending' },
+      revenueStatus: { type: String, enum: ['verified', 'pending', 'not_configured', 'provider_error'], default: 'not_configured' },
+      totalReferralTraffic: { type: Number, default: null },
+      totalLeads: { type: Number, default: null },
+      totalConversions: { type: Number, default: null },
+      totalRevenue: { type: Number, default: null },
       platformBreakdown: [{
         platform: String,
+        status: String,
         referralSessions: Number,
         uniqueVisitors: Number,
         leads: Number,

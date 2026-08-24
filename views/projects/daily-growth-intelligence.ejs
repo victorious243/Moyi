@@ -5,14 +5,17 @@
   if (['£', '$', '€'].includes(goal.unit)) return `${goal.unit}${amount}`;
   return [amount, goal.unit].filter(Boolean).join(' ');
 }; %>
-<% const championLabel = (champion) => champion && champion.platform ? champion.platform : 'Awaiting data'; %>
+<% const championLabel = (champion) => champion && champion.platform ? champion.platform : 'No champion assigned'; %>
 <% const championBadgeStyle = (champion, color) => {
   const activeColor = color || '#2563eb';
   return `background:${champion && champion.platform ? activeColor : 'rgba(255,255,255,0.08)'};color:#fff;font-weight:800;text-transform:capitalize;padding:2px 8px;border-radius:4px;font-size:11px;`;
 }; %>
 <% const growthScore = report.growthScoreBreakdown || {}; %>
+<% const dataQuality = report.dataQuality || {}; %>
 <% const hasVerifiedGrowthScore = !!(growthScore.dataQuality && growthScore.dataQuality.hasVerifiedData && Number.isFinite(growthScore.overallScore)); %>
 <% const scoreValue = (value) => Number.isFinite(value) ? value : 'N/A'; %>
+<% const metricDisplay = (value, suffix = '') => Number.isFinite(value) ? `${Number(value).toLocaleString()}${suffix}` : 'Awaiting data'; %>
+<% const qualityColor = dataQuality.status === 'reliable' ? '#12c99b' : (dataQuality.status === 'provisional' ? '#f59e0b' : '#94a3b8'); %>
 
 <div class="app-layout">
   <%- include('../partials/project-sidebar', { activeSection: 'growth-intelligence', project }) %>
@@ -116,12 +119,31 @@
               </div>
             <% } else { %>
               <div style="font-size:12px;color:var(--saas-text-muted);border-top:1px solid rgba(255,255,255,0.08);padding-top:10px;line-height:1.5;">
-                Moyi will show the 6D score after the report window contains verified provider metrics or tracked attribution.
+                <strong style="color:#fff;">Data confidence: <%= Number(dataQuality.confidence || 0) %>%</strong><br>
+                <%= growthScore.baselineStatus || 'Moyi will show the 6D score after the report window contains verified provider metrics and a comparable baseline.' %>
               </div>
             <% } %>
           </div>
         </div>
       </div>
+
+      <section class="panel operational-section" style="margin-bottom:24px;">
+        <div class="panel-title">
+          <div><p class="eyebrow">Measurement integrity</p><h2>Data health</h2></div>
+          <span class="status" style="border-color:<%= qualityColor %>;color:<%= qualityColor %>;text-transform:capitalize;"><%= dataQuality.status || 'collecting' %></span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px;">
+          <div class="card" style="padding:14px;"><small>Data confidence</small><strong style="display:block;font-size:22px;margin-top:4px;"><%= Number(dataQuality.confidence || 0) %>%</strong></div>
+          <div class="card" style="padding:14px;"><small>Metric coverage</small><strong style="display:block;font-size:22px;margin-top:4px;"><%= Math.round(Number(dataQuality.coverage || 0) * 100) %>%</strong></div>
+          <div class="card" style="padding:14px;"><small>Verified channels</small><strong style="display:block;font-size:22px;margin-top:4px;"><%= Number(dataQuality.verifiedPlatforms || 0) %>/<%= Number(dataQuality.eligiblePlatforms || 0) %></strong></div>
+          <div class="card" style="padding:14px;"><small>Baseline</small><strong style="display:block;font-size:16px;margin-top:7px;"><%= dataQuality.hasHistoricalBaseline ? 'Ready' : `${Number(dataQuality.baselineDays || 0)} verified days` %></strong></div>
+        </div>
+        <% if (dataQuality.health && dataQuality.health.length) { %>
+          <div class="table-wrap"><table class="data-table"><thead><tr><th>Source</th><th>Status</th><th>Last sync</th><th>Detail</th></tr></thead><tbody>
+            <% dataQuality.health.forEach((source) => { %><tr><td><strong><%= source.label %></strong></td><td><span class="status"><%= String(source.status || 'pending').replace(/_/g, ' ') %></span></td><td><%= source.lastSyncedAt ? new Date(source.lastSyncedAt).toLocaleString() : 'Not yet' %></td><td><%= source.message %></td></tr><% }) %>
+          </tbody></table></div>
+        <% } %>
+      </section>
 
       <section class="panel operational-section">
         <div class="panel-title">
@@ -151,7 +173,7 @@
               <% }); %>
             </ul>
           <% } else { %>
-            <p style="margin:0;color:var(--saas-text-muted);font-size:13px;">Consistent publishing cadence maintained across active channels.</p>
+            <p style="margin:0;color:var(--saas-text-muted);font-size:13px;">No verified positive outcome was identified in this reporting window.</p>
           <% } %>
         </div>
 
@@ -172,7 +194,7 @@
               <% }); %>
             </div>
           <% } else { %>
-            <p style="margin:0;color:var(--saas-text-muted);font-size:13px;">No critical sustained risk patterns detected. Metrics within healthy variance.</p>
+            <p style="margin:0;color:var(--saas-text-muted);font-size:13px;">No evidence-backed risk was detected. Missing or unavailable data is not treated as healthy performance.</p>
           <% } %>
         </div>
 
@@ -183,48 +205,27 @@
         <span>🏆</span>
         <span>Platform Performance Champions</span>
       </h2>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:16px;margin-bottom:32px;">
-        
-        <!-- Best for Reach -->
-        <div class="card" style="padding:18px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:rgba(18, 22, 28, 0.6);">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-            <span style="font-size:12px;font-weight:800;color:var(--saas-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Best for Reach</span>
-            <span class="badge" style="<%= championBadgeStyle(report.platformChampions.bestForReach, '#2563eb') %>"><%= championLabel(report.platformChampions.bestForReach) %></span>
-          </div>
-          <div style="font-size:24px;font-weight:900;color:#ffffff;margin-bottom:6px;"><%= (report.platformChampions.bestForReach.value || 0).toLocaleString() %> <span style="font-size:13px;color:var(--saas-text-muted);font-weight:500;">impressions</span></div>
-          <p style="margin:0;font-size:13px;color:var(--saas-text-muted);line-height:1.5;"><%= report.platformChampions.bestForReach.rationale %></p>
-        </div>
-
-        <!-- Best for Engagement -->
-        <div class="card" style="padding:18px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:rgba(18, 22, 28, 0.6);">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-            <span style="font-size:12px;font-weight:800;color:var(--saas-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Best for Engagement</span>
-            <span class="badge" style="<%= championBadgeStyle(report.platformChampions.bestForEngagement, '#7c3aed') %>"><%= championLabel(report.platformChampions.bestForEngagement) %></span>
-          </div>
-          <div style="font-size:24px;font-weight:900;color:#ffffff;margin-bottom:6px;"><%= report.platformChampions.bestForEngagement.rate %>% <span style="font-size:13px;color:var(--saas-text-muted);font-weight:500;">engagement rate</span></div>
-          <p style="margin:0;font-size:13px;color:var(--saas-text-muted);line-height:1.5;"><%= report.platformChampions.bestForEngagement.rationale %></p>
-        </div>
-
-        <!-- Best for Website Traffic -->
-        <div class="card" style="padding:18px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:rgba(18, 22, 28, 0.6);">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-            <span style="font-size:12px;font-weight:800;color:var(--saas-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Best for Website Traffic</span>
-            <span class="badge" style="<%= championBadgeStyle(report.platformChampions.bestForWebsiteTraffic, '#059669') %>"><%= championLabel(report.platformChampions.bestForWebsiteTraffic) %></span>
-          </div>
-          <div style="font-size:24px;font-weight:900;color:#ffffff;margin-bottom:6px;"><%= report.platformChampions.bestForWebsiteTraffic.sessions || 0 %> <span style="font-size:13px;color:var(--saas-text-muted);font-weight:500;">inbound visits</span></div>
-          <p style="margin:0;font-size:13px;color:var(--saas-text-muted);line-height:1.5;"><%= report.platformChampions.bestForWebsiteTraffic.rationale %></p>
-        </div>
-
-        <!-- Best for Conversions & Revenue -->
-        <div class="card" style="padding:18px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:rgba(18, 22, 28, 0.6);">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-            <span style="font-size:12px;font-weight:800;color:var(--saas-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Bottom-Funnel Value</span>
-            <span class="badge" style="<%= championBadgeStyle(report.platformChampions.bestForRevenue, '#0284c7') %>"><%= championLabel(report.platformChampions.bestForRevenue) %></span>
-          </div>
-          <div style="font-size:24px;font-weight:900;color:#ffffff;margin-bottom:6px;">$<%= (report.platformChampions.bestForRevenue.revenue || 0).toLocaleString() %> <span style="font-size:13px;color:var(--saas-text-muted);font-weight:500;">attributed rev</span></div>
-          <p style="margin:0;font-size:13px;color:var(--saas-text-muted);line-height:1.5;"><%= report.platformChampions.bestForRevenue.rationale %></p>
-        </div>
-
+      <% const championRows = [
+        { objective: 'Reach & impressions', champion: report.platformChampions.bestForReach, metric: Number.isFinite(report.platformChampions.bestForReach.value) ? `${Number(report.platformChampions.bestForReach.value).toLocaleString()} impressions` : 'Awaiting verified data' },
+        { objective: 'Engagement', champion: report.platformChampions.bestForEngagement, metric: Number.isFinite(report.platformChampions.bestForEngagement.rate) ? `${Number(report.platformChampions.bestForEngagement.rate).toLocaleString()}% engagement rate` : 'Awaiting verified data' },
+        { objective: 'Website traffic', champion: report.platformChampions.bestForWebsiteTraffic, metric: Number.isFinite(report.platformChampions.bestForWebsiteTraffic.sessions) ? `${Number(report.platformChampions.bestForWebsiteTraffic.sessions).toLocaleString()} tracked sessions` : 'Awaiting attribution' },
+        { objective: 'Attributed revenue', champion: report.platformChampions.bestForRevenue, metric: Number.isFinite(report.platformChampions.bestForRevenue.revenue) ? `$${Number(report.platformChampions.bestForRevenue.revenue).toLocaleString()}` : (dataQuality.revenueConfigured ? 'Awaiting attribution' : 'Not configured') }
+      ]; %>
+      <div class="table-wrap" style="margin-bottom:32px;">
+        <table class="data-table">
+          <thead><tr><th>Objective</th><th>Highest verified channel</th><th>Verified metric</th><th>Coverage</th><th>Evidence</th></tr></thead>
+          <tbody>
+            <% championRows.forEach((row) => { const coverage = row.champion.coverage || {}; %>
+              <tr>
+                <td><strong><%= row.objective %></strong></td>
+                <td><span class="status" style="text-transform:capitalize;"><%= championLabel(row.champion) %></span></td>
+                <td><%= row.metric %></td>
+                <td><%= Number(coverage.eligible || 0) %> of <%= Number(coverage.compared || dataQuality.eligiblePlatforms || 0) %> measured</td>
+                <td><%= row.champion.rationale %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
       </div>
 
       <!-- Section 3: Daily Diagnosis Engine (Data -> Insight -> Diagnosis -> Action) -->
@@ -269,7 +270,11 @@
             <% }); %>
           <% } else { %>
             <div class="card" style="padding:24px;text-align:center;color:var(--saas-text-muted);">
-              All platform signals are operating within normal baseline parameters.
+              <% if (dataQuality.status === 'reliable' || dataQuality.status === 'provisional') { %>
+                No evidence-backed performance diagnosis met the configured threshold for this reporting window.
+              <% } else { %>
+                Moyi is withholding performance diagnoses until enough fresh, verified metrics are available. Review Data Health above for the sources that need attention.
+              <% } %>
             </div>
           <% } %>
         </div>
@@ -324,7 +329,7 @@
       <div style="margin-bottom:36px;">
         <h2 style="font-size:18px;font-weight:800;margin:0 0 16px;display:flex;align-items:center;gap:8px;">
           <span>📊</span>
-          <span>Content Intelligence & Proven Patterns</span>
+          <span>Content Signals & Measured Patterns</span>
         </h2>
 
         <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(400px, 1fr));gap:20px;margin-bottom:20px;">
@@ -350,12 +355,12 @@
                       <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
                         <td style="padding:8px 4px;font-weight:700;color:#ffffff;text-transform:capitalize;"><%= row.contentType %></td>
                         <td style="padding:8px 4px;color:var(--saas-text-muted);"><%= row.postCount %></td>
-                        <td style="padding:8px 4px;color:#ffffff;"><%= row.avgImpressions.toLocaleString() %></td>
-                        <td style="padding:8px 4px;color:#ffffff;"><%= row.avgEngagements.toLocaleString() %></td>
-                        <td style="padding:8px 4px;color:var(--saas-cyan);"><%= row.avgEngagementRate %>%</td>
+                        <td style="padding:8px 4px;color:#ffffff;"><%= metricDisplay(row.avgImpressions) %></td>
+                        <td style="padding:8px 4px;color:#ffffff;"><%= metricDisplay(row.avgEngagements) %></td>
+                        <td style="padding:8px 4px;color:var(--saas-cyan);"><%= metricDisplay(row.avgEngagementRate, '%') %></td>
                         <td style="padding:8px 4px;">
-                          <span class="badge" style="background:<%= row.performanceMultiplier >= 1.3 ? 'rgba(18, 201, 155, 0.2)' : 'rgba(255,255,255,0.06)' %>;color:<%= row.performanceMultiplier >= 1.3 ? '#12c99b' : '#fff' %>;font-weight:800;padding:2px 6px;border-radius:4px;">
-                            <%= row.performanceMultiplier %>x
+                          <span class="badge" style="background:<%= Number.isFinite(row.performanceMultiplier) && row.performanceMultiplier >= 1.3 ? 'rgba(18, 201, 155, 0.2)' : 'rgba(255,255,255,0.06)' %>;color:<%= Number.isFinite(row.performanceMultiplier) && row.performanceMultiplier >= 1.3 ? '#12c99b' : '#fff' %>;font-weight:800;padding:2px 6px;border-radius:4px;">
+                            <%= Number.isFinite(row.performanceMultiplier) ? `${row.performanceMultiplier}x` : 'Building sample' %>
                           </span>
                         </td>
                       </tr>
@@ -370,14 +375,14 @@
 
           <!-- Detected Winning Patterns -->
           <div class="card" style="padding:20px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:rgba(18, 22, 28, 0.6);">
-            <h3 style="margin:0 0 14px;font-size:15px;font-weight:800;color:#ffffff;">Statistically Backed Patterns</h3>
+            <h3 style="margin:0 0 14px;font-size:15px;font-weight:800;color:#ffffff;">Measured Content Signals</h3>
             <% if (report.contentIntelligence.detectedPatterns && report.contentIntelligence.detectedPatterns.length) { %>
               <div style="display:flex;flex-direction:column;gap:12px;">
                 <% report.contentIntelligence.detectedPatterns.forEach(function(p) { %>
                   <div style="padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:8px;border-left:3px solid #5b4dff;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
                       <strong style="color:#ffffff;font-size:13px;"><%= p.patternName %></strong>
-                      <span class="badge" style="background:#5b4dff;color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:4px;"><%= p.multiplier %>x ROI</span>
+                      <span class="badge" style="background:#5b4dff;color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:4px;"><%= p.signalStatus === 'proven_pattern' ? 'Measured pattern' : 'Emerging signal' %> · <%= p.multiplier %>x response</span>
                     </div>
                     <p style="margin:0 0 6px;font-size:12px;color:var(--saas-text-muted);"><%= p.observation %></p>
                     <div style="font-size:11px;color:var(--saas-cyan);font-weight:600;"><%= p.recommendation %></div>
@@ -385,7 +390,7 @@
                 <% }); %>
               </div>
             <% } else { %>
-              <p style="color:var(--saas-text-muted);font-size:13px;">Moyi requires a minimum of 3 published posts per category before making confident causal assertions.</p>
+              <p style="color:var(--saas-text-muted);font-size:13px;">No content pattern meets the minimum comparable sample yet. Moyi does not infer a cause from a small sample.</p>
             <% } %>
           </div>
 
@@ -398,24 +403,24 @@
           <span>🔗</span>
           <span>Closed-Loop Social Website Attribution</span>
         </h2>
-        <p style="margin:0 0 16px;color:var(--saas-text-muted);font-size:13px;">Powered by <code>moyi-tracker.js</code> first-party UTM touchpoints tying social views directly to revenue.</p>
+        <p style="margin:0 0 16px;color:var(--saas-text-muted);font-size:13px;"><code>moyi-tracker.js</code> records first-party UTM touchpoints. Attribution appears only when the tracker and matching conversion goals provide verified evidence.</p>
 
         <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px;margin-bottom:20px;">
           <div style="padding:14px;background:rgba(0,0,0,0.3);border-radius:10px;border:1px solid rgba(255,255,255,0.05);">
             <div style="font-size:11px;color:var(--saas-text-muted);text-transform:uppercase;font-weight:700;">Referral Traffic</div>
-            <div style="font-size:22px;font-weight:900;color:#ffffff;margin-top:2px;"><%= report.downstreamAttribution.totalReferralTraffic %> <span style="font-size:12px;color:var(--saas-text-muted);">visits</span></div>
+            <div style="font-size:22px;font-weight:900;color:#ffffff;margin-top:2px;"><%= metricDisplay(report.downstreamAttribution.totalReferralTraffic) %> <% if (Number.isFinite(report.downstreamAttribution.totalReferralTraffic)) { %><span style="font-size:12px;color:var(--saas-text-muted);">visits</span><% } %></div>
           </div>
           <div style="padding:14px;background:rgba(0,0,0,0.3);border-radius:10px;border:1px solid rgba(255,255,255,0.05);">
             <div style="font-size:11px;color:var(--saas-text-muted);text-transform:uppercase;font-weight:700;">Leads Captured</div>
-            <div style="font-size:22px;font-weight:900;color:#ffffff;margin-top:2px;"><%= report.downstreamAttribution.totalLeads %> <span style="font-size:12px;color:var(--saas-text-muted);">signups</span></div>
+            <div style="font-size:22px;font-weight:900;color:#ffffff;margin-top:2px;"><%= metricDisplay(report.downstreamAttribution.totalLeads) %> <% if (Number.isFinite(report.downstreamAttribution.totalLeads)) { %><span style="font-size:12px;color:var(--saas-text-muted);">signups</span><% } %></div>
           </div>
           <div style="padding:14px;background:rgba(0,0,0,0.3);border-radius:10px;border:1px solid rgba(255,255,255,0.05);">
             <div style="font-size:11px;color:var(--saas-text-muted);text-transform:uppercase;font-weight:700;">Paid Conversions</div>
-            <div style="font-size:22px;font-weight:900;color:#ffffff;margin-top:2px;"><%= report.downstreamAttribution.totalConversions %> <span style="font-size:12px;color:var(--saas-text-muted);">sales</span></div>
+            <div style="font-size:22px;font-weight:900;color:#ffffff;margin-top:2px;"><%= metricDisplay(report.downstreamAttribution.totalConversions) %> <% if (Number.isFinite(report.downstreamAttribution.totalConversions)) { %><span style="font-size:12px;color:var(--saas-text-muted);">conversions</span><% } %></div>
           </div>
           <div style="padding:14px;background:rgba(0,0,0,0.3);border-radius:10px;border:1px solid rgba(255,255,255,0.05);">
             <div style="font-size:11px;color:var(--saas-text-muted);text-transform:uppercase;font-weight:700;">Attributed Revenue</div>
-            <div style="font-size:22px;font-weight:900;color:#12c99b;margin-top:2px;">$<%= report.downstreamAttribution.totalRevenue.toLocaleString() %></div>
+            <div style="font-size:22px;font-weight:900;color:#12c99b;margin-top:2px;"><%= Number.isFinite(report.downstreamAttribution.totalRevenue) ? `$${Number(report.downstreamAttribution.totalRevenue).toLocaleString()}` : (report.downstreamAttribution.revenueStatus === 'not_configured' ? 'Not configured' : 'Awaiting attribution') %></div>
           </div>
         </div>
       </div>

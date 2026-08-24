@@ -10,7 +10,7 @@ const {
   normalizeAnalyticsDays,
   socialPerformanceApiPayload
 } = require('../../services/socialAnalyticsService');
-const { collectMetricsForJob } = require('../../services/engagementMetricsService');
+const { collectDueMetrics, collectMetricsForJob } = require('../../services/engagementMetricsService');
 const {
   buildPerformanceDashboard,
   calculateGscOpportunities,
@@ -171,6 +171,7 @@ function registerMeasurementRoutes(router, context, services = {}) {
   }));
 
   router.post('/:id/growth-intelligence/generate', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
+    await collectDueMetrics({ projectId: req.project._id, limit: 100 });
     await generateDailyGrowthIntelligenceReport(req.project._id, req.body.date || req.query.date || new Date());
     res.redirect(`/projects/${req.project._id}/growth-intelligence?success=${encodeURIComponent('Daily Growth Intelligence diagnosis refreshed successfully.')}`);
   }));

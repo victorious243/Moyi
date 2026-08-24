@@ -81,11 +81,7 @@ async function ensurePublishMaintenanceSchedules() {
     { every: 15 * 60 * 1000 },
     { name: 'refresh-social-tokens', data: {} }
   );
-  await publishQueue.upsertJobScheduler(
-    'collect-social-engagement',
-    { every: 15 * 60 * 1000 },
-    { name: 'collect-social-engagement', data: {} }
-  );
+  await publishQueue.removeJobScheduler('collect-social-engagement').catch(() => null);
   await publishQueue.upsertJobScheduler(
     'recover-due-publish-jobs',
     { every: 60 * 1000 },

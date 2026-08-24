@@ -19,41 +19,43 @@ const projectGrowthBaselineSchema = new mongoose.Schema(
     },
     // Overall Project-Level Rolling Baselines
     overall: {
-      avgDailyImpressions: { type: Number, default: 0 },
-      avgDailyEngagements: { type: Number, default: 0 },
-      avgDailyReferralSessions: { type: Number, default: 0 },
-      avgDailyConversions: { type: Number, default: 0 },
-      avgEngagementRate: { type: Number, default: 0 },
-      avgPostEngagements: { type: Number, default: 0 }
+      avgDailyImpressions: { type: Number, default: null },
+      avgDailyEngagements: { type: Number, default: null },
+      avgDailyReferralSessions: { type: Number, default: null },
+      avgDailyConversions: { type: Number, default: null },
+      avgEngagementRate: { type: Number, default: null },
+      avgPostEngagements: { type: Number, default: null }
     },
+    measurementStatus: { type: String, enum: ['ready', 'building', 'insufficient_data'], default: 'insufficient_data' },
+    verifiedBaselineDays: { type: Number, default: 0 },
     // Per-Platform Rolling Baselines
     platformBaselines: [{
       platform: { type: String, required: true },
       sampleSize: { type: Number, default: 0 },
-      avgDailyImpressions: { type: Number, default: 0 },
-      avgDailyEngagements: { type: Number, default: 0 },
-      avgEngagementRate: { type: Number, default: 0 },
-      avgReferralSessions: { type: Number, default: 0 },
-      stdDevEngagementRate: { type: Number, default: 0 }
+      avgDailyImpressions: { type: Number, default: null },
+      avgDailyEngagements: { type: Number, default: null },
+      avgEngagementRate: { type: Number, default: null },
+      avgReferralSessions: { type: Number, default: null },
+      stdDevEngagementRate: { type: Number, default: null }
     }],
     // Per-Content-Format Rolling Baselines (carousel, video, image, text)
     formatBaselines: [{
       format: { type: String, required: true },
       sampleSize: { type: Number, default: 0 },
-      avgImpressions: { type: Number, default: 0 },
-      avgEngagements: { type: Number, default: 0 },
-      avgEngagementRate: { type: Number, default: 0 },
-      avgClicks: { type: Number, default: 0 },
-      multiplierVsBaseline: { type: Number, default: 1.0 }
+      avgImpressions: { type: Number, default: null },
+      avgEngagements: { type: Number, default: null },
+      avgEngagementRate: { type: Number, default: null },
+      avgClicks: { type: Number, default: null },
+      multiplierVsBaseline: { type: Number, default: null }
     }],
     // Per-Topic Rolling Baselines (founder_story, tutorial, product_update, case_study, etc.)
     topicBaselines: [{
       topic: { type: String, required: true },
       sampleSize: { type: Number, default: 0 },
-      avgImpressions: { type: Number, default: 0 },
-      avgEngagements: { type: Number, default: 0 },
-      avgEngagementRate: { type: Number, default: 0 },
-      multiplierVsBaseline: { type: Number, default: 1.0 }
+      avgImpressions: { type: Number, default: null },
+      avgEngagements: { type: Number, default: null },
+      avgEngagementRate: { type: Number, default: null },
+      multiplierVsBaseline: { type: Number, default: null }
     }],
     // Per-Timing Rolling Baselines (Platform + Day + Hour Window)
     timingBaselines: [{
@@ -61,15 +63,15 @@ const projectGrowthBaselineSchema = new mongoose.Schema(
       dayOfWeek: { type: String, required: true },
       hourWindow: { type: String, required: true },
       sampleSize: { type: Number, default: 0 },
-      avgEngagements: { type: Number, default: 0 },
-      multiplierVsBaseline: { type: Number, default: 1.0 }
+      avgEngagements: { type: Number, default: null },
+      multiplierVsBaseline: { type: Number, default: null }
     }],
     // Per-CTA Rolling Baselines
     ctaBaselines: [{
       ctaType: { type: String, required: true },
       sampleSize: { type: Number, default: 0 },
-      avgClicks: { type: Number, default: 0 },
-      avgConversionRate: { type: Number, default: 0 }
+      avgClicks: { type: Number, default: null },
+      avgConversionRate: { type: Number, default: null }
     }],
     experimentLearnings: [{
       experimentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Experiment', required: true },

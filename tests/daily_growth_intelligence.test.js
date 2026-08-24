@@ -4,6 +4,10 @@ const mongoose = require('mongoose');
 
 const DailySocialSnapshot = require('../models/DailySocialSnapshot');
 const DailyGrowthIntelligence = require('../models/DailyGrowthIntelligence');
+const EngagementSnapshot = require('../models/EngagementSnapshot');
+const MetricObservation = require('../models/MetricObservation');
+const ProviderSyncRun = require('../models/ProviderSyncRun');
+const { isVerifiedMetric, metricValue } = require('../services/analytics/metricStatus');
 const {
   SUPPORTED_PLATFORMS,
   calculateDelta,
@@ -148,6 +152,30 @@ test('Daily Growth Intelligence: Objective-Based Platform Performance', async (t
     assert.equal(champions.bestForEngagement.platform, 'x');
     assert.equal(champions.bestForWebsiteTraffic.platform, '');
   });
+
+  await t.test('excludes stale provider metrics from platform champions', () => {
+    const champions = analyzePlatformChampions([
+      {
+        platform: 'x',
+        impressions: 9000,
+        metricStates: {
+          impressions: { value: 9000, status: 'verified', freshness: 'stale' }
+        },
+        websiteTraffic: { measurementStatus: 'pending' }
+      },
+      {
+        platform: 'linkedin',
+        impressions: 120,
+        metricStates: {
+          impressions: { value: 120, status: 'verified', freshness: 'fresh' }
+        },
+        websiteTraffic: { measurementStatus: 'pending' }
+      }
+    ]);
+
+    assert.equal(champions.bestForReach.platform, 'linkedin');
+    assert.equal(champions.bestForReach.value, 120);
+  });
 });
 
 test('Daily Growth Intelligence: Daily Diagnosis & Opportunity Engine', async (t) => {
@@ -186,7 +214,7 @@ test('Daily Growth Intelligence: Daily Diagnosis & Opportunity Engine', async (t
     assert.ok(reachDiag);
     assert.ok(reachDiag.observation.includes('surged by 55.6%'));
     assert.equal(reachDiag.businessImpact, 'reach');
-    assert.equal(reachDiag.confidence, 'high');
+    assert.equal(reachDiag.confidence, 'medium');
 
     const trafficDiag = diagnoses.find((d) => d.id === 'diag-traffic-contribution');
     assert.ok(trafficDiag);
@@ -211,7 +239,10 @@ test('Daily Growth Intelligence: Daily Diagnosis & Opportunity Engine', async (t
         {
           patternName: 'Founder Story Advantage',
           multiplier: 2.4,
-          evidence: '4 founder posts averaged 520 engagements.'
+          evidence: '4 founder posts averaged 520 engagements.',
+          sampleSize: 4,
+          confidence: 'medium',
+          signalStatus: 'emerging_signal'
         }
       ],
       optimalTiming: [
@@ -235,6 +266,9 @@ test('Daily Growth Intelligence: Daily Diagnosis & Opportunity Engine', async (t
     const topicOpp = opps.find((o) => o.type === 'high_converting_topic');
     assert.ok(topicOpp);
     assert.equal(topicOpp.actionType, 'create_article');
+    assert.ok(topicOpp.evidence);
+    assert.ok(topicOpp.evidenceIds.length > 0);
+    assert.match(topicOpp.description, /controlled follow-up/i);
 
     const timingOpp = opps.find((o) => o.type === 'optimal_timing');
     assert.ok(timingOpp);
@@ -247,27 +281,40 @@ test('Daily Growth Intelligence: Daily Diagnosis & Opportunity Engine', async (t
       baseUrl: 'https://moyi-cmo.com/pricing',
       platform: 'linkedin',
       campaignName: 'Q3 Enterprise Growth',
-      postId: 'job-987'
+      postId: 'job-987',
+      contentId: 'draft-123'
     });
     assert.ok(link.includes('utm_source=linkedin'));
     assert.ok(link.includes('utm_medium=social'));
     assert.ok(link.includes('utm_campaign=q3-enterprise-growth'));
     assert.ok(link.includes('utm_content=job-987'));
+    assert.ok(link.includes('moyi_post_id=job-987'));
+    assert.ok(link.includes('moyi_content_id=draft-123'));
   });
 
   await t.test('computes 6-dimensional growth score and score movement explanation', () => {
+    const states = (data) => Object.fromEntries(Object.entries(data).map(([metric, value]) => [metric, {
+      value,
+      status: 'verified',
+      freshness: 'fresh'
+    }]));
+    const current = { impressions: 5000, engagements: 220, engagementRate: 4.4, referralSessions: 18, leadsGenerated: 3, conversions: 1, followersGained: 12 };
+    const previous = { impressions: 3000, engagements: 150, engagementRate: 3, referralSessions: 12, leadsGenerated: 2, conversions: 1, followersGained: 8 };
     const breakdown = calculateGrowthScoreBreakdown(
-      { impressions: 5000, engagements: 220, engagementRate: 4.4, referralSessions: 18, leadsGenerated: 3, conversions: 1, followersGained: 12 },
-      { impressions: 3000 }
+      { ...current, metricStates: states(current) },
+      { ...previous, metricStates: states(previous) },
+      { hasHistoricalBaseline: true, dataQuality: { confidence: 91 } }
     );
 
-    assert.ok(breakdown.overallScore >= 70 && breakdown.overallScore <= 100);
-    assert.ok(breakdown.audienceGrowth >= 70);
-    assert.ok(breakdown.contentPerformance >= 70);
-    assert.ok(breakdown.engagement >= 70);
-    assert.ok(breakdown.websiteAcquisition >= 70);
-    assert.ok(breakdown.conversion >= 70);
-    assert.ok(breakdown.brandVisibility >= 70);
+    assert.ok(breakdown.overallScore > 50 && breakdown.overallScore <= 100);
+    assert.equal(breakdown.status, 'scored');
+    assert.equal(breakdown.dataConfidence, 91);
+    assert.ok(breakdown.audienceGrowth > 50);
+    assert.ok(breakdown.contentPerformance > 50);
+    assert.ok(breakdown.engagement > 50);
+    assert.ok(breakdown.websiteAcquisition > 50);
+    assert.equal(breakdown.conversion, 50);
+    assert.ok(breakdown.brandVisibility > 50);
     assert.ok(breakdown.movementExplanation.length > 10);
     assert.equal(breakdown.dataQuality.hasVerifiedData, true);
     assert.ok(breakdown.dataQuality.observedMetrics.includes('impressions'));
@@ -288,7 +335,78 @@ test('Daily Growth Intelligence: Daily Diagnosis & Opportunity Engine', async (t
     assert.equal(breakdown.conversion, null);
     assert.equal(breakdown.brandVisibility, null);
     assert.equal(breakdown.dataQuality.hasVerifiedData, false);
-    assert.match(breakdown.movementExplanation, /not collected enough verified provider metrics/i);
+    assert.match(breakdown.movementExplanation, /not collected enough comparable verified metrics/i);
+  });
+
+  await t.test('treats verified zero as real data but does not score without a baseline', () => {
+    const zeroState = { value: 0, status: 'verified', freshness: 'fresh' };
+    assert.equal(isVerifiedMetric(zeroState), true);
+    assert.equal(metricValue(0), 0);
+    const breakdown = calculateGrowthScoreBreakdown(
+      { impressions: 0, engagements: 0, referralSessions: 0, metricStates: { impressions: zeroState, engagements: zeroState, referralSessions: zeroState } },
+      {},
+      { hasHistoricalBaseline: false, dataQuality: { confidence: 70, baselineDays: 1 } }
+    );
+    assert.equal(breakdown.overallScore, null);
+    assert.equal(breakdown.status, 'building_baseline');
+    assert.equal(breakdown.dataQuality.hasVerifiedData, true);
+  });
+
+  await t.test('rejects stale or failed observations as verified evidence', () => {
+    assert.equal(isVerifiedMetric({ value: 12, status: 'verified', freshness: 'stale' }), false);
+    assert.equal(isVerifiedMetric({ value: 12, status: 'provider_error', freshness: 'fresh' }), false);
+  });
+
+  await t.test('stores unknown metric defaults as null rather than artificial zero', () => {
+    const social = new DailySocialSnapshot({ projectId: new mongoose.Types.ObjectId(), platform: 'x', date: new Date() });
+    const engagement = new EngagementSnapshot({
+      projectId: new mongoose.Types.ObjectId(),
+      publishJobId: new mongoose.Types.ObjectId(),
+      socialAccountId: new mongoose.Types.ObjectId(),
+      platform: 'x',
+      platformPostId: 'post-1'
+    });
+    assert.equal(social.impressions, null);
+    assert.equal(social.websiteTraffic.attributedRevenue, null);
+    assert.deepEqual(engagement.metricStates, []);
+  });
+
+  await t.test('stores provider synchronization and normalized observation provenance', () => {
+    const projectId = new mongoose.Types.ObjectId();
+    const accountId = new mongoose.Types.ObjectId();
+    const publishJobId = new mongoose.Types.ObjectId();
+    const run = new ProviderSyncRun({
+      syncRunId: 'sync-test-1',
+      projectId,
+      accountId,
+      publishJobId,
+      platform: 'x',
+      status: 'success',
+      permissionStatus: 'ok',
+      tokenStatus: 'valid'
+    });
+    const observation = new MetricObservation({
+      projectId,
+      accountId,
+      publishJobId,
+      metric: 'impressions',
+      normalizedFamily: 'exposure',
+      value: 0,
+      status: 'verified',
+      source: 'x_api',
+      providerMetric: 'impression_count',
+      platform: 'x',
+      entityType: 'post',
+      entityId: 'x-post-1',
+      observedAt: new Date(),
+      syncRunId: run.syncRunId
+    });
+
+    assert.equal(run.validateSync(), undefined);
+    assert.equal(observation.validateSync(), undefined);
+    assert.equal(observation.value, 0);
+    assert.equal(observation.status, 'verified');
+    assert.equal(observation.syncRunId, run.syncRunId);
   });
 
   await t.test('detects negative risk patterns and reach contractions', () => {

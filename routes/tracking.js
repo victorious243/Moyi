@@ -45,6 +45,8 @@ router.get('/tracker.js', cors(), (req, res) => {
     utmId: params.get('utm_id') || '',
     utmTerm: params.get('utm_term') || '',
     utmContent: params.get('utm_content') || '',
+    moyiPostId: params.get('moyi_post_id') || '',
+    moyiContentId: params.get('moyi_content_id') || '',
     gclid: params.get('gclid') || '',
     gbraid: params.get('gbraid') || '',
     wbraid: params.get('wbraid') || '',
