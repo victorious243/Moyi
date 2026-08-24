@@ -1,5 +1,19 @@
 const mongoose = require('mongoose');
 
+// An explicit sub-schema is required because an issue property is named `type`.
+// In an inline array definition Mongoose can otherwise interpret it as the
+// array's schema type and cast the whole issue object to a string.
+const dataQualityIssueSchema = new mongoose.Schema(
+  {
+    platform: { type: String, default: '' },
+    type: { type: String, default: 'pending' },
+    message: { type: String, default: '' },
+    syncRunId: { type: String, default: '' },
+    observedAt: { type: Date, default: null }
+  },
+  { _id: false }
+);
+
 const dailyGrowthIntelligenceSchema = new mongoose.Schema(
   {
     projectId: {
@@ -35,13 +49,7 @@ const dailyGrowthIntelligenceSchema = new mongoose.Schema(
       eligiblePlatforms: { type: Number, default: 0 },
       verifiedPlatforms: { type: Number, default: 0 },
       verifiedPlatformNames: [{ type: String }],
-      issues: [{
-        platform: String,
-        type: String,
-        message: String,
-        syncRunId: String,
-        observedAt: Date
-      }],
+      issues: { type: [dataQualityIssueSchema], default: () => [] },
       health: [{
         source: String,
         label: String,

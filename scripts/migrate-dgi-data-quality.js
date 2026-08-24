@@ -14,6 +14,15 @@ async function run() {
     { schemaVersion: { $exists: false } },
     { $set: { schemaVersion: 1 } }
   );
+  const legacyStringIssues = await DailyGrowthIntelligence.collection.updateMany(
+    { 'dataQuality.issues.0': { $type: 'string' } },
+    {
+      $set: {
+        schemaVersion: 1,
+        'dataQuality.issues': []
+      }
+    }
+  );
   await Promise.all([
     DailyGrowthIntelligence.syncIndexes(),
     DailySocialSnapshot.syncIndexes(),
@@ -22,7 +31,7 @@ async function run() {
     ProjectGrowthBaseline.syncIndexes(),
     ProviderSyncRun.syncIndexes()
   ]);
-  console.log('DGI data-quality collections and indexes are ready. Legacy reports will regenerate on first read.');
+  console.log(`DGI data-quality collections and indexes are ready. Cleared ${legacyStringIssues.modifiedCount} legacy string-based issue payload(s); legacy reports will regenerate on first read.`);
   await mongoose.disconnect();
 }
 

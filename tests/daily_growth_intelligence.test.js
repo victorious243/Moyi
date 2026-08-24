@@ -20,6 +20,26 @@ const {
 } = require('../services/dailyGrowthIntelligenceService');
 
 test('Daily Growth Intelligence: Platform Support & Data Normalization', async (t) => {
+  await t.test('stores structured provider data-quality issues without casting them to strings', async () => {
+    const issues = [
+      { platform: 'x', type: 'permission_denied', message: 'Value passed for the token was invalid.', syncRunId: '', observedAt: null },
+      { platform: 'threads', type: 'pending', message: 'Waiting for the first verified analytics response.', syncRunId: '', observedAt: null },
+      { platform: 'linkedin', type: 'permission_denied', message: 'Reconnect the social account.', syncRunId: '', observedAt: null }
+    ];
+    const report = new DailyGrowthIntelligence({
+      projectId: new mongoose.Types.ObjectId(),
+      date: new Date(),
+      executiveSummary: 'Insufficient verified data.',
+      dataQuality: { issues }
+    });
+
+    await report.validate();
+    assert.equal(report.dataQuality.issues.length, 3);
+    assert.equal(report.dataQuality.issues[0].platform, 'x');
+    assert.equal(report.dataQuality.issues[0].type, 'permission_denied');
+    assert.equal(report.dataQuality.issues[2].platform, 'linkedin');
+  });
+
   await t.test('supports all 6 required core platforms plus modern channels', () => {
     const required = ['linkedin', 'facebook', 'instagram', 'x', 'tiktok', 'youtube'];
     required.forEach((p) => {
