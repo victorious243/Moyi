@@ -1,6 +1,6 @@
 const ExperimentObservation = require('../../models/ExperimentObservation');
 const TrackingEvent = require('../../models/TrackingEvent');
-const EngagementSnapshot = require('../../models/EngagementSnapshot');
+const SocialPostPerformance = require('../../models/SocialPostPerformance');
 const PaidMetricSnapshot = require('../../models/PaidMetricSnapshot');
 
 function dateBounds(experiment, now = new Date()) {
@@ -66,34 +66,42 @@ async function collectTracking(experiment, variant, bounds) {
   };
 }
 
-async function latestSocialSnapshots(publishJobIds, bounds) {
+async function latestSocialPerformances(projectId, publishJobIds, bounds) {
   if (!publishJobIds.length) return [];
-  const rows = await EngagementSnapshot.find({
+  return SocialPostPerformance.find({
+    projectId,
     publishJobId: { $in: publishJobIds },
-    capturedAt: { $gte: bounds.start, $lte: bounds.end }
-  }).sort({ capturedAt: -1 }).lean();
-  const latest = new Map();
-  rows.forEach((row) => {
-    const key = String(row.publishJobId);
-    if (!latest.has(key)) latest.set(key, row);
-  });
-  return Array.from(latest.values());
+    publishedAt: { $gte: bounds.start, $lte: bounds.end }
+  }).lean();
 }
 
 async function collectSocial(experiment, variant, bounds) {
   const publishJobIds = Array.isArray(variant.sourceRefs && variant.sourceRefs.publishJobIds)
     ? variant.sourceRefs.publishJobIds.filter((value) => /^[a-f\d]{24}$/i.test(String(value)))
     : [];
-  const rows = await latestSocialSnapshots(publishJobIds, bounds);
+  const rows = await latestSocialPerformances(experiment.projectId, publishJobIds, bounds);
   if (experiment.metricKind === 'rate') {
-    const denominator = rows.reduce((sum, row) => sum + Number(row.metrics.impressions || row.metrics.reach || row.metrics.views || 0), 0);
-    const successes = rows.reduce((sum, row) => sum + Number(row.engagementTotal || row.metrics.clicks || 0), 0);
+    const family = experiment.primaryMetric === 'ctr' || experiment.primaryMetric === 'click_rate' ? 'trafficIntent' : 'socialEngagement';
+    const eligible = rows.map((row) => {
+      const exposure = (row.latestNormalizedMetrics || []).find((metric) => metric.family === 'exposure' && metric.status === 'verified');
+      const numerator = (row.latestNormalizedMetrics || []).find((metric) => metric.family === family && metric.status === 'verified');
+      return exposure && numerator ? { exposure: Number(exposure.value), numerator: Number(numerator.value) } : null;
+    }).filter(Boolean);
+    const denominator = eligible.reduce((sum, row) => sum + row.exposure, 0);
+    const successes = eligible.reduce((sum, row) => sum + row.numerator, 0);
     return { sampleSize: denominator, successes: Math.min(successes, denominator), sum: null, sumSquares: null, sourceRecordCount: rows.length };
   }
   const metric = experiment.primaryMetric;
-  const values = rows.map((row) => Number(
-    metric === 'engagements' ? row.engagementTotal : row.metrics[metric]
-  )).filter(Number.isFinite);
+  const familyByMetric = { engagements: 'socialEngagement', meaningful_engagements: 'meaningfulEngagement', clicks: 'trafficIntent' };
+  const values = rows.map((row) => {
+    const family = familyByMetric[metric];
+    if (family) {
+      const normalized = (row.latestNormalizedMetrics || []).find((item) => item.family === family && item.status === 'verified');
+      return normalized ? Number(normalized.value) : null;
+    }
+    const value = row.latestNativeMetrics && row.latestNativeMetrics[metric];
+    return value === null || value === undefined ? null : Number(value);
+  }).filter((value) => Number.isFinite(value));
   return {
     sampleSize: values.length,
     successes: null,

@@ -454,6 +454,7 @@ export class LinkedInProvider implements SocialProvider {
         impressions: numeric(organizationStatistics.impressionCount),
         reach: numeric(organizationStatistics.uniqueImpressionsCount),
         likes: numeric(organizationStatistics.likeCount) ?? likes,
+        reactions: numeric(organizationStatistics.likeCount) ?? likes,
         comments: numeric(organizationStatistics.commentCount) ?? numeric(socialResponse.data?.commentSummary?.count),
         shares: numeric(organizationStatistics.shareCount),
         clicks: numeric(organizationStatistics.clickCount)

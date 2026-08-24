@@ -25,6 +25,7 @@ const PublishJob = require('../models/PublishJob');
 const PublishJobEvent = require('../models/PublishJobEvent');
 const EngagementSnapshot = require('../models/EngagementSnapshot');
 const GrowthSignal = require('../models/GrowthSignal');
+const SocialPostPerformance = require('../models/SocialPostPerformance');
 const WebhookDelivery = require('../models/WebhookDelivery');
 const ConversionGoal = require('../models/ConversionGoal');
 const TrackingEvent = require('../models/TrackingEvent');
@@ -97,6 +98,7 @@ function createAccountDataService(deps = {}) {
     PublishJobEvent,
     EngagementSnapshot,
     GrowthSignal,
+    SocialPostPerformance,
     WebhookDelivery,
     ConversionGoal,
     TrackingEvent,
@@ -172,6 +174,7 @@ function createAccountDataService(deps = {}) {
       publishJobEvents,
       engagementSnapshots,
       growthSignals,
+      socialPostPerformances,
       organizations,
       organizationMemberships,
       apiCredentials,
@@ -234,6 +237,9 @@ function createAccountDataService(deps = {}) {
       models.GrowthSignal.find({
         $or: [{ projectId: { $in: projectIds } }, { sourceProjectId: { $in: projectIds } }]
       }).lean(),
+      models.SocialPostPerformance.find({
+        $or: [{ projectId: { $in: projectIds } }, { sourceProjectId: { $in: projectIds } }]
+      }).lean(),
       models.Organization.find({ ownerId: userId }).lean(),
       models.OrganizationMember.find({ userId }).populate('organizationId', 'name slug status').lean(),
       models.ApiCredential.find({ userId }).select('+prefix').populate('projectIds', 'name').lean(),
@@ -290,6 +296,7 @@ function createAccountDataService(deps = {}) {
       publishJobEvents,
       engagementSnapshots,
       growthSignals,
+      socialPostPerformances,
       webhookDeliveries,
       conversionGoals,
       trackingEvents,
@@ -374,6 +381,9 @@ function createAccountDataService(deps = {}) {
         $or: [{ publishJobId: { $in: publishJobIds } }, { projectId }, { sourceProjectId: projectId }]
       }),
       models.GrowthSignal.deleteMany({
+        $or: [{ publishJobId: { $in: publishJobIds } }, { projectId }, { sourceProjectId: projectId }]
+      }),
+      models.SocialPostPerformance.deleteMany({
         $or: [{ publishJobId: { $in: publishJobIds } }, { projectId }, { sourceProjectId: projectId }]
       }),
       models.WebhookDelivery.deleteMany({ projectId }),

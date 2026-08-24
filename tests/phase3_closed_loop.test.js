@@ -93,6 +93,18 @@ test('metric normalization preserves unavailable fields and calculates interacti
   assert.deepEqual(engagementSummary({ impressions: 1000 }), { engagementTotal: null, engagementRate: null });
 });
 
+test('snapshot summaries do not double-count provider-native aliases', () => {
+  assert.deepEqual(engagementSummary({
+    impressions: 1000,
+    likes: 10,
+    reactions: 10,
+    comments: 2,
+    shares: 3,
+    reposts: 3,
+    clicks: 40
+  }), { engagementTotal: 15, engagementRate: 0.015 });
+});
+
 test('metric cadence slows with post age and stops after ninety days', () => {
   const now = new Date('2026-08-13T12:00:00.000Z');
   assert.equal(
@@ -112,6 +124,16 @@ test('metric cadence slows with post age and stops after ninety days', () => {
     '2026-08-14T12:00:00.000Z'
   );
   assert.equal(nextMetricsSyncAt({ publishedAt: new Date('2026-04-01T12:00:00.000Z') }, now), null);
+});
+
+test('metric cadence temporarily accelerates for a recent breakout post', () => {
+  const now = new Date('2026-08-13T12:00:00.000Z');
+  const next = nextMetricsSyncAt({
+    publishedAt: new Date('2026-08-12T12:00:00.000Z'),
+    metricsCapturedAt: new Date('2026-08-13T11:30:00.000Z'),
+    metricsLatest: { impressions: 1000 }
+  }, now, { currentMetrics: { impressions: 1400 } });
+  assert.equal(next.toISOString(), '2026-08-13T12:10:00.000Z');
 });
 
 test('provider-aware retry policy separates transient, authentication, and permanent failures', () => {
@@ -292,7 +314,7 @@ test('social performance API includes Growth Brain-ready signals', () => {
   assert.equal(payload.posts[0].metrics.impressions, 1000);
 });
 
-test('Growth Brain recommendation inputs separate winning and weak content patterns', () => {
+test('Growth Brain does not promote content patterns from inadequate samples', () => {
   const projectId = new mongoose.Types.ObjectId();
   const signals = [
     {
@@ -344,14 +366,12 @@ test('Growth Brain recommendation inputs separate winning and weak content patte
 
   const inputs = buildRecommendationInputsFromSignals(signals, projectId);
   assert.equal(inputs.evidenceQuality.confidence, 'early');
-  assert.equal(inputs.bestContentPatterns[0].pattern, 'proof-led angle');
-  assert.equal(inputs.bestContentPatterns[0].platform, 'linkedin');
-  assert.equal(inputs.weakContentPatterns[0].platform, 'x');
-  assert.match(inputs.suggestedNextActions[0].action, /Create two more proof-led angle posts/);
+  assert.equal(inputs.bestContentPatterns.length, 0);
+  assert.equal(inputs.weakContentPatterns.length, 0);
   assert.ok(inputs.suggestedNextActions.some((item) => /Collect at least five measured social posts/.test(item.action)));
 });
 
-test('Growth Brain upgrade identifies best times, platforms, hooks, topics, formats, and draft improvements', () => {
+test('Growth Brain keeps posting times, hooks, topics, and formats inconclusive with inadequate samples', () => {
   const projectId = new mongoose.Types.ObjectId();
   const signals = [
     {
@@ -409,13 +429,13 @@ test('Growth Brain upgrade identifies best times, platforms, hooks, topics, form
 
   const upgrade = buildGrowthBrainUpgradeFromSignals(signals, projectId);
   assert.equal(upgrade.whatWorked[0].platform, 'linkedin');
-  assert.equal(upgrade.bestPostingTimes[0].label, 'Friday 11:00 UTC');
   assert.equal(upgrade.bestPlatforms[0].platform, 'linkedin');
-  assert.match(upgrade.winningHooks[0].hook, /Proof/);
-  assert.equal(upgrade.winningTopics[0].topic, 'proof');
-  assert.equal(upgrade.winningFormats[0].format, 'image - proof-led angle');
+  assert.equal(upgrade.bestPostingTimes.length, 0);
+  assert.equal(upgrade.winningHooks.length, 0);
+  assert.equal(upgrade.winningTopics.length, 0);
+  assert.equal(upgrade.winningFormats.length, 0);
   assert.equal(upgrade.lowPerformingWarnings[0].platform, 'x');
-  assert.match(upgrade.improvedDraftSuggestions[0].direction, /Prioritize linkedin/);
+  assert.equal(upgrade.improvedDraftSuggestions.length, 0);
 });
 
 test('public API batch summaries include only jobs visible to the API key', () => {

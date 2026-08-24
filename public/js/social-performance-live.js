@@ -39,7 +39,7 @@
     row.querySelector('[data-post-account]').textContent = post.accountName || 'Connected account';
     row.querySelector('[data-post-published]').textContent = dateTime(post.publishedAt);
     row.querySelector('[data-post-exposure]').textContent = postExposure(post);
-    row.querySelector('[data-post-engagements]').textContent = metric(post.engagements);
+    row.querySelector('[data-post-engagements]').textContent = `${metric(post.engagements)} / ${metric(post.meaningfulEngagements)}`;
 
     const status = row.querySelector('[data-post-status]');
     status.textContent = label(post.metricsStatus || 'pending');

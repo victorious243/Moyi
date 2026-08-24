@@ -233,17 +233,22 @@ export class XProvider implements SocialProvider {
       const publicMetrics = data.public_metrics || {};
       const ownedMetrics = data.organic_metrics || data.non_public_metrics || {};
       const impressions = ownedMetrics.impression_count ?? publicMetrics.impression_count;
-      const clicks = ownedMetrics.url_link_clicks === undefined && ownedMetrics.user_profile_clicks === undefined
+      const linkClicks = ownedMetrics.url_link_clicks ?? null;
+      const profileClicks = ownedMetrics.user_profile_clicks ?? null;
+      const clicks = linkClicks === null && profileClicks === null
         ? null
-        : Number(ownedMetrics.url_link_clicks || 0) + Number(ownedMetrics.user_profile_clicks || 0);
+        : Number(linkClicks || 0) + Number(profileClicks || 0);
       return engagementMetricsResult({
         impressions,
         likes: publicMetrics.like_count,
         comments: publicMetrics.reply_count,
         shares: publicMetrics.retweet_count,
+        reposts: publicMetrics.retweet_count,
         quotes: publicMetrics.quote_count,
         saves: publicMetrics.bookmark_count,
-        clicks
+        clicks,
+        linkClicks,
+        profileClicks
       }, { privateMetricsAvailable });
     } catch (error) {
       throw providerError('X metrics', error);

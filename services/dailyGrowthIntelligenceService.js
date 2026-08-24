@@ -28,9 +28,11 @@ const Campaign = require('../models/Campaign');
 const TrackingEvent = require('../models/TrackingEvent');
 const Project = require('../models/Project');
 const EngagementSnapshot = require('../models/EngagementSnapshot');
+const SocialPostPerformance = require('../models/SocialPostPerformance');
 const ConversionGoal = require('../models/ConversionGoal');
 const { assessDailyDataQuality } = require('./analytics/dataQualityService');
 const { freshnessFor, isVerifiedMetric, metricValue } = require('./analytics/metricStatus');
+const { median, normalizeMetricFamilies, normalizedValue } = require('./socialPerformanceMath');
 
 const SUPPORTED_PLATFORMS = DailySocialSnapshot.SUPPORTED_PLATFORMS;
 
@@ -754,6 +756,37 @@ function capitalize(s = '') {
   return String(s).charAt(0).toUpperCase() + String(s).slice(1);
 }
 
+function contentIntelligenceMetrics(performance, snapshot, platform) {
+  let normalized = performance && performance.latestNormalizedMetrics;
+  let source = 'canonical';
+  if (!normalized || !normalized.length) {
+    const metrics = (snapshot && snapshot.metrics) || {};
+    let metricStates = (snapshot && snapshot.metricStates) || [];
+    if (!metricStates.length && snapshot) {
+      const available = new Set(snapshot.availableFields || Object.keys(metrics));
+      const knownMetrics = [
+        'impressions', 'reach', 'views', 'videoViews', 'likes', 'reactions',
+        'comments', 'shares', 'reposts', 'quotes', 'saves', 'clicks',
+        'linkClicks', 'profileClicks', 'watchTimeMs'
+      ];
+      metricStates = knownMetrics.map((metric) => ({
+        metric,
+        status: available.has(metric) && nullableNumber(metrics[metric]) !== null ? 'verified' : 'unsupported'
+      }));
+    }
+    normalized = normalizeMetricFamilies({ metrics, metricStates, platform });
+    source = 'snapshot_fallback';
+  }
+  return {
+    impressions: normalizedValue(normalized, 'exposure'),
+    engagements: normalizedValue(normalized, 'socialEngagement'),
+    meaningfulEngagement: normalizedValue(normalized, 'meaningfulEngagement'),
+    websiteClicks: normalizedValue(normalized, 'trafficIntent'),
+    engagementRate: normalizedValue(normalized, 'socialEngagementRate'),
+    source
+  };
+}
+
 /**
  * 4. Deep Content Intelligence & Pattern Detection
  */
@@ -779,33 +812,33 @@ async function analyzeContentIntelligence(projectId, windowDays = 30) {
     };
   }
 
-  const engagementSnapshots = await EngagementSnapshot.find({
-    projectId,
-    publishJobId: { $in: jobs.map((job) => job._id) }
-  }).sort({ capturedAt: -1 }).lean();
+  const jobIds = jobs.map((job) => job._id);
+  const [performances, engagementSnapshots, project] = await Promise.all([
+    SocialPostPerformance.find({ projectId, publishJobId: { $in: jobIds } }).lean(),
+    EngagementSnapshot.find({ projectId, publishJobId: { $in: jobIds } }).sort({ capturedAt: -1 }).lean(),
+    Project.findById(projectId).select('timezone').lean()
+  ]);
+  const performanceByJob = new Map(performances.map((performance) => [String(performance.publishJobId), performance]));
   const latestByJob = new Map();
   engagementSnapshots.forEach((snapshot) => {
     const key = String(snapshot.publishJobId);
     if (!latestByJob.has(key)) latestByJob.set(key, snapshot);
   });
 
-  // Map post performance
+  // Canonical performance owns post-level intelligence. Raw snapshots are retained
+  // only as a compatibility fallback until historical rows have been backfilled.
   const posts = jobs.map((job) => {
+    const performance = performanceByJob.get(String(job._id));
     const snapshot = latestByJob.get(String(job._id));
-    if (!snapshot) return null;
-    const metrics = snapshot.metrics || {};
-    const available = new Set(snapshot.availableFields || []);
-    const exposureField = available.has('impressions') ? 'impressions' : (available.has('views') ? 'views' : null);
-    const impressions = exposureField ? nullableNumber(metrics[exposureField]) : null;
-    const likes = available.has('likes') ? nullableNumber(metrics.likes) : null;
-    const comments = available.has('comments') ? nullableNumber(metrics.comments) : null;
-    const shares = available.has('shares') ? nullableNumber(metrics.shares) : (available.has('quotes') ? nullableNumber(metrics.quotes) : null);
-    const saves = available.has('saves') ? nullableNumber(metrics.saves) : null;
-    const clicks = available.has('clicks') ? nullableNumber(metrics.clicks) : null;
-    const interactionValues = [likes, comments, shares, saves, clicks].filter((value) => value !== null);
-    if (impressions === null && !interactionValues.length) return null;
-    const engagementTotal = interactionValues.length ? interactionValues.reduce((sum, value) => sum + value, 0) : null;
-    const engagementRate = impressions !== null && impressions > 0 && engagementTotal !== null ? (engagementTotal / impressions) * 100 : null;
+    if (!performance && !snapshot) return null;
+    const measured = contentIntelligenceMetrics(performance, snapshot, job.platform);
+    const impressions = measured.impressions;
+    const engagementTotal = measured.engagements;
+    const meaningfulEngagement = measured.meaningfulEngagement;
+    const clicks = measured.websiteClicks;
+    const normalizedRate = measured.engagementRate;
+    if (impressions === null && engagementTotal === null && clicks === null) return null;
+    const engagementRate = normalizedRate === null ? null : normalizedRate * 100;
     const format = detectContentFormat(job);
     const textBody = (job.draftId && job.draftId.body) || (job.content && job.content.body) || '';
     const category = detectContentCategory(textBody);
@@ -821,8 +854,13 @@ async function analyzeContentIntelligence(projectId, windowDays = 30) {
       publishedAt: job.publishedAt || job.createdAt,
       impressions,
       engagements: engagementTotal,
+      meaningfulEngagement,
       engagementRate: engagementRate === null ? null : Math.round(engagementRate * 10) / 10,
-      websiteClicks: clicks
+      websiteClicks: clicks,
+      performanceScore: performance && performance.performanceScore !== null ? performance.performanceScore : null,
+      scoreStatus: performance ? performance.scoreStatus : 'unavailable',
+      confidence: performance && performance.confidence ? performance.confidence : { score: 0, label: 'insufficient' },
+      measurementSource: measured.source
     };
   }).filter(Boolean);
 
@@ -837,23 +875,28 @@ async function analyzeContentIntelligence(projectId, windowDays = 30) {
     };
   }
 
-  // Calculate baseline metrics
-  const impressionPosts = posts.filter((post) => post.impressions !== null);
+  // Medians resist single-post spikes and are the baseline used by Social Performance.
   const engagementPosts = posts.filter((post) => post.engagements !== null);
-  const avgImpressions = impressionPosts.length ? impressionPosts.reduce((sum, p) => sum + p.impressions, 0) / impressionPosts.length : null;
-  const avgEngagements = engagementPosts.length ? engagementPosts.reduce((sum, p) => sum + p.engagements, 0) / engagementPosts.length : null;
+  const medianEngagements = median(engagementPosts.map((post) => post.engagements));
 
   // Top & Underperforming posts
   const topPosts = posts
     .slice()
-    .filter((post) => post.engagements !== null)
-    .sort((a, b) => b.engagements - a.engagements)
+    .filter((post) => post.performanceScore !== null || post.engagements !== null)
+    .sort((a, b) => {
+      if (a.performanceScore !== null || b.performanceScore !== null) {
+        return (b.performanceScore ?? -1) - (a.performanceScore ?? -1);
+      }
+      return (b.engagements ?? -1) - (a.engagements ?? -1);
+    })
     .slice(0, 4)
     .map((p) => ({
       ...p,
-      whyItWon: avgEngagements !== null && avgEngagements > 0 && p.engagements > avgEngagements * 1.5
-        ? `Generated ${(p.engagements / avgEngagements).toFixed(1)}x the measured post average. The data identifies performance, not a causal reason.`
-        : 'This post ranked among the highest measured engagement totals in the selected window.'
+      whyItWon: p.scoreStatus === 'comparable' && p.performanceScore !== null
+        ? `Ranked at ${p.performanceScore}/100 against comparable ${capitalize(p.platform)} posts. The score reflects measured performance, not a causal claim.`
+        : (medianEngagements !== null && medianEngagements > 0 && p.engagements > medianEngagements * 1.5
+          ? `Generated ${(p.engagements / medianEngagements).toFixed(1)}x the measured post median. The data identifies performance, not a causal reason.`
+          : 'This post ranked among the highest measured results in the selected window; more comparable samples are needed.')
     }));
 
   const worstPosts = posts
@@ -871,9 +914,11 @@ async function analyzeContentIntelligence(projectId, windowDays = 30) {
   // Format Breakdown
   const formatMap = new Map();
   posts.forEach((p) => {
-    const f = p.contentType;
+    const f = `${p.platform}:${p.contentType}`;
     const item = formatMap.get(f) || {
       contentType: f,
+      platform: p.platform,
+      format: p.contentType,
       postCount: 0,
       totalImp: 0,
       totalEng: 0,
@@ -899,17 +944,20 @@ async function analyzeContentIntelligence(projectId, windowDays = 30) {
   });
 
   const contentTypeBreakdown = Array.from(formatMap.values()).map((item) => {
-    const avgImp = item.impressionSamples ? Math.round(item.totalImp / item.impressionSamples) : null;
-    const avgEng = item.engagementSamples ? Math.round(item.totalEng / item.engagementSamples) : null;
-    const avgRate = avgImp !== null && avgImp > 0 && avgEng !== null ? (avgEng / avgImp) * 100 : null;
-    const multiplier = avgEngagements > 0 && avgEng !== null ? Math.round((avgEng / avgEngagements) * 10) / 10 : null;
+    const matching = posts.filter((post) => post.platform === item.platform && post.contentType === item.format);
+    const avgImp = median(matching.map((post) => post.impressions));
+    const avgEng = median(matching.map((post) => post.engagements));
+    const avgClicks = median(matching.map((post) => post.websiteClicks));
+    const avgRate = median(matching.map((post) => post.engagementRate));
+    const multiplier = medianEngagements > 0 && avgEng !== null ? Math.round((avgEng / medianEngagements) * 10) / 10 : null;
     return {
-      contentType: item.contentType,
+      contentType: item.format,
+      platform: item.platform,
       postCount: item.postCount,
       avgImpressions: avgImp,
       avgEngagements: avgEng,
       avgEngagementRate: avgRate === null ? null : Math.round(avgRate * 10) / 10,
-      avgWebsiteClicks: item.clickSamples ? Math.round(item.totalClicks / item.clickSamples) : null,
+      avgWebsiteClicks: avgClicks,
       impressionSamples: item.impressionSamples,
       engagementSamples: item.engagementSamples,
       clickSamples: item.clickSamples,
@@ -920,15 +968,15 @@ async function analyzeContentIntelligence(projectId, windowDays = 30) {
   // Pattern Detection with Minimum Sample Thresholds (>= 3 posts)
   const categoryMap = new Map();
   posts.forEach((p) => {
-    const c = p.category;
-    const item = categoryMap.get(c) || { category: c, postCount: 0, totalEng: 0, totalClicks: 0, engagementSamples: 0, clickSamples: 0 };
+    const c = `${p.platform}:${p.category}`;
+    const item = categoryMap.get(c) || { category: p.category, platform: p.platform, postCount: 0, engagements: [], clicks: [], engagementSamples: 0, clickSamples: 0 };
     item.postCount += 1;
     if (p.engagements !== null) {
-      item.totalEng += p.engagements;
+      item.engagements.push(p.engagements);
       item.engagementSamples += 1;
     }
     if (p.websiteClicks !== null) {
-      item.totalClicks += p.websiteClicks;
+      item.clicks.push(p.websiteClicks);
       item.clickSamples += 1;
     }
     categoryMap.set(c, item);
@@ -936,14 +984,15 @@ async function analyzeContentIntelligence(projectId, windowDays = 30) {
 
   const detectedPatterns = [];
   for (const [, item] of categoryMap.entries()) {
-    if (item.engagementSamples >= 3 && avgEngagements > 0) {
-      const avgCatEng = item.totalEng / item.engagementSamples;
-      const multiplier = avgEngagements > 0 ? Math.round((avgCatEng / avgEngagements) * 10) / 10 : 1.0;
+    const platformBaseline = median(posts.filter((post) => post.platform === item.platform).map((post) => post.engagements));
+    if (item.engagementSamples >= 3 && platformBaseline > 0) {
+      const avgCatEng = median(item.engagements);
+      const multiplier = Math.round((avgCatEng / platformBaseline) * 10) / 10;
       if (multiplier >= 1.5) {
         detectedPatterns.push({
-          patternName: `${capitalize(item.category.replace('_', ' '))} Content Advantage`,
-          observation: `${capitalize(item.category.replace('_', ' '))} posts outperform overall average engagement by ${multiplier}x.`,
-          evidence: `Sample of ${item.engagementSamples} measured posts averaged ${Math.round(avgCatEng)} engagements vs ${Math.round(avgEngagements)} baseline.`,
+          patternName: `${capitalize(item.platform)} ${capitalize(item.category.replace('_', ' '))} Content Advantage`,
+          observation: `${capitalize(item.category.replace('_', ' '))} posts on ${capitalize(item.platform)} outperform that platform's median engagement by ${multiplier}x.`,
+          evidence: `Sample of ${item.engagementSamples} measured posts had ${Math.round(avgCatEng)} median engagements vs ${Math.round(platformBaseline)} for comparable ${capitalize(item.platform)} posts.`,
           confidence: item.engagementSamples >= 7 ? 'high' : (item.engagementSamples >= 5 ? 'medium' : 'early_signal'),
           signalStatus: item.engagementSamples >= 5 ? 'proven_pattern' : 'emerging_signal',
           sampleSize: item.engagementSamples,
@@ -958,8 +1007,8 @@ async function analyzeContentIntelligence(projectId, windowDays = 30) {
   contentTypeBreakdown.forEach((item) => {
     if (item.engagementSamples >= 3 && item.performanceMultiplier !== null && item.performanceMultiplier >= 1.4) {
       detectedPatterns.push({
-        patternName: `${capitalize(item.contentType)} Format Multiplier`,
-        observation: `${capitalize(item.contentType)} posts generate ${item.performanceMultiplier}x higher audience engagement than standard text posts.`,
+        patternName: `${capitalize(item.platform)} ${capitalize(item.contentType)} Format Multiplier`,
+        observation: `${capitalize(item.contentType)} posts on ${capitalize(item.platform)} generate ${item.performanceMultiplier}x higher audience engagement than that platform's median.`,
         evidence: item.avgEngagementRate === null
           ? `Analyzed ${item.engagementSamples} ${item.contentType} assets with verified engagement totals; exposure was unavailable for a rate calculation.`
           : `Analyzed ${item.engagementSamples} ${item.contentType} assets yielding ${item.avgEngagementRate}% average engagement rate.`,
@@ -974,11 +1023,14 @@ async function analyzeContentIntelligence(projectId, windowDays = 30) {
 
   // Optimal Timing Heatmap
   const timingMap = new Map();
+  const timezone = (project && project.timezone) || 'UTC';
   posts.forEach((p) => {
     const d = new Date(p.publishedAt);
-    const day = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d.getUTCDay()];
-    const hour = d.getUTCHours();
-    const hourWindow = hour < 12 ? '08:00 - 12:00 UTC' : (hour < 17 ? '12:00 - 17:00 UTC' : '17:00 - 21:00 UTC');
+    const local = timeZoneParts(d, timezone);
+    const localClock = new Date(Date.UTC(local.year, local.month - 1, local.day));
+    const day = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][localClock.getUTCDay()];
+    const hour = local.hour;
+    const hourWindow = hour < 12 ? `08:00 - 12:00 ${timezone}` : (hour < 17 ? `12:00 - 17:00 ${timezone}` : `17:00 - 21:00 ${timezone}`);
     const key = `${p.platform}_${day}_${hourWindow}`;
     const item = timingMap.get(key) || { platform: p.platform, bestDay: day, bestHourWindow: hourWindow, count: 0, totalEng: 0, engagementSamples: 0 };
     item.count += 1;
@@ -990,14 +1042,18 @@ async function analyzeContentIntelligence(projectId, windowDays = 30) {
   });
 
   const optimalTiming = Array.from(timingMap.values())
-    .filter((t) => t.engagementSamples >= 3 && avgEngagements > 0)
+    .filter((t) => t.engagementSamples >= 3)
     .map((t) => ({
       platform: t.platform,
       bestDay: t.bestDay,
       bestHourWindow: t.bestHourWindow,
-      performanceMultiplier: Math.round(((t.totalEng / t.engagementSamples) / avgEngagements) * 10) / 10,
+      performanceMultiplier: (() => {
+        const platformMedian = median(posts.filter((post) => post.platform === t.platform).map((post) => post.engagements));
+        return platformMedian > 0 ? Math.round(((t.totalEng / t.engagementSamples) / platformMedian) * 10) / 10 : null;
+      })(),
       sampleSize: t.engagementSamples
     }))
+    .filter((item) => item.performanceMultiplier !== null)
     .sort((a, b) => b.performanceMultiplier - a.performanceMultiplier)
     .slice(0, 3);
 
@@ -1559,6 +1615,7 @@ module.exports = {
   generateSocialUtmLink,
   detectContentFormat,
   detectContentCategory,
+  contentIntelligenceMetrics,
   syncDailySnapshotsForProject,
   calculateWindowComparisons,
   analyzePlatformChampions,

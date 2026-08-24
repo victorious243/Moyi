@@ -11162,6 +11162,28 @@ textarea:focus {
   width: 7px;
 }
 
+.social-post-evidence {
+  margin-top: 0.65rem;
+  max-width: 32rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.social-post-evidence summary {
+  width: fit-content;
+  color: var(--accent, #55e6d2);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.social-post-evidence[open] summary {
+  margin-bottom: 0.45rem;
+}
+
+.social-post-evidence div + div {
+  margin-top: 0.3rem;
+}
+
 [data-social-refresh-form] button[disabled] {
   cursor: progress;
   opacity: 0.72;

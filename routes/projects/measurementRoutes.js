@@ -112,7 +112,7 @@ function registerMeasurementRoutes(router, context, services = {}) {
       _id: req.params.jobId,
       ...destinationProjectFilter(req.project._id),
       status: 'published'
-    }).select('_id').lean();
+    }).select('_id metricsCapturedAt').lean();
 
     if (!job) {
       if (wantsJson) {
@@ -122,6 +122,15 @@ function registerMeasurementRoutes(router, context, services = {}) {
         });
       }
       return res.redirect(`${redirectBase}&error=${encodeURIComponent('Metrics can only be refreshed for a published post in this project.')}`);
+    }
+
+    const cooldownMs = 60 * 1000;
+    const lastCapturedAt = job.metricsCapturedAt ? new Date(job.metricsCapturedAt).getTime() : 0;
+    if (lastCapturedAt && Date.now() - lastCapturedAt < cooldownMs) {
+      const waitSeconds = Math.max(1, Math.ceil((cooldownMs - (Date.now() - lastCapturedAt)) / 1000));
+      const message = `Provider metrics were just refreshed. Try again in ${waitSeconds} seconds.`;
+      if (wantsJson) return res.status(429).json({ success: false, cooldown: true, message });
+      return res.redirect(`${redirectBase}&error=${encodeURIComponent(message)}`);
     }
 
     const result = await collectMetricsForJob(job._id);

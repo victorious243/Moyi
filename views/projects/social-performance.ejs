@@ -34,14 +34,47 @@
       <div><span>Published</span><strong data-social-total="posts"><%= formatNumber(dashboard.totals.posts) %></strong></div>
       <div><span>Measured</span><strong data-social-total="measuredPosts"><%= formatNumber(dashboard.totals.measuredPosts) %></strong></div>
       <div><span>Exposure</span><strong data-social-total="exposure"><%= formatMetricNumber(dashboard.totals.exposure) %></strong></div>
-      <div><span>Engagements</span><strong data-social-total="engagements"><%= formatMetricNumber(dashboard.totals.engagements) %></strong></div>
+      <div><span>Social engagement</span><strong data-social-total="engagements"><%= formatMetricNumber(dashboard.totals.engagements) %></strong></div>
+    </section>
+
+    <section class="panel social-data-health-panel">
+      <div class="panel-title">
+        <div>
+          <h2>Social Data Health</h2>
+          <p>Connection, provider coverage, and freshness behind every conclusion on this page.</p>
+        </div>
+        <span class="status <%= dashboard.dataHealth && dashboard.dataHealth.score === 100 ? 'status-success' : '' %>">
+          <%= dashboard.dataHealth && dashboard.dataHealth.score !== null ? `${dashboard.dataHealth.score}% - ${dashboard.dataHealth.label}` : 'No connected data' %>
+        </span>
+      </div>
+      <% if (!dashboard.dataHealth || !dashboard.dataHealth.providers.length) { %>
+        <p class="empty">Connect a social account before Moyi can collect verified provider evidence.</p>
+      <% } else { %>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Provider</th><th>Account</th><th>Connection</th><th>Measured posts</th><th>Freshness</th><th>Last provider sync</th></tr></thead>
+            <tbody>
+              <% dashboard.dataHealth.providers.forEach((provider) => { %>
+                <tr>
+                  <td><strong><%= provider.platform %></strong></td>
+                  <td><%= provider.accountName %></td>
+                  <td><span class="status <%= provider.connectionState === 'connected' ? 'status-success' : 'publish-status-failed' %>"><%= label(provider.connectionState) %></span><% if (provider.limitation) { %><br><small><%= provider.limitation %></small><% } %></td>
+                  <td><%= formatNumber(provider.measuredPosts) %></td>
+                  <td><%= label(provider.freshness) %></td>
+                  <td><%= provider.lastSyncAt ? new Date(provider.lastSyncAt).toLocaleString() : 'Not collected yet' %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
     </section>
 
     <section class="panel social-growth-panel">
       <div class="panel-title">
         <div>
           <h2>Growth Brain feedback</h2>
-          <p>Observed social signals that Moyi can use when drafting the next campaign.</p>
+          <p>Lifecycle-adjusted, per-post evidence Moyi can use when drafting the next measurable test.</p>
         </div>
         <span class="status"><%= formatNumber(growthBrain.sampleSize) %> signal<%= growthBrain.sampleSize === 1 ? '' : 's' %></span>
       </div>
@@ -50,7 +83,7 @@
       <% } else { %>
         <div class="social-growth-grid">
           <div>
-            <h3>Best platform signals</h3>
+            <h3>Platform evidence</h3>
             <% if (!growthBrain.platforms.length) { %>
               <p class="empty">No platform signal is available yet.</p>
             <% } else { %>
@@ -58,7 +91,7 @@
                 <% growthBrain.platforms.slice(0, 4).forEach((platform) => { %>
                   <article>
                     <span><%= platform.platform %></span>
-                    <strong><%= formatNumber(platform.averageScore) %></strong>
+                    <strong><%= platform.medianScore === null || platform.medianScore === undefined ? 'Provisional' : formatNumber(platform.medianScore) %></strong>
                     <small><%= formatNumber(platform.samples) %> sample<%= platform.samples === 1 ? '' : 's' %></small>
                   </article>
                 <% }) %>
@@ -74,7 +107,7 @@
                 <% growthBrain.strongestObservedPosts.slice(0, 4).forEach((post) => { %>
                   <li>
                     <strong><%= post.title || `${post.platform} post` %></strong>
-                    <span><%= post.platform %> - score <%= formatNumber(post.score) %><% if (post.engagementRate !== null && post.engagementRate !== undefined) { %> - <%= formatRate(post.engagementRate) %><% } %></span>
+                    <span><%= post.platform %> - <%= post.score === null || post.score === undefined ? 'provisional' : `score ${formatNumber(post.score)}` %><% if (post.engagementRate !== null && post.engagementRate !== undefined) { %> - <%= formatRate(post.engagementRate) %> social ER<% } %></span>
                   </li>
                 <% }) %>
               </ol>
@@ -95,7 +128,7 @@
             <% } else { %>
               <ul class="pattern-list">
                 <% recommendationInputs.bestContentPatterns.slice(0, 3).forEach((pattern) => { %>
-                  <li><strong><%= pattern.platform %></strong> <%= pattern.pattern %> - score <%= formatNumber(pattern.averageScore) %></li>
+                  <li><strong><%= pattern.platform %></strong> <%= pattern.pattern %> - median score <%= formatNumber(pattern.medianScore) %></li>
                 <% }) %>
               </ul>
             <% } %>
@@ -107,7 +140,7 @@
             <% } else { %>
               <ul class="pattern-list">
                 <% recommendationInputs.weakContentPatterns.slice(0, 3).forEach((pattern) => { %>
-                  <li><strong><%= pattern.platform %></strong> <%= pattern.pattern %> - score <%= formatNumber(pattern.averageScore) %></li>
+                  <li><strong><%= pattern.platform %></strong> <%= pattern.pattern %> - median score <%= formatNumber(pattern.medianScore) %></li>
                 <% }) %>
               </ul>
             <% } %>
@@ -121,6 +154,7 @@
                 <span><%= label(item.priority) %></span>
                 <strong><%= item.action %></strong>
                 <p><%= item.rationale %></p>
+                <% if (item.confidence) { %><small>Confidence: <%= label(item.confidence) %><% if (item.measurementWindow) { %> - measure after <%= item.measurementWindow %><% } %></small><% } %>
               </article>
             <% }) %>
           </div>
@@ -263,7 +297,7 @@
       <div class="panel-title">
         <div>
           <h2>Platform comparison</h2>
-          <p>Exposure uses impressions, reach, views, or video views, in that order, depending on what each platform returns.</p>
+          <p>Contribution shows totals. Efficiency uses medians per post. Exposure sources remain provider-native and are not treated as perfectly interchangeable.</p>
         </div>
         <span class="status"><%= formatRate(dashboard.totals.engagementRate) %> engagement rate</span>
       </div>
@@ -272,7 +306,7 @@
       <% } else { %>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Platform</th><th>Posts</th><th>Measured</th><th>Exposure</th><th>Engagements</th><th>Clicks</th><th>Rate</th></tr></thead>
+            <thead><tr><th>Platform</th><th>Posts</th><th>Measured</th><th>Total exposure</th><th>Median/post</th><th>Meaningful</th><th>Clicks</th><th>Median social ER</th><th>Median CTR</th></tr></thead>
             <tbody>
               <% dashboard.platformRows.forEach((row) => { %>
                 <tr>
@@ -280,9 +314,11 @@
                   <td><%= formatNumber(row.posts) %></td>
                   <td><%= formatNumber(row.measuredPosts) %></td>
                   <td><%= formatMetricNumber(row.exposure) %></td>
-                  <td><%= formatMetricNumber(row.engagements) %></td>
+                  <td><%= formatMetricNumber(row.medianExposurePerPost) %></td>
+                  <td><%= formatMetricNumber(row.meaningfulEngagements) %></td>
                   <td><%= formatMetricNumber(row.clicks) %></td>
-                  <td><%= formatRate(row.engagementRate) %></td>
+                  <td><%= formatRate(row.medianEngagementRate) %></td>
+                  <td><%= formatRate(row.medianCtr) %></td>
                 </tr>
               <% }) %>
             </tbody>
@@ -303,7 +339,7 @@
       <% } else { %>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Campaign</th><th>Channel</th><th>Posts</th><th>Measured</th><th>Exposure</th><th>Engagements</th><th>Rate</th></tr></thead>
+            <thead><tr><th>Campaign</th><th>Channel</th><th>Posts</th><th>Measured</th><th>Total exposure</th><th>Median/post</th><th>Meaningful</th><th>Sessions</th><th>Conversions</th></tr></thead>
             <tbody>
               <% dashboard.campaignRows.forEach((row) => { %>
                 <tr>
@@ -312,8 +348,10 @@
                   <td><%= formatNumber(row.posts) %></td>
                   <td><%= formatNumber(row.measuredPosts) %></td>
                   <td><%= formatMetricNumber(row.exposure) %></td>
-                  <td><%= formatMetricNumber(row.engagements) %></td>
-                  <td><%= formatRate(row.engagementRate) %></td>
+                  <td><%= formatMetricNumber(row.medianExposurePerPost) %></td>
+                  <td><%= formatMetricNumber(row.meaningfulEngagements) %></td>
+                  <td><%= formatMetricNumber(row.sessions) %></td>
+                  <td><%= formatMetricNumber(row.conversions) %></td>
                 </tr>
               <% }) %>
             </tbody>
@@ -334,7 +372,7 @@
       <% } else { %>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Type</th><th>Posts</th><th>Measured</th><th>Exposure</th><th>Engagements</th><th>Clicks</th><th>Rate</th></tr></thead>
+            <thead><tr><th>Type</th><th>Posts</th><th>Measured</th><th>Total exposure</th><th>Median/post</th><th>Meaningful</th><th>Clicks</th><th>Median social ER</th><th>Median CTR</th></tr></thead>
             <tbody>
               <% dashboard.contentTypeRows.forEach((row) => { %>
                 <tr>
@@ -342,9 +380,11 @@
                   <td><%= formatNumber(row.posts) %></td>
                   <td><%= formatNumber(row.measuredPosts) %></td>
                   <td><%= formatMetricNumber(row.exposure) %></td>
-                  <td><%= formatMetricNumber(row.engagements) %></td>
+                  <td><%= formatMetricNumber(row.medianExposurePerPost) %></td>
+                  <td><%= formatMetricNumber(row.meaningfulEngagements) %></td>
                   <td><%= formatMetricNumber(row.clicks) %></td>
-                  <td><%= formatRate(row.engagementRate) %></td>
+                  <td><%= formatRate(row.medianEngagementRate) %></td>
+                  <td><%= formatRate(row.medianCtr) %></td>
                 </tr>
               <% }) %>
             </tbody>
@@ -369,15 +409,36 @@
       <% } else { %>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Post</th><th>Account</th><th>Published</th><th>Exposure</th><th>Engagements</th><th>Metrics</th><th></th></tr></thead>
+            <thead><tr><th>Post</th><th>Account</th><th>Published</th><th>Exposure</th><th>Social / meaningful</th><th>Traffic</th><th>Performance</th><th>Metrics</th><th></th></tr></thead>
             <tbody data-social-posts-body>
               <% dashboard.recentPosts.forEach((post) => { %>
                 <tr data-social-post-row="<%= post.id %>">
-                  <td><strong data-post-title><%= post.title || `${post.platform} post` %></strong><br><small data-post-platform><%= post.platform %></small></td>
+                  <td>
+                    <strong data-post-title><%= post.title || `${post.platform} post` %></strong><br><small data-post-platform><%= post.platform %></small>
+                    <% if ((post.lifecycle && post.lifecycle.length) || (post.anomalies && post.anomalies.length) || (post.attribution && post.attribution.status === 'verified')) { %>
+                      <details class="social-post-evidence">
+                        <summary>Why Moyi scored this</summary>
+                        <% if (post.lifecycle && post.lifecycle.length) { %>
+                          <div><strong>Lifecycle:</strong> <%= post.lifecycle.filter((window) => window.complete).map((window) => label(window.key)).join(', ') || 'No milestone complete yet' %></div>
+                        <% } %>
+                        <% if (post.baselineComparison && post.baselineComparison.comparisonWindow) { %>
+                          <div><strong>Baseline:</strong> <%= label(post.baselineComparison.comparisonWindow) %> against <%= formatNumber(post.baselineComparison.sampleSize) %> comparable post<%= post.baselineComparison.sampleSize === 1 ? '' : 's' %></div>
+                        <% } %>
+                        <% if (post.attribution && post.attribution.status === 'verified') { %>
+                          <div><strong>Business evidence:</strong> <%= formatNumber(post.attribution.sessions) %> sessions, <%= formatNumber(post.attribution.leads) %> leads, <%= formatNumber(post.attribution.conversions) %> conversions</div>
+                        <% } %>
+                        <% if (post.anomalies && post.anomalies.length) { %>
+                          <div><strong>Signals:</strong> <%= post.anomalies.map((anomaly) => label(anomaly.type)).join(', ') %></div>
+                        <% } %>
+                      </details>
+                    <% } %>
+                  </td>
                   <td data-post-account><%= post.accountName %></td>
                   <td data-post-published><%= post.publishedAt ? new Date(post.publishedAt).toLocaleString() : '' %></td>
                   <td data-post-exposure><%= post.exposureField ? `${formatNumber(post.exposure)} ${label(post.exposureField)}` : 'Unavailable' %></td>
-                  <td data-post-engagements><%= formatMetricNumber(post.engagements) %></td>
+                  <td data-post-engagements><%= formatMetricNumber(post.engagements) %> / <%= formatMetricNumber(post.meaningfulEngagements) %></td>
+                  <td><%= formatMetricNumber(post.clicks) %> clicks<% if (post.ctr !== null && post.ctr !== undefined) { %><br><small><%= formatRate(post.ctr) %> CTR</small><% } %></td>
+                  <td><strong><%= post.performanceScore === null || post.performanceScore === undefined ? 'Provisional' : `${formatNumber(post.performanceScore)}/100` %></strong><br><small><%= label(post.scoreStatus || 'unavailable') %><% if (post.confidence && post.confidence.label) { %> - <%= label(post.confidence.label) %> confidence<% } %></small></td>
                   <td>
                     <span data-post-status class="status <%= post.metricsStatus === 'active' ? 'status-success' : '' %>"><%= label(post.metricsStatus) %></span>
                     <br><small data-post-fields><%= post.availableFields.length ? post.availableFields.map(label).join(', ') : '' %></small>
@@ -401,7 +462,7 @@
 
     <section class="panel">
       <div class="panel-title">
-        <div><h2>Collection health</h2><p>Metrics refresh automatically using an age-based schedule that slows down as posts mature.</p></div>
+        <div><h2>Collection health</h2><p>Provider collection runs in the background using an adaptive age and retry schedule. The browser reads stored evidence and never calls providers on its polling interval.</p></div>
       </div>
       <% if (!dashboard.accounts.length) { %>
         <p class="empty">Connect a social account to begin publishing and collecting performance.</p>

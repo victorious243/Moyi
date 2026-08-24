@@ -26,6 +26,7 @@ const PublishJob = require('../../models/PublishJob');
 const PublishJobEvent = require('../../models/PublishJobEvent');
 const EngagementSnapshot = require('../../models/EngagementSnapshot');
 const GrowthSignal = require('../../models/GrowthSignal');
+const SocialPostPerformance = require('../../models/SocialPostPerformance');
 const ApiCredential = require('../../models/ApiCredential');
 const WebhookDelivery = require('../../models/WebhookDelivery');
 const ConversionGoal = require('../../models/ConversionGoal');
@@ -100,6 +101,7 @@ function buildProjectsContext(overrides = {}) {
     PublishJobEvent,
     EngagementSnapshot,
     GrowthSignal,
+    SocialPostPerformance,
     ApiCredential,
     WebhookDelivery,
     ConversionGoal,
@@ -370,6 +372,13 @@ function buildProjectsContext(overrides = {}) {
         ]
       }),
       deps.GrowthSignal.deleteMany({
+        $or: [
+          { publishJobId: { $in: publishJobIds } },
+          { projectId: project._id },
+          { sourceProjectId: project._id }
+        ]
+      }),
+      deps.SocialPostPerformance.deleteMany({
         $or: [
           { publishJobId: { $in: publishJobIds } },
           { projectId: project._id },

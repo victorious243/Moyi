@@ -13,6 +13,7 @@ const {
   calculateDelta,
   detectContentFormat,
   detectContentCategory,
+  contentIntelligenceMetrics,
   analyzePlatformChampions,
   runDailyDiagnosisEngine,
   detectGrowthOpportunities,
@@ -72,6 +73,49 @@ test('Daily Growth Intelligence: Platform Support & Data Normalization', async (
     assert.equal(detectContentCategory('New feature update: v2 AI model released today'), 'product_update');
     assert.equal(detectContentCategory('Case study: How client grew organic pipeline by 3.2x'), 'case_study');
     assert.equal(detectContentCategory('Special 50% discount on annual plans this week'), 'promotional');
+  });
+
+  await t.test('keeps provider clicks separate from social engagement in content intelligence', () => {
+    const measured = contentIntelligenceMetrics(null, {
+      metrics: {
+        impressions: 1000,
+        likes: 10,
+        comments: 3,
+        shares: 2,
+        clicks: 40
+      },
+      availableFields: ['impressions', 'likes', 'comments', 'shares', 'clicks']
+    }, 'x');
+
+    assert.equal(measured.engagements, 15);
+    assert.equal(measured.meaningfulEngagement, 5);
+    assert.equal(measured.websiteClicks, 40);
+    assert.equal(measured.engagementRate, 0.015);
+    assert.equal(measured.source, 'snapshot_fallback');
+  });
+
+  await t.test('prefers canonical normalized metrics over conflicting raw snapshots', () => {
+    const measured = contentIntelligenceMetrics({
+      latestNormalizedMetrics: [
+        { family: 'exposure', value: 200, status: 'verified' },
+        { family: 'socialEngagement', value: 8, status: 'verified' },
+        { family: 'meaningfulEngagement', value: 3, status: 'verified' },
+        { family: 'trafficIntent', value: 11, status: 'verified' },
+        { family: 'socialEngagementRate', value: 0.04, status: 'verified' }
+      ]
+    }, {
+      metrics: { impressions: 999, likes: 99, clicks: 99 },
+      availableFields: ['impressions', 'likes', 'clicks']
+    }, 'x');
+
+    assert.deepEqual(measured, {
+      impressions: 200,
+      engagements: 8,
+      meaningfulEngagement: 3,
+      websiteClicks: 11,
+      engagementRate: 0.04,
+      source: 'canonical'
+    });
   });
 });
 

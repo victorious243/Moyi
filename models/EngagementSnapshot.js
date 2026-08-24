@@ -5,11 +5,15 @@ const metricFields = [
   'reach',
   'views',
   'likes',
+  'reactions',
   'comments',
   'shares',
+  'reposts',
   'quotes',
   'saves',
   'clicks',
+  'linkClicks',
+  'profileClicks',
   'videoViews',
   'watchTimeMs'
 ];
@@ -104,6 +108,7 @@ const engagementSnapshotSchema = new mongoose.Schema(
       index: true
     },
     syncRunId: { type: String, default: '', index: true },
+    observationKey: { type: String, default: '', index: true },
     reconciledAt: { type: Date, default: null },
     isFinal: { type: Boolean, default: false }
   },
@@ -112,6 +117,10 @@ const engagementSnapshotSchema = new mongoose.Schema(
 
 engagementSnapshotSchema.index({ publishJobId: 1, capturedAt: -1 });
 engagementSnapshotSchema.index({ projectId: 1, capturedAt: -1, platform: 1 });
+engagementSnapshotSchema.index(
+  { projectId: 1, publishJobId: 1, observationKey: 1 },
+  { unique: true, partialFilterExpression: { observationKey: { $type: 'string', $gt: '' } } }
+);
 
 module.exports = mongoose.model('EngagementSnapshot', engagementSnapshotSchema);
 module.exports.METRIC_FIELDS = metricFields;

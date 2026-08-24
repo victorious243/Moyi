@@ -9,8 +9,9 @@ const { classifyPublishError, recordPublishJobEvent } = require('./publishReliab
 const { markSocialAccountReconnectRequired } = require('./socialAccountService');
 const MetricObservation = require('../models/MetricObservation');
 const ProviderSyncRun = require('../models/ProviderSyncRun');
-const { randomUUID } = require('crypto');
+const { createHash, randomUUID } = require('crypto');
 const { freshnessFor } = require('./analytics/metricStatus');
+const { rebuildCanonicalPostPerformance } = require('./socialPostPerformanceService');
 
 const METRICS_LEASE_MS = 5 * 60 * 1000;
 const MAX_METRICS_AGE_MS = 90 * 24 * 60 * 60 * 1000;
@@ -20,11 +21,15 @@ const METRIC_FAMILIES = Object.freeze({
   views: 'exposure',
   reach: 'unique_reach',
   likes: 'engagement',
+  reactions: 'engagement',
   comments: 'engagement',
   shares: 'engagement',
+  reposts: 'engagement',
   quotes: 'engagement',
   saves: 'engagement',
   clicks: 'traffic',
+  linkClicks: 'traffic',
+  profileClicks: 'traffic',
   videoViews: 'video_consumption',
   watchTimeMs: 'video_consumption'
 });
@@ -66,8 +71,13 @@ function safeProviderData(value, depth = 0) {
 }
 
 function engagementSummary(metrics = {}) {
-  const interactionValues = ['likes', 'comments', 'shares', 'quotes', 'saves', 'clicks']
-    .map((field) => numeric(metrics[field]))
+  const interactionValues = [
+    numeric(metrics.reactions) ?? numeric(metrics.likes),
+    numeric(metrics.comments),
+    numeric(metrics.reposts) ?? numeric(metrics.shares),
+    numeric(metrics.quotes),
+    numeric(metrics.saves)
+  ]
     .filter((value) => value !== null);
   const interactions = interactionValues.length
     ? interactionValues.reduce((total, value) => total + value, 0)
@@ -83,7 +93,7 @@ function engagementSummary(metrics = {}) {
   };
 }
 
-function nextMetricsSyncAt(job, capturedAt = new Date()) {
+function nextMetricsSyncAt(job, capturedAt = new Date(), { currentMetrics = null } = {}) {
   const ageMs = Math.max(0, capturedAt.getTime() - new Date(job.publishedAt || capturedAt).getTime());
   let delayMs;
   if (ageMs < 30 * 60 * 1000) delayMs = 2 * 60 * 1000;
@@ -92,47 +102,31 @@ function nextMetricsSyncAt(job, capturedAt = new Date()) {
   else if (ageMs < 14 * 24 * 60 * 60 * 1000) delayMs = 24 * 60 * 60 * 1000;
   else if (ageMs < MAX_METRICS_AGE_MS) delayMs = 7 * 24 * 60 * 60 * 1000;
   else return null;
+  const previousExposure = ['impressions', 'reach', 'views', 'videoViews']
+    .map((field) => numeric(job.metricsLatest && job.metricsLatest[field]))
+    .find((value) => value !== null) ?? null;
+  const currentExposure = ['impressions', 'reach', 'views', 'videoViews']
+    .map((field) => numeric(currentMetrics && currentMetrics[field]))
+    .find((value) => value !== null) ?? null;
+  const previousCapturedAt = job.metricsCapturedAt ? new Date(job.metricsCapturedAt) : null;
+  const observationGapMs = previousCapturedAt && !Number.isNaN(previousCapturedAt.getTime())
+    ? capturedAt.getTime() - previousCapturedAt.getTime()
+    : null;
+  const breakoutVelocity = previousExposure !== null && currentExposure !== null
+    && observationGapMs > 0 && observationGapMs <= 2 * 60 * 60 * 1000
+    && currentExposure - previousExposure >= Math.max(50, previousExposure * 0.25);
+  if (breakoutVelocity && ageMs < 48 * 60 * 60 * 1000) delayMs = Math.min(delayMs, 10 * 60 * 1000);
+  if (job.publishOptions && job.publishOptions.businessImportance === 'high' && ageMs < 48 * 60 * 60 * 1000) {
+    delayMs = Math.min(delayMs, 15 * 60 * 1000);
+  }
   return new Date(capturedAt.getTime() + delayMs);
 }
 
-function growthScore(metrics = {}, engagementRate = null) {
-  const reach = Number(metrics.impressions ?? metrics.reach ?? metrics.views ?? metrics.videoViews ?? 0);
-  const engagement = ['likes', 'comments', 'shares', 'quotes', 'saves', 'clicks']
-    .reduce((total, field) => total + Number(metrics[field] || 0), 0);
-  const ratePoints = Number.isFinite(engagementRate) ? Math.min(45, engagementRate * 500) : 0;
-  return Math.round(Math.min(100, Math.log10(reach + 1) * 10 + Math.log10(engagement + 1) * 15 + ratePoints));
-}
-
-async function updateGrowthSignal({ job, snapshot }) {
-  const metrics = normalizeMetrics(snapshot.metrics || {});
-  const named = Object.entries(metrics).filter(([, value]) => value !== null && value !== undefined);
-  const summary = named.length
-    ? `${job.platform} post: ${named.slice(0, 5).map(([key, value]) => `${Number(value).toLocaleString()} ${key}`).join(', ')}.`
-    : `${job.platform} returned no supported engagement counters.`;
-  return GrowthSignal.findOneAndUpdate(
-    { publishJobId: job._id },
-    {
-      $set: {
-        projectId: job.destinationProjectId || job.projectId,
-        sourceProjectId: job.projectId,
-        publishJobId: job._id,
-        draftId: job.draftId,
-        platform: job.platform,
-        signalType: 'social_post_performance',
-        score: growthScore(metrics, snapshot.engagementRate),
-        summary,
-        evidence: {
-          metrics,
-          availableFields: snapshot.availableFields,
-          engagementRate: snapshot.engagementRate,
-          capturedAt: snapshot.capturedAt,
-          platformPostId: job.platformPostId
-        },
-        observedAt: snapshot.capturedAt
-      }
-    },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  );
+function observationKey(job, capturedAt, metrics) {
+  const minuteBucket = Math.floor(new Date(capturedAt).getTime() / 60000);
+  return createHash('sha256')
+    .update(`${job._id}:${minuteBucket}:${JSON.stringify(metrics)}`)
+    .digest('hex');
 }
 
 async function claimMetricsJob(jobId) {
@@ -224,7 +218,7 @@ async function collectMetricsForJob(jobId) {
         syncRunId
       };
     });
-    const snapshot = await EngagementSnapshot.create({
+    const snapshotPayload = {
       projectId: job.destinationProjectId || job.projectId,
       sourceProjectId: job.projectId,
       publishJobId: job._id,
@@ -240,10 +234,16 @@ async function collectMetricsForJob(jobId) {
       providerData: safeProviderData(result.providerData || {}),
       capturedAt,
       syncRunId,
+      observationKey: observationKey(job, capturedAt, metrics),
       reconciledAt: new Date(),
-      isFinal: nextMetricsSyncAt(job, capturedAt) === null
-    });
-    const nextSync = nextMetricsSyncAt(job, capturedAt);
+      isFinal: nextMetricsSyncAt(job, capturedAt, { currentMetrics: metrics }) === null
+    };
+    const snapshot = await EngagementSnapshot.findOneAndUpdate(
+      { projectId: snapshotPayload.projectId, publishJobId: job._id, observationKey: snapshotPayload.observationKey },
+      { $setOnInsert: snapshotPayload },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    const nextSync = nextMetricsSyncAt(job, capturedAt, { currentMetrics: metrics });
     const observationWrites = metricStates.map((state) => ({
       updateOne: {
         filter: { projectId: job.destinationProjectId || job.projectId, publishJobId: job._id, metric: state.metric, syncRunId },
@@ -304,9 +304,9 @@ async function collectMetricsForJob(jobId) {
           lastMetricsSyncAt: capturedAt
         }
       }),
-      updateGrowthSignal({ job, snapshot }),
       recordPublishJobEvent(job, 'metrics_collected', { metadata: { availableFields, capturedAt } })
     ]);
+    await rebuildCanonicalPostPerformance(job._id);
     console.info(JSON.stringify({
       event: 'provider_metrics_sync_completed',
       syncRunId,
@@ -449,5 +449,5 @@ module.exports = {
   normalizeMetrics,
   safeMetricText,
   safeProviderData,
-  updateGrowthSignal
+  observationKey
 };

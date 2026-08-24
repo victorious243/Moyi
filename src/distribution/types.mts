@@ -133,11 +133,15 @@ export type EngagementMetricName =
   | 'reach'
   | 'views'
   | 'likes'
+  | 'reactions'
   | 'comments'
   | 'shares'
+  | 'reposts'
   | 'quotes'
   | 'saves'
   | 'clicks'
+  | 'linkClicks'
+  | 'profileClicks'
   | 'videoViews'
   | 'watchTimeMs';
 
