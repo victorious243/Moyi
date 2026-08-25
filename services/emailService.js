@@ -46,6 +46,13 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+function extractFirstName(name) {
+  if (!name || typeof name !== 'string') return '';
+  const firstWord = name.trim().split(/\s+/)[0] || '';
+  if (!firstWord) return '';
+  return firstWord.charAt(0).toUpperCase() + firstWord.slice(1);
+}
+
 function brandLogoUrl(target = env) {
   return `${String(target.appUrl || '').replace(/\/$/, '')}/images/brand/moyi-mark-512.png`;
 }
@@ -283,7 +290,8 @@ function createEmailService(deps = {}) {
 
   async function sendUnverifiedAccountReminderEmail({ user, verifyUrl }) {
     const targetVerifyUrl = verifyUrl || `${targetEnv.appUrl}/verify-email?email=${encodeURIComponent(user && user.email || '')}`;
-    const greeting = user && user.name ? `Hi ${user.name},` : 'Hi there,';
+    const firstName = extractFirstName(user && user.name);
+    const greeting = firstName ? `Hi ${firstName},` : 'Hi there,';
     const bodyHtml = `
       <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6;">
         Thanks for signing up for Moyi-CMO!
@@ -633,6 +641,7 @@ module.exports = {
   createEmailService,
   emailButton,
   escapeHtml,
+  extractFirstName,
   infoCard,
   pinBlock,
   sendContentIntelligenceReadyEmail: createEmailService().sendContentIntelligenceReadyEmail,
