@@ -386,7 +386,7 @@ router.post(
     const asset = await MediaAsset.findOneAndUpdate(
       { _id: req.params.assetId, draftId: req.socialDraft._id, projectId: req.project._id },
       { $set: { altText: req.body.altText || '' } },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!asset) return next(new AppError('Media file not found.', 404));
     res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { success: 'Media details saved.' }));
@@ -403,7 +403,7 @@ router.post(
     const asset = await MediaAsset.findOneAndUpdate(
       { _id: req.params.assetId, draftId: req.socialDraft._id, projectId: req.project._id, status: 'failed' },
       { $set: { status: 'queued', processingError: '' } },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!asset) return next(new AppError('Only failed media can be processed again.', 422));
     await reenqueueMediaProcessing(asset._id);

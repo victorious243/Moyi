@@ -45,4 +45,7 @@ const reportSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+reportSchema.index({ projectId: 1, createdAt: -1 });
+reportSchema.index({ projectId: 1, status: 1 });
+
 module.exports = mongoose.model('Report', reportSchema);

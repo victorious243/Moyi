@@ -22,12 +22,11 @@ const { exportAccountData, deleteAccountData } = require('../services/accountDat
 const { recordAuditEvent } = require('../services/auditLogService');
 const { sendCustomerEmail, sendGoodbyeEmail, verifyEmailTransport } = require('../services/emailService');
 const { DEFAULT_TEST_URL, fetchMetaOembed, missingMetaOembedKeys, normalizeOembedUrl } = require('../services/metaOembedService');
-const { findAccessibleProjects } = require('../services/projectAccessService');
-const { readinessPayload } = require('../services/runtimeHealthService');
-const { statusPagePayload } = require('../services/enterpriseHardeningService');
 const {
+  accessibleProjectIds,
   canChangeProjectRole,
   canPublishProjectRole,
+  findAccessibleProjects,
   projectAccessRole
 } = require('../services/projectAccessService');
 const { API_SCOPES, createApiCredential } = require('../services/apiCredentialService');
@@ -632,11 +631,11 @@ router.post('/contact', [
 }));
 
 router.get('/dashboard', requireAuth, asyncHandler(async (req, res) => {
-  const [projects, allProjects, usage] = await Promise.all([
-    findAccessibleProjects(req.user._id, { sort: { updatedAt: -1 }, limit: 6 }),
-    findAccessibleProjects(req.user._id, { select: 'name', sort: { updatedAt: -1 } }),
+  const [allProjects, usage] = await Promise.all([
+    findAccessibleProjects(req.user._id, { select: 'name websiteUrl updatedAt', sort: { updatedAt: -1 }, lean: true }),
     getCurrentUsage(req.user._id)
   ]);
+  const projects = allProjects.slice(0, 6);
   const projectCount = allProjects.length;
   const projectIds = allProjects.map((project) => project._id);
   const [
@@ -647,11 +646,11 @@ router.get('/dashboard', requireAuth, asyncHandler(async (req, res) => {
     approvalQueueCount,
     workspaceSetup
   ] = await Promise.all([
-    Scan.find({ projectId: { $in: projectIds } }).sort({ createdAt: -1 }).limit(8),
-    Report.find({ projectId: { $in: projectIds } }).sort({ createdAt: -1 }).limit(5),
-    SocialAccount.countDocuments({ projectId: { $in: projectIds }, status: 'connected' }),
-    SocialAccount.countDocuments({ projectId: { $in: projectIds }, status: 'reconnect_required' }),
-    ContentDraft.countDocuments({ projectId: { $in: projectIds }, status: 'approved', publishStatus: { $ne: 'published' } }),
+    projectIds.length ? Scan.find({ projectId: { $in: projectIds } }).select('projectId status pagesScanned pagesFound errorMessage createdAt').sort({ createdAt: -1 }).limit(8).lean() : [],
+    projectIds.length ? Report.find({ projectId: { $in: projectIds } }).select('projectId status topPriorities quickWins errorMessage createdAt').sort({ createdAt: -1 }).limit(5).lean() : [],
+    projectIds.length ? SocialAccount.countDocuments({ projectId: { $in: projectIds }, status: 'connected' }) : 0,
+    projectIds.length ? SocialAccount.countDocuments({ projectId: { $in: projectIds }, status: 'reconnect_required' }) : 0,
+    projectIds.length ? ContentDraft.countDocuments({ projectId: { $in: projectIds }, status: 'approved', publishStatus: { $ne: 'published' } }) : 0,
     buildWorkspaceSetupSummary(allProjects)
   ]);
   const scanProjectMap = new Map(allProjects.map((project) => [project._id.toString(), project]));
@@ -806,7 +805,7 @@ router.post('/account/api-keys/:id/revoke', requireAuth, asyncHandler(async (req
   const credential = await ApiCredential.findOneAndUpdate(
     { _id: req.params.id, userId: req.user._id, status: 'active' },
     { $set: { status: 'revoked' } },
-    { new: true }
+    { returnDocument: 'after' }
   );
   if (!credential) throw new AppError('Active API key not found.', 404);
   await recordAuditEvent({
@@ -873,13 +872,13 @@ function alertReadByUser(alert, userId) {
 }
 
 router.get('/api/notifications', requireAuth, asyncHandler(async (req, res) => {
-  const accessibleProjects = await findAccessibleProjects(req.user._id, { select: '_id' });
-  const projectIds = accessibleProjects.map((p) => p._id);
+  const projectIds = await accessibleProjectIds(req.user._id);
 
   const notifications = await GrowthAlert.find(notificationAccessFilter({ userId: req.user._id, projectIds }))
     .sort({ createdAt: -1 })
     .limit(25)
-    .populate('projectId', 'name');
+    .populate('projectId', 'name')
+    .lean();
 
   const unreadCount = notifications.filter((notification) => !alertReadByUser(notification, req.user._id)).length;
 
@@ -904,8 +903,7 @@ router.get('/api/notifications', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 router.post('/api/notifications/:id/read', requireAuth, asyncHandler(async (req, res) => {
-  const accessibleProjects = await findAccessibleProjects(req.user._id, { select: '_id' });
-  const projectIds = accessibleProjects.map((project) => project._id);
+  const projectIds = await accessibleProjectIds(req.user._id);
   const alert = await GrowthAlert.findOne({
     _id: req.params.id,
     ...notificationAccessFilter({ userId: req.user._id, projectIds })
@@ -918,8 +916,7 @@ router.post('/api/notifications/:id/read', requireAuth, asyncHandler(async (req,
 }));
 
 router.post('/api/notifications/read-all', requireAuth, asyncHandler(async (req, res) => {
-  const accessibleProjects = await findAccessibleProjects(req.user._id, { select: '_id' });
-  const projectIds = accessibleProjects.map((p) => p._id);
+  const projectIds = await accessibleProjectIds(req.user._id);
 
   await GrowthAlert.updateMany(
     {

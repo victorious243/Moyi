@@ -339,7 +339,7 @@ async function generateIntelloSolutionArticle(struggle, options = {}) {
   const article = await IntelloArticle.findOneAndUpdate(
     { slug: struggle.slug },
     { $set: articleData },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
 
   return article;
@@ -444,7 +444,7 @@ async function getIntelloArticleBySlug(slug) {
   const article = await IntelloArticle.findOneAndUpdate(
     { slug: String(slug).toLowerCase().trim(), status: 'published' },
     { $inc: { viewCount: 1 } },
-    { new: true }
+    { returnDocument: 'after' }
   ).lean();
 
   if (!article) return null;

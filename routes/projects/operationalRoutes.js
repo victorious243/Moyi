@@ -250,7 +250,7 @@ function registerOperationalRoutes(router, context, services = {}) {
         endpointIds: validEndpoints,
         channels
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true }
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true, runValidators: true }
     );
     await recordAuditEvent({ user: req.user, projectId: project._id, eventType: 'notification_route_updated', metadata: { category: req.params.category, memberCount: memberIds.length, endpointCount: validEndpoints.length, channels }, req });
     res.redirect(`/projects/${project._id}/settings/notifications?message=${encodeURIComponent('Stakeholder route saved.')}`);

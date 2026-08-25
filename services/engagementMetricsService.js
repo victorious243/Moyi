@@ -146,7 +146,7 @@ async function claimMetricsJob(jobId) {
       $set: { metricsSyncLockedUntil: new Date(now.getTime() + METRICS_LEASE_MS) },
       $inc: { metricsAttempts: 1 }
     },
-    { new: true, select: '+metricsSyncLockedUntil' }
+    { returnDocument: 'after', select: '+metricsSyncLockedUntil' }
   );
 }
 
@@ -241,7 +241,7 @@ async function collectMetricsForJob(jobId) {
     const snapshot = await EngagementSnapshot.findOneAndUpdate(
       { projectId: snapshotPayload.projectId, publishJobId: job._id, observationKey: snapshotPayload.observationKey },
       { $setOnInsert: snapshotPayload },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
     );
     const nextSync = nextMetricsSyncAt(job, capturedAt, { currentMetrics: metrics });
     const observationWrites = metricStates.map((state) => ({

@@ -70,7 +70,7 @@ async function recordPaidAttribution(event) {
         attributedAt: event.createdAt || new Date()
       }
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
 }
 

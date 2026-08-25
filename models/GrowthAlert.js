@@ -198,6 +198,8 @@ const growthAlertSchema = new mongoose.Schema(
 
 growthAlertSchema.index({ projectId: 1, type: 1, createdAt: -1 });
 growthAlertSchema.index({ projectId: 1, category: 1, resolutionStatus: 1, createdAt: -1 });
+growthAlertSchema.index({ projectId: 1, channels: 1, createdAt: -1 });
+growthAlertSchema.index({ recipientUserIds: 1, channels: 1, createdAt: -1 });
 growthAlertSchema.index({ projectId: 1, dedupeKey: 1 }, { unique: true, partialFilterExpression: { dedupeKey: { $type: 'string', $gt: '' } } });
 
 module.exports = mongoose.model('GrowthAlert', growthAlertSchema);

@@ -40,4 +40,7 @@ const scanSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+scanSchema.index({ projectId: 1, createdAt: -1 });
+scanSchema.index({ projectId: 1, status: 1 });
+
 module.exports = mongoose.model('Scan', scanSchema);

@@ -448,7 +448,7 @@ async function refreshDraftPublishStatus(batchId, draftId, jobs = null) {
     update.publishedAt = publishedJobs[0].publishedAt || new Date();
     update.platformPostId = publishedJobs[0].platformPostId || '';
   }
-  return SocialDraft.findByIdAndUpdate(draftId, { $set: update }, { new: true });
+  return SocialDraft.findByIdAndUpdate(draftId, { $set: update }, { returnDocument: 'after' });
 }
 
 async function refreshBatchSummary(batchId) {
@@ -462,7 +462,7 @@ async function refreshBatchSummary(batchId) {
   const batch = await PublishBatch.findByIdAndUpdate(
     batchId,
     { $set: { summary, status: batchStatus(jobs) } },
-    { new: true }
+    { returnDocument: 'after' }
   );
   const jobsByDraft = new Map();
   jobs.forEach((job) => {
@@ -614,7 +614,7 @@ async function executePublishJob({ jobId }) {
       },
       $inc: { attempts: 1 }
     },
-    { new: true }
+    { returnDocument: 'after' }
   );
   if (!job) {
     const current = await PublishJob.findById(jobId);
@@ -937,7 +937,7 @@ async function retryPublishJob(jobId) {
       },
       $inc: { manualRetryCount: 1 }
     },
-    { new: true }
+    { returnDocument: 'after' }
   );
   if (!job) {
     const error = new Error('Only failed publish jobs can be retried.');

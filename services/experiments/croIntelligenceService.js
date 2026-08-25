@@ -110,7 +110,7 @@ async function evaluateProjectCro(projectId, now = new Date(), persist = true) {
           deliveryStatus: 'sent',
           dedupeKey
         } },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
       );
     }
   }

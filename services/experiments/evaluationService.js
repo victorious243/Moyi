@@ -99,7 +99,7 @@ async function persistAlert(experiment, type, title, summary, severity = 'warnin
       deliveryStatus: 'sent',
       dedupeKey
     } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
 }
 
@@ -111,7 +111,7 @@ async function applyLearning(experiment, evaluation) {
   const learning = await ExperimentLearning.findOneAndUpdate(
     { experimentId: experiment._id },
     { $set: payload },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
   if (experiment.sourceRecommendationId) {
     await Recommendation.findByIdAndUpdate(experiment.sourceRecommendationId, { $set: { status: 'done' } });

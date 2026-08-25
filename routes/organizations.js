@@ -132,7 +132,7 @@ router.post('/:id/members', [
       invitedBy: req.user._id,
       joinedAt: new Date()
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
   await recordAuditEvent({
     user: req.user,

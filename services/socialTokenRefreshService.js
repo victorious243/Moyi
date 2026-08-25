@@ -87,7 +87,7 @@ async function refreshSocialAccount(accountOrId) {
       ]
     },
     { $set: { tokenRefreshLockedUntil: lockUntil } },
-    { new: true, select: '+tokenRefreshLockedUntil' }
+    { returnDocument: 'after', select: '+tokenRefreshLockedUntil' }
   );
   if (!claimed) return waitForConcurrentRefresh(lockTarget, account);
 

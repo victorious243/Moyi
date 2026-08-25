@@ -170,7 +170,7 @@ function registerPerformanceMarketingRoutes(router, context, services = {}) {
     const recommendation = await PaidBudgetRecommendation.findOneAndUpdate(
       { _id: req.params.recommendationId, projectId: req.project._id, status: 'proposed' },
       { $set: { status: 'approved', approvedBy: req.user._id, approvedAt: new Date() } },
-      { new: true }
+      { returnDocument: 'after' }
     );
     const message = recommendation
       ? 'Recommendation approved for human implementation. Moyi did not modify any provider budget.'

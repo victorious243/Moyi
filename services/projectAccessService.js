@@ -82,7 +82,8 @@ async function findAccessibleProjects(userId, options = {}) {
     query = {},
     sort = {},
     limit = 0,
-    select = ''
+    select = '',
+    lean = false
   } = options;
   const projectIds = await accessibleProjectIds(userId);
   let projectQuery = Project.find({ ...query, _id: { $in: projectIds } });
@@ -90,6 +91,7 @@ async function findAccessibleProjects(userId, options = {}) {
   if (select) projectQuery = projectQuery.select(select);
   if (Object.keys(sort).length) projectQuery = projectQuery.sort(sort);
   if (limit) projectQuery = projectQuery.limit(limit);
+  if (lean) projectQuery = projectQuery.lean();
 
   return projectQuery;
 }

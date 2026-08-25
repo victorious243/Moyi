@@ -106,7 +106,7 @@ async function requestLock<T>(name: string, operation: () => T | PromiseLike<T>)
         $or: [{ expiresAt: { $lte: new Date() } }, { expiresAt: null }]
       },
       { $set: { encryptedPayload: owner, expiresAt } },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (updated) {
       acquired = true;

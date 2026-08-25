@@ -267,7 +267,7 @@ async function processMediaAsset(assetId, { finalAttempt = true } = {}) {
   const asset = await MediaAsset.findOneAndUpdate(
     { _id: assetId, status: { $in: ['queued', 'failed'] } },
     { $set: { status: 'processing', processingError: '' } },
-    { new: true }
+    { returnDocument: 'after' }
   ).select('+temporaryPath');
   if (!asset) {
     const current = await MediaAsset.findById(assetId);
@@ -311,7 +311,7 @@ async function processMediaAsset(assetId, { finalAttempt = true } = {}) {
         status: 'ready',
         processingError: ''
       }
-    }, { new: true });
+    }, { returnDocument: 'after' });
     completed = true;
     await releasePreparedPublishJobs(asset._id);
     return ready;

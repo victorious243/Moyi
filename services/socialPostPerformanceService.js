@@ -229,7 +229,7 @@ async function updateGrowthSignalFromPerformance(performance) {
       },
       observedAt: performance.lastObservedAt
     } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
 }
 
@@ -274,7 +274,7 @@ async function rebuildCanonicalPostPerformance(publishJobId) {
   let performance = await SocialPostPerformance.findOneAndUpdate(
     { projectId, publishJobId: job._id },
     { $set: base },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
   const comparableFilter = {
     projectId,
@@ -294,7 +294,7 @@ async function rebuildCanonicalPostPerformance(publishJobId) {
   performance = await SocialPostPerformance.findOneAndUpdate(
     { _id: performance._id },
     { $set: { baselineComparison: comparison, performanceScore: score, scoreStatus: comparison.status, confidence, anomalies, lastUpdatedAt: new Date() } },
-    { new: true }
+    { returnDocument: 'after' }
   );
   await updateGrowthSignalFromPerformance(performance);
   console.info(JSON.stringify({

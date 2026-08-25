@@ -44,7 +44,7 @@ async function connectPaidAdAccounts({ projectId, userId, providerName, code }) 
     saved.push(await PaidAdAccount.findOneAndUpdate(
       { projectId, provider: providerName, externalAccountId: account.externalAccountId },
       { $set: update },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
     ));
   }
   return saved;

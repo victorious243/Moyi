@@ -53,7 +53,7 @@ async function upsertInsight(account, row) {
         metadata: row.metadata || {}
       }
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
   await PaidMetricSnapshot.findOneAndUpdate(
     {
@@ -78,7 +78,7 @@ async function upsertInsight(account, row) {
         providerData: row.providerData
       }
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
 }
 
@@ -342,7 +342,7 @@ async function evaluateIntelligence(projectId, currentCampaigns, previousCampaig
           dedupeKey: `paid:${item.type}:${item.entity.key}:${periodKey}`
         }
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
     );
   }
   return generatedAlerts;
@@ -393,7 +393,7 @@ async function buildPerformanceMarketingDashboard(projectId, days = 7, options =
             'evidenceWindow.end': recommendation.evidenceWindow.end
           },
           { $setOnInsert: { projectId, ...recommendation } },
-          { upsert: true, new: true, setDefaultsOnInsert: true }
+          { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
         ),
         GrowthAlert.findOneAndUpdate(
           { projectId, dedupeKey: `paid:budget_reallocation:${recommendation.sourceProvider}:${recommendation.destinationProvider}:${evidenceKey}` },
@@ -417,7 +417,7 @@ async function buildPerformanceMarketingDashboard(projectId, days = 7, options =
               dedupeKey: `paid:budget_reallocation:${recommendation.sourceProvider}:${recommendation.destinationProvider}:${evidenceKey}`
             }
           },
-          { upsert: true, new: true, setDefaultsOnInsert: true }
+          { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
         )
       ]);
     }

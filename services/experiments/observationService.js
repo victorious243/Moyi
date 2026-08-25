@@ -161,7 +161,7 @@ async function refreshExperimentObservations(experiment, now = new Date()) {
         observedTo: bounds.end,
         metadata: { collectedFromRealRecords: true }
       } },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
     );
     observations.push(observation);
   }

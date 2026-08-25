@@ -94,7 +94,7 @@ async function upsertForecast(payload) {
   return StrategicForecast.findOneAndUpdate(
     { projectId: payload.projectId, metric: payload.metric, horizon: payload.horizon, goalId: payload.goalId },
     { $set: payload },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
 }
 
@@ -130,7 +130,7 @@ async function persistStrategicAlert(projectId, input) {
       deliveryStatus: 'sent',
       dedupeKey
     } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
 }
 
@@ -141,7 +141,7 @@ async function persistOpportunity(projectId, opportunity, now = new Date()) {
       $set: { ...opportunity, projectId, lastDetectedAt: now },
       $setOnInsert: { firstDetectedAt: now, status: 'open' }
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
 }
 
@@ -443,7 +443,7 @@ async function generateMonthlyStrategyReview(project, userId, now = new Date()) 
   return StrategicReview.findOneAndUpdate(
     { projectId: project._id, periodStart, periodEnd },
     { $set: { projectId: project._id, createdBy: userId, periodStart, periodEnd, executiveSummary, sections, evidence: { forecastIds: dashboard.forecasts.map((item) => item._id), alertIds: dashboard.alerts.map((item) => item._id), opportunityIds: dashboard.opportunities.map((item) => item._id), competitorSnapshotIds: dashboard.competitorSnapshots.map((item) => item._id) }, limitations: ['Forecasts are directional and include confidence ranges; they are not guarantees.', 'Market-demand conclusions use Search Console evidence for this property, not total-market panels.', 'Competitor monitoring covers only public pages reached by bounded, robots-compliant crawls.'], generatedAt: now } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
 }
 
@@ -458,7 +458,7 @@ async function acceptOpportunity({ projectId, opportunityId, userId }) {
   return StrategicDecision.findOneAndUpdate(
     { projectId, opportunityId: opportunity._id },
     { $set: { projectId, opportunityId: opportunity._id, ownerId: userId, title: opportunity.title, recommendation: opportunity.recommendedAction, evidenceAtDecision: opportunity.evidence, confidenceAtDecision: opportunity.confidence, decision: 'accepted', decidedAt: new Date(), outcome } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
 }
 
