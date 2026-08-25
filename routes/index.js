@@ -2,6 +2,7 @@ const express = require('express');
 const asyncHandler = require('express-async-handler');
 const { body, validationResult } = require('express-validator');
 const env = require('../config/env');
+const User = require('../models/User');
 const Project = require('../models/Project');
 const Scan = require('../models/Scan');
 const Report = require('../models/Report');
@@ -715,6 +716,49 @@ async function renderAccountSettings(req, res, additions = {}) {
 
 router.get('/account', requireAuth, asyncHandler(async (req, res) => {
   await renderAccountSettings(req, res);
+}));
+
+router.post('/account/profile', requireAuth, [
+  body('firstName').trim().notEmpty().withMessage('First name is required.').isLength({ max: 80 }).withMessage('First name cannot exceed 80 characters.'),
+  body('lastName').trim().optional({ checkFalsy: true }).isLength({ max: 80 }).withMessage('Last name cannot exceed 80 characters.')
+], asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return renderAccountSettings(req, res, {
+      accountError: errors.array().map((error) => error.msg).join(', ')
+    });
+  }
+
+  const firstName = req.body.firstName.trim();
+  const lastName = (req.body.lastName || '').trim();
+  const fullName = [firstName, lastName].filter(Boolean).join(' ');
+
+  const user = await User.findById(req.user._id);
+  if (!user) {
+    return res.redirect('/login');
+  }
+
+  user.firstName = firstName;
+  user.lastName = lastName;
+  user.name = fullName;
+  await user.save();
+
+  req.user.firstName = firstName;
+  req.user.lastName = lastName;
+  req.user.name = fullName;
+
+  await recordAuditEvent({
+    user,
+    eventType: 'user_profile_updated',
+    metadata: { firstName, lastName, fullName },
+    req
+  });
+
+  if (req.xhr || req.headers.accept?.includes('application/json')) {
+    return res.json({ ok: true, message: 'Profile updated successfully.', user: { firstName, lastName, name: fullName } });
+  }
+
+  res.redirect(`/account?message=${encodeURIComponent('Profile updated successfully.')}`);
 }));
 
 router.post('/account/api-keys', requireAuth, [
