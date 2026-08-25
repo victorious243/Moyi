@@ -9,10 +9,12 @@ const timezone = require('dayjs/plugin/timezone');
 const multer = require('multer');
 const env = require('../config/env');
 const Project = require('../models/Project');
+const Campaign = require('../models/Campaign');
 const SocialDraft = require('../models/SocialDraft');
 const ContentImage = require('../models/ContentImage');
 const MediaAsset = require('../models/MediaAsset');
 const PublishJob = require('../models/PublishJob');
+const PublishJobEvent = require('../models/PublishJobEvent');
 const SocialAccount = require('../models/SocialAccount');
 const AppError = require('../utils/appError');
 const handleValidation = require('../utils/validate');
@@ -36,8 +38,15 @@ const { queueContentImageGeneration } = require('../services/projectTaskService'
 const { ensureImageGenerationAllowed } = require('../services/usageService');
 const { getTikTokCreatorInfo } = require('../services/socialProviderService');
 const { ensureFreshSocialAccountCredentials } = require('../services/socialTokenRefreshService');
-const { socialAccountAccessFilter } = require('../services/socialAccountService');
+const { NATIVE_SOCIAL_PLATFORMS, socialAccountAccessFilter } = require('../services/socialAccountService');
 const { assertStandardXPost } = require('../services/xTextService');
+const { buildPublishReadiness } = require('../services/socialPublisherService');
+const {
+  ACTIVE_JOB_STATUSES,
+  calendarPresentation,
+  latestJobsByDraft,
+  validateCalendarReschedule
+} = require('../services/contentCalendarService');
 
 const router = express.Router();
 dayjs.extend(utc);
@@ -94,6 +103,31 @@ function uploadSingleMedia(req, res, next) {
 
 router.use(requireAuth);
 
+function wantsCalendarJson(req) {
+  return req.method !== 'GET'
+    && (req.xhr || (typeof req.accepts === 'function' && req.accepts(['json', 'html']) === 'json'));
+}
+
+router.use((req, res, next) => {
+  if (!wantsCalendarJson(req)) return next();
+  const redirect = res.redirect.bind(res);
+  res.redirect = function calendarJsonRedirect(statusOrPath, maybePath) {
+    const redirectPath = typeof statusOrPath === 'number' ? maybePath : statusOrPath;
+    if (!redirectPath) return redirect(statusOrPath, maybePath);
+    const parsed = new URL(String(redirectPath), 'http://moyi.local');
+    const error = parsed.searchParams.get('error') || '';
+    const success = parsed.searchParams.get('success') || '';
+    const hashMatch = parsed.hash.match(/^#post-([a-f\d]{24})$/i);
+    return res.status(error ? 422 : 200).json({
+      ok: !error,
+      message: error || success || 'Calendar updated.',
+      redirect: `${parsed.pathname}${parsed.search}${parsed.hash}`,
+      draftId: hashMatch ? hashMatch[1] : String(req.socialDraft?._id || '')
+    });
+  };
+  return next();
+});
+
 async function loadSocialDraft(req, res, next) {
   try {
     const socialDraft = await SocialDraft.findById(req.params.id);
@@ -112,6 +146,69 @@ async function loadSocialDraft(req, res, next) {
     next(error);
   }
 }
+
+router.get(
+  '/:id/calendar-detail',
+  [param('id').isMongoId(), handleValidation],
+  loadSocialDraft,
+  asyncHandler(async (req, res) => {
+    const canPublish = canPublishProjectRole(req.projectAccessRole);
+    const canManage = canChangeProjectRole(req.projectAccessRole);
+    const destinationProjectIds = canPublish
+      ? await publishableProjectIds(req.user._id, { sourceProject: req.project })
+      : [req.project._id];
+    const [socialAccounts, destinationProjects, socialImages, mediaAssets, allJobs, campaign] = await Promise.all([
+      SocialAccount.find({
+        projectId: { $in: destinationProjectIds },
+        ...socialAccountAccessFilter(req.user._id)
+      }).select('-accessToken -refreshToken -webhookSecret').sort({ platform: 1, updatedAt: -1 }),
+      Project.find({ _id: { $in: destinationProjectIds } }).select('name').lean(),
+      ContentImage.find({ projectId: req.project._id, draftId: req.socialDraft._id }).sort({ status: 1, createdAt: -1 }),
+      MediaAsset.find({ projectId: req.project._id, draftId: req.socialDraft._id }).sort({ createdAt: 1 }),
+      PublishJob.find({ projectId: req.project._id, draftId: req.socialDraft._id }).sort({ createdAt: -1 }).limit(40),
+      Campaign.findOne({ _id: req.socialDraft.campaignId, projectId: req.project._id }).select('name goal channel').lean()
+    ]);
+    const publishAccounts = socialAccounts.filter((account) => NATIVE_SOCIAL_PLATFORMS.includes(account.platform) && account.status === 'connected');
+    const latestJobs = latestJobsByDraft(allJobs)[String(req.socialDraft._id)] || [];
+    const publishReadiness = buildPublishReadiness({
+      socialDrafts: [req.socialDraft],
+      connectedAccounts: socialAccounts,
+      imagesByDraftId: { [String(req.socialDraft._id)]: socialImages },
+      mediaAssetsByDraftId: { [String(req.socialDraft._id)]: mediaAssets },
+      jobsByDraftId: { [String(req.socialDraft._id)]: latestJobs },
+      projectId: req.project._id
+    });
+    const draftReadiness = publishReadiness.posts[0] || { ready: false, blockers: [] };
+    const calendarStatus = calendarPresentation(req.socialDraft, { jobs: latestJobs, readiness: draftReadiness });
+    const jobIds = allJobs.map((job) => job._id);
+    const jobEvents = jobIds.length
+      ? await PublishJobEvent.find({ publishJobId: { $in: jobIds }, projectId: req.project._id }).sort({ createdAt: -1 }).limit(200)
+      : [];
+    const eventsByJobId = jobEvents.reduce((grouped, event) => {
+      const key = String(event.publishJobId);
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(event);
+      return grouped;
+    }, {});
+
+    res.render('projects/partials/calendar-drawer', {
+      project: req.project,
+      draft: req.socialDraft,
+      campaign,
+      socialAccounts,
+      publishAccounts,
+      accountProjectNames: Object.fromEntries(destinationProjects.map((item) => [String(item._id), item.name])),
+      socialImages,
+      mediaAssets,
+      publishJobs: allJobs,
+      eventsByJobId,
+      publishReadiness: draftReadiness,
+      calendarStatus,
+      canManageProject: canManage,
+      canPublishProject: canPublish
+    });
+  })
+);
 
 function requireDraftManager(req, res, next) {
   if (!canChangeProjectRole(req.projectAccessRole)) {
@@ -133,7 +230,7 @@ function requireApprovedOrManager(req, res, next) {
 }
 
 function requireDraftNotPublishing(req, res, next) {
-  if (['queued', 'preparing_media', 'publishing', 'provider_processing'].includes(req.socialDraft.publishStatus)) {
+  if (['queued', 'preparing_media', 'publishing', 'provider_processing', 'retry_wait'].includes(req.socialDraft.publishStatus)) {
     return next(new AppError('Wait for the active publishing jobs to finish before changing this draft.', 409));
   }
   return next();
@@ -589,6 +686,54 @@ function publishFailureParams(error) {
   };
 }
 
+function groupByDraftId(items = []) {
+  return items.reduce((grouped, item) => {
+    const key = String(item.draftId || '');
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(item);
+    return grouped;
+  }, {});
+}
+
+async function publishingReadinessForDrafts({ project, userId, drafts, allowedDestinationProjectIds }) {
+  const draftIds = drafts.map((draft) => draft._id);
+  const [accounts, images, mediaAssets, jobs] = await Promise.all([
+    SocialAccount.find({
+      projectId: { $in: allowedDestinationProjectIds },
+      ...socialAccountAccessFilter(userId)
+    }).select('-accessToken -refreshToken -webhookSecret'),
+    ContentImage.find({ projectId: project._id, draftId: { $in: draftIds }, status: 'selected' }),
+    MediaAsset.find({ projectId: project._id, draftId: { $in: draftIds } }),
+    PublishJob.find({ projectId: project._id, draftId: { $in: draftIds } }).sort({ createdAt: -1 })
+  ]);
+  return buildPublishReadiness({
+    socialDrafts: drafts,
+    connectedAccounts: accounts,
+    imagesByDraftId: groupByDraftId(images),
+    mediaAssetsByDraftId: groupByDraftId(mediaAssets),
+    jobsByDraftId: latestJobsByDraft(jobs),
+    projectId: project._id
+  });
+}
+
+function selectedDraftIds(req) {
+  return [...new Set((Array.isArray(req.body.draftIds) ? req.body.draftIds : [req.body.draftIds])
+    .filter(Boolean)
+    .map(String))];
+}
+
+function bulkMessage(action, results) {
+  const labels = {
+    approve: 'approved',
+    schedule: 'scheduled',
+    move_campaign: 'moved',
+    publish: 'queued',
+    retry: 'queued for retry',
+    delete: 'deleted'
+  };
+  return `${results.filter((item) => item.ok).length} ${labels[action] || 'updated'}, ${results.filter((item) => !item.ok).length} could not be updated.`;
+}
+
 router.post('/publish-all-connected', [
   body('projectId').isMongoId().withMessage('Project ID is required.'),
   handleValidation
@@ -601,14 +746,17 @@ router.post('/publish-all-connected', [
     throw new AppError('You do not have permission to publish social drafts.', 403);
   }
 
-  const drafts = await SocialDraft.find({
-    projectId: project._id,
-    status: 'approved',
-    publishStatus: 'approved'
-  }).select('_id');
+  const drafts = await SocialDraft.find({ projectId: project._id, publishStatus: { $ne: 'published' } });
 
   if (!drafts.length) {
     return res.redirect(`/projects/${project._id}/calendar?success=${encodeURIComponent('No pending social drafts to publish.')}`);
+  }
+
+  const allowedDestinationProjectIds = await publishableProjectIds(req.user._id, { sourceProject: project });
+  const readiness = await publishingReadinessForDrafts({ project, userId: req.user._id, drafts, allowedDestinationProjectIds });
+  const readyIds = readiness.posts.filter((item) => item.ready).map((item) => item.draftId);
+  if (!readyIds.length) {
+    return res.redirect(`/projects/${project._id}/calendar?error=${encodeURIComponent(`${readiness.attentionCount} post${readiness.attentionCount === 1 ? '' : 's'} require attention and ${readiness.inFlightCount} are already processing. Review blockers before publishing.`)}`);
   }
 
   const scheduledAt = new Date();
@@ -617,9 +765,9 @@ router.post('/publish-all-connected', [
     results = await createAndQueuePublishBatch({
       projectId: project._id,
       userId: req.user._id,
-      draftIds: drafts.map((draft) => draft._id),
+      draftIds: readyIds,
       project,
-      allowedDestinationProjectIds: await publishableProjectIds(req.user._id, { sourceProject: project }),
+      allowedDestinationProjectIds,
       scheduledAt
     });
   } catch (error) {
@@ -629,7 +777,7 @@ router.post('/publish-all-connected', [
     return res.redirect(`/projects/${project._id}/calendar?error=${encodeURIComponent(noCompatibleAccountsMessage(results))}`);
   }
 
-  const msg = queueSuccessMessage(results, scheduledAt);
+  const msg = `${queueSuccessMessage(results, scheduledAt)} ${readiness.attentionCount} blocked and ${readiness.inFlightCount} already processing.`;
 
   res.redirect(`/projects/${project._id}/calendar?success=${encodeURIComponent(msg)}`);
 }));
@@ -688,13 +836,13 @@ router.post('/:id/approve-and-publish', [
     req.socialDraft.publishStatus = 'failed';
     req.socialDraft.errorMessage = error.message;
     await req.socialDraft.save();
-    res.redirect(`/projects/${req.project._id}/calendar#post-${req.socialDraft._id}`);
+    res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { error: error.message }));
   }
 }));
 
 router.post('/batch-publish', [
   body('projectId').isMongoId().withMessage('Project ID is required.'),
-  body('draftIds').isArray({ min: 1 }).withMessage('Select at least one draft to publish.'),
+  body('draftIds').custom((value) => (Array.isArray(value) ? value : [value]).filter(Boolean).length > 0).withMessage('Select at least one draft to publish.'),
   handleValidation
 ], asyncHandler(async (req, res) => {
   const project = await Project.findById(req.body.projectId);
@@ -705,17 +853,24 @@ router.post('/batch-publish', [
     throw new AppError('You do not have permission to publish social drafts.', 403);
   }
 
-  const selectedDraftIds = Array.isArray(req.body.draftIds) ? req.body.draftIds : [req.body.draftIds];
+  const draftIds = selectedDraftIds(req);
+  const drafts = await SocialDraft.find({ _id: { $in: draftIds }, projectId: project._id });
+  const allowedDestinationProjectIds = await publishableProjectIds(req.user._id, { sourceProject: project });
+  const readiness = await publishingReadinessForDrafts({ project, userId: req.user._id, drafts, allowedDestinationProjectIds });
+  const readyIds = readiness.posts.filter((item) => item.ready).map((item) => item.draftId);
+  if (!readyIds.length) {
+    return res.redirect(`/projects/${project._id}/calendar?error=${encodeURIComponent('None of the selected posts are ready. Open Attention view to resolve their blockers.')}`);
+  }
   const scheduledAt = new Date();
   let results;
   try {
     results = await createAndQueuePublishBatch({
       projectId: project._id,
       userId: req.user._id,
-      draftIds: selectedDraftIds,
+      draftIds: readyIds,
       project,
       scheduledAt,
-      allowedDestinationProjectIds: await publishableProjectIds(req.user._id, { sourceProject: project })
+      allowedDestinationProjectIds
     });
   } catch (error) {
     return res.redirect(projectCalendarUrl(project._id, publishFailureParams(error)));
@@ -724,8 +879,90 @@ router.post('/batch-publish', [
     return res.redirect(`/projects/${project._id}/calendar?error=${encodeURIComponent(noCompatibleAccountsMessage(results))}`);
   }
 
-  const msg = queueSuccessMessage(results, scheduledAt);
+  const msg = `${queueSuccessMessage(results, scheduledAt)} ${readiness.posts.length - readyIds.length} selected post${readiness.posts.length - readyIds.length === 1 ? '' : 's'} remained blocked.`;
   res.redirect(`/projects/${project._id}/calendar?success=${encodeURIComponent(msg)}`);
+}));
+
+router.post('/batch-action', [
+  body('projectId').isMongoId().withMessage('Project ID is required.'),
+  body('draftIds').custom((value) => (Array.isArray(value) ? value : [value]).filter(Boolean).length > 0).withMessage('Select at least one post.'),
+  body('action').isIn(['approve', 'schedule', 'move_campaign', 'publish', 'retry', 'delete']).withMessage('Choose a valid bulk action.'),
+  body('scheduledAt').optional({ checkFalsy: true }).isISO8601().withMessage('Choose a valid schedule date.'),
+  body('campaignId').optional({ checkFalsy: true }).isMongoId().withMessage('Choose a valid campaign.'),
+  handleValidation
+], asyncHandler(async (req, res) => {
+  const project = await Project.findById(req.body.projectId);
+  if (!project) throw new AppError('Project not found.', 404);
+  const role = await projectAccessRole({ project, userId: req.user._id });
+  const action = req.body.action;
+  const mayManage = canChangeProjectRole(role);
+  const mayPublish = canPublishProjectRole(role);
+  if ((['approve', 'schedule', 'move_campaign', 'delete'].includes(action) && !mayManage) || (['publish', 'retry'].includes(action) && !mayPublish)) {
+    throw new AppError('You do not have permission to perform this bulk action.', 403);
+  }
+
+  const ids = selectedDraftIds(req);
+  const drafts = await SocialDraft.find({ _id: { $in: ids }, projectId: project._id });
+  const draftsById = new Map(drafts.map((draft) => [String(draft._id), draft]));
+  const results = ids.map((id) => ({
+    id,
+    title: draftsById.get(id)?.title || 'Unknown post',
+    ok: false,
+    message: draftsById.has(id) ? '' : 'Post not found in this project.'
+  }));
+  const activeJobs = await PublishJob.find({ projectId: project._id, draftId: { $in: drafts.map((draft) => draft._id) }, status: { $in: [...ACTIVE_JOB_STATUSES] } }).select('draftId');
+  const activeDraftIds = new Set(activeJobs.map((job) => String(job.draftId)));
+
+  if (action === 'publish') {
+    const allowedDestinationProjectIds = await publishableProjectIds(req.user._id, { sourceProject: project });
+    const readiness = await publishingReadinessForDrafts({ project, userId: req.user._id, drafts, allowedDestinationProjectIds });
+    const byId = new Map(readiness.posts.map((item) => [item.draftId, item]));
+    const readyIds = readiness.posts.filter((item) => item.ready).map((item) => item.draftId);
+    results.forEach((item) => {
+      const state = byId.get(item.id);
+      item.message = state ? state.blockerDetails.map((blocker) => blocker.message).join(' ') || 'Ready to publish.' : item.message;
+    });
+    if (readyIds.length) {
+      await createAndQueuePublishBatch({ projectId: project._id, userId: req.user._id, draftIds: readyIds, project, scheduledAt: new Date(), allowedDestinationProjectIds });
+      results.forEach((item) => { if (readyIds.includes(item.id)) Object.assign(item, { ok: true, message: 'Publishing queued.' }); });
+    }
+  } else if (action === 'retry') {
+    const latestFailedJobs = await PublishJob.find({ projectId: project._id, draftId: { $in: drafts.map((draft) => draft._id) }, status: { $in: ['failed', 'dead_letter'] } }).sort({ createdAt: -1 });
+    const jobByDraft = new Map();
+    latestFailedJobs.forEach((job) => { if (!jobByDraft.has(String(job.draftId))) jobByDraft.set(String(job.draftId), job); });
+    for (const item of results) {
+      const job = jobByDraft.get(item.id);
+      if (!job) { item.message = 'No failed publication is available to retry.'; continue; }
+      try { await retryPublishJob(job._id); Object.assign(item, { ok: true, message: 'Retry queued.' }); } catch (error) { item.message = error.message; }
+    }
+  } else {
+    let campaign = null;
+    if (action === 'move_campaign') campaign = await Campaign.findOne({ _id: req.body.campaignId, projectId: project._id });
+    for (const item of results) {
+      const draft = draftsById.get(item.id);
+      if (!draft) continue;
+      if (activeDraftIds.has(item.id) || draft.publishStatus === 'published' || draft.status === 'published_manually') {
+        item.message = activeDraftIds.has(item.id) ? 'Publishing is already in progress.' : 'Published posts cannot be changed.';
+        continue;
+      }
+      try {
+        if (action === 'approve') { draft.status = 'approved'; draft.publishStatus = 'approved'; }
+        if (action === 'schedule') draft.scheduledFor = validateCalendarReschedule(draft, req.body.scheduledAt);
+        if (action === 'move_campaign') {
+          if (!campaign) throw new AppError('Choose a campaign in this project.', 422);
+          draft.campaignId = campaign._id;
+        }
+        if (action === 'delete') await SocialDraft.deleteOne({ _id: draft._id, projectId: project._id });
+        else await draft.save();
+        Object.assign(item, { ok: true, message: action === 'delete' ? 'Post deleted.' : 'Post updated.' });
+      } catch (error) { item.message = error.message; }
+    }
+  }
+
+  const message = bulkMessage(action, results);
+  if (wantsCalendarJson(req)) return res.status(results.some((item) => item.ok) ? 200 : 422).json({ ok: results.some((item) => item.ok), message, results });
+  const failures = results.filter((item) => !item.ok);
+  return res.redirect(projectCalendarUrl(project._id, failures.length ? { success: message } : { success: message }));
 }));
 
 router.get('/:id/publish-status', [param('id').isMongoId(), handleValidation], loadSocialDraft, asyncHandler(async (req, res) => {
@@ -797,13 +1034,45 @@ router.post(
     });
     if (!job) throw new AppError('Publish job not found.', 404);
     try {
-      await retryPublishJob(job._id);
+      const retried = await retryPublishJob(job._id);
+      if (!retried) throw new AppError('This publish job is no longer eligible for retry.', 409);
     } catch (error) {
       return res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { error: error.message }));
     }
     res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { success: `Retry queued for ${job.platform}.` }));
   })
 );
+
+router.post('/:id/reschedule', [
+  param('id').isMongoId(),
+  body('scheduledFor').isISO8601().withMessage('Choose a valid schedule date.'),
+  handleValidation
+], loadSocialDraft, requireDraftManager, requireDraftNotPublishing, asyncHandler(async (req, res) => {
+  const activeJob = await PublishJob.exists({
+    projectId: req.project._id,
+    draftId: req.socialDraft._id,
+    status: { $in: [...ACTIVE_JOB_STATUSES] }
+  });
+  if (activeJob) {
+    return res.status(409).json({ ok: false, message: 'Wait for active publishing jobs to finish before rescheduling this post.' });
+  }
+  let scheduledFor;
+  try {
+    scheduledFor = validateCalendarReschedule(req.socialDraft, req.body.scheduledFor);
+  } catch (error) {
+    return res.status(error.statusCode || 422).json({ ok: false, message: error.message });
+  }
+  const previousSchedule = req.socialDraft.scheduledFor;
+  req.socialDraft.scheduledFor = scheduledFor;
+  await req.socialDraft.save();
+  return res.status(200).json({
+    ok: true,
+    message: `Post moved to ${dayjs(scheduledFor).tz(req.project.timezone || 'UTC').format('ddd, D MMM YYYY [at] HH:mm z')}.`,
+    draftId: String(req.socialDraft._id),
+    scheduledFor: scheduledFor.toISOString(),
+    previousScheduledFor: previousSchedule?.toISOString() || ''
+  });
+}));
 
 router.post('/:id/update', [
   param('id').isMongoId(),

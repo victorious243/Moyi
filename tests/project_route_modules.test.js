@@ -16,6 +16,17 @@ function findRoute(router, method, path) {
   return layer.route.stack.map((item) => item.handle);
 }
 
+function queryResult(value) {
+  return {
+    sort() { return this; },
+    select() { return this; },
+    populate() { return this; },
+    lean() { return this; },
+    limit() { return this; },
+    then(resolve, reject) { return Promise.resolve(value).then(resolve, reject); }
+  };
+}
+
 test('content operations expose the campaign planning route', () => {
   const router = express.Router();
   const context = { handleValidation: noop, loadProject: noop, campaignValidation: [] };
@@ -24,6 +35,7 @@ test('content operations expose the campaign planning route', () => {
   assert.ok(findRoute(router, 'post', '/:id/content-plan'));
   assert.ok(findRoute(router, 'get', '/:id/content'));
   assert.ok(findRoute(router, 'get', '/:id/calendar'));
+  assert.ok(findRoute(router, 'get', '/:id/social-calendar'));
 });
 
 test('projects measurement routes expose social performance collection controls', () => {
@@ -41,19 +53,120 @@ test('projects measurement routes expose social performance collection controls'
   assert.ok(findRoute(router, 'post', '/:id/social-performance/jobs/:jobId/metrics'));
 });
 
+test('content calendar route paginates compact results and applies server-side search', async () => {
+  const router = express.Router();
+  const drafts = Array.from({ length: 56 }, (_, index) => ({
+    _id: `draft-${index}`,
+    projectId: 'proj_1',
+    campaignId: null,
+    socialAccountId: null,
+    contentImageId: null,
+    sourceContentDraftId: null,
+    channel: index === 55 ? 'linkedin' : 'x',
+    title: index === 55 ? 'Needle launch' : `Post ${index}`,
+    body: 'Grounded campaign copy',
+    status: 'draft',
+    publishStatus: 'draft',
+    scheduledFor: new Date(2026, 7, index + 1),
+    metadata: {}
+  }));
+  drafts.push({
+    ...drafts[0],
+    _id: 'draft-unscheduled',
+    title: 'Unscheduled idea',
+    scheduledFor: null
+  });
+  const context = {
+    handleValidation: noop,
+    campaignValidation: [],
+    loadProject(req, res, next) {
+      req.project = { _id: 'proj_1', name: 'Moyi' };
+      res.locals.canManageProject = true;
+      res.locals.canPublishProject = false;
+      next();
+    },
+    Campaign: { find: () => queryResult([]) },
+    SocialAccount: { find: () => queryResult([]) },
+    Project: { find: () => queryResult([{ _id: 'proj_1', name: 'Moyi' }]) },
+    ProjectJob: { findOne: () => queryResult(null) },
+    SocialDraft: { find: () => queryResult(drafts) },
+    PublishJob: { find: () => queryResult([]) },
+    ContentImage: { find: () => queryResult([]) },
+    MediaAsset: { find: () => queryResult([]) }
+  };
+
+  registerExecutionRoutes(router, context, {});
+  const pageResponse = await runRoute(router, {
+    method: 'get',
+    path: '/:id/calendar',
+    req: { params: { id: '507f1f77bcf86cd799439011' }, query: {}, user: { _id: 'user_1' } }
+  });
+  assert.equal(pageResponse.renderedView, 'projects/calendar');
+  assert.equal(pageResponse.renderedData.calendarItems.length, 50);
+  assert.equal(pageResponse.renderedData.pagination.totalItems, 57);
+  assert.equal(pageResponse.renderedData.pagination.totalPages, 2);
+
+  const searchResponse = await runRoute(router, {
+    method: 'get',
+    path: '/:id/calendar',
+    req: { params: { id: '507f1f77bcf86cd799439011' }, query: { search: 'Needle', fragment: '1' }, user: { _id: 'user_1' } }
+  });
+  assert.equal(searchResponse.renderedView, 'projects/partials/calendar-results');
+  assert.equal(searchResponse.renderedData.calendarItems.length, 1);
+  assert.equal(searchResponse.renderedData.calendarItems[0].draft.title, 'Needle launch');
+
+  const apiResponse = await runRoute(router, {
+    method: 'get',
+    path: '/:id/social-calendar',
+    req: {
+      params: { id: '507f1f77bcf86cd799439011' },
+      query: { from: '2026-08-01', to: '2026-09-30' },
+      user: { _id: 'user_1' }
+    }
+  });
+  assert.equal(apiResponse.jsonData.ok, true);
+  assert.deepEqual(apiResponse.jsonData.range, { from: '2026-08-01', to: '2026-09-30', days: 61 });
+  assert.equal(apiResponse.jsonData.timezone, 'UTC');
+  assert.ok(apiResponse.jsonData.items.every((item) => !Object.hasOwn(item, 'publishJobs')));
+
+  const listApiResponse = await runRoute(router, {
+    method: 'get',
+    path: '/:id/social-calendar',
+    req: {
+      params: { id: '507f1f77bcf86cd799439011' },
+      query: { view: 'list', date: '2026-08-25' },
+      user: { _id: 'user_1' }
+    }
+  });
+  const unscheduled = listApiResponse.jsonData.items.find((item) => item.id === 'draft-unscheduled');
+  assert.equal(unscheduled.scheduledAt, null);
+  assert.equal(unscheduled.localDate, '');
+});
+
 async function runRoute(router, { method, path, req }) {
   const handlers = findRoute(router, method, path);
   const res = {
     locals: {},
     redirectedTo: '',
+    renderedView: '',
+    renderedData: null,
+    jsonData: null,
+    statusCode: 200,
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
     redirect(location) {
       this.redirectedTo = location;
       return this;
     },
-    render() {
+    render(view, data) {
+      this.renderedView = view;
+      this.renderedData = data;
       return this;
     },
-    json() {
+    json(data) {
+      this.jsonData = data;
       return this;
     }
   };

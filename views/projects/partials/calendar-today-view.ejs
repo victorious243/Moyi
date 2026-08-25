@@ -1,0 +1,12 @@
+<section class="calendar-today-view" aria-label="Today's publishing schedule">
+  <% if (todayContext) { %>
+    <div class="calendar-day-context"><span><strong>Tomorrow</strong><%= todayContext.tomorrow %> posts</span><span><strong>This week</strong><%= todayContext.thisWeek %> posts</span><span><strong>Timezone</strong><%= calendarTimezone %></span></div>
+  <% } %>
+  <% if (!items.length) { %>
+    <section class="calendar-empty-state calendar-filter-empty"><p class="eyebrow">Open schedule</p><h2>No content scheduled today</h2><p>Use the open space for a planned post, or review drafts waiting for a date.</p><div class="row-actions"><a class="button button-primary" href="/projects/<%= project._id %>/content#planner">Create Content</a><a class="button" href="/projects/<%= project._id %>/calendar?view=list&status=draft">View Drafts</a></div></section>
+  <% } else { %>
+    <div class="calendar-today-agenda">
+      <% items.forEach((item) => { %><%- include('calendar-event', { item }) %><% }) %>
+    </div>
+  <% } %>
+</section>

@@ -1,0 +1,21 @@
+<%
+  const eventDraft = item.draft;
+  const shortPlatform = String(eventDraft.channel || '?').slice(0, 2).toUpperCase();
+%>
+<article
+  class="calendar-event status-tone-<%= item.statusTone %> <%= item.hasAttention ? 'has-attention' : '' %>"
+  id="post-<%= eventDraft._id %>"
+  data-calendar-row
+  data-calendar-event
+  data-draft-id="<%= eventDraft._id %>"
+  data-scheduled-at="<%= eventDraft.scheduledFor.toISOString() %>"
+  data-local-time="<%= item.localTime %>"
+  draggable="<%= item.canReschedule ? 'true' : 'false' %>"
+>
+  <button type="button" data-open-drawer aria-label="Open <%= eventDraft.title || 'untitled post' %>">
+    <span class="calendar-event-time"><%= item.displayTime %></span>
+    <span class="calendar-event-platform" aria-hidden="true"><%= shortPlatform %></span>
+    <span class="calendar-event-copy"><strong><%= eventDraft.title || 'Untitled post' %></strong><small><%= item.statusLabel %><% if (item.accountName) { %> · <%= item.accountName %><% } %></small></span>
+  </button>
+  <% if (item.blocker) { %><p><%= item.blocker %></p><% } %>
+</article>

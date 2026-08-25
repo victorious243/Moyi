@@ -892,6 +892,16 @@ async function retryPublishJob(jobId) {
     status: { $in: ['failed', 'dead_letter'] }
   });
   if (!existing) return null;
+  if (existing.platformPostId || existing.publishedAt) {
+    const error = new Error('This publication already has a provider success record and cannot be retried.');
+    error.statusCode = 409;
+    throw error;
+  }
+  if (existing.providerDispatchStartedAt && existing.failureKind === 'unknown') {
+    const error = new Error('Moyi cannot safely retry because the provider outcome is unknown. Check the live account first, then mark the post published or contact support.');
+    error.statusCode = 409;
+    throw error;
+  }
 
   const draft = await SocialDraft.findOne({ _id: existing.draftId, projectId: existing.projectId });
   const contentUpdates = {};
@@ -935,7 +945,7 @@ async function retryPublishJob(jobId) {
     throw error;
   }
   await refreshBatchSummary(job.batchId);
-  await recordPublishJobEvent(job, 'manual_retry', { fromStatus: 'dead_letter', toStatus: 'queued' });
+  await recordPublishJobEvent(job, 'manual_retry', { fromStatus: existing.status, toStatus: 'queued' });
   if (env.queueEnabled) await reenqueuePublishJob(job._id, job.scheduledAt);
   else await executePublishJob({ jobId: job._id });
   return job;

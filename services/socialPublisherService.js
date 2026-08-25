@@ -13,6 +13,10 @@ const {
   xPostLimitMessage,
   xPostMetrics
 } = require('./xTextService');
+const {
+  buildPublishingReadiness,
+  evaluatePublishingReadiness
+} = require('./publishingReadinessService');
 
 function absoluteAppUrl(pathOrUrl) {
   if (!pathOrUrl) return '';
@@ -234,100 +238,65 @@ function publishableMediaForDraft(draft, imagesByDraftId = {}, mediaAssetsByDraf
   };
 }
 
-function describePublishReadiness({ draft, connectedAccounts = [], imagesByDraftId = {}, mediaAssetsByDraftId = {} }) {
-  const supportedPlatforms = targetPlatformsForChannel(draft.channel);
-  const targets = connectedAccounts.filter((account) => (
-    account.status === 'connected' && supportedPlatforms.includes(account.platform)
-  ));
-  const selectedTarget = draft.socialAccountId
-    ? targets.find((account) => String(account._id) === String(draft.socialAccountId)) || null
-    : targets[0] || null;
-  const blockers = [];
+function legacyBlockerMessages(readiness) {
+  if (readiness.alreadyPublished) return ['Already published'];
+  if (readiness.inFlight) return ['Publishing in progress'];
+  return readiness.blockers.map((blocker) => {
+    if (blocker.code === 'PUBLISH_FAILED') return 'Publishing failed';
+    if (blocker.code === 'APPROVAL_REQUIRED') return 'Needs approval';
+    if (blocker.code.startsWith('ACCOUNT_')) return `Connect ${readiness.channel}`;
+    if (blocker.code === 'MEDIA_REQUIRED' || blocker.code === 'MEDIA_FAILED') {
+      if (readiness.channel === 'instagram') return 'Instagram needs media';
+      if (readiness.channel === 'tiktok') return 'TikTok needs media';
+      if (readiness.channel === 'youtube') return 'YouTube needs a video';
+    }
+    return blocker.message;
+  });
+}
 
-  if (draft.publishStatus === 'published' || draft.status === 'published_manually') {
-    return {
-      draftId: String(draft._id),
-      channel: draft.channel,
-      supportedPlatforms,
-      targets,
-      selectedTarget,
-      blockers: ['Already published'],
-      ready: false
-    };
-  }
-
-  if (['queued', 'preparing_media', 'publishing', 'provider_processing'].includes(draft.publishStatus)) {
-    return {
-      draftId: String(draft._id),
-      channel: draft.channel,
-      supportedPlatforms,
-      targets,
-      selectedTarget,
-      blockers: ['Publishing in progress'],
-      ready: false,
-      inFlight: true
-    };
-  }
-
-  if (draft.publishStatus === 'failed') blockers.push('Publishing failed');
-
-  if (draft.status !== 'approved') {
-    blockers.push('Needs approval');
-  }
-
-  if (!targets.length) {
-    blockers.push(`Connect ${draft.channel}`);
-  }
-
-  const media = publishableMediaForDraft(draft, imagesByDraftId, mediaAssetsByDraftId);
-  if (draft.channel === 'instagram' && !media.hasImage && !media.hasVideo) blockers.push('Instagram needs media');
-  if (draft.channel === 'tiktok' && !media.hasImage && !media.hasVideo) blockers.push('TikTok needs media');
-  if (draft.channel === 'youtube' && !media.hasVideo) blockers.push('YouTube needs a video');
-  const textMetrics = draft.channel === 'x'
-    ? { ...xPostMetrics(draft.body), maxWeightedLength: X_STANDARD_MAX_WEIGHTED_LENGTH }
-    : null;
-  if (textMetrics && textMetrics.weightedLength > X_STANDARD_MAX_WEIGHTED_LENGTH) {
-    blockers.push(xPostLimitMessage(textMetrics.weightedLength));
-  } else if (textMetrics && !textMetrics.valid) {
-    blockers.push('X post copy contains invalid text. Remove unsupported control characters and try again.');
-  }
-
+function withLegacyBlockers(readiness) {
   return {
-    draftId: String(draft._id),
-    channel: draft.channel,
-    supportedPlatforms,
-    targets,
-    selectedTarget,
-    textMetrics,
-    blockers,
-    ready: blockers.length === 0
+    ...readiness,
+    blockerDetails: readiness.blockers,
+    blockers: legacyBlockerMessages(readiness)
   };
 }
 
-function buildPublishReadiness({ socialDrafts = [], connectedAccounts = [], imagesByDraftId = {}, mediaAssetsByDraftId = {} }) {
-  const posts = socialDrafts.map((draft) => describePublishReadiness({
+function describePublishReadiness({
+  draft,
+  connectedAccounts = [],
+  imagesByDraftId = {},
+  mediaAssetsByDraftId = {},
+  jobs = [],
+  projectId = draft && draft.projectId
+}) {
+  return withLegacyBlockers(evaluatePublishingReadiness({
     draft,
-    connectedAccounts,
+    accounts: connectedAccounts,
     imagesByDraftId,
-    mediaAssetsByDraftId
+    mediaAssetsByDraftId,
+    jobs,
+    projectId
   }));
-  const readyPosts = posts.filter((post) => post.ready);
-  const blockedPosts = posts.filter((post) => !post.ready && !post.blockers.includes('Already published'));
-  const publishedPosts = posts.filter((post) => post.blockers.includes('Already published'));
-  const inFlightPosts = posts.filter((post) => post.inFlight);
-  const missingConnections = [...new Set(blockedPosts
-    .flatMap((post) => post.blockers)
-    .filter((blocker) => blocker.startsWith('Connect '))
-    .map((blocker) => blocker.replace('Connect ', '')))];
+}
 
-  return {
-    posts,
-    readyCount: readyPosts.length,
-    blockedCount: blockedPosts.filter((post) => !post.inFlight).length,
-    inFlightCount: inFlightPosts.length,
-    publishedCount: publishedPosts.length,
-    missingConnections
-  };
+function buildPublishReadiness({
+  socialDrafts = [],
+  connectedAccounts = [],
+  imagesByDraftId = {},
+  mediaAssetsByDraftId = {},
+  jobsByDraftId = {},
+  projectId = ''
+}) {
+  const readiness = buildPublishingReadiness({
+    socialDrafts,
+    accounts: connectedAccounts,
+    imagesByDraftId,
+    mediaAssetsByDraftId,
+    jobsByDraftId,
+    projectId
+  });
+  return { ...readiness, posts: readiness.posts.map(withLegacyBlockers) };
 }
 
 async function selectConnectedSocialAccount({ draft, userId, socialAccountId = null }) {

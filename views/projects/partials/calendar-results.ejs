@@ -1,0 +1,206 @@
+<%
+  const counts = typeof calendarCounts !== 'undefined' ? calendarCounts : { scheduled: 0, needsAttention: 0, published: 0, drafts: 0, ready: 0 };
+  const currentFilters = typeof filters !== 'undefined' ? filters : { search: '', status: '', platform: '', campaign: '', account: '', contentType: '', view: 'list', page: 1 };
+  const items = typeof calendarItems !== 'undefined' ? calendarItems : [];
+  const options = typeof filterOptions !== 'undefined' ? filterOptions : { platforms: [], campaigns: [], accounts: [], contentTypes: [] };
+  const pages = typeof pagination !== 'undefined' ? pagination : { page: 1, totalPages: 1, totalItems: items.length };
+  const allowManage = typeof userCanManageProject !== 'undefined' ? userCanManageProject : false;
+  const allowPublish = typeof userCanPublishProject !== 'undefined' ? userCanPublishProject : false;
+  const readiness = typeof publishReadiness !== 'undefined' ? publishReadiness : { attentionCount: 0, readyCount: 0, inFlightCount: 0, groups: {}, blockerCounts: {} };
+  const rangeTitle = typeof calendarRangeTitle !== 'undefined' ? calendarRangeTitle : '';
+  const nav = typeof calendarNavigation !== 'undefined' ? calendarNavigation : { previous: currentFilters.date, next: currentFilters.date };
+  const timezone = typeof calendarTimezone !== 'undefined' ? calendarTimezone : 'UTC';
+  const campaignNameById = new Map((options.campaigns || []).map((campaign) => [String(campaign._id), campaign.name]));
+  const accountNameById = new Map((options.accounts || []).map((account) => [String(account._id), account.accountName]));
+  const chipDefinitions = [
+    ['status', currentFilters.status ? currentFilters.status.replace(/_/g, ' ') : ''],
+    ['platform', currentFilters.platform],
+    ['campaign', campaignNameById.get(String(currentFilters.campaign || '')) || ''],
+    ['account', accountNameById.get(String(currentFilters.account || '')) || ''],
+    ['contentType', currentFilters.contentType],
+    ['search', currentFilters.search ? `Search: ${currentFilters.search}` : '']
+  ].filter(([, label]) => label);
+  const calendarQuery = (overrides = {}, remove = '') => {
+    const params = new URLSearchParams();
+    Object.entries({ ...currentFilters, ...overrides }).forEach(([key, value]) => {
+      if (key !== remove && value && key !== 'fragment') params.set(key, String(value));
+    });
+    return `/projects/${project._id}/calendar${params.toString() ? `?${params.toString()}` : ''}`;
+  };
+  const platformLabels = { x: 'X', linkedin: 'LinkedIn', instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads', bluesky: 'Bluesky', youtube: 'YouTube', tiktok: 'TikTok', email: 'Email', webhook: 'Webhook' };
+  const clearFiltersUrl = calendarQuery({ search: '', status: '', platform: '', campaign: '', account: '', contentType: '', page: 1 });
+%>
+
+<% if (typeof calendarTruncated !== 'undefined' && calendarTruncated) { %><div class="calendar-range-warning" role="status">This range contains more than 2,000 posts. Narrow the date range or filters to see every item.</div><% } %>
+<span hidden data-active-publish-count="<%= readiness.inFlightCount || 0 %>"></span>
+
+<% if (readiness.attentionCount) { %>
+  <section class="calendar-attention-centre" aria-labelledby="calendar-attention-title">
+    <div><p class="eyebrow">Publishing readiness</p><h2 id="calendar-attention-title">Moyi found <%= readiness.attentionCount %> item<%= readiness.attentionCount === 1 ? '' : 's' %> requiring attention</h2><p><%= readiness.readyCount %> ready to publish · <%= readiness.inFlightCount %> already processing</p></div>
+    <div class="calendar-attention-counts">
+      <% Object.entries(readiness.blockerCounts || {}).slice(0, 4).forEach(([code, count]) => { %><span><strong><%= count %></strong><%= code.toLowerCase().replace(/_/g, ' ') %></span><% }) %>
+    </div>
+    <a class="button button-primary" href="<%= calendarQuery({ view: 'attention', page: 1 }) %>" data-calendar-filter-link>Review attention</a>
+  </section>
+<% } %>
+
+<section class="calendar-kpi-strip" aria-label="Content calendar totals" data-calendar-counts>
+  <div><span>Scheduled</span><strong><%= counts.scheduled %></strong></div>
+  <div><span>Needs attention</span><strong><%= counts.needsAttention %></strong></div>
+  <div><span>Published</span><strong><%= counts.published %></strong></div>
+  <div><span>Draft</span><strong><%= counts.drafts %></strong></div>
+</section>
+
+<nav class="calendar-date-navigation" aria-label="Calendar date navigation">
+  <a class="icon-button" href="<%= calendarQuery({ date: nav.previous, page: 1 }) %>" data-calendar-navigation aria-label="Previous <%= currentFilters.view %>" title="Previous">‹</a>
+  <a class="button button-small" href="<%= calendarQuery({ date: '', page: 1 }) %>" data-calendar-navigation>Today</a>
+  <label class="calendar-date-picker"><span class="sr-only">Jump to date</span><input type="date" value="<%= currentFilters.date || '' %>" data-calendar-date-picker></label>
+  <strong><%= rangeTitle %></strong>
+  <span><%= timezone %></span>
+  <a class="icon-button" href="<%= calendarQuery({ date: nav.next, page: 1 }) %>" data-calendar-navigation aria-label="Next <%= currentFilters.view %>" title="Next">›</a>
+</nav>
+
+<form class="calendar-filter-panel" method="get" action="/projects/<%= project._id %>/calendar" data-calendar-filters>
+  <div class="calendar-filter-grid">
+    <label>Status
+      <select name="status">
+        <option value="">All statuses</option>
+        <% [['draft','Draft'],['awaiting_approval','Awaiting approval'],['ready','Ready'],['scheduled','Scheduled'],['publishing','Publishing'],['published','Published'],['failed','Failed'],['blocked','Blocked'],['cancelled','Cancelled']].forEach(([value, label]) => { %>
+          <option value="<%= value %>" <%= currentFilters.status === value ? 'selected' : '' %>><%= label %></option>
+        <% }) %>
+      </select>
+    </label>
+    <label>Platform
+      <select name="platform">
+        <option value="">All platforms</option>
+        <% (options.platforms || []).forEach((platform) => { %><option value="<%= platform %>" <%= currentFilters.platform === platform ? 'selected' : '' %>><%= platformLabels[platform] || platform %></option><% }) %>
+      </select>
+    </label>
+    <label>Campaign
+      <select name="campaign">
+        <option value="">All campaigns</option>
+        <% (options.campaigns || []).forEach((campaign) => { %><option value="<%= campaign._id %>" <%= String(currentFilters.campaign) === String(campaign._id) ? 'selected' : '' %>><%= campaign.name %></option><% }) %>
+      </select>
+    </label>
+    <label>Account
+      <select name="account">
+        <option value="">All accounts</option>
+        <% (options.accounts || []).forEach((account) => { %><option value="<%= account._id %>" <%= String(currentFilters.account) === String(account._id) ? 'selected' : '' %>><%= platformLabels[account.platform] || account.platform %> · <%= account.accountName %></option><% }) %>
+      </select>
+    </label>
+    <% if ((options.contentTypes || []).length) { %>
+      <label>Content type
+        <select name="contentType">
+          <option value="">All types</option>
+          <% options.contentTypes.forEach((type) => { %><option value="<%= type %>" <%= currentFilters.contentType === type ? 'selected' : '' %>><%= type.replace(/_/g, ' ') %></option><% }) %>
+        </select>
+      </label>
+    <% } %>
+  </div>
+  <input type="hidden" name="search" value="<%= currentFilters.search %>">
+  <input type="hidden" name="view" value="<%= currentFilters.view %>">
+  <input type="hidden" name="date" value="<%= currentFilters.date %>">
+  <div class="calendar-filter-actions">
+    <button class="button button-primary" type="submit">Apply filters</button>
+    <a class="button" href="<%= clearFiltersUrl %>" data-calendar-clear>Clear all</a>
+  </div>
+</form>
+
+<div class="calendar-active-filters" aria-label="Active filters" <%= chipDefinitions.length ? '' : 'hidden' %>>
+  <% chipDefinitions.forEach(([key, label]) => { %>
+    <a class="calendar-filter-chip" href="<%= calendarQuery({ page: 1 }, key) %>" data-calendar-filter-link><span><%= label %></span><span aria-hidden="true">×</span><span class="sr-only">Remove filter</span></a>
+  <% }) %>
+  <% if (chipDefinitions.length > 1) { %><a href="<%= clearFiltersUrl %>" data-calendar-clear>Clear all</a><% } %>
+</div>
+
+<% if (currentFilters.view === 'attention') { %>
+  <% const itemByDraftId = new Map(items.map((item) => [String(item.draft._id), item])); %>
+  <section class="calendar-attention-view" aria-label="Publishing attention">
+    <% if (!items.length) { %><section class="calendar-empty-state"><p class="eyebrow">All clear</p><h2>No posts require attention</h2><p>Known publishing blockers and failed jobs will appear here.</p><a class="button" href="<%= calendarQuery({ view: 'list', page: 1 }) %>" data-calendar-filter-link>Return to calendar</a></section><% } %>
+    <% Object.entries(readiness.groups || {}).forEach(([group, posts]) => { const groupItems = posts.map((post) => itemByDraftId.get(String(post.draftId))).filter(Boolean); if (!groupItems.length) return; %>
+      <section class="calendar-attention-group"><header><div><p class="eyebrow">Action required</p><h2><%= group %></h2></div><span><%= groupItems.length %></span></header>
+        <div class="calendar-attention-list">
+          <% groupItems.forEach((item) => { const draft = item.draft; const blocker = item.readiness?.blockerDetails?.find((entry) => entry) || null; %>
+            <article data-calendar-row data-draft-id="<%= draft._id %>" data-drawer-endpoint="/social-drafts/<%= draft._id %>/calendar-detail">
+              <div class="calendar-attention-preview"><span class="calendar-platform-mark"><%= String(draft.channel || '?').slice(0, 2).toUpperCase() %></span><div><strong><%= draft.title || 'Untitled post' %></strong><span><%= platformLabels[draft.channel] || draft.channel %> · <%= item.accountName || 'No account selected' %> · <%= draft.campaignId?.name || 'Unassigned' %></span><time><%= item.displayDate %> · <%= item.displayTime %></time></div></div>
+              <div class="calendar-attention-reason"><span class="calendar-ui-status status-tone-danger">Cannot publish</span><strong><%= blocker?.message || item.blocker %></strong><p><%= blocker?.resolution || 'Open the post to resolve this publishing blocker.' %></p></div>
+              <div class="calendar-attention-actions"><% if (blocker?.action?.href) { %><a class="button button-primary button-small" href="<%= blocker.action.href %>"><%= blocker.action.label %></a><% } else { %><button class="button button-primary button-small" type="button" data-open-drawer><%= blocker?.action?.label || 'Review post' %></button><% } %><button class="button button-small" type="button" data-open-drawer>Details</button></div>
+            </article>
+          <% }) %>
+        </div>
+      </section>
+    <% }) %>
+  </section>
+<% } else if (currentFilters.view === 'list') { %>
+<form class="calendar-list-form" action="/social-drafts/batch-action" method="post" data-calendar-bulk-form>
+  <input type="hidden" name="projectId" value="<%= project._id %>">
+  <div class="calendar-bulk-bar" data-calendar-bulk-bar hidden>
+    <strong><span data-selected-count>0</span> selected</strong>
+    <% if (allowManage) { %><button class="button button-small" type="submit" name="action" value="approve">Approve</button><label>Schedule<input type="datetime-local" name="scheduledAt"></label><button class="button button-small" type="submit" name="action" value="schedule">Apply</button><label>Campaign<select name="campaignId"><option value="">Choose</option><% (options.campaigns || []).forEach((campaign) => { %><option value="<%= campaign._id %>"><%= campaign.name %></option><% }) %></select></label><button class="button button-small" type="submit" name="action" value="move_campaign">Move</button><button class="button button-small" type="submit" name="action" value="delete">Delete</button><% } %>
+    <% if (allowPublish) { %><button class="button button-primary button-small" type="submit" name="action" value="publish">Publish</button><button class="button button-small" type="submit" name="action" value="retry">Retry failed</button><% } %>
+    <button class="button button-small" type="button" data-clear-selection>Clear</button>
+  </div>
+
+  <% if (!items.length) { %>
+    <section class="calendar-empty-state calendar-filter-empty">
+      <p class="eyebrow"><%= chipDefinitions.length ? 'No matching content' : 'Open schedule' %></p>
+      <h2><%= chipDefinitions.length ? 'Nothing matches these filters' : 'No content scheduled in this range' %></h2>
+      <p><%= chipDefinitions.length ? 'Clear one or more filters, or create a new content plan.' : 'Create content or review drafts waiting for their publishing date.' %></p>
+      <div class="row-actions"><% if (chipDefinitions.length) { %><a class="button" href="<%= clearFiltersUrl %>">Clear filters</a><% } else { %><a class="button" href="/projects/<%= project._id %>/calendar?view=list&status=draft">View Drafts</a><% } %><a class="button button-primary" href="/projects/<%= project._id %>/content#planner">Create content</a></div>
+    </section>
+  <% } else { %>
+    <div class="calendar-list calendar-view-<%= currentFilters.view %>" role="table" aria-label="Social content operations" data-calendar-list>
+      <div class="calendar-list-header" role="row">
+        <span role="columnheader"><input type="checkbox" aria-label="Select all visible posts" data-select-all></span>
+        <span role="columnheader">Date & time</span>
+        <span role="columnheader">Content</span>
+        <span role="columnheader">Platform</span>
+        <span role="columnheader">Campaign</span>
+        <span role="columnheader">Account</span>
+        <span role="columnheader">Status</span>
+        <span role="columnheader"><span class="sr-only">Actions</span></span>
+      </div>
+      <% items.forEach((item) => { const draft = item.draft; %>
+        <article class="calendar-list-row <%= item.hasAttention ? 'has-attention' : '' %>" role="row" id="post-<%= draft._id %>" data-calendar-row data-draft-id="<%= draft._id %>" data-drawer-endpoint="/social-drafts/<%= draft._id %>/calendar-detail">
+          <span class="calendar-cell-select" role="cell" data-no-drawer><% if (item.canSelect) { %><input type="checkbox" name="draftIds" value="<%= draft._id %>" aria-label="Select <%= draft.title || 'untitled post' %>" data-row-select><% } %></span>
+          <time class="calendar-cell-date" role="cell" <%= draft.scheduledFor ? `datetime="${draft.scheduledFor.toISOString()}"` : '' %>><strong><%= item.displayDate %></strong><span><%= item.displayTime %></span></time>
+          <button class="calendar-cell-content" type="button" role="cell" data-open-drawer aria-label="Open <%= draft.title || 'untitled post' %>">
+            <% if (item.thumbnailUrl) { %><img src="<%= item.thumbnailUrl %>" alt="" loading="lazy"><% } else { %><span class="calendar-platform-mark" aria-hidden="true"><%= String(draft.channel || '?').slice(0, 2).toUpperCase() %></span><% } %>
+            <span><strong><%= draft.title || 'Untitled post' %></strong><small><%= String(draft.body || '').slice(0, 120) %><%= String(draft.body || '').length > 120 ? '…' : '' %></small><% if (item.blocker) { %><em><%= item.blocker %></em><% } %></span>
+          </button>
+          <span class="calendar-cell-platform" role="cell"><span class="calendar-platform-pill"><%= platformLabels[draft.channel] || draft.channel %></span></span>
+          <span class="calendar-cell-campaign" role="cell"><%= draft.campaignId ? draft.campaignId.name : 'Unassigned' %></span>
+          <span class="calendar-cell-account" role="cell"><%= item.accountName || 'Auto-select' %></span>
+          <span class="calendar-cell-status" role="cell"><span class="calendar-ui-status status-tone-<%= item.statusTone %>"><%= item.statusLabel %></span></span>
+          <span class="calendar-cell-actions" role="cell" data-no-drawer>
+            <button class="icon-button" type="button" data-open-drawer aria-label="Open post details" title="Open details">›</button>
+            <details class="calendar-row-menu">
+              <summary class="icon-button" aria-label="More actions" title="More actions">•••</summary>
+              <div role="menu">
+                <button type="button" role="menuitem" data-open-drawer>View details</button>
+                <% if (allowManage && draft.status === 'draft') { %><button type="submit" role="menuitem" formaction="/social-drafts/<%= draft._id %>/approve" data-async-action>Approve</button><% } %>
+                <button type="button" role="menuitem" data-copy-target="calendar-copy-<%= draft._id %>">Copy caption</button>
+              </div>
+            </details>
+            <span id="calendar-copy-<%= draft._id %>" hidden><%= draft.body || '' %></span>
+          </span>
+        </article>
+      <% }) %>
+    </div>
+  <% } %>
+</form>
+
+<% if (pages.totalPages > 1) { %>
+  <nav class="calendar-pagination" aria-label="Calendar pages">
+    <a class="button button-small <%= pages.page <= 1 ? 'is-disabled' : '' %>" href="<%= calendarQuery({ page: Math.max(1, pages.page - 1) }) %>" <%= pages.page <= 1 ? 'aria-disabled="true"' : '' %> data-calendar-filter-link>Previous</a>
+    <span>Page <strong><%= pages.page %></strong> of <%= pages.totalPages %> · <%= pages.totalItems %> posts</span>
+    <a class="button button-small <%= pages.page >= pages.totalPages ? 'is-disabled' : '' %>" href="<%= calendarQuery({ page: Math.min(pages.totalPages, pages.page + 1) }) %>" <%= pages.page >= pages.totalPages ? 'aria-disabled="true"' : '' %> data-calendar-filter-link>Next</a>
+  </nav>
+<% } %>
+<% } else if (currentFilters.view === 'today') { %>
+  <%- include('calendar-today-view', { project, items, calendarDays, todayContext, calendarTimezone, allowManage }) %>
+<% } else if (currentFilters.view === 'week') { %>
+  <%- include('calendar-week-view', { project, calendarDays, calendarTimezone, allowManage }) %>
+<% } else { %>
+  <%- include('calendar-month-view', { project, calendarDays, currentFilters, allowManage }) %>
+<% } %>

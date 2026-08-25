@@ -85,5 +85,8 @@ const socialDraftSchema = new mongoose.Schema(
 );
 
 socialDraftSchema.index({ projectId: 1, scheduledFor: 1 });
+// Calendar range scans commonly narrow by channel or campaign before sorting by schedule.
+socialDraftSchema.index({ projectId: 1, channel: 1, scheduledFor: 1 });
+socialDraftSchema.index({ projectId: 1, campaignId: 1, scheduledFor: 1 });
 
 module.exports = mongoose.model('SocialDraft', socialDraftSchema);

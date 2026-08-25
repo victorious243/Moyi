@@ -215,7 +215,11 @@
     if (shouldSoftNavigate(syntheticEvent, link)) prefetch(link);
   }, true);
 
-  window.addEventListener('popstate', () => {
+  window.addEventListener('popstate', (event) => {
+    if ((event.state?.moyiCalendarDrawer || event.state?.moyiCalendarBase) && document.querySelector('[data-calendar-root]')) {
+      window.dispatchEvent(new CustomEvent('moyi:calendar-history', { detail: { state: event.state || {} } }));
+      return;
+    }
     navigateTo(window.location.href, { replace: true });
   });
 })();

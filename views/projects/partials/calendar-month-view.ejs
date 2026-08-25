@@ -1,0 +1,14 @@
+<section class="calendar-month-view" aria-label="Monthly publishing calendar">
+  <div class="calendar-month-weekdays" aria-hidden="true"><% ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach((day) => { %><span><%= day %></span><% }) %></div>
+  <div class="calendar-month-grid">
+    <% calendarDays.forEach((day) => { %>
+      <section class="calendar-month-day <%= day.isToday ? 'is-today' : '' %> <%= day.inActiveMonth ? '' : 'is-outside-month' %>" data-calendar-dropzone data-drop-date="<%= day.dateKey %>" aria-label="<%= day.fullLabel %>">
+        <header><a href="/projects/<%= project._id %>/calendar?view=today&date=<%= day.dateKey %>" data-calendar-navigation><%= day.dayNumber %><span class="sr-only"><%= day.fullLabel %></span></a><small><%= day.items.length || '' %></small></header>
+        <div class="calendar-month-events">
+          <% day.items.slice(0, 3).forEach((item) => { %><%- include('calendar-event', { item }) %><% }) %>
+          <% if (day.items.length > 3) { %><a class="calendar-more-link" href="/projects/<%= project._id %>/calendar?view=today&date=<%= day.dateKey %>" data-calendar-navigation>+<%= day.items.length - 3 %> more</a><% } %>
+        </div>
+      </section>
+    <% }) %>
+  </div>
+</section>

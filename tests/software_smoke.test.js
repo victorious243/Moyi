@@ -497,7 +497,18 @@ test('content preview renders Markdown while escaping embedded HTML', () => {
   assert.match(html, /&lt;script&gt;/);
 });
 
-test('calendar renders the selected image with each linked social draft', async () => {
+test('calendar renders a compact post row without loading advanced controls', async () => {
+  const draft = {
+    _id: 'social_1',
+    sourceContentDraftId: 'draft_1',
+    contentImageId: 'image_1',
+    campaignId: null,
+    channel: 'linkedin',
+    status: 'draft',
+    title: 'LinkedIn post',
+    body: 'Useful post copy.',
+    scheduledFor: new Date('2026-07-31T09:00:00Z')
+  };
   const html = await ejs.renderFile(
     path.join(__dirname, '../views/projects/calendar.ejs'),
     {
@@ -505,64 +516,100 @@ test('calendar renders the selected image with each linked social draft', async 
       title: 'Calendar',
       currentUser: { role: 'owner' },
       project: { _id: 'project_1', name: 'Moyi' },
-      campaigns: [],
-      socialDrafts: [{
-        _id: 'social_1',
-        sourceContentDraftId: 'draft_1',
-        contentImageId: 'image_1',
-        channel: 'linkedin',
-        status: 'draft',
-        title: 'LinkedIn post',
-        body: 'Useful post copy.',
-        scheduledFor: new Date('2026-07-31T09:00:00Z')
-      }],
-      successMessage: ''
-    }
-  );
-
-  assert.match(html, /\/content\/draft_1\/images\/image_1\/file/);
-  assert.match(html, /Download Image/);
-  assert.match(html, /Useful post copy\./);
-});
-
-test('calendar renders native image tools for standalone social drafts', async () => {
-  const html = await ejs.renderFile(
-    path.join(__dirname, '../views/projects/calendar.ejs'),
-    {
-      appName: 'Moyi',
-      title: 'Calendar',
-      currentUser: { role: 'owner' },
-      project: { _id: 'project_1', name: 'Moyi' },
-      campaigns: [],
-      socialDrafts: [{
-        _id: 'social_1',
-        sourceContentDraftId: null,
-        contentImageId: 'image_social_1',
-        channel: 'instagram',
-        status: 'draft',
-        title: 'Standalone social post',
-        body: 'Post copy with a visual.',
-        scheduledFor: new Date('2026-08-10T09:00:00Z')
-      }],
-      socialDraftImagesByDraftId: {
-        social_1: [{
-          _id: 'image_social_1',
-          draftId: 'social_1',
-          status: 'selected',
-          source: 'generated',
-          altText: 'A clean product poster',
-          caption: 'Launch visual'
-        }]
-      },
+      calendarItems: [{ draft, uiStatus: 'draft', statusLabel: 'Draft', statusTone: 'neutral', blocker: '', hasAttention: false, canSelect: true, accountName: '', thumbnailUrl: '/content/draft_1/images/image_1/file' }],
+      calendarCounts: { total: 1, scheduled: 0, needsAttention: 0, published: 0, drafts: 1, ready: 0 },
+      filters: { search: '', status: '', platform: '', campaign: '', account: '', contentType: '', view: 'list', page: 1 },
+      filterOptions: { platforms: ['linkedin'], campaigns: [], accounts: [], contentTypes: [] },
+      pagination: { page: 1, pageSize: 50, totalItems: 1, totalPages: 1 },
       successMessage: '',
       errorMessage: ''
     }
   );
 
+  assert.match(html, /\/content\/draft_1\/images\/image_1\/file/);
+  assert.match(html, /data-open-drawer/);
+  assert.match(html, /\/social-drafts\/social_1\/calendar-detail/);
+  assert.match(html, /Useful post copy\./);
+  assert.doesNotMatch(html, /Generate image/);
+  assert.doesNotMatch(html, /Publish to/);
+});
+
+test('month calendar caps crowded days and links to the focused day', async () => {
+  const items = Array.from({ length: 5 }, (_, index) => ({
+    draft: {
+      _id: `social_${index}`,
+      channel: 'x',
+      title: `Post ${index + 1}`,
+      scheduledFor: new Date(`2026-08-25T${String(index + 9).padStart(2, '0')}:00:00.000Z`)
+    },
+    statusTone: 'info',
+    hasAttention: false,
+    canReschedule: true,
+    localTime: `${String(index + 9).padStart(2, '0')}:00`,
+    displayTime: `${index + 9}:00`,
+    statusLabel: 'Scheduled',
+    accountName: '',
+    blocker: ''
+  }));
+  const html = await ejs.renderFile(
+    path.join(__dirname, '../views/projects/partials/calendar-month-view.ejs'),
+    {
+      project: { _id: 'project_1' },
+      calendarDays: [{
+        dateKey: '2026-08-25',
+        dayNumber: 25,
+        fullLabel: 'Tuesday, August 25',
+        isToday: true,
+        inActiveMonth: true,
+        items
+      }]
+    }
+  );
+
+  assert.match(html, /\+2 more/);
+  assert.match(html, /view=today&date=2026-08-25/);
+  assert.equal((html.match(/data-calendar-event/g) || []).length, 3);
+});
+
+test('calendar drawer lazy-loads media, publishing, and history controls', async () => {
+  const html = await ejs.renderFile(
+    path.join(__dirname, '../views/projects/partials/calendar-drawer.ejs'),
+    {
+      project: { _id: 'project_1', name: 'Moyi' },
+      draft: {
+        _id: 'social_1',
+        sourceContentDraftId: null,
+        contentImageId: 'image_social_1',
+        campaignId: null,
+        socialAccountId: 'account_1',
+        channel: 'instagram',
+        status: 'draft',
+        publishStatus: 'draft',
+        title: 'Standalone social post',
+        body: 'Post copy with a visual.',
+        scheduledFor: new Date('2026-08-10T09:00:00Z')
+      },
+      socialAccounts: [{ _id: 'account_1', projectId: 'project_1', platform: 'instagram', accountName: 'Moyi' }],
+      publishAccounts: [{ _id: 'account_1', projectId: 'project_1', platform: 'instagram', accountName: 'Moyi' }],
+      accountProjectNames: { project_1: 'Moyi' },
+      socialImages: [{ _id: 'image_social_1', draftId: 'social_1', status: 'selected', source: 'generated', altText: 'A clean product poster', caption: 'Launch visual' }],
+      mediaAssets: [{ _id: 'media_1', kind: 'image', status: 'ready', filename: 'launch.jpg', altText: 'Launch image', variants: {} }],
+      publishJobs: [],
+      eventsByJobId: {},
+      publishReadiness: { ready: true, blockers: [] },
+      calendarStatus: { uiStatus: 'draft', statusLabel: 'Draft', statusTone: 'neutral', blockers: [], blocker: '', hasAttention: false },
+      canManageProject: true,
+      canPublishProject: true
+    }
+  );
+
   assert.match(html, /\/social-drafts\/social_1\/images\/image_social_1\/file/);
   assert.match(html, /Post copy with a visual\./);
-  assert.match(html, /Generate Image/);
-  assert.match(html, /Upload Image/);
+  assert.match(html, /Generate image/);
+  assert.match(html, /Upload image/);
+  assert.match(html, /Save description/);
+  assert.match(html, /Publish to/);
+  assert.match(html, /data-drawer-panel="history"/);
 });
 
 
@@ -632,12 +679,15 @@ test('social draft routes support calendar editing and removal', () => {
     .map((layer) => ({ path: layer.route.path, methods: Object.keys(layer.route.methods) }));
 
   assert.ok(routes.some((route) => route.path === '/:id/update' && route.methods.includes('post')));
+  assert.ok(routes.some((route) => route.path === '/:id/calendar-detail' && route.methods.includes('get')));
+  assert.ok(routes.some((route) => route.path === '/:id/reschedule' && route.methods.includes('post')));
   assert.ok(routes.some((route) => route.path === '/:id/delete' && route.methods.includes('post')));
   assert.ok(routes.some((route) => route.path === '/:id/images/upload' && route.methods.includes('post')));
   assert.ok(routes.some((route) => route.path === '/:id/images/generate' && route.methods.includes('post')));
   assert.ok(routes.some((route) => route.path === '/:id/images/:imageId/file' && route.methods.includes('get')));
   assert.ok(routes.some((route) => route.path === '/:id/images/:imageId/select' && route.methods.includes('post')));
   assert.ok(routes.some((route) => route.path === '/:id/media/upload' && route.methods.includes('post')));
+  assert.ok(routes.some((route) => route.path === '/:id/media/:assetId/update' && route.methods.includes('post')));
   assert.ok(routes.some((route) => route.path === '/:id/media-status' && route.methods.includes('get')));
   assert.ok(routes.some((route) => route.path === '/:id/media/:assetId/file' && route.methods.includes('get')));
   assert.ok(routes.some((route) => route.path === '/:id/tiktok-creator-info' && route.methods.includes('get')));
