@@ -281,6 +281,52 @@ function createEmailService(deps = {}) {
     });
   }
 
+  async function sendUnverifiedAccountReminderEmail({ user, verifyUrl }) {
+    const targetVerifyUrl = verifyUrl || `${targetEnv.appUrl}/verify-email?email=${encodeURIComponent(user && user.email || '')}`;
+    const greeting = user && user.name ? `Hi ${user.name},` : 'Hi there,';
+    const bodyHtml = `
+      <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6;">
+        Thanks for signing up for Moyi-CMO!
+      </p>
+      <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6;">
+        We noticed that your account hasn’t been verified yet. You’re just one quick step away from completing your registration and getting full access to Moyi.
+      </p>
+      <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6;">
+        Please check your inbox for the verification email we sent you and click <strong>Verify Account</strong> to activate your account.
+      </p>
+      ${infoCard({
+        title: 'Need a new verification email or PIN?',
+        body: '<p style="margin:0;">If you can’t find the email, please check your spam or junk folder. You can also request a new verification email from the sign-in page.</p>',
+        tone: 'neutral'
+      })}
+      <p style="margin:16px 0 16px;color:#374151;font-size:15px;line-height:1.6;">
+        Once verified, you’ll be ready to start using Moyi to help you plan, execute, and improve your marketing.
+      </p>
+      <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.6;">
+        We’re looking forward to having you onboard.
+      </p>
+      <div style="margin-top:24px;border-top:1px solid #edf0f6;padding-top:16px;color:#4b5563;font-size:14px;line-height:1.5;">
+        <p style="margin:0 0 4px;">Best regards,</p>
+        <p style="margin:0 0 2px;font-weight:800;color:#111827;">The Moyi-CMO Team</p>
+        <p style="margin:0;color:#5b4dff;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.05em;">Your Chief Marketing Officer</p>
+      </div>
+    `;
+
+    return sendEmail({
+      to: user.email,
+      subject: 'Action Needed: Complete your Moyi-CMO registration',
+      html: wrapEmail({
+        heading: 'Activate your Moyi-CMO account',
+        intro: greeting,
+        bodyHtml,
+        ctaUrl: targetVerifyUrl,
+        ctaLabel: 'Verify Account',
+        footerNote: 'You are receiving this reminder because an account was created on Moyi-CMO with this email address.',
+        targetEnv
+      })
+    });
+  }
+
   async function sendWelcomeEmail({ user, dashboardUrl = `${targetEnv.appUrl}/dashboard` }) {
     return sendEmail({
       to: user.email,
@@ -575,6 +621,7 @@ function createEmailService(deps = {}) {
     sendSubscriptionUpdatedEmail,
     sendTeamInviteEmail,
     sendTrialEndingEmail,
+    sendUnverifiedAccountReminderEmail,
     sendUsageLimitEmail,
     sendWelcomeEmail,
     verifyEmailTransport
@@ -604,6 +651,7 @@ module.exports = {
   sendSubscriptionUpdatedEmail: createEmailService().sendSubscriptionUpdatedEmail,
   sendTeamInviteEmail: createEmailService().sendTeamInviteEmail,
   sendTrialEndingEmail: createEmailService().sendTrialEndingEmail,
+  sendUnverifiedAccountReminderEmail: createEmailService().sendUnverifiedAccountReminderEmail,
   sendUsageLimitEmail: createEmailService().sendUsageLimitEmail,
   sendWelcomeEmail: createEmailService().sendWelcomeEmail,
   listItems,

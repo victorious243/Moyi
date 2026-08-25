@@ -42,6 +42,14 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null
     },
+    verificationReminderSentAt: {
+      type: Date,
+      default: null
+    },
+    verificationReminderCount: {
+      type: Number,
+      default: 0
+    },
     role: {
       type: String,
       enum: ['owner', 'admin', 'member'],

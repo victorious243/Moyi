@@ -8,6 +8,7 @@ const { triggerDailyGrowthBatch } = require('./dailyGrowthScheduler');
 const { evaluateProjectGoals } = require('./goalIntelligenceService');
 const { refreshExpiringSocialAccounts } = require('./socialTokenRefreshService');
 const { collectDueMetrics } = require('./engagementMetricsService');
+const { triggerUnverifiedAccountReminders } = require('./userActivationReminderService');
 
 let schedulerTimer = null;
 let initialTimer = null;
@@ -31,16 +32,17 @@ async function runOperationalSchedules() {
   if (runInProgress) return { skipped: true, reason: 'Previous operational schedule run is still active.' };
   runInProgress = true;
   try {
-    const [dailyGrowth, dailyContent, weeklyBriefs, monthlyReviews, goals, tokenRefresh, metricsCollection] = await Promise.all([
+    const [dailyGrowth, dailyContent, weeklyBriefs, monthlyReviews, goals, tokenRefresh, metricsCollection, activationReminders] = await Promise.all([
       triggerDailyGrowthBatch(),
       triggerDailyContentBatch(),
       triggerWeeklyBriefingBatch(),
       triggerMonthlyStrategyReviewBatch(),
       triggerGoalEvaluationBatch(),
       refreshExpiringSocialAccounts({ withinMs: 48 * 60 * 60 * 1000 }).catch((error) => ({ error: error.message })),
-      collectDueMetrics().catch((error) => ({ error: error.message }))
+      collectDueMetrics().catch((error) => ({ error: error.message })),
+      triggerUnverifiedAccountReminders().catch((error) => ({ error: error.message }))
     ]);
-    return { dailyGrowth, dailyContent, weeklyBriefs, monthlyReviews, goals, tokenRefresh, metricsCollection };
+    return { dailyGrowth, dailyContent, weeklyBriefs, monthlyReviews, goals, tokenRefresh, metricsCollection, activationReminders };
   } finally {
     runInProgress = false;
   }
