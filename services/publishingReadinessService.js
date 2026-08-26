@@ -235,6 +235,8 @@ function buildPublishingReadiness({ socialDrafts = [], accounts = [], imagesByDr
     const codes = new Set(post.blockers.map((blocker) => blocker.code));
     const primaryCode = BLOCKER_PRIORITY.find((code) => codes.has(code)) || post.blockers[0]?.code;
     const label = BLOCKER_GROUPS[primaryCode] || 'Other blockers';
+    post.primaryBlockerCode = primaryCode;
+    post.primaryBlocker = post.blockers.find((blocker) => blocker.code === primaryCode) || post.blockers[0] || null;
     if (!result[label]) result[label] = [];
     result[label].push(post);
     return result;
@@ -252,6 +254,7 @@ function buildPublishingReadiness({ socialDrafts = [], accounts = [], imagesByDr
     attentionCount: actionable.length,
     blockerCounts,
     groups,
+    attentionSummary: Object.entries(groups).map(([label, groupedPosts]) => ({ label, count: groupedPosts.length })),
     missingConnections: [...new Set(actionable.filter((post) => post.blockers.some((item) => item.code === 'ACCOUNT_NOT_CONNECTED')).map((post) => post.channel))]
   };
 }

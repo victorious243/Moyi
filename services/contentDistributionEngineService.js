@@ -886,12 +886,12 @@ async function createAndExecutePublishBatch(options) {
   return executePublishBatch({ batchId: batch._id });
 }
 
-async function retryPublishJob(jobId) {
-  const existing = await PublishJob.findOne({
-    _id: jobId,
-    status: { $in: ['failed', 'dead_letter'] }
-  });
-  if (!existing) return null;
+function assertPublishJobRetrySafe(existing) {
+  if (!existing || !['failed', 'dead_letter'].includes(existing.status)) {
+    const error = new Error('Only failed publish jobs can be retried.');
+    error.statusCode = 422;
+    throw error;
+  }
   if (existing.platformPostId || existing.publishedAt) {
     const error = new Error('This publication already has a provider success record and cannot be retried.');
     error.statusCode = 409;
@@ -902,6 +902,15 @@ async function retryPublishJob(jobId) {
     error.statusCode = 409;
     throw error;
   }
+}
+
+async function retryPublishJob(jobId) {
+  const existing = await PublishJob.findOne({
+    _id: jobId,
+    status: { $in: ['failed', 'dead_letter'] }
+  });
+  if (!existing) return null;
+  assertPublishJobRetrySafe(existing);
 
   const draft = await SocialDraft.findOne({ _id: existing.draftId, projectId: existing.projectId });
   const contentUpdates = {};
@@ -1043,6 +1052,7 @@ async function recoverStalledPublishJob(jobId) {
 }
 
 module.exports = {
+  assertPublishJobRetrySafe,
   createAndExecutePublishBatch,
   createAndQueuePublishBatch,
   createPublishBatch,

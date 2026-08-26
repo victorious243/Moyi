@@ -9,11 +9,6 @@ const { ensureFreshSocialAccountCredentials } = require('./socialTokenRefreshSer
 const { recordAppLog } = require('./appLogger');
 const { publishFacebookPagePost, publishInstagramBusinessPost } = require('./metaMcpService');
 const {
-  X_STANDARD_MAX_WEIGHTED_LENGTH,
-  xPostLimitMessage,
-  xPostMetrics
-} = require('./xTextService');
-const {
   buildPublishingReadiness,
   evaluatePublishingReadiness
 } = require('./publishingReadinessService');
@@ -224,18 +219,6 @@ function targetPlatformsForChannel(channel) {
   };
 
   return targetPlatformsByChannel[channel] || [channel];
-}
-
-function publishableMediaForDraft(draft, imagesByDraftId = {}, mediaAssetsByDraftId = {}) {
-  if (draft.contentImageId) return { hasImage: true, hasVideo: false };
-  const images = imagesByDraftId[String(draft._id)] || [];
-  const hasLegacyImage = images.some((image) => image.status === 'selected');
-  const mediaAssets = (mediaAssetsByDraftId[String(draft._id)] || [])
-    .filter((asset) => asset.status !== 'failed');
-  return {
-    hasImage: hasLegacyImage || mediaAssets.some((asset) => asset.kind === 'image'),
-    hasVideo: mediaAssets.some((asset) => asset.kind === 'video')
-  };
 }
 
 function legacyBlockerMessages(readiness) {

@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
 const { accountHealth, buildPublishingReadiness, evaluatePublishingReadiness } = require('../services/publishingReadinessService');
+const { assertPublishJobRetrySafe } = require('../services/contentDistributionEngineService');
 
 function id() { return new mongoose.Types.ObjectId(); }
 
@@ -74,7 +75,15 @@ test('failed jobs are categorized and counted once in the attention centre', () 
   assert.equal(result.attentionCount, 1);
   assert.equal(result.blockerCounts.PUBLISH_FAILED, 1);
   assert.equal(result.groups['Publishing failures'].length, 1);
+  assert.deepEqual(result.attentionSummary, [{ label: 'Publishing failures', count: 1 }]);
   assert.match(result.posts[0].blockers.at(-1).resolution, /Reconnect/);
+});
+
+test('manual retry refuses successful and unknown-outcome dispatches', () => {
+  assert.doesNotThrow(() => assertPublishJobRetrySafe({ status: 'failed', platformPostId: '', publishedAt: null, providerDispatchStartedAt: null }));
+  assert.throws(() => assertPublishJobRetrySafe({ status: 'published' }), /Only failed/);
+  assert.throws(() => assertPublishJobRetrySafe({ status: 'failed', platformPostId: 'provider-1' }), /already has a provider success record/);
+  assert.throws(() => assertPublishJobRetrySafe({ status: 'dead_letter', failureKind: 'unknown', providerDispatchStartedAt: new Date() }), /cannot safely retry/);
 });
 
 test('stored account health never performs a provider request', () => {

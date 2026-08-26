@@ -38,7 +38,7 @@
   <section class="calendar-attention-centre" aria-labelledby="calendar-attention-title">
     <div><p class="eyebrow">Publishing readiness</p><h2 id="calendar-attention-title">Moyi found <%= readiness.attentionCount %> item<%= readiness.attentionCount === 1 ? '' : 's' %> requiring attention</h2><p><%= readiness.readyCount %> ready to publish · <%= readiness.inFlightCount %> already processing</p></div>
     <div class="calendar-attention-counts">
-      <% Object.entries(readiness.blockerCounts || {}).slice(0, 4).forEach(([code, count]) => { %><span><strong><%= count %></strong><%= code.toLowerCase().replace(/_/g, ' ') %></span><% }) %>
+      <% (readiness.attentionSummary || []).slice(0, 4).forEach((summary) => { %><span><strong><%= summary.count %></strong><%= summary.label %></span><% }) %>
     </div>
     <a class="button button-primary" href="<%= calendarQuery({ view: 'attention', page: 1 }) %>" data-calendar-filter-link>Review attention</a>
   </section>
@@ -120,7 +120,7 @@
     <% Object.entries(readiness.groups || {}).forEach(([group, posts]) => { const groupItems = posts.map((post) => itemByDraftId.get(String(post.draftId))).filter(Boolean); if (!groupItems.length) return; %>
       <section class="calendar-attention-group"><header><div><p class="eyebrow">Action required</p><h2><%= group %></h2></div><span><%= groupItems.length %></span></header>
         <div class="calendar-attention-list">
-          <% groupItems.forEach((item) => { const draft = item.draft; const blocker = item.readiness?.blockerDetails?.find((entry) => entry) || null; %>
+          <% groupItems.forEach((item) => { const draft = item.draft; const groupedPost = posts.find((post) => String(post.draftId) === String(draft._id)); const blocker = groupedPost?.primaryBlocker || item.readiness?.blockerDetails?.[0] || null; %>
             <article data-calendar-row data-draft-id="<%= draft._id %>" data-drawer-endpoint="/social-drafts/<%= draft._id %>/calendar-detail">
               <div class="calendar-attention-preview"><span class="calendar-platform-mark"><%= String(draft.channel || '?').slice(0, 2).toUpperCase() %></span><div><strong><%= draft.title || 'Untitled post' %></strong><span><%= platformLabels[draft.channel] || draft.channel %> · <%= item.accountName || 'No account selected' %> · <%= draft.campaignId?.name || 'Unassigned' %></span><time><%= item.displayDate %> · <%= item.displayTime %></time></div></div>
               <div class="calendar-attention-reason"><span class="calendar-ui-status status-tone-danger">Cannot publish</span><strong><%= blocker?.message || item.blocker %></strong><p><%= blocker?.resolution || 'Open the post to resolve this publishing blocker.' %></p></div>

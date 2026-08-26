@@ -47,9 +47,9 @@
       <div class="calendar-header-actions">
         <a class="button" href="/projects/<%= project._id %>/content#planner">Create Content</a>
         <% if (userCanPublishProject && counts.ready) { %>
-          <form action="/social-drafts/publish-all-connected" method="post" data-async-action data-refresh-list>
+          <form action="/social-drafts/publish-all-connected" method="post" data-async-action data-refresh-list data-global-publish-form data-ready-count="<%= currentPublishReadiness.readyCount %>" data-blocked-count="<%= currentPublishReadiness.attentionCount %>" data-processing-count="<%= currentPublishReadiness.inFlightCount %>">
             <input type="hidden" name="projectId" value="<%= project._id %>">
-            <button class="button button-primary" type="submit">Publish Ready</button>
+            <button class="button button-primary" type="submit">Publish <%= currentPublishReadiness.readyCount %> Ready</button>
           </form>
         <% } %>
       </div>

@@ -118,6 +118,7 @@ test('calendar filters are normalized and invalid states are ignored', () => {
     page: 3
   });
   assert.equal(normalizeCalendarFilters({ status: 'not-real' }).status, '');
+  assert.equal(normalizeCalendarFilters({ view: 'attention' }).view, 'attention');
 });
 
 test('calendar ranges handle month boundaries and six-row months', () => {

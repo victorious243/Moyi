@@ -593,6 +593,12 @@
       form.reportValidity();
       return;
     }
+    if (form.matches('[data-global-publish-form]')) {
+      const ready = Number(form.dataset.readyCount || 0);
+      const blocked = Number(form.dataset.blockedCount || 0);
+      const processing = Number(form.dataset.processingCount || 0);
+      if (!window.confirm(`Ready to publish: ${ready}\nBlocked: ${blocked}\nAlready processing: ${processing}\n\nQueue the ready posts now?`)) return;
+    }
     if (form.matches('[data-publish-form]') && !form.querySelector('[data-publish-account]:checked')) {
       showToast('Select at least one connected account.', 'error');
       return;

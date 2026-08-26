@@ -691,6 +691,9 @@ test('social draft routes support calendar editing and removal', () => {
   assert.ok(routes.some((route) => route.path === '/:id/media-status' && route.methods.includes('get')));
   assert.ok(routes.some((route) => route.path === '/:id/media/:assetId/file' && route.methods.includes('get')));
   assert.ok(routes.some((route) => route.path === '/:id/tiktok-creator-info' && route.methods.includes('get')));
+  assert.ok(routes.some((route) => route.path === '/batch-action' && route.methods.includes('post')));
+  assert.ok(routes.some((route) => route.path === '/publish-all-connected' && route.methods.includes('post')));
+  assert.ok(routes.some((route) => route.path === '/:id/publish-jobs/:jobId/retry' && route.methods.includes('post')));
 });
 
 test('platform admin middleware hides operator routes from non-admin users', () => {
