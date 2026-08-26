@@ -1,4 +1,12 @@
 const PublishJobEvent = require('../models/PublishJobEvent');
+const SocialDraftActivity = require('../models/SocialDraftActivity');
+
+const CALENDAR_EVENT_SUMMARIES = Object.freeze({
+  published: 'Published the post.',
+  dead_lettered: 'Publishing failed and needs attention.',
+  reconnect_required: 'Publishing stopped because the account must be reconnected.',
+  retry_scheduled: 'Scheduled an automatic publishing retry.'
+});
 
 const PLATFORM_POLICIES = {
   bluesky: { maxAttempts: 4, baseDelayMs: 30 * 1000, maxDelayMs: 30 * 60 * 1000 },
@@ -104,7 +112,7 @@ function retryDecision({ job, error, protectUnknownOutcome = false }) {
 
 async function recordPublishJobEvent(job, eventType, details = {}) {
   if (!job) return null;
-  return PublishJobEvent.create({
+  const jobEvent = await PublishJobEvent.create({
     publishJobId: job._id,
     projectId: job.projectId,
     destinationProjectId: job.destinationProjectId || job.projectId,
@@ -116,6 +124,18 @@ async function recordPublishJobEvent(job, eventType, details = {}) {
     message: String(details.message || '').slice(0, 1200),
     metadata: details.metadata || {}
   }).catch(() => null);
+  const calendarSummary = CALENDAR_EVENT_SUMMARIES[eventType];
+  if (calendarSummary && job.draftId) {
+    await SocialDraftActivity.create({
+      projectId: job.projectId,
+      draftId: job.draftId,
+      actorUserId: job.userId || null,
+      eventType: `publishing_${eventType}`,
+      summary: calendarSummary,
+      metadata: { jobId: job._id, platform: job.platform }
+    }).catch(() => null);
+  }
+  return jobEvent;
 }
 
 module.exports = {

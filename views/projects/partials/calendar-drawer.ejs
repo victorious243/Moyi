@@ -7,7 +7,15 @@
   const jobs = typeof publishJobs !== 'undefined' ? publishJobs : [];
   const events = typeof eventsByJobId !== 'undefined' ? eventsByJobId : {};
   const canManage = typeof canManageProject !== 'undefined' ? canManageProject : false;
+  const canEdit = typeof canEditDraft !== 'undefined' ? canEditDraft : canManage;
+  const canReview = typeof canReviewDraft !== 'undefined' ? canReviewDraft : canManage;
   const canPublish = typeof canPublishProject !== 'undefined' ? canPublishProject : false;
+  const isClientReview = typeof clientReviewMode !== 'undefined' ? clientReviewMode : false;
+  const currentReviewStatus = typeof reviewStatus !== 'undefined' ? reviewStatus : 'draft';
+  const currentReviewLabel = typeof reviewStatusLabel !== 'undefined' ? reviewStatusLabel : 'Draft';
+  const draftComments = typeof comments !== 'undefined' ? comments : [];
+  const draftActivities = typeof activities !== 'undefined' ? activities : [];
+  const draftCollaborators = typeof collaborators !== 'undefined' ? collaborators : [];
   const draftCampaign = typeof campaign !== 'undefined' ? campaign : null;
   const status = typeof calendarStatus !== 'undefined' ? calendarStatus : { uiStatus: 'draft', statusLabel: 'Draft', statusTone: 'neutral', blockers: [], blocker: '' };
   const selectedImage = images.find((image) => image.status === 'selected' || String(image._id) === String(draft.contentImageId || ''));
@@ -16,7 +24,7 @@
   const selectedDownloadUrl = selectedImage ? `/social-drafts/${draft._id}/images/${selectedImage._id}/file?download=1` : (inheritedImageUrl ? `${inheritedImageUrl}?download=1` : '');
   const selectableAssets = assets.filter((asset) => asset.status !== 'failed');
   const activePublish = ['publishing'].includes(status.uiStatus);
-  const canChange = canManage && !activePublish;
+  const canChange = canEdit && !activePublish;
   const canStartPublish = canPublish && !status.blockers.length && !['publishing', 'published', 'cancelled'].includes(status.uiStatus);
   const defaultPublishAt = draft.scheduledFor && draft.scheduledFor.getTime() > Date.now() ? draft.scheduledFor : new Date(Date.now() + 10 * 60 * 1000);
   const accountNameById = new Map(connectedAccounts.map((account) => [String(account._id), account.accountName]));
@@ -37,13 +45,22 @@
   <div>
     <p class="eyebrow"><%= draft.channel %> content</p>
     <h2 id="calendar-drawer-title"><%= draft.title || 'Untitled post' %></h2>
-    <div class="calendar-drawer-meta"><span class="calendar-ui-status status-tone-<%= status.statusTone %>"><%= status.statusLabel %></span><span><%= draft.scheduledFor.toLocaleString() %></span></div>
+    <div class="calendar-drawer-meta">
+      <span class="calendar-ui-status status-tone-<%= status.statusTone %>">
+        <span class="status-dot"></span>
+        <span><%= status.statusLabel %></span>
+      </span>
+      <span class="calendar-review-status"><%= currentReviewLabel %></span>
+      <span><%= draft.scheduledFor ? draft.scheduledFor.toLocaleString() : 'Unscheduled' %></span>
+    </div>
   </div>
-  <button class="icon-button" type="button" aria-label="Close post details" title="Close" data-close-drawer>×</button>
+  <button class="icon-button" type="button" aria-label="Close post details" title="Close" data-close-drawer>
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4L4 12M4 4l8 8"/></svg>
+  </button>
 </header>
 
 <div class="calendar-drawer-tabs" role="tablist" aria-label="Post details">
-  <% [['content','Content'],['media','Media'],['publishing','Publishing'],['history','History']].forEach(([key, label], index) => { %>
+  <% (isClientReview ? [['content','Review'],['collaboration','Discussion']] : [['content','Content'],['media','Media'],['publishing','Publishing'],['collaboration','Collaboration'],['history','History']]).forEach(([key, label], index) => { %>
     <button type="button" role="tab" id="drawer-tab-<%= key %>" aria-controls="drawer-panel-<%= key %>" aria-selected="<%= index === 0 %>" tabindex="<%= index === 0 ? '0' : '-1' %>" data-drawer-tab="<%= key %>"><%= label %><% if (key === 'history' && jobs.length) { %><span><%= jobs.length %></span><% } %></button>
   <% }) %>
 </div>
@@ -54,16 +71,22 @@
     <div class="calendar-copy-preview"><p id="drawer-copy-<%= draft._id %>"><%= draft.body %></p><button class="button button-small" type="button" data-copy-target="drawer-copy-<%= draft._id %>">Copy caption</button></div>
     <dl class="calendar-content-context">
       <div><dt>Campaign</dt><dd><%= draftCampaign?.name || 'No campaign details available' %></dd></div>
+      <div><dt>Owner</dt><dd><%= draftCollaborators.find((person) => String(person.id) === String(draft.assignedTo || ''))?.name || 'Unassigned' %></dd></div>
       <div><dt>First comment</dt><dd><%= lastFirstComment || 'None configured' %></dd></div>
       <% if (Array.isArray(draft.metadata?.tags) && draft.metadata.tags.length) { %><div><dt>Tags</dt><dd><%= draft.metadata.tags.join(', ') %></dd></div><% } %>
     </dl>
+    <div class="calendar-review-actions">
+      <% if (canChange && ['draft','changes_requested'].includes(currentReviewStatus)) { %><form action="/social-drafts/<%= draft._id %>/review/<%= currentReviewStatus === 'changes_requested' ? 'resubmit' : 'submit' %>" method="post" data-async-action data-refresh-drawer><button class="button button-primary" type="submit"><%= currentReviewStatus === 'changes_requested' ? 'Re-submit for review' : 'Submit for review' %></button></form><% } %>
+      <% if (canReview && ['draft','ready_for_review','changes_requested'].includes(currentReviewStatus)) { %><form action="/social-drafts/<%= draft._id %>/review/approve" method="post" data-async-action data-refresh-drawer><input type="text" name="comment" maxlength="2000" placeholder="Optional approval note"><button class="button button-primary" type="submit">Approve</button></form><% } %>
+      <% if (canReview && ['ready_for_review','approved','scheduled'].includes(currentReviewStatus)) { %><form action="/social-drafts/<%= draft._id %>/review/request_changes" method="post" data-async-action data-refresh-drawer><input type="text" name="comment" maxlength="2000" placeholder="Describe the required changes" required><button class="button" type="submit">Request changes</button></form><% } %>
+    </div>
     <% if (canChange) { %>
       <form class="form calendar-drawer-form" action="/social-drafts/<%= draft._id %>/update" method="post" data-async-action data-refresh-drawer>
         <div class="form-grid">
           <label>Internal title<input name="title" value="<%= draft.title || '' %>" maxlength="180"></label>
           <label>Platform<select name="channel" data-draft-channel><% ['bluesky','linkedin','instagram','facebook','threads','x','tiktok','youtube','email','webhook'].forEach((channel) => { %><option value="<%= channel %>" <%= draft.channel === channel ? 'selected' : '' %>><%= channel %></option><% }) %></select></label>
           <label>Account<select name="socialAccountId"><option value="">Auto-select connected account</option><% connectedAccounts.forEach((account) => { %><option value="<%= account._id %>" <%= String(draft.socialAccountId || '') === String(account._id) ? 'selected' : '' %>><%= account.platform %> · <%= account.accountName %> · <%= projectNames[String(account.projectId)] || project.name %></option><% }) %></select></label>
-          <label>Scheduled date<input type="datetime-local" name="scheduledFor" value="<%= new Date(draft.scheduledFor.getTime() - draft.scheduledFor.getTimezoneOffset() * 60000).toISOString().slice(0, 16) %>" required></label>
+          <label>Scheduled date<input type="datetime-local" name="scheduledFor" value="<%= draft.scheduledFor ? new Date(draft.scheduledFor.getTime() - draft.scheduledFor.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '' %>" required></label>
         </div>
         <label>Caption<textarea name="body" rows="10" maxlength="4000" required data-draft-copy><%= draft.body %></textarea><small data-draft-copy-limit></small></label>
         <div class="calendar-drawer-actions"><button class="button button-primary" type="submit">Save changes</button><button class="button" type="submit" formaction="/social-drafts/<%= draft._id %>/delete" data-delete-draft>Remove post</button></div>
@@ -71,7 +94,7 @@
     <% } %>
   </section>
 
-  <section id="drawer-panel-media" role="tabpanel" aria-labelledby="drawer-tab-media" data-drawer-panel="media" hidden>
+  <% if (!isClientReview) { %><section id="drawer-panel-media" role="tabpanel" aria-labelledby="drawer-tab-media" data-drawer-panel="media" hidden>
     <div class="calendar-drawer-section-heading"><div><p class="eyebrow">Publishing media</p><h3>Uploads and platform variants</h3></div><span><%= assets.filter((asset) => asset.status === 'ready').length %> ready</span></div>
     <% if (canChange) { %>
       <form class="form calendar-media-upload" action="/social-drafts/<%= draft._id %>/media/upload" method="post" enctype="multipart/form-data" data-async-action data-refresh-drawer>
@@ -110,9 +133,9 @@
       </div>
       <% if (images.length) { %><div class="calendar-image-grid"><% images.forEach((image) => { %><article class="calendar-image-card <%= image.status === 'selected' ? 'is-selected' : '' %> <%= image.status === 'rejected' ? 'is-rejected' : '' %>"><img src="/social-drafts/<%= draft._id %>/images/<%= image._id %>/file" alt="<%= image.altText || '' %>" loading="lazy"><div><strong><%= image.status %></strong><span><%= image.source %></span></div><form class="calendar-inline-details" action="/social-drafts/<%= draft._id %>/images/<%= image._id %>/update" method="post" data-async-action data-refresh-drawer><label>Alt text<input name="altText" value="<%= image.altText || '' %>" maxlength="240"></label><label>Caption<input name="caption" value="<%= image.caption || '' %>" maxlength="500"></label><button class="button button-small" type="submit">Save details</button></form><div class="calendar-media-actions"><% if (image.status !== 'rejected') { %><form action="/social-drafts/<%= draft._id %>/images/<%= image._id %>/select" method="post" data-async-action data-refresh-drawer><button class="button button-primary button-small" type="submit">Select</button></form><a class="button button-small" href="/social-drafts/<%= draft._id %>/images/<%= image._id %>/file?download=1">Download</a><form action="/social-drafts/<%= draft._id %>/images/<%= image._id %>/reject" method="post" data-async-action data-refresh-drawer><button class="button button-small" type="submit">Reject</button></form><% } else { %><form action="/social-drafts/<%= draft._id %>/images/<%= image._id %>/restore" method="post" data-async-action data-refresh-drawer><button class="button button-small" type="submit">Restore</button></form><% } %></div></article><% }) %></div><% } %>
     <% } %>
-  </section>
+  </section><% } %>
 
-  <section id="drawer-panel-publishing" role="tabpanel" aria-labelledby="drawer-tab-publishing" data-drawer-panel="publishing" hidden>
+  <% if (!isClientReview) { %><section id="drawer-panel-publishing" role="tabpanel" aria-labelledby="drawer-tab-publishing" data-drawer-panel="publishing" hidden>
     <% if (status.hasAttention || status.blockers.length || draft.errorMessage) { %><div class="calendar-publishing-alert" role="alert"><div><strong>Publishing needs attention</strong><span><%= publishReadiness.score %>% readiness</span></div><ul><% (publishReadiness.blockerDetails || []).forEach((blocker) => { %><li><strong><%= blocker.message %></strong><span><%= blocker.resolution %></span><% if (blocker.action?.href) { %><a class="button button-small" href="<%= blocker.action.href %>"><%= blocker.action.label %></a><% } %></li><% }) %><% if (!(publishReadiness.blockerDetails || []).length && draft.errorMessage) { %><li><%= draft.errorMessage %></li><% } %></ul></div><% } %>
     <% if (canStartPublish && nativeAccounts.length) { %>
       <form class="form calendar-publish-form" action="/social-drafts/<%= draft._id %>/approve-and-publish" method="post" data-async-action data-refresh-drawer data-publish-form>
@@ -126,12 +149,20 @@
       </form>
     <% } else if (!nativeAccounts.length) { %><div class="calendar-drawer-empty"><strong>No connected social account</strong><p>Connect an account before publishing this post.</p><a class="button button-primary" href="/projects/<%= project._id %>/integrations/social">Connect account</a></div><% } %>
     <div class="calendar-secondary-actions"><% if (canManage && draft.status === 'draft') { %><form action="/social-drafts/<%= draft._id %>/approve" method="post" data-async-action data-refresh-drawer><button class="button" type="submit">Approve only</button></form><% } %><% if (canChange && status.uiStatus !== 'published') { %><form action="/social-drafts/<%= draft._id %>/mark-published" method="post" data-async-action data-refresh-drawer><button class="button" type="submit">Mark published manually</button></form><% } %></div>
+  </section><% } %>
+
+  <section id="drawer-panel-collaboration" role="tabpanel" aria-labelledby="drawer-tab-collaboration" data-drawer-panel="collaboration" hidden>
+    <div class="calendar-drawer-section-heading"><div><p class="eyebrow">Team conversation</p><h3>Comments and decisions</h3></div><span><%= draftComments.length %></span></div>
+    <form class="form calendar-comment-form" action="/social-drafts/<%= draft._id %>/comments" method="post" data-async-action data-refresh-drawer><label>Add comment<textarea name="body" rows="3" maxlength="2000" required placeholder="Add context, feedback, or a client note"></textarea></label><button class="button button-primary" type="submit">Comment</button></form>
+    <% if (canManage && draftCollaborators.length) { %><form class="form calendar-assignment-form" action="/social-drafts/<%= draft._id %>/assign" method="post" data-async-action data-refresh-drawer><label>Owner<select name="assignedTo"><option value="">Unassigned</option><% draftCollaborators.forEach((person) => { %><option value="<%= person.id %>" <%= String(draft.assignedTo || '') === String(person.id) ? 'selected' : '' %>><%= person.name %> · <%= person.role %></option><% }) %></select></label><button class="button" type="submit">Update owner</button></form><% } %>
+    <div class="calendar-comment-list"><% if (!draftComments.length) { %><div class="calendar-drawer-empty"><strong>No comments yet</strong><p>Use comments for review context and decisions.</p></div><% } %><% draftComments.forEach((comment) => { %><article><header><strong><%= comment.authorUserId?.name || comment.authorUserId?.email || 'Team member' %></strong><time><%= new Date(comment.createdAt).toLocaleString() %></time></header><span class="calendar-ui-status status-tone-neutral"><%= comment.kind.replace(/_/g, ' ') %></span><p><%= comment.body %></p></article><% }) %></div>
+    <% if (!isClientReview) { %><details class="calendar-activity-feed"><summary>Activity trail (<%= draftActivities.length %>)</summary><ol><% draftActivities.forEach((activity) => { %><li><time><%= new Date(activity.createdAt).toLocaleString() %></time><strong><%= activity.actorUserId?.name || activity.actorUserId?.email || 'System' %></strong><span><%= activity.summary %></span></li><% }) %></ol></details><% } %>
   </section>
 
-  <section id="drawer-panel-history" role="tabpanel" aria-labelledby="drawer-tab-history" data-drawer-panel="history" hidden>
+  <% if (!isClientReview) { %><section id="drawer-panel-history" role="tabpanel" aria-labelledby="drawer-tab-history" data-drawer-panel="history" hidden>
     <% if (!jobs.length) { %><div class="calendar-drawer-empty"><strong>No publishing history</strong><p>Publishing attempts and provider outcomes will appear here.</p></div><% } %>
     <div class="calendar-history-list" data-publish-status-endpoint="/social-drafts/<%= draft._id %>/publish-status">
       <% jobs.forEach((job) => { const failure = (publishReadiness.blockerDetails || []).find((blocker) => blocker.code === 'PUBLISH_FAILED'); const unsafeRetry = job.failureKind === 'unknown' && job.providerDispatchStartedAt; %><article data-publish-job-id="<%= job._id %>"><header><div><strong><%= job.platform %></strong><span><%= accountNameById.get(String(job.accountId)) || 'Connected account' %></span></div><span class="calendar-ui-status status-tone-neutral" data-publish-job-status><%= job.status.replace(/_/g, ' ') %></span></header><dl><div><dt>Created</dt><dd><%= job.createdAt.toLocaleString() %></dd></div><% if (job.publishedAt) { %><div><dt>Published</dt><dd><%= job.publishedAt.toLocaleString() %></dd></div><% } %><div><dt>Attempts</dt><dd><%= job.attempts %> / <%= job.maxAttempts %></dd></div></dl><% if (failure && ['failed','dead_letter','expired'].includes(job.status)) { %><div class="calendar-history-resolution"><strong><%= failure.message %></strong><p><%= failure.resolution %></p></div><% } %><% if (job.warningMessage) { %><p class="calendar-history-warning"><%= job.warningMessage %></p><% } %><div class="calendar-media-actions"><% if (job.platformUrl) { %><a class="button button-small" href="<%= job.platformUrl %>" target="_blank" rel="noopener">View post</a><% } %><% if (['failed','dead_letter'].includes(job.status) && canPublish && !unsafeRetry) { %><form action="/social-drafts/<%= draft._id %>/publish-jobs/<%= job._id %>/retry" method="post" data-async-action data-refresh-drawer><button class="button button-small" type="submit">Retry</button></form><% } %><% if (job.reconnectRequired) { %><a class="button button-small" href="/projects/<%= job.destinationProjectId || project._id %>/integrations/social">Reconnect</a><% } %></div><details><summary>Technical history</summary><% if (job.errorMessage) { %><p class="form-error"><%= job.errorMessage %></p><% } %><% if ((events[String(job._id)] || []).length) { %><ol><% events[String(job._id)].forEach((event) => { %><li><time><%= event.createdAt.toLocaleString() %></time><strong><%= event.eventType.replace(/_/g, ' ') %></strong><% if (event.message) { %><span><%= event.message %></span><% } %></li><% }) %></ol><% } %></details></article><% }) %>
     </div>
-  </section>
+  </section><% } %>
 </div>

@@ -4,11 +4,16 @@ const { buildPublishReadiness } = require('../../services/socialPublisherService
 const { publishableProjectIds } = require('../../services/projectAccessService');
 const { socialAccountAccessFilter } = require('../../services/socialAccountService');
 const {
+  buildCalendarIntelligence,
+  getCalendarIntelligence
+} = require('../../services/calendarIntelligenceService');
+const {
   calendarCounts,
   calendarPresentation,
   latestJobsByDraft,
   normalizeCalendarFilters
 } = require('../../services/contentCalendarService');
+const { legacyReviewStatus, recordDraftCreation, reviewLabel } = require('../../services/calendarCollaborationService');
 const {
   addDays,
   formatCalendarDate,
@@ -114,6 +119,7 @@ function registerExecutionRoutes(router, context, services = {}) {
         campaign,
         cadence: req.body.cadence
       });
+      await recordDraftCreation(drafts, { user: req.user, req, summary: 'Created the post from a campaign plan.' });
       await recordAiOperation(req.user._id, 1);
       return res.redirect(`/projects/${req.project._id}/calendar?success=${encodeURIComponent(`${drafts.length} campaign drafts created and scheduled.`)}`);
     } catch (error) {
@@ -173,10 +179,11 @@ function registerExecutionRoutes(router, context, services = {}) {
     if (filters.contentType) draftFilter['metadata.contentType'] = filters.contentType;
 
     const drafts = await context.SocialDraft.find(draftFilter)
-      .select('_id projectId campaignId socialAccountId sourceContentDraftId contentImageId channel title body status publishStatus publishedAt errorMessage metadata scheduledFor')
+      .select('_id projectId campaignId socialAccountId sourceContentDraftId contentImageId channel title body status publishStatus reviewStatus assignedTo submittedAt approvedAt publishedAt errorMessage metadata scheduledFor')
       .sort({ scheduledFor: 1 })
       .limit(2000)
-      .populate('campaignId', 'name channel');
+      .populate('campaignId', 'name channel')
+      .populate('assignedTo', 'name email');
     const draftIds = drafts.map((draft) => draft._id);
     const [publishJobs, socialImages, mediaAssets] = draftIds.length
       ? await Promise.all([
@@ -237,7 +244,9 @@ function registerExecutionRoutes(router, context, services = {}) {
         localTime: hasSchedule ? localTimeValue(draft.scheduledFor, timezone) : '',
         displayDate: hasSchedule ? formatCalendarDate(draft.scheduledFor, timezone, { month: 'short', day: 'numeric' }) : 'Unscheduled',
         displayTime: hasSchedule ? formatCalendarDate(draft.scheduledFor, timezone, { hour: 'numeric', minute: '2-digit' }) : 'Choose date',
-        canReschedule: Boolean(res.locals.canManageProject) && presentation.canSelect
+        canReschedule: Boolean(res.locals.canManageProject) && presentation.canSelect,
+        reviewStatus: legacyReviewStatus(draft),
+        reviewLabel: reviewLabel(legacyReviewStatus(draft))
       };
     });
     const searchExpression = filters.search ? new RegExp(escapeRegex(filters.search), 'i') : null;
@@ -245,6 +254,8 @@ function registerExecutionRoutes(router, context, services = {}) {
       .filter((item) => filters.view !== 'attention' || item.hasAttention)
       .filter((item) => !filters.account || item.accountId === filters.account)
       .filter((item) => !filters.status || item.uiStatus === filters.status)
+      .filter((item) => !filters.approval || item.reviewStatus === filters.approval)
+      .filter((item) => !filters.owner || String(item.draft.assignedTo?._id || item.draft.assignedTo || '') === filters.owner)
       .filter((item) => !searchExpression || [
         item.draft.title,
         item.draft.body,
@@ -269,7 +280,8 @@ function registerExecutionRoutes(router, context, services = {}) {
         platforms: [...new Set(drafts.map((draft) => draft.channel).filter(Boolean))].sort(),
         campaigns,
         accounts: socialAccounts,
-        contentTypes
+        contentTypes,
+        owners: [...new Map(drafts.filter((draft) => draft.assignedTo).map((draft) => [String(draft.assignedTo._id), draft.assignedTo])).values()]
       }
     };
   }
@@ -309,6 +321,12 @@ function registerExecutionRoutes(router, context, services = {}) {
         localTime: item.localTime,
         status: item.uiStatus,
         statusLabel: item.statusLabel,
+        reviewStatus: item.reviewStatus,
+        reviewLabel: item.reviewLabel,
+        owner: item.draft.assignedTo ? {
+          id: String(item.draft.assignedTo._id || item.draft.assignedTo),
+          name: item.draft.assignedTo.name || item.draft.assignedTo.email || ''
+        } : null,
         blocker: item.blocker,
         thumbnailUrl: item.thumbnailUrl,
         canReschedule: item.canReschedule
@@ -329,10 +347,33 @@ function registerExecutionRoutes(router, context, services = {}) {
           status: { $in: ['queued', 'running'] }
         }
       : null;
-    const [data, imageJob] = await Promise.all([
+    const intelligencePromise = context.SocialPostPerformance && context.GrowthSignal
+      ? getCalendarIntelligence({
+          projectId: req.project._id,
+          timezone,
+          models: {
+            SocialDraft: context.SocialDraft,
+            Campaign: context.Campaign,
+            SocialAccount: context.SocialAccount,
+            SocialPostPerformance: context.SocialPostPerformance,
+            GrowthSignal: context.GrowthSignal
+          }
+        })
+      : Promise.resolve(null);
+    const [data, imageJob, loadedIntelligence, hasProjectTeam] = await Promise.all([
       loadCalendarRange(req, res, filters, range),
-      imageJobQuery ? context.ProjectJob.findOne(imageJobQuery) : null
+      imageJobQuery ? context.ProjectJob.findOne(imageJobQuery) : null,
+      intelligencePromise,
+      context.ProjectMember && typeof context.ProjectMember.exists === 'function'
+        ? context.ProjectMember.exists({ projectId: req.project._id })
+        : Promise.resolve(false)
     ]);
+    const calendarIntelligence = loadedIntelligence || buildCalendarIntelligence({
+      drafts: data.unfilteredItems.map((item) => item.draft),
+      campaigns: data.campaigns,
+      accounts: data.socialAccounts,
+      timezone
+    });
     const pageSize = 50;
     const isPagedView = ['list', 'attention'].includes(filters.view);
     const totalPages = isPagedView ? Math.max(1, Math.ceil(data.items.length / pageSize)) : 1;
@@ -398,6 +439,7 @@ function registerExecutionRoutes(router, context, services = {}) {
       filterOptions: data.filterOptions,
       pagination: { page: currentPage, pageSize, totalItems: data.items.length, totalPages },
       publishReadiness: data.publishReadiness,
+      calendarIntelligence,
       calendarRange: range,
       calendarDays: days,
       calendarItemsByDay: groupedItems,
@@ -407,7 +449,9 @@ function registerExecutionRoutes(router, context, services = {}) {
       todayContext,
       calendarTruncated: data.truncated,
       userCanManageProject: Boolean(res.locals.canManageProject),
-      userCanPublishProject: Boolean(res.locals.canPublishProject)
+      userCanReviewDrafts: Boolean(res.locals.canReviewDraft),
+      userCanPublishProject: Boolean(res.locals.canPublishProject),
+      teamCollaborationEnabled: Boolean(req.project.organizationId || hasProjectTeam)
     };
     if (req.query.fragment === '1') return res.render('projects/partials/calendar-results', viewData);
     return res.render('projects/calendar', {

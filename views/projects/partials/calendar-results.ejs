@@ -1,12 +1,15 @@
 <%
   const counts = typeof calendarCounts !== 'undefined' ? calendarCounts : { scheduled: 0, needsAttention: 0, published: 0, drafts: 0, ready: 0 };
-  const currentFilters = typeof filters !== 'undefined' ? filters : { search: '', status: '', platform: '', campaign: '', account: '', contentType: '', view: 'list', page: 1 };
+  const currentFilters = typeof filters !== 'undefined' ? filters : { search: '', status: '', platform: '', campaign: '', account: '', contentType: '', approval: '', owner: '', view: 'list', page: 1 };
   const items = typeof calendarItems !== 'undefined' ? calendarItems : [];
   const options = typeof filterOptions !== 'undefined' ? filterOptions : { platforms: [], campaigns: [], accounts: [], contentTypes: [] };
   const pages = typeof pagination !== 'undefined' ? pagination : { page: 1, totalPages: 1, totalItems: items.length };
   const allowManage = typeof userCanManageProject !== 'undefined' ? userCanManageProject : false;
+  const allowReview = typeof userCanReviewDrafts !== 'undefined' ? userCanReviewDrafts : allowManage;
+  const teamMode = typeof teamCollaborationEnabled !== 'undefined' ? teamCollaborationEnabled : false;
   const allowPublish = typeof userCanPublishProject !== 'undefined' ? userCanPublishProject : false;
   const readiness = typeof publishReadiness !== 'undefined' ? publishReadiness : { attentionCount: 0, readyCount: 0, inFlightCount: 0, groups: {}, blockerCounts: {} };
+  const intelligence = typeof calendarIntelligence !== 'undefined' ? calendarIntelligence : { featured: [], insights: [], contentMix: [], campaignCoverage: [], dataQuality: { status: 'insufficient', message: 'Moyi needs more published-post performance data before it can recommend your best posting times.' } };
   const rangeTitle = typeof calendarRangeTitle !== 'undefined' ? calendarRangeTitle : '';
   const nav = typeof calendarNavigation !== 'undefined' ? calendarNavigation : { previous: currentFilters.date, next: currentFilters.date };
   const timezone = typeof calendarTimezone !== 'undefined' ? calendarTimezone : 'UTC';
@@ -18,6 +21,8 @@
     ['campaign', campaignNameById.get(String(currentFilters.campaign || '')) || ''],
     ['account', accountNameById.get(String(currentFilters.account || '')) || ''],
     ['contentType', currentFilters.contentType],
+    ['approval', teamMode && currentFilters.approval ? currentFilters.approval.replace(/_/g, ' ') : ''],
+    ['owner', teamMode ? (options.owners || []).find((owner) => String(owner._id) === String(currentFilters.owner))?.name || '' : ''],
     ['search', currentFilters.search ? `Search: ${currentFilters.search}` : '']
   ].filter(([, label]) => label);
   const calendarQuery = (overrides = {}, remove = '') => {
@@ -28,7 +33,20 @@
     return `/projects/${project._id}/calendar${params.toString() ? `?${params.toString()}` : ''}`;
   };
   const platformLabels = { x: 'X', linkedin: 'LinkedIn', instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads', bluesky: 'Bluesky', youtube: 'YouTube', tiktok: 'TikTok', email: 'Email', webhook: 'Webhook' };
-  const clearFiltersUrl = calendarQuery({ search: '', status: '', platform: '', campaign: '', account: '', contentType: '', page: 1 });
+  const platformIcons = {
+    linkedin: `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.2V10.9H6.46M7.83 6.45a1.64 1.64 0 0 0-1.64 1.64c0 .9.74 1.64 1.64 1.64s1.64-.74 1.64-1.64c0-.9-.74-1.64-1.64-1.64Z"/></svg>`,
+    x: `<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>`,
+    instagram: `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>`,
+    facebook: `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>`,
+    tiktok: `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64c.29 0 .58.04.86.12V9.4a6.33 6.33 0 0 0-1-.08A6.34 6.34 0 0 0 3 15.66a6.34 6.34 0 0 0 10.82 4.49 6.27 6.27 0 0 0 1.96-4.49V8.67a8.21 8.21 0 0 0 4.81 1.52V6.75a4.85 4.85 0 0 1-1-.06z"/></svg>`,
+    youtube: `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>`,
+    threads: `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M12.186 24C5.466 24 0 18.673 0 12.107 0 5.54 5.466.213 12.186.213c6.64 0 12.067 5.24 12.187 11.707h-3.08c-.12-4.787-4.147-8.627-9.107-8.627-5.04 0-9.107 3.973-9.107 8.813 0 4.84 4.067 8.813 9.107 8.813 4.253 0 7.827-2.893 8.827-6.867H12.186v-3.08h12.187C24.373 18.667 18.907 24 12.186 24z"/></svg>`,
+    bluesky: `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M12 10.8c-1.087-2.114-4.046-6.012-6.79-7.997C2.466.726 1.488 1.155 1.096 1.637.587 2.26.544 3.425.544 4.673c0 4.148 2.056 12.078 3.53 14.73 1.666 3 4.542 3.414 6.012 1.34 1.114-1.572 1.914-3.666 1.914-3.666s.8 2.094 1.914 3.666c1.47 2.074 4.346 1.66 6.012-1.34 1.474-2.652 3.53-10.582 3.53-14.73 0-1.248-.043-2.413-.552-3.036-.392-.482-1.37-.91-4.114 1.166-2.744 1.985-5.703 5.883-6.79 7.997z"/></svg>`,
+    email: `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/></svg>`,
+    webhook: `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M12 2a4 4 0 0 0-4 4c0 .35.05.69.13 1.01L5.7 9.43A4 4 0 0 0 2 13a4 4 0 0 0 4 4c.35 0 .69-.05 1.01-.13l2.42 2.43A4 4 0 1 0 16 18c0-.35-.05-.69-.13-1.01l2.43-2.42A4 4 0 1 0 16 8c-.35 0-.69.05-1.01.13L12.57 5.7A3.94 3.94 0 0 0 12 2z"/></svg>`
+  };
+  const clearFiltersUrl = calendarQuery({ search: '', status: '', platform: '', campaign: '', account: '', contentType: '', approval: '', owner: '', page: 1 });
+  const intelligenceActionUrl = (href = '') => href.startsWith('/') || /^https?:/i.test(href) ? href : `/projects/${project._id}/${href}`;
 %>
 
 <% if (typeof calendarTruncated !== 'undefined' && calendarTruncated) { %><div class="calendar-range-warning" role="status">This range contains more than 2,000 posts. Narrow the date range or filters to see every item.</div><% } %>
@@ -36,15 +54,104 @@
 
 <% if (readiness.attentionCount) { %>
   <section class="calendar-attention-centre" aria-labelledby="calendar-attention-title">
-    <div><p class="eyebrow">Publishing readiness</p><h2 id="calendar-attention-title">Moyi found <%= readiness.attentionCount %> item<%= readiness.attentionCount === 1 ? '' : 's' %> requiring attention</h2><p><%= readiness.readyCount %> ready to publish · <%= readiness.inFlightCount %> already processing</p></div>
-    <div class="calendar-attention-counts">
-      <% (readiness.attentionSummary || []).slice(0, 4).forEach((summary) => { %><span><strong><%= summary.count %></strong><%= summary.label %></span><% }) %>
+    <div class="attention-centre-content">
+      <div class="attention-centre-icon" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 6V10.5M10 14H10.01M18 10C18 14.4183 14.4183 18 10 18C5.58172 18 2 14.4183 2 10C2 5.58172 5.58172 2 10 2C14.4183 2 18 5.58172 18 10Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="attention-centre-text">
+        <div class="attention-centre-headline">
+          <h2 id="calendar-attention-title"><%= readiness.attentionCount %> item<%= readiness.attentionCount === 1 ? '' : 's' %> requiring attention</h2>
+          <span class="attention-sub-badge"><%= readiness.readyCount %> ready · <%= readiness.inFlightCount %> processing</span>
+        </div>
+        <div class="calendar-attention-counts">
+          <% (readiness.attentionSummary || []).slice(0, 4).forEach((summary) => { %>
+            <span class="attention-pill"><strong><%= summary.count %></strong> <%= summary.label %></span>
+          <% }) %>
+        </div>
+      </div>
     </div>
-    <a class="button button-primary" href="<%= calendarQuery({ view: 'attention', page: 1 }) %>" data-calendar-filter-link>Review attention</a>
+    <a class="button button-primary button-attention-action" href="<%= calendarQuery({ view: 'attention', page: 1 }) %>" data-calendar-filter-link>
+      <span>Review attention</span>
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M6 3L11 8L6 13" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
   </section>
 <% } %>
 
-<section class="calendar-kpi-strip" aria-label="Content calendar totals" data-calendar-counts>
+<section class="calendar-intelligence-panel" aria-labelledby="calendar-intelligence-title">
+  <header>
+    <div>
+      <p class="eyebrow">Evidence-led planning</p>
+      <h2 id="calendar-intelligence-title">Moyi Insights</h2>
+      <p><%= intelligence.dataQuality?.message %></p>
+    </div>
+    <span class="calendar-intelligence-health is-<%= intelligence.dataQuality?.status || 'insufficient' %>"><%= intelligence.dataQuality?.status === 'sufficient' ? 'Measured evidence ready' : intelligence.dataQuality?.status === 'building' ? 'Evidence building' : 'Planning data only' %></span>
+  </header>
+
+  <% if ((intelligence.featured || []).length) { %>
+    <div class="calendar-insight-grid">
+      <% intelligence.featured.forEach((insight) => { %>
+        <article class="calendar-insight-card severity-<%= insight.severity %>">
+          <div class="calendar-insight-meta">
+            <span class="insight-classification-pill"><%= insight.classification === 'measured' ? 'Measured insight' : insight.classification === 'heuristic' ? 'Heuristic guidance' : 'Insufficient data' %></span>
+            <span class="insight-confidence-pill"><%= insight.confidence?.level || 'insufficient' %> confidence</span>
+          </div>
+          <h3><%= insight.title %></h3>
+          <p><%= insight.summary %></p>
+          <div class="calendar-insight-actions">
+            <% if (insight.recommendedAction?.href) { %><a class="button button-small <%= insight.severity === 'warning' ? 'button-primary' : '' %>" href="<%= intelligenceActionUrl(insight.recommendedAction.href) %>"><%= insight.recommendedAction.label %></a><% } %>
+            <details>
+              <summary>Why Moyi suggests this</summary>
+              <ul><% (insight.evidence?.lines || []).forEach((line) => { %><li><%= line %></li><% }) %></ul>
+              <% if (insight.evidence?.formula) { %><p><strong>Calculation:</strong> <%= insight.evidence.formula %></p><% } %>
+              <% if (insight.evidence?.correlationNotice) { %><p><%= insight.evidence.correlationNotice %></p><% } %>
+            </details>
+          </div>
+        </article>
+      <% }) %>
+    </div>
+    <% if ((intelligence.insights || []).length > (intelligence.featured || []).length) { %>
+      <details class="calendar-all-insights">
+        <summary>View all <%= intelligence.insights.length %> insights</summary>
+        <div>
+          <% intelligence.insights.slice(intelligence.featured.length).forEach((insight) => { %>
+            <article><span><%= insight.confidence?.level || 'insufficient' %> confidence</span><strong><%= insight.title %></strong><p><%= insight.summary %></p><% if (insight.recommendedAction?.href) { %><a href="<%= intelligenceActionUrl(insight.recommendedAction.href) %>"><%= insight.recommendedAction.label %></a><% } %></article>
+          <% }) %>
+        </div>
+      </details>
+    <% } %>
+  <% } else { %>
+    <div class="calendar-intelligence-empty">
+      <strong>No evidence-backed recommendation yet</strong>
+      <p>The calendar remains fully available. Moyi will add performance recommendations after enough fresh, same-platform post data is collected.</p>
+    </div>
+  <% } %>
+
+  <% if ((intelligence.contentMix || []).length) { %>
+    <details class="calendar-planning-evidence">
+      <summary>Upcoming content mix</summary>
+      <div class="calendar-mix-bars">
+        <% intelligence.contentMix.forEach((item) => { %><div><span><%= item.label %></span><i><b style="width: <%= item.percentage %>%"></b></i><strong><%= item.percentage %>%</strong><small><%= item.count %> posts</small></div><% }) %>
+      </div>
+    </details>
+  <% } %>
+  <% if ((intelligence.campaignCoverage || []).length) { %>
+    <details class="calendar-planning-evidence">
+      <summary>Campaign coverage</summary>
+      <div class="calendar-campaign-coverage">
+        <% intelligence.campaignCoverage.forEach((campaign) => { %>
+          <article>
+            <div><strong><%= campaign.name %></strong><span><%= campaign.status %> · ends <%= new Date(campaign.endDate).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', timeZone: timezone }) %></span></div>
+            <span><strong><%= campaign.upcomingPosts %></strong> upcoming</span>
+            <span><strong><%= campaign.approvedUnscheduled %></strong> unscheduled</span>
+            <span><%= campaign.channels.length ? campaign.channels.map((channel) => platformLabels[channel] || channel).join(' · ') : 'No channel coverage yet' %></span>
+          </article>
+        <% }) %>
+      </div>
+    </details>
+  <% } %>
+</section>
+
+<section class="calendar-kpi-strip" aria-label="Content calendar totals" data-calendar-counts hidden>
   <div><span>Scheduled</span><strong><%= counts.scheduled %></strong></div>
   <div><span>Needs attention</span><strong><%= counts.needsAttention %></strong></div>
   <div><span>Published</span><strong><%= counts.published %></strong></div>
@@ -52,12 +159,26 @@
 </section>
 
 <nav class="calendar-date-navigation" aria-label="Calendar date navigation">
-  <a class="icon-button" href="<%= calendarQuery({ date: nav.previous, page: 1 }) %>" data-calendar-navigation aria-label="Previous <%= currentFilters.view %>" title="Previous">‹</a>
-  <a class="button button-small" href="<%= calendarQuery({ date: '', page: 1 }) %>" data-calendar-navigation>Today</a>
-  <label class="calendar-date-picker"><span class="sr-only">Jump to date</span><input type="date" value="<%= currentFilters.date || '' %>" data-calendar-date-picker></label>
-  <strong><%= rangeTitle %></strong>
-  <span><%= timezone %></span>
-  <a class="icon-button" href="<%= calendarQuery({ date: nav.next, page: 1 }) %>" data-calendar-navigation aria-label="Next <%= currentFilters.view %>" title="Next">›</a>
+  <div class="calendar-nav-controls">
+    <a class="icon-button nav-arrow-btn" href="<%= calendarQuery({ date: nav.previous, page: 1 }) %>" data-calendar-navigation aria-label="Previous <%= currentFilters.view %>" title="Previous">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M10 13L5 8L10 3" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+    <a class="nav-today-btn" href="<%= calendarQuery({ date: '', page: 1 }) %>" data-calendar-navigation>Today</a>
+    <a class="icon-button nav-arrow-btn" href="<%= calendarQuery({ date: nav.next, page: 1 }) %>" data-calendar-navigation aria-label="Next <%= currentFilters.view %>" title="Next">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M6 3L11 8L6 13" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </div>
+  <div class="calendar-nav-heading">
+    <strong class="calendar-range-title"><%= rangeTitle %></strong>
+    <label class="calendar-date-picker">
+      <span class="sr-only">Jump to date</span>
+      <input type="date" value="<%= currentFilters.date || '' %>" data-calendar-date-picker>
+      <svg class="calendar-picker-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12.6667 2.66667H3.33333C2.59695 2.66667 2 3.26362 2 4V13.3333C2 14.0697 2.59695 14.6667 3.33333 14.6667H12.6667C13.403 14.6667 14 14.0697 14 13.3333V4C14 3.26362 13.403 2.66667 12.6667 2.66667Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.6667 1.33333V4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.33333 1.33333V4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 6.66667H14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </label>
+  </div>
+  <div class="calendar-nav-meta">
+    <span class="timezone-pill"><%= timezone %></span>
+  </div>
 </nav>
 
 <form class="calendar-filter-panel" method="get" action="/projects/<%= project._id %>/calendar" data-calendar-filters>
@@ -88,6 +209,10 @@
         <% (options.accounts || []).forEach((account) => { %><option value="<%= account._id %>" <%= String(currentFilters.account) === String(account._id) ? 'selected' : '' %>><%= platformLabels[account.platform] || account.platform %> · <%= account.accountName %></option><% }) %>
       </select>
     </label>
+    <% if (teamMode) { %><label>Approval
+      <select name="approval"><option value="">All approval states</option><% ['draft','ready_for_review','changes_requested','approved','scheduled'].forEach((status) => { %><option value="<%= status %>" <%= currentFilters.approval === status ? 'selected' : '' %>><%= status.replace(/_/g, ' ') %></option><% }) %></select>
+    </label><% } %>
+    <% if (teamMode && (options.owners || []).length) { %><label>Owner<select name="owner"><option value="">All owners</option><% options.owners.forEach((owner) => { %><option value="<%= owner._id %>" <%= String(currentFilters.owner) === String(owner._id) ? 'selected' : '' %>><%= owner.name || owner.email %></option><% }) %></select></label><% } %>
     <% if ((options.contentTypes || []).length) { %>
       <label>Content type
         <select name="contentType">
@@ -108,9 +233,13 @@
 
 <div class="calendar-active-filters" aria-label="Active filters" <%= chipDefinitions.length ? '' : 'hidden' %>>
   <% chipDefinitions.forEach(([key, label]) => { %>
-    <a class="calendar-filter-chip" href="<%= calendarQuery({ page: 1 }, key) %>" data-calendar-filter-link><span><%= label %></span><span aria-hidden="true">×</span><span class="sr-only">Remove filter</span></a>
+    <a class="calendar-filter-chip" href="<%= calendarQuery({ page: 1 }, key) %>" data-calendar-filter-link>
+      <span><%= label %></span>
+      <span class="chip-remove-icon" aria-hidden="true">×</span>
+      <span class="sr-only">Remove filter</span>
+    </a>
   <% }) %>
-  <% if (chipDefinitions.length > 1) { %><a href="<%= clearFiltersUrl %>" data-calendar-clear>Clear all</a><% } %>
+  <% if (chipDefinitions.length > 1) { %><a class="calendar-clear-all-link" href="<%= clearFiltersUrl %>" data-calendar-clear>Clear all</a><% } %>
 </div>
 
 <% if (currentFilters.view === 'attention') { %>
@@ -122,8 +251,24 @@
         <div class="calendar-attention-list">
           <% groupItems.forEach((item) => { const draft = item.draft; const groupedPost = posts.find((post) => String(post.draftId) === String(draft._id)); const blocker = groupedPost?.primaryBlocker || item.readiness?.blockerDetails?.[0] || null; %>
             <article data-calendar-row data-draft-id="<%= draft._id %>" data-drawer-endpoint="/social-drafts/<%= draft._id %>/calendar-detail">
-              <div class="calendar-attention-preview"><span class="calendar-platform-mark"><%= String(draft.channel || '?').slice(0, 2).toUpperCase() %></span><div><strong><%= draft.title || 'Untitled post' %></strong><span><%= platformLabels[draft.channel] || draft.channel %> · <%= item.accountName || 'No account selected' %> · <%= draft.campaignId?.name || 'Unassigned' %></span><time><%= item.displayDate %> · <%= item.displayTime %></time></div></div>
-              <div class="calendar-attention-reason"><span class="calendar-ui-status status-tone-danger">Cannot publish</span><strong><%= blocker?.message || item.blocker %></strong><p><%= blocker?.resolution || 'Open the post to resolve this publishing blocker.' %></p></div>
+              <div class="calendar-attention-preview">
+                <span class="calendar-platform-icon-box platform-<%= draft.channel %>" aria-hidden="true">
+                  <%- platformIcons[draft.channel] || `<span class="platform-letter">${String(draft.channel || '?').slice(0, 2).toUpperCase()}</span>` %>
+                </span>
+                <div>
+                  <strong><%= draft.title || 'Untitled post' %></strong>
+                  <span><%= platformLabels[draft.channel] || draft.channel %> · <%= item.accountName || 'No account selected' %> · <%= draft.campaignId?.name || 'Unassigned' %></span>
+                  <time><%= item.displayDate %> · <%= item.displayTime %></time>
+                </div>
+              </div>
+              <div class="calendar-attention-reason">
+                <span class="calendar-ui-status status-tone-danger">
+                  <span class="status-dot"></span>
+                  <span>Cannot publish</span>
+                </span>
+                <strong><%= blocker?.message || item.blocker %></strong>
+                <p><%= blocker?.resolution || 'Open the post to resolve this publishing blocker.' %></p>
+              </div>
               <div class="calendar-attention-actions"><% if (blocker?.action?.href) { %><a class="button button-primary button-small" href="<%= blocker.action.href %>"><%= blocker.action.label %></a><% } else { %><button class="button button-primary button-small" type="button" data-open-drawer><%= blocker?.action?.label || 'Review post' %></button><% } %><button class="button button-small" type="button" data-open-drawer>Details</button></div>
             </article>
           <% }) %>
@@ -135,10 +280,34 @@
 <form class="calendar-list-form" action="/social-drafts/batch-action" method="post" data-calendar-bulk-form>
   <input type="hidden" name="projectId" value="<%= project._id %>">
   <div class="calendar-bulk-bar" data-calendar-bulk-bar hidden>
-    <strong><span data-selected-count>0</span> selected</strong>
-    <% if (allowManage) { %><button class="button button-small" type="submit" name="action" value="approve">Approve</button><label>Schedule<input type="datetime-local" name="scheduledAt"></label><button class="button button-small" type="submit" name="action" value="schedule">Apply</button><label>Campaign<select name="campaignId"><option value="">Choose</option><% (options.campaigns || []).forEach((campaign) => { %><option value="<%= campaign._id %>"><%= campaign.name %></option><% }) %></select></label><button class="button button-small" type="submit" name="action" value="move_campaign">Move</button><button class="button button-small" type="submit" name="action" value="delete">Delete</button><% } %>
-    <% if (allowPublish) { %><button class="button button-primary button-small" type="submit" name="action" value="publish">Publish</button><button class="button button-small" type="submit" name="action" value="retry">Retry failed</button><% } %>
-    <button class="button button-small" type="button" data-clear-selection>Clear</button>
+    <div class="calendar-bulk-count">
+      <span class="bulk-count-badge" data-selected-count>0</span>
+      <span>selected</span>
+    </div>
+    <div class="calendar-bulk-actions">
+      <% if (allowReview) { %><button class="button button-small" type="submit" name="action" value="approve">Approve</button><% } %>
+      <% if (allowManage) { %>
+        <label class="bulk-inline-field">
+          <span class="sr-only">Schedule date</span>
+          <input type="datetime-local" name="scheduledAt">
+        </label>
+        <button class="button button-small" type="submit" name="action" value="schedule">Schedule</button>
+        <label class="bulk-inline-field">
+          <span class="sr-only">Move to campaign</span>
+          <select name="campaignId">
+            <option value="">Choose campaign...</option>
+            <% (options.campaigns || []).forEach((campaign) => { %><option value="<%= campaign._id %>"><%= campaign.name %></option><% }) %>
+          </select>
+        </label>
+        <button class="button button-small" type="submit" name="action" value="move_campaign">Move</button>
+        <button class="button button-small" type="submit" name="action" value="delete">Delete</button>
+      <% } %>
+      <% if (allowPublish) { %>
+        <button class="button button-primary button-small" type="submit" name="action" value="publish">Publish</button>
+        <button class="button button-small" type="submit" name="action" value="retry">Retry failed</button>
+      <% } %>
+      <button class="button button-small" type="button" data-clear-selection>Clear</button>
+    </div>
   </div>
 
   <% if (!items.length) { %>
@@ -163,23 +332,92 @@
       <% items.forEach((item) => { const draft = item.draft; %>
         <article class="calendar-list-row <%= item.hasAttention ? 'has-attention' : '' %>" role="row" id="post-<%= draft._id %>" data-calendar-row data-draft-id="<%= draft._id %>" data-drawer-endpoint="/social-drafts/<%= draft._id %>/calendar-detail">
           <span class="calendar-cell-select" role="cell" data-no-drawer><% if (item.canSelect) { %><input type="checkbox" name="draftIds" value="<%= draft._id %>" aria-label="Select <%= draft.title || 'untitled post' %>" data-row-select><% } %></span>
-          <time class="calendar-cell-date" role="cell" <%= draft.scheduledFor ? `datetime="${draft.scheduledFor.toISOString()}"` : '' %>><strong><%= item.displayDate %></strong><span><%= item.displayTime %></span></time>
+          <time class="calendar-cell-date" role="cell" <%= draft.scheduledFor ? `datetime="${draft.scheduledFor.toISOString()}"` : '' %>>
+            <strong class="calendar-date-day"><%= item.displayDate %></strong>
+            <span class="calendar-date-time"><%= item.displayTime %></span>
+          </time>
           <button class="calendar-cell-content" type="button" role="cell" data-open-drawer aria-label="Open <%= draft.title || 'untitled post' %>">
-            <% if (item.thumbnailUrl) { %><img src="<%= item.thumbnailUrl %>" alt="" loading="lazy"><% } else { %><span class="calendar-platform-mark" aria-hidden="true"><%= String(draft.channel || '?').slice(0, 2).toUpperCase() %></span><% } %>
-            <span><strong><%= draft.title || 'Untitled post' %></strong><small><%= String(draft.body || '').slice(0, 120) %><%= String(draft.body || '').length > 120 ? '…' : '' %></small><% if (item.blocker) { %><em><%= item.blocker %></em><% } %></span>
+            <div class="calendar-content-media">
+              <% if (item.thumbnailUrl) { %>
+                <img class="calendar-content-thumb" src="<%= item.thumbnailUrl %>" alt="" loading="lazy">
+              <% } else { %>
+                <span class="calendar-platform-icon-box platform-<%= draft.channel %>" aria-hidden="true">
+                  <%- platformIcons[draft.channel] || `<span class="platform-letter">${String(draft.channel || '?').slice(0, 2).toUpperCase()}</span>` %>
+                </span>
+              <% } %>
+            </div>
+            <div class="calendar-content-info">
+              <strong class="calendar-content-title"><%= draft.title || 'Untitled post' %></strong>
+              <% if (draft.body) { %>
+                <p class="calendar-content-body"><%= String(draft.body || '').slice(0, 130) %><%= String(draft.body || '').length > 130 ? '…' : '' %></p>
+              <% } %>
+              <div class="calendar-content-submeta">
+                <span class="submeta-channel"><%- platformIcons[draft.channel] || '' %> <%= platformLabels[draft.channel] || draft.channel %></span>
+                <% if (draft.campaignId?.name) { %>
+                  <span class="submeta-dot">·</span>
+                  <span class="submeta-campaign"><%= draft.campaignId.name %></span>
+                <% } %>
+                <% if (item.accountName) { %>
+                  <span class="submeta-dot">·</span>
+                  <span class="submeta-account"><%= item.accountName %></span>
+                <% } %>
+              </div>
+            </div>
           </button>
-          <span class="calendar-cell-platform" role="cell"><span class="calendar-platform-pill"><%= platformLabels[draft.channel] || draft.channel %></span></span>
-          <span class="calendar-cell-campaign" role="cell"><%= draft.campaignId ? draft.campaignId.name : 'Unassigned' %></span>
-          <span class="calendar-cell-account" role="cell"><%= item.accountName || 'Auto-select' %></span>
-          <span class="calendar-cell-status" role="cell"><span class="calendar-ui-status status-tone-<%= item.statusTone %>"><%= item.statusLabel %></span></span>
+          <span class="calendar-cell-platform" role="cell">
+            <span class="calendar-platform-pill platform-<%= draft.channel %>">
+              <span class="platform-pill-icon"><%- platformIcons[draft.channel] || '' %></span>
+              <span><%= platformLabels[draft.channel] || draft.channel %></span>
+            </span>
+          </span>
+          <span class="calendar-cell-campaign" role="cell">
+            <% if (draft.campaignId?.name) { %>
+              <span class="campaign-tag" title="<%= draft.campaignId.name %>"><%= draft.campaignId.name %></span>
+            <% } else { %>
+              <span class="campaign-tag is-unassigned">Unassigned</span>
+            <% } %>
+          </span>
+          <span class="calendar-cell-account" role="cell">
+            <span class="account-tag" title="<%= item.accountName || 'Auto-select' %>"><%= item.accountName || 'Auto-select' %></span>
+          </span>
+          <span class="calendar-cell-status" role="cell">
+            <span class="calendar-ui-status status-tone-<%= item.statusTone %>">
+              <span class="status-dot"></span>
+              <span><%= item.statusLabel %></span>
+            </span>
+            <% if (item.blocker) { %>
+              <span class="calendar-blocker-note" title="<%= item.blocker %>">
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm7.25-3.5a.75.75 0 0 1 1.5 0v4a.75.75 0 0 1-1.5 0v-4zm.75 7a.875.875 0 1 1 0-1.75.875.875 0 0 1 0 1.75z"/></svg>
+                <span><%= item.blocker %></span>
+              </span>
+            <% } %>
+            <% if (teamMode && item.reviewLabel) { %>
+              <small class="calendar-review-tag"><%= item.reviewLabel %></small>
+            <% } %>
+          </span>
           <span class="calendar-cell-actions" role="cell" data-no-drawer>
-            <button class="icon-button" type="button" data-open-drawer aria-label="Open post details" title="Open details">›</button>
+            <button class="icon-button calendar-action-open" type="button" data-open-drawer aria-label="Open post details" title="Open details">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3L11 8L6 13"/></svg>
+            </button>
             <details class="calendar-row-menu">
-              <summary class="icon-button" aria-label="More actions" title="More actions">•••</summary>
-              <div role="menu">
-                <button type="button" role="menuitem" data-open-drawer>View details</button>
-                <% if (allowManage && draft.status === 'draft') { %><button type="submit" role="menuitem" formaction="/social-drafts/<%= draft._id %>/approve" data-async-action>Approve</button><% } %>
-                <button type="button" role="menuitem" data-copy-target="calendar-copy-<%= draft._id %>">Copy caption</button>
+              <summary class="icon-button" aria-label="More actions" title="More actions">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></svg>
+              </summary>
+              <div class="calendar-menu-dropdown" role="menu">
+                <button type="button" role="menuitem" data-open-drawer>
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 3h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M5 7h6M5 10h4"/></svg>
+                  <span>View details</span>
+                </button>
+                <% if (allowReview && draft.status === 'draft') { %>
+                  <button type="submit" role="menuitem" formaction="/social-drafts/<%= draft._id %>/approve" data-async-action>
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 8.5L6.5 12L13 4.5"/></svg>
+                    <span>Approve post</span>
+                  </button>
+                <% } %>
+                <button type="button" role="menuitem" data-copy-target="calendar-copy-<%= draft._id %>">
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                  <span>Copy caption</span>
+                </button>
               </div>
             </details>
             <span id="calendar-copy-<%= draft._id %>" hidden><%= draft.body || '' %></span>
@@ -198,9 +436,9 @@
   </nav>
 <% } %>
 <% } else if (currentFilters.view === 'today') { %>
-  <%- include('calendar-today-view', { project, items, calendarDays, todayContext, calendarTimezone, allowManage }) %>
+  <%- include('calendar-today-view', { project, items, calendarDays, todayContext, calendarTimezone, allowManage, platformIcons }) %>
 <% } else if (currentFilters.view === 'week') { %>
-  <%- include('calendar-week-view', { project, calendarDays, calendarTimezone, allowManage }) %>
+  <%- include('calendar-week-view', { project, calendarDays, calendarTimezone, allowManage, platformIcons }) %>
 <% } else { %>
-  <%- include('calendar-month-view', { project, calendarDays, currentFilters, allowManage }) %>
+  <%- include('calendar-month-view', { project, calendarDays, currentFilters, allowManage, platformIcons }) %>
 <% } %>

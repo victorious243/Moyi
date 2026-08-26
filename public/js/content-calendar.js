@@ -525,6 +525,11 @@
       const text = copy.dataset.copyText || document.getElementById(copy.dataset.copyTarget)?.textContent || '';
       navigator.clipboard.writeText(text).then(() => showToast('Caption copied.')).catch(() => showToast('Copy failed.', 'error'));
     }
+    if (!event.target.closest('.calendar-row-menu')) {
+      document.querySelectorAll('.calendar-row-menu[open]').forEach((menu) => { menu.removeAttribute('open'); });
+    } else if (event.target.closest('.calendar-menu-dropdown button, .calendar-row-menu [role="menuitem"]')) {
+      event.target.closest('.calendar-row-menu')?.removeAttribute('open');
+    }
   }, { signal });
 
   document.addEventListener('change', (event) => {

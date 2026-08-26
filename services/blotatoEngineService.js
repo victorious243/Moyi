@@ -2,6 +2,7 @@ const SocialDraft = require('../models/SocialDraft');
 const Campaign = require('../models/Campaign');
 const { createAndQueuePublishBatch } = require('./contentDistributionEngineService');
 const { recordAppLog } = require('./appLogger');
+const { recordDraftCreation } = require('./calendarCollaborationService');
 
 /**
  * Formats a single master piece of content into platform-native Blotato-style post payloads.
@@ -75,6 +76,7 @@ async function createBlotatoCampaign({ projectId, userId, topic = '', url = '', 
       });
       drafts.push(draft);
     }
+    await recordDraftCreation(drafts, { user: { _id: userId }, summary: 'Created the post from a multi-platform campaign.' });
   } catch (error) {
     await Promise.all([
       SocialDraft.deleteMany({ campaignId: campaign._id, projectId }),

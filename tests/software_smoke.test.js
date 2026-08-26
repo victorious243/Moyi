@@ -521,6 +521,22 @@ test('calendar renders a compact post row without loading advanced controls', as
       filters: { search: '', status: '', platform: '', campaign: '', account: '', contentType: '', view: 'list', page: 1 },
       filterOptions: { platforms: ['linkedin'], campaigns: [], accounts: [], contentTypes: [] },
       pagination: { page: 1, pageSize: 50, totalItems: 1, totalPages: 1 },
+      calendarIntelligence: {
+        featured: [{
+          type: 'platform_content_gap',
+          title: 'LinkedIn has no content scheduled next week',
+          summary: 'Measured cadence is lighter than the recent project history.',
+          classification: 'measured',
+          severity: 'opportunity',
+          confidence: { level: 'medium', score: 68 },
+          evidence: { lines: ['8 published posts in the previous 28 days'] },
+          recommendedAction: { label: 'Generate content', href: 'content#planner' }
+        }],
+        insights: [],
+        contentMix: [{ category: 'educational', label: 'Educational', count: 1, percentage: 100 }],
+        campaignCoverage: [],
+        dataQuality: { status: 'building', message: 'Evidence is building.' }
+      },
       successMessage: '',
       errorMessage: ''
     }
@@ -530,6 +546,10 @@ test('calendar renders a compact post row without loading advanced controls', as
   assert.match(html, /data-open-drawer/);
   assert.match(html, /\/social-drafts\/social_1\/calendar-detail/);
   assert.match(html, /Useful post copy\./);
+  assert.match(html, /Moyi Insights/);
+  assert.match(html, /Why Moyi suggests this/);
+  assert.match(html, /8 published posts in the previous 28 days/);
+  assert.match(html, /\/projects\/project_1\/content#planner/);
   assert.doesNotMatch(html, /Generate image/);
   assert.doesNotMatch(html, /Publish to/);
 });

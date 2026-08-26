@@ -16,6 +16,11 @@ const MediaAsset = require('../models/MediaAsset');
 const PublishJob = require('../models/PublishJob');
 const PublishJobEvent = require('../models/PublishJobEvent');
 const SocialAccount = require('../models/SocialAccount');
+const SocialDraftComment = require('../models/SocialDraftComment');
+const SocialDraftActivity = require('../models/SocialDraftActivity');
+const ProjectMember = require('../models/ProjectMember');
+const OrganizationMember = require('../models/OrganizationMember');
+const User = require('../models/User');
 const AppError = require('../utils/appError');
 const handleValidation = require('../utils/validate');
 const { requireAuth } = require('../middleware/auth');
@@ -29,11 +34,20 @@ const { openDownloadStream: openContentImageDownloadStream } = require('../servi
 const { deleteMediaFile, openMediaDownloadStream } = require('../services/mediaStorageService');
 const { cancelMediaProcessing, enqueueMediaProcessing, reenqueueMediaProcessing } = require('../queues/mediaQueue');
 const {
+  canEditDraftRole,
   canChangeProjectRole,
   canPublishProjectRole,
+  canReviewDraftRole,
   projectAccessRole,
   publishableProjectIds
 } = require('../services/projectAccessService');
+const {
+  addDraftComment,
+  applyReviewTransition,
+  legacyReviewStatus,
+  recordDraftActivity,
+  reviewLabel
+} = require('../services/calendarCollaborationService');
 const { queueContentImageGeneration } = require('../services/projectTaskService');
 const { ensureImageGenerationAllowed } = require('../services/usageService');
 const { getTikTokCreatorInfo } = require('../services/socialProviderService');
@@ -157,7 +171,7 @@ router.get(
     const destinationProjectIds = canPublish
       ? await publishableProjectIds(req.user._id, { sourceProject: req.project })
       : [req.project._id];
-    const [socialAccounts, destinationProjects, socialImages, mediaAssets, allJobs, campaign] = await Promise.all([
+    const [socialAccounts, destinationProjects, socialImages, mediaAssets, allJobs, campaign, comments, activities, directMembers, organizationMembers, owner] = await Promise.all([
       SocialAccount.find({
         projectId: { $in: destinationProjectIds },
         ...socialAccountAccessFilter(req.user._id)
@@ -166,7 +180,14 @@ router.get(
       ContentImage.find({ projectId: req.project._id, draftId: req.socialDraft._id }).sort({ status: 1, createdAt: -1 }),
       MediaAsset.find({ projectId: req.project._id, draftId: req.socialDraft._id }).sort({ createdAt: 1 }),
       PublishJob.find({ projectId: req.project._id, draftId: req.socialDraft._id }).sort({ createdAt: -1 }).limit(40),
-      Campaign.findOne({ _id: req.socialDraft.campaignId, projectId: req.project._id }).select('name goal channel').lean()
+      Campaign.findOne({ _id: req.socialDraft.campaignId, projectId: req.project._id }).select('name goal channel').lean(),
+      SocialDraftComment.find({ draftId: req.socialDraft._id, projectId: req.project._id }).sort({ createdAt: 1 }).limit(200).populate('authorUserId', 'name email').lean(),
+      SocialDraftActivity.find({ draftId: req.socialDraft._id, projectId: req.project._id }).sort({ createdAt: -1 }).limit(200).populate('actorUserId', 'name email').lean(),
+      ProjectMember.find({ projectId: req.project._id }).select('userId role').populate('userId', 'name email').lean(),
+      req.project.organizationId
+        ? OrganizationMember.find({ organizationId: req.project.organizationId }).select('userId role').populate('userId', 'name email').lean()
+        : [],
+      User.findById(req.project.owner).select('name email').lean()
     ]);
     const publishAccounts = socialAccounts.filter((account) => NATIVE_SOCIAL_PLATFORMS.includes(account.platform) && account.status === 'connected');
     const latestJobs = latestJobsByDraft(allJobs)[String(req.socialDraft._id)] || [];
@@ -190,6 +211,16 @@ router.get(
       grouped[key].push(event);
       return grouped;
     }, {});
+    const collaborators = [...new Map([
+      ...(owner ? [{ userId: owner, role: 'owner' }] : []),
+      ...directMembers,
+      ...organizationMembers
+    ].filter((member) => member.userId).map((member) => [String(member.userId._id), {
+      id: member.userId._id,
+      name: member.userId.name || member.userId.email,
+      email: member.userId.email,
+      role: member.role
+    }])).values()];
 
     res.render('projects/partials/calendar-drawer', {
       project: req.project,
@@ -205,7 +236,15 @@ router.get(
       publishReadiness: draftReadiness,
       calendarStatus,
       canManageProject: canManage,
-      canPublishProject: canPublish
+      canEditDraft: canEditDraftRole(req.projectAccessRole),
+      canReviewDraft: canReviewDraftRole(req.projectAccessRole),
+      canPublishProject: canPublish,
+      reviewStatus: legacyReviewStatus(req.socialDraft),
+      reviewStatusLabel: reviewLabel(legacyReviewStatus(req.socialDraft)),
+      comments,
+      activities,
+      collaborators,
+      clientReviewMode: !canEditDraftRole(req.projectAccessRole) && !canPublish
     });
   })
 );
@@ -213,6 +252,20 @@ router.get(
 function requireDraftManager(req, res, next) {
   if (!canChangeProjectRole(req.projectAccessRole)) {
     return next(new AppError('You do not have permission to edit or approve this social draft.', 403));
+  }
+  return next();
+}
+
+function requireDraftEditor(req, res, next) {
+  if (!canEditDraftRole(req.projectAccessRole)) {
+    return next(new AppError('You do not have permission to edit this social draft.', 403));
+  }
+  return next();
+}
+
+function requireDraftReviewer(req, res, next) {
+  if (!canReviewDraftRole(req.projectAccessRole)) {
+    return next(new AppError('You do not have permission to approve this social draft.', 403));
   }
   return next();
 }
@@ -226,7 +279,7 @@ function requireDraftPublisher(req, res, next) {
 
 function requireApprovedOrManager(req, res, next) {
   if (req.socialDraft.status === 'approved') return next();
-  return requireDraftManager(req, res, next);
+  return requireDraftReviewer(req, res, next);
 }
 
 function requireDraftNotPublishing(req, res, next) {
@@ -360,6 +413,14 @@ router.post(
         variants: {}
       });
       await enqueueMediaProcessing(asset._id);
+      await recordDraftActivity({
+        draft: req.socialDraft,
+        user: req.user,
+        eventType: 'media_uploaded',
+        summary: 'Uploaded media for this post.',
+        metadata: { mediaId: asset._id },
+        req
+      });
       res.redirect(calendarUrl(req.project._id, req.socialDraft._id, {
         success: 'Media uploaded. Moyi is preparing platform-ready versions in the background.'
       }));
@@ -389,6 +450,7 @@ router.post(
       { returnDocument: 'after' }
     );
     if (!asset) return next(new AppError('Media file not found.', 404));
+    await recordDraftActivity({ draft: req.socialDraft, user: req.user, eventType: 'media_updated', summary: 'Updated media accessibility details.', metadata: { mediaId: asset._id }, req });
     res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { success: 'Media details saved.' }));
   })
 );
@@ -407,6 +469,7 @@ router.post(
     );
     if (!asset) return next(new AppError('Only failed media can be processed again.', 422));
     await reenqueueMediaProcessing(asset._id);
+    await recordDraftActivity({ draft: req.socialDraft, user: req.user, eventType: 'media_processing_retried', summary: 'Retried media processing.', metadata: { mediaId: asset._id }, req });
     res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { success: 'Media processing queued again.' }));
   })
 );
@@ -438,6 +501,7 @@ router.post(
     await Promise.all(keys.map((key) => deleteMediaFile(key).catch(() => null)));
     if (asset.temporaryPath) await fs.promises.unlink(asset.temporaryPath).catch(() => null);
     await MediaAsset.deleteOne({ _id: asset._id });
+    await recordDraftActivity({ draft: req.socialDraft, user: req.user, eventType: 'media_removed', summary: 'Removed media from this post.', metadata: { mediaId: asset._id }, req });
     res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { success: 'Media removed.' }));
   })
 );
@@ -458,6 +522,7 @@ router.post(
         altText: req.body.altText || '',
         caption: req.body.caption || ''
       });
+      await recordDraftActivity({ draft: req.socialDraft, user: req.user, eventType: 'image_uploaded', summary: 'Uploaded an image for this post.', req });
       res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { success: 'Image uploaded for this post.' }));
     } catch (error) {
       res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { error: error.message }));
@@ -503,6 +568,7 @@ router.post(
         aestheticTheme: req.body.aestheticTheme || '',
         redirectPath
       });
+      await recordDraftActivity({ draft: req.socialDraft, user: req.user, eventType: 'image_generation_started', summary: 'Started image generation for this post.', req });
       res.redirect(calendarUrl(req.project._id, req.socialDraft._id, {
         success: 'Image generation started. Moyi will refresh this post when the visual is ready.',
         imageJob: job._id
@@ -534,6 +600,7 @@ router.post(
     image.altText = req.body.altText || '';
     image.caption = req.body.caption || '';
     await image.save();
+    await recordDraftActivity({ draft: req.socialDraft, user: req.user, eventType: 'image_updated', summary: 'Updated image accessibility details.', metadata: { imageId: image._id }, req });
     res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { success: 'Image details saved.' }));
   })
 );
@@ -552,6 +619,7 @@ router.post(
     });
     if (!image) return next(new AppError('Social post image not found.', 404));
     await selectContentImage({ draft: req.socialDraft, image });
+    await recordDraftActivity({ draft: req.socialDraft, user: req.user, eventType: 'image_selected', summary: 'Selected a new image for this post.', metadata: { imageId: image._id }, req });
     res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { success: 'Image selected for this post.' }));
   })
 );
@@ -569,6 +637,7 @@ router.post(
     });
     if (!image) return next(new AppError('Social post image not found.', 404));
     await rejectContentImage({ draft: req.socialDraft, image });
+    await recordDraftActivity({ draft: req.socialDraft, user: req.user, eventType: 'image_rejected', summary: 'Rejected an image option.', metadata: { imageId: image._id }, req });
     res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { success: 'Image rejected for this post.' }));
   })
 );
@@ -587,6 +656,7 @@ router.post(
     });
     if (!image) return next(new AppError('Rejected social post image not found.', 404));
     await restoreContentImage(image);
+    await recordDraftActivity({ draft: req.socialDraft, user: req.user, eventType: 'image_restored', summary: 'Restored an image option.', metadata: { imageId: image._id }, req });
     res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { success: 'Image restored for this post.' }));
   })
 );
@@ -782,11 +852,87 @@ router.post('/publish-all-connected', [
   res.redirect(`/projects/${project._id}/calendar?success=${encodeURIComponent(msg)}`);
 }));
 
-router.post('/:id/approve', [param('id').isMongoId(), handleValidation], loadSocialDraft, requireDraftManager, asyncHandler(async (req, res) => {
-  req.socialDraft.status = 'approved';
-  req.socialDraft.publishStatus = 'approved';
+router.post('/:id/comments', [
+  param('id').isMongoId(),
+  body('body').trim().notEmpty().isLength({ max: 2000 }).withMessage('Comment must be 2,000 characters or fewer.'),
+  handleValidation
+], loadSocialDraft, asyncHandler(async (req, res) => {
+  await addDraftComment({ draft: req.socialDraft, user: req.user, body: req.body.body, req });
+  res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { success: 'Comment added.' }));
+}));
+
+router.post('/:id/review/:action', [
+  param('id').isMongoId(),
+  param('action').isIn(['submit', 'resubmit', 'approve', 'request_changes']).withMessage('Choose a valid review action.'),
+  body('comment').optional({ checkFalsy: true }).trim().isLength({ max: 2000 }).withMessage('Review feedback must be 2,000 characters or fewer.'),
+  handleValidation
+], loadSocialDraft, requireDraftNotPublishing, asyncHandler(async (req, res, next) => {
+  const action = req.params.action;
+  if (['approve', 'request_changes'].includes(action) && !canReviewDraftRole(req.projectAccessRole)) {
+    return next(new AppError('You do not have permission to review this social draft.', 403));
+  }
+  if (['submit', 'resubmit'].includes(action) && !canEditDraftRole(req.projectAccessRole)) {
+    return next(new AppError('You do not have permission to submit this social draft.', 403));
+  }
+  if (action === 'request_changes' && !String(req.body.comment || '').trim()) {
+    return next(new AppError('Explain what needs to change before returning this draft.', 422));
+  }
+  const transition = applyReviewTransition(req.socialDraft, { action, actorUserId: req.user._id });
   await req.socialDraft.save();
-  res.redirect(`/projects/${req.project._id}/calendar`);
+  if (req.body.comment) {
+    await addDraftComment({
+      draft: req.socialDraft,
+      user: req.user,
+      body: req.body.comment,
+      kind: action === 'request_changes' ? 'change_request' : (action === 'approve' ? 'approval_note' : 'comment'),
+      req
+    });
+  }
+  await recordDraftActivity({
+    draft: req.socialDraft,
+    user: req.user,
+    eventType: `review_${action}`,
+    summary: `${reviewLabel(transition.previous)} moved to ${reviewLabel(transition.current)}.`,
+    metadata: { from: transition.previous, to: transition.current },
+    req
+  });
+  res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { success: `${reviewLabel(transition.current)}.` }));
+}));
+
+router.post('/:id/assign', [
+  param('id').isMongoId(),
+  body('assignedTo').optional({ checkFalsy: true }).isMongoId().withMessage('Choose a valid teammate.'),
+  handleValidation
+], loadSocialDraft, requireDraftManager, requireDraftNotPublishing, asyncHandler(async (req, res, next) => {
+  const targetId = req.body.assignedTo || null;
+  if (targetId) {
+    const [direct, organization] = await Promise.all([
+      ProjectMember.exists({ projectId: req.project._id, userId: targetId }),
+      req.project.organizationId ? OrganizationMember.exists({ organizationId: req.project.organizationId, userId: targetId }) : null
+    ]);
+    if (!direct && !organization && String(req.project.owner) !== String(targetId)) {
+      return next(new AppError('Assignee must have access to this workspace.', 422));
+    }
+  }
+  const previous = req.socialDraft.assignedTo;
+  req.socialDraft.assignedTo = targetId;
+  await req.socialDraft.save();
+  await recordDraftActivity({
+    draft: req.socialDraft,
+    user: req.user,
+    eventType: 'assignment_changed',
+    summary: targetId ? 'Assigned the post to a teammate.' : 'Cleared the post assignment.',
+    metadata: { from: previous || '', assignedTo: targetId || '' },
+    req
+  });
+  res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { success: 'Assignment updated.' }));
+}));
+
+router.post('/:id/approve', [param('id').isMongoId(), handleValidation], loadSocialDraft, requireDraftReviewer, asyncHandler(async (req, res) => {
+  const transition = applyReviewTransition(req.socialDraft, { action: 'approve', actorUserId: req.user._id });
+  await req.socialDraft.save();
+  await recordDraftActivity({ draft: req.socialDraft, user: req.user, eventType: 'review_approve', summary: 'Approved the post.', metadata: transition, req });
+  res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { success: 'Post approved.' }));
 }));
 
 router.post('/:id/approve-and-publish', [
@@ -810,8 +956,12 @@ router.post('/:id/approve-and-publish', [
     return res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { error: 'Select at least one connected social account.' }));
   }
   const scheduledAt = requestedPublishTime(req);
-  req.socialDraft.status = 'approved';
-  req.socialDraft.publishStatus = 'approved';
+  if (req.socialDraft.status !== 'approved') {
+    applyReviewTransition(req.socialDraft, { action: 'approve', actorUserId: req.user._id });
+  } else {
+    req.socialDraft.reviewStatus = scheduledAt.getTime() > Date.now() + 60000 ? 'scheduled' : 'approved';
+    req.socialDraft.publishStatus = 'approved';
+  }
   req.socialDraft.socialAccountId = accountIds[0] || null;
   await req.socialDraft.save();
 
@@ -831,6 +981,14 @@ router.post('/:id/approve-and-publish', [
     if (!result.total) {
       return res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { error: noCompatibleAccountsMessage(result) }));
     }
+    await recordDraftActivity({
+      draft: req.socialDraft,
+      user: req.user,
+      eventType: scheduledAt.getTime() > Date.now() + 60000 ? 'publish_scheduled' : 'publish_queued',
+      summary: scheduledAt.getTime() > Date.now() + 60000 ? 'Scheduled the approved post for publishing.' : 'Queued the approved post for publishing.',
+      metadata: { accountId: accountIds.join(','), to: scheduledAt.toISOString() },
+      req
+    });
     res.redirect(`/projects/${req.project._id}/calendar?success=${encodeURIComponent(queueSuccessMessage(result, scheduledAt))}#post-${req.socialDraft._id}`);
   } catch (error) {
     req.socialDraft.publishStatus = 'failed';
@@ -896,8 +1054,9 @@ router.post('/batch-action', [
   const role = await projectAccessRole({ project, userId: req.user._id });
   const action = req.body.action;
   const mayManage = canChangeProjectRole(role);
+  const mayReview = canReviewDraftRole(role);
   const mayPublish = canPublishProjectRole(role);
-  if ((['approve', 'schedule', 'move_campaign', 'delete'].includes(action) && !mayManage) || (['publish', 'retry'].includes(action) && !mayPublish)) {
+  if ((action === 'approve' && !mayReview) || (['schedule', 'move_campaign', 'delete'].includes(action) && !mayManage) || (['publish', 'retry'].includes(action) && !mayPublish)) {
     throw new AppError('You do not have permission to perform this bulk action.', 403);
   }
 
@@ -925,6 +1084,9 @@ router.post('/batch-action', [
     if (readyIds.length) {
       await createAndQueuePublishBatch({ projectId: project._id, userId: req.user._id, draftIds: readyIds, project, scheduledAt: new Date(), allowedDestinationProjectIds });
       results.forEach((item) => { if (readyIds.includes(item.id)) Object.assign(item, { ok: true, message: 'Publishing queued.' }); });
+      for (const draft of drafts.filter((item) => readyIds.includes(String(item._id)))) {
+        await recordDraftActivity({ draft, user: req.user, eventType: 'bulk_publish_queued', summary: 'Queued the post using a bulk calendar action.', req });
+      }
     }
   } else if (action === 'retry') {
     const latestFailedJobs = await PublishJob.find({ projectId: project._id, draftId: { $in: drafts.map((draft) => draft._id) }, status: { $in: ['failed', 'dead_letter'] } }).sort({ createdAt: -1 });
@@ -933,7 +1095,12 @@ router.post('/batch-action', [
     for (const item of results) {
       const job = jobByDraft.get(item.id);
       if (!job) { item.message = 'No failed publication is available to retry.'; continue; }
-      try { await retryPublishJob(job._id); Object.assign(item, { ok: true, message: 'Retry queued.' }); } catch (error) { item.message = error.message; }
+      try {
+        await retryPublishJob(job._id);
+        const draft = draftsById.get(item.id);
+        if (draft) await recordDraftActivity({ draft, user: req.user, eventType: 'publish_retried', summary: 'Retried a failed publication.', metadata: { jobId: job._id }, req });
+        Object.assign(item, { ok: true, message: 'Retry queued.' });
+      } catch (error) { item.message = error.message; }
     }
   } else {
     let campaign = null;
@@ -946,14 +1113,37 @@ router.post('/batch-action', [
         continue;
       }
       try {
-        if (action === 'approve') { draft.status = 'approved'; draft.publishStatus = 'approved'; }
-        if (action === 'schedule') draft.scheduledFor = validateCalendarReschedule(draft, req.body.scheduledAt);
+        let transition = null;
+        if (action === 'approve') transition = applyReviewTransition(draft, { action: 'approve', actorUserId: req.user._id });
+        if (action === 'schedule') {
+          const previousSchedule = draft.scheduledFor;
+          draft.scheduledFor = validateCalendarReschedule(draft, req.body.scheduledAt);
+          if (['approved', 'scheduled'].includes(legacyReviewStatus(draft))) draft.reviewStatus = 'scheduled';
+          transition = { from: previousSchedule?.toISOString() || '', to: draft.scheduledFor.toISOString() };
+        }
         if (action === 'move_campaign') {
           if (!campaign) throw new AppError('Choose a campaign in this project.', 422);
           draft.campaignId = campaign._id;
         }
-        if (action === 'delete') await SocialDraft.deleteOne({ _id: draft._id, projectId: project._id });
-        else await draft.save();
+        if (action === 'delete') {
+          await recordDraftActivity({ draft, user: req.user, eventType: 'bulk_deleted', summary: 'Deleted the post using a bulk calendar action.', req });
+          await SocialDraft.deleteOne({ _id: draft._id, projectId: project._id });
+        } else {
+          await draft.save();
+          const summaries = {
+            approve: 'Approved the post using a bulk calendar action.',
+            schedule: 'Scheduled the post using a bulk calendar action.',
+            move_campaign: 'Moved the post to another campaign.'
+          };
+          await recordDraftActivity({
+            draft,
+            user: req.user,
+            eventType: `bulk_${action}`,
+            summary: summaries[action] || 'Updated the post using a bulk calendar action.',
+            metadata: action === 'move_campaign' ? { campaignId: campaign._id } : (transition || {}),
+            req
+          });
+        }
         Object.assign(item, { ok: true, message: action === 'delete' ? 'Post deleted.' : 'Post updated.' });
       } catch (error) { item.message = error.message; }
     }
@@ -1039,6 +1229,7 @@ router.post(
     } catch (error) {
       return res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { error: error.message }));
     }
+    await recordDraftActivity({ draft: req.socialDraft, user: req.user, eventType: 'publish_retried', summary: 'Retried a failed publication.', metadata: { jobId: job._id }, req });
     res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { success: `Retry queued for ${job.platform}.` }));
   })
 );
@@ -1064,7 +1255,16 @@ router.post('/:id/reschedule', [
   }
   const previousSchedule = req.socialDraft.scheduledFor;
   req.socialDraft.scheduledFor = scheduledFor;
+  if (['approved', 'scheduled'].includes(legacyReviewStatus(req.socialDraft))) req.socialDraft.reviewStatus = 'scheduled';
   await req.socialDraft.save();
+  await recordDraftActivity({
+    draft: req.socialDraft,
+    user: req.user,
+    eventType: 'schedule_changed',
+    summary: 'Changed the scheduled publishing time.',
+    metadata: { from: previousSchedule?.toISOString() || '', to: scheduledFor.toISOString() },
+    req
+  });
   return res.status(200).json({
     ok: true,
     message: `Post moved to ${dayjs(scheduledFor).tz(req.project.timezone || 'UTC').format('ddd, D MMM YYYY [at] HH:mm z')}.`,
@@ -1082,7 +1282,7 @@ router.post('/:id/update', [
   body('scheduledFor').isISO8601().withMessage('Choose a valid schedule date.'),
   body('socialAccountId').optional({ checkFalsy: true }).isMongoId().withMessage('Choose a valid social account.'),
   handleValidation
-], loadSocialDraft, requireDraftManager, requireDraftNotPublishing, asyncHandler(async (req, res) => {
+], loadSocialDraft, requireDraftEditor, requireDraftNotPublishing, asyncHandler(async (req, res) => {
   if (req.body.channel === 'x') {
     try {
       assertStandardXPost(req.body.body);
@@ -1101,10 +1301,19 @@ router.post('/:id/update', [
   req.socialDraft.errorMessage = '';
   if (req.socialDraft.publishStatus === 'failed') req.socialDraft.publishStatus = 'approved';
   await req.socialDraft.save();
+  await recordDraftActivity({
+    draft: req.socialDraft,
+    user: req.user,
+    eventType: 'content_edited',
+    summary: 'Updated the post content or publishing details.',
+    metadata: { platform: req.socialDraft.channel, accountId: req.socialDraft.socialAccountId || '' },
+    req
+  });
   res.redirect(`/projects/${req.project._id}/calendar?success=${encodeURIComponent('Post updated.')}#post-${req.socialDraft._id}`);
 }));
 
 router.post('/:id/delete', [param('id').isMongoId(), handleValidation], loadSocialDraft, requireDraftManager, requireDraftNotPublishing, asyncHandler(async (req, res) => {
+  await recordDraftActivity({ draft: req.socialDraft, user: req.user, eventType: 'deleted', summary: 'Removed the post from the calendar.', req });
   await SocialDraft.deleteOne({ _id: req.socialDraft._id, projectId: req.project._id });
   res.redirect(`/projects/${req.project._id}/calendar?success=${encodeURIComponent('Post removed from the calendar.')}`);
 }));
@@ -1114,6 +1323,7 @@ router.post('/:id/mark-published', [param('id').isMongoId(), handleValidation], 
   req.socialDraft.publishStatus = 'published';
   req.socialDraft.publishedAt = new Date();
   await req.socialDraft.save();
+  await recordDraftActivity({ draft: req.socialDraft, user: req.user, eventType: 'marked_published', summary: 'Marked the post as published manually.', req });
   res.redirect(`/projects/${req.project._id}/calendar`);
 }));
 

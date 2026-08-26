@@ -29,6 +29,7 @@ const {
 const { openDownloadStream } = require('../services/contentImageStorageService');
 const { renderContentBody } = require('../services/contentPreviewService');
 const { recordAuditEvent } = require('../services/auditLogService');
+const { recordDraftCreation } = require('../services/calendarCollaborationService');
 const { queueContentImageGeneration } = require('../services/projectTaskService');
 const { canManageProjectRole, isUnsafeMethod, projectAccessRole } = require('../services/projectAccessService');
 const {
@@ -612,6 +613,7 @@ router.post('/:id/create-social-drafts', [param('id').isMongoId(), handleValidat
       project: req.project,
       draft: req.draft
     });
+    await recordDraftCreation(drafts, { user: req.user, req, summary: 'Created the post from approved content.' });
     await recordAiOperation(req.user._id, 1);
     res.redirect(`/projects/${req.project._id}/calendar?success=${encodeURIComponent(`${drafts.length} social drafts created.`)}`);
   } catch (error) {

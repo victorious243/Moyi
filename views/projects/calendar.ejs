@@ -1,13 +1,16 @@
 <%- include('../partials/header') %>
+<link rel="stylesheet" href="/stylesheets/content-calendar.css?v=20260826">
 
 <%
   const currentImageJob = typeof imageJob !== 'undefined' ? imageJob : null;
   const userCanPublishProject = typeof canPublishProject !== 'undefined' ? canPublishProject : true;
   const userCanManageProject = typeof canManageProject !== 'undefined' ? canManageProject : true;
-  const currentFilters = typeof filters !== 'undefined' ? filters : { search: '', status: '', platform: '', campaign: '', account: '', contentType: '', view: 'list', date: '', page: 1 };
+  const userCanReviewDrafts = typeof canReviewDraft !== 'undefined' ? canReviewDraft : userCanManageProject;
+  const teamMode = typeof teamCollaborationEnabled !== 'undefined' ? teamCollaborationEnabled : false;
+  const currentFilters = typeof filters !== 'undefined' ? filters : { search: '', status: '', platform: '', campaign: '', account: '', contentType: '', approval: '', owner: '', view: 'list', date: '', page: 1 };
   const counts = typeof calendarCounts !== 'undefined' ? calendarCounts : { scheduled: 0, needsAttention: 0, published: 0, drafts: 0, ready: 0, total: 0 };
   const items = typeof calendarItems !== 'undefined' ? calendarItems : [];
-  const availableFilters = typeof filterOptions !== 'undefined' ? filterOptions : { platforms: [], campaigns: [], accounts: [], contentTypes: [] };
+  const availableFilters = typeof filterOptions !== 'undefined' ? filterOptions : { platforms: [], campaigns: [], accounts: [], contentTypes: [], owners: [] };
   const pageInfo = typeof pagination !== 'undefined' ? pagination : { page: 1, pageSize: 50, totalItems: items.length, totalPages: 1 };
   const currentCalendarDays = typeof calendarDays !== 'undefined' ? calendarDays : [];
   const currentCalendarNavigation = typeof calendarNavigation !== 'undefined' ? calendarNavigation : { previous: '', next: '' };
@@ -16,13 +19,14 @@
   const currentTodayContext = typeof todayContext !== 'undefined' ? todayContext : null;
   const currentCalendarTruncated = typeof calendarTruncated !== 'undefined' ? calendarTruncated : false;
   const currentPublishReadiness = typeof publishReadiness !== 'undefined' ? publishReadiness : { attentionCount: 0, readyCount: 0, inFlightCount: 0, groups: {} };
+  const currentCalendarIntelligence = typeof calendarIntelligence !== 'undefined' ? calendarIntelligence : { featured: [], insights: [], contentMix: [], campaignCoverage: [], dataQuality: { status: 'insufficient', message: 'Moyi needs more published-post performance data before it can recommend your best posting times.' } };
 %>
 
 <div class="app-layout">
   <%- include('../partials/project-sidebar', { project, activeSection: 'calendar' }) %>
 
   <section
-    class="app-main content-calendar-workspace"
+    class="app-main content-calendar-workspace project-content-workspace"
     data-calendar-root
     data-project-id="<%= project._id %>"
     data-calendar-timezone="<%= currentCalendarTimezone %>"
@@ -32,39 +36,59 @@
       data-initial-job-status="<%= currentImageJob.status %>"
     <% } %>
   >
-    <nav class="project-command-nav" aria-label="Content operations">
-      <a href="/projects/<%= project._id %>/content"><strong>Content Studio</strong><span>Create and review</span></a>
-      <a class="is-active" href="/projects/<%= project._id %>/calendar"><strong>Calendar</strong><span>Plan and publish</span></a>
-      <a href="/projects/<%= project._id %>/campaigns"><strong>Campaigns</strong><span>Track objectives</span></a>
-    </nav>
+    <%- include('../partials/project-content-nav', { project, activeSection: 'calendar' }) %>
 
     <header class="calendar-page-header">
       <div class="calendar-heading-copy">
         <p class="eyebrow"><%= project.name %></p>
         <h1>Content Calendar</h1>
-        <p>Plan, approve and publish your marketing content.</p>
+        <p class="calendar-subtitle">Plan, review and publish your marketing content.</p>
+        <div class="calendar-header-kpis" aria-label="Overview metrics">
+          <span class="cal-kpi-item"><strong><%= counts.scheduled %></strong> Scheduled</span>
+          <span class="cal-kpi-dot">·</span>
+          <span class="cal-kpi-item <%= counts.needsAttention ? 'has-alert' : '' %>"><strong><%= counts.needsAttention %></strong> Need attention</span>
+          <span class="cal-kpi-dot">·</span>
+          <span class="cal-kpi-item"><strong><%= counts.published %></strong> Published</span>
+          <span class="cal-kpi-dot">·</span>
+          <span class="cal-kpi-item"><strong><%= counts.drafts %></strong> Drafts</span>
+        </div>
       </div>
       <div class="calendar-header-actions">
-        <a class="button" href="/projects/<%= project._id %>/content#planner">Create Content</a>
+        <a class="button button-create" href="/projects/<%= project._id %>/content#planner">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M7 1V13M1 7H13" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg>
+          <span>Create Content</span>
+        </a>
         <% if (userCanPublishProject && counts.ready) { %>
           <form action="/social-drafts/publish-all-connected" method="post" data-async-action data-refresh-list data-global-publish-form data-ready-count="<%= currentPublishReadiness.readyCount %>" data-blocked-count="<%= currentPublishReadiness.attentionCount %>" data-processing-count="<%= currentPublishReadiness.inFlightCount %>">
             <input type="hidden" name="projectId" value="<%= project._id %>">
-            <button class="button button-primary" type="submit">Publish <%= currentPublishReadiness.readyCount %> Ready</button>
+            <button class="button button-primary button-publish-ready" type="submit">
+              <span class="ready-pulse"></span>
+              <span>Publish <%= currentPublishReadiness.readyCount %> Ready</span>
+            </button>
           </form>
         <% } %>
       </div>
     </header>
 
     <section class="calendar-command-bar" aria-label="Calendar tools">
-      <label class="calendar-search">
-        <span class="sr-only">Search calendar</span>
-        <span aria-hidden="true">⌕</span>
-        <input type="search" value="<%= currentFilters.search %>" placeholder="Search content, campaigns, platforms or accounts" autocomplete="off" data-calendar-search>
-        <kbd>/</kbd>
-      </label>
-      <button class="button calendar-filter-toggle" type="button" aria-expanded="false" aria-controls="calendar-results" data-filter-toggle>Filters</button>
+      <div class="calendar-command-left">
+        <label class="calendar-search">
+          <span class="sr-only">Search calendar</span>
+          <svg class="search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M7.33333 12.6667C10.2789 12.6667 12.6667 10.2789 12.6667 7.33333C12.6667 4.38781 10.2789 2 7.33333 2C4.38781 2 2 4.38781 2 7.33333C2 10.2789 4.38781 12.6667 7.33333 12.6667Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 14L11.1 11.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <input type="search" value="<%= currentFilters.search %>" placeholder="Search content, campaigns, platforms..." autocomplete="off" data-calendar-search>
+          <kbd>/</kbd>
+        </label>
+        <button class="button calendar-filter-toggle" type="button" aria-expanded="false" aria-controls="calendar-results" data-filter-toggle>
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M2 3.5H14M4 8H12M6.5 12.5H9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span>Filters</span>
+        </button>
+      </div>
       <div class="calendar-view-selector" role="group" aria-label="Calendar view">
-        <% [['today','Today'],['week','Week'],['month','Month'],['list','List'],['attention','Attention']].forEach(([value,label]) => { %><button type="button" class="<%= currentFilters.view === value ? 'is-active' : '' %>" data-calendar-view="<%= value %>" aria-pressed="<%= currentFilters.view === value %>"><%= label %><% if (value === 'attention' && currentPublishReadiness.attentionCount) { %> <span><%= currentPublishReadiness.attentionCount %></span><% } %></button><% }) %>
+        <% [['today','Today'],['week','Week'],['month','Month'],['list','List'],['attention','Attention']].forEach(([value,label]) => { %>
+          <button type="button" class="<%= currentFilters.view === value ? 'is-active' : '' %> <%= value === 'attention' && currentPublishReadiness.attentionCount ? 'has-attention-badge' : '' %>" data-calendar-view="<%= value %>" aria-pressed="<%= currentFilters.view === value %>">
+            <span><%= label %></span><% if (value === 'attention' && currentPublishReadiness.attentionCount) { %><span class="attention-count-badge"><%= currentPublishReadiness.attentionCount %></span><% } %>
+          </button>
+        <% }) %>
       </div>
     </section>
 
@@ -107,8 +131,11 @@
         todayContext: currentTodayContext,
         calendarTruncated: currentCalendarTruncated,
         publishReadiness: currentPublishReadiness,
+        calendarIntelligence: currentCalendarIntelligence,
         userCanManageProject,
-        userCanPublishProject
+        userCanReviewDrafts,
+        userCanPublishProject,
+        teamCollaborationEnabled: teamMode
       }) %>
     </div>
   </section>

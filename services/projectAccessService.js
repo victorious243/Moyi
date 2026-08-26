@@ -14,6 +14,14 @@ function canManageProjectRole(role) {
   return role === 'owner' || role === 'admin';
 }
 
+function canEditDraftRole(role) {
+  return canManageProjectRole(role) || ['publisher', 'organization_owner', 'organization_admin', 'organization_publisher'].includes(role);
+}
+
+function canReviewDraftRole(role) {
+  return canManageProjectRole(role) || ['reviewer', 'organization_owner', 'organization_admin', 'organization_reviewer'].includes(role);
+}
+
 async function accessibleProjectIds(userId) {
   const [ownedProjects, memberships, organizationIds] = await Promise.all([
     Project.find({ owner: userId }).select('_id').lean(),
@@ -42,14 +50,14 @@ async function publishableProjectIds(userId, { sourceProject = null, sourceProje
     const directMembership = await ProjectMember.findOne({
       projectId: source._id,
       userId,
-      role: 'admin'
+      role: { $in: ['admin', 'publisher'] }
     }).select('_id').lean();
     return directMembership ? [source._id] : [];
   }
 
   const [ownedProjects, memberships, organizationIds] = await Promise.all([
     Project.find({ owner: userId }).select('_id').lean(),
-    ProjectMember.find({ userId, role: 'admin' }).select('projectId').lean(),
+    ProjectMember.find({ userId, role: { $in: ['admin', 'publisher'] } }).select('projectId').lean(),
     accessibleOrganizationIds(userId)
   ]);
   const publishableOrganizations = [];
@@ -111,7 +119,7 @@ async function projectAccessRole({ project, projectId, userId }) {
 }
 
 function canPublishProjectRole(role) {
-  return canManageProjectRole(role) || ['organization_owner', 'organization_admin', 'organization_publisher'].includes(role);
+  return canManageProjectRole(role) || ['publisher', 'organization_owner', 'organization_admin', 'organization_publisher'].includes(role);
 }
 
 function canChangeProjectRole(role) {
@@ -122,6 +130,8 @@ module.exports = {
   accessibleProjectIds,
   buildAccessibleProjectFilter,
   canManageProjectRole,
+  canEditDraftRole,
+  canReviewDraftRole,
   canChangeProjectRole,
   canPublishProjectRole,
   findAccessibleProjects,

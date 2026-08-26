@@ -18,6 +18,7 @@ const publicPages = require('../config/publicPages');
 const { COMPARISON_PAGES, SOLUTION_PAGES } = require('../config/programmaticPages');
 const ContentDraft = require('../models/ContentDraft');
 const SocialDraft = require('../models/SocialDraft');
+const { recordDraftCreation } = require('./calendarCollaborationService');
 const Campaign = require('../models/Campaign');
 const Project = require('../models/Project');
 const User = require('../models/User');
@@ -497,6 +498,7 @@ async function executeDailyContentIntelligenceRun({ projectId, autoSaveDraft = t
           publishStatus: 'draft',
           scheduledFor: new Date(Date.now() + 2 * 60 * 60 * 1000) // Default 2 hours from now
         });
+        await recordDraftCreation(socialDraft, { summary: 'Moyi created the post from Daily Content Intelligence.' });
         createdSocialDraftIds.push(socialDraft._id);
       }
     }

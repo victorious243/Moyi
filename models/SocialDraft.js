@@ -59,6 +59,50 @@ const socialDraftSchema = new mongoose.Schema(
       default: 'draft',
       index: true
     },
+    reviewStatus: {
+      type: String,
+      enum: ['draft', 'ready_for_review', 'changes_requested', 'approved', 'scheduled'],
+      default: 'draft',
+      index: true
+    },
+    assignedTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+      index: true
+    },
+    submittedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    submittedAt: {
+      type: Date,
+      default: null
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    approvedAt: {
+      type: Date,
+      default: null
+    },
+    changesRequestedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    changesRequestedAt: {
+      type: Date,
+      default: null
+    },
+    approvalVersion: {
+      type: Number,
+      min: 0,
+      default: 0
+    },
     publishedAt: {
       type: Date,
       default: null
@@ -88,5 +132,7 @@ socialDraftSchema.index({ projectId: 1, scheduledFor: 1 });
 // Calendar range scans commonly narrow by channel or campaign before sorting by schedule.
 socialDraftSchema.index({ projectId: 1, channel: 1, scheduledFor: 1 });
 socialDraftSchema.index({ projectId: 1, campaignId: 1, scheduledFor: 1 });
+socialDraftSchema.index({ projectId: 1, reviewStatus: 1, scheduledFor: 1 });
+socialDraftSchema.index({ projectId: 1, assignedTo: 1, scheduledFor: 1 });
 
 module.exports = mongoose.model('SocialDraft', socialDraftSchema);

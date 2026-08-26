@@ -1,0 +1,150 @@
+<%- include('../partials/header') %>
+<%
+  const platformLabels = { x: 'X', linkedin: 'LinkedIn', instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads', bluesky: 'Bluesky', youtube: 'YouTube', tiktok: 'TikTok', email: 'Email', webhook: 'Webhook' };
+  const projectById = new Map(projects.map((project) => [String(project._id), project]));
+  const queryUrl = (values = {}) => {
+    const params = new URLSearchParams();
+    Object.entries({ ...filters, ...values }).forEach(([key, value]) => { if (value) params.set(key, String(value)); });
+    return `/organizations/${organization._id}/calendar?${params.toString()}`;
+  };
+  const savedViewUrl = (view) => queryUrl(view.filters || {});
+  const roleUsers = members.filter((member) => member.userId).map((member) => ({ id: member.userId._id, name: member.userId.name || member.userId.email, role: member.role }));
+%>
+
+<main class="agency-calendar-page">
+  <header class="agency-calendar-header">
+    <div>
+      <a class="agency-calendar-back" href="/organizations/<%= organization._id %>">Back to <%= organization.name %></a>
+      <p class="eyebrow">Agency operations</p>
+      <h1>Portfolio Calendar</h1>
+      <p>Review, schedule and publish client work from one authorized workspace.</p>
+    </div>
+    <div class="agency-calendar-header-actions"><a class="button" href="/organizations/<%= organization._id %>">Agency dashboard</a><a class="button button-primary" href="/projects">Create content</a></div>
+  </header>
+
+  <% if (message) { %><div class="image-success-message"><%= message %></div><% } %>
+  <% if (errorMessage) { %><div class="form-error"><%= errorMessage %></div><% } %>
+
+  <section class="agency-calendar-summary" aria-label="Portfolio calendar summary">
+    <div><span>Visible posts</span><strong><%= counts.total %></strong></div>
+    <div><span>Waiting for review</span><strong><%= counts.ready_for_review %></strong></div>
+    <div><span>Changes requested</span><strong><%= counts.changes_requested %></strong></div>
+    <div><span>Scheduled</span><strong><%= counts.scheduled %></strong></div>
+    <div><span>Needs attention</span><strong><%= counts.attention %></strong></div>
+  </section>
+
+  <% if (recentActivity.length) { %>
+    <details class="agency-calendar-activity">
+      <summary>Recent calendar activity</summary>
+      <ol>
+        <% recentActivity.forEach((activity) => { const activityProject = projectById.get(String(activity.projectId)); %>
+          <li><time><%= new Date(activity.createdAt).toLocaleString() %></time><strong><%= activity.actorUserId?.name || activity.actorUserId?.email || 'Moyi' %></strong><span><%= activity.summary %></span><small><%= activityProject?.name || 'Client project' %><% if (activity.draftId?.title) { %> · <%= activity.draftId.title %><% } %></small></li>
+        <% }) %>
+      </ol>
+    </details>
+  <% } %>
+
+  <section class="agency-calendar-controls">
+    <form method="get" action="/organizations/<%= organization._id %>/calendar" class="agency-calendar-filter-form">
+      <label class="agency-calendar-search"><span>Search</span><input type="search" name="search" value="<%= filters.search %>" placeholder="Post title or copy"></label>
+      <label>Client<select name="project"><option value="">All client projects</option><% projects.forEach((project) => { %><option value="<%= project._id %>" <%= String(filters.project) === String(project._id) ? 'selected' : '' %>><%= project.name %></option><% }) %></select></label>
+      <label>Platform<select name="platform"><option value="">All platforms</option><% [...new Set(accounts.map((account) => account.platform))].forEach((platform) => { %><option value="<%= platform %>" <%= filters.platform === platform ? 'selected' : '' %>><%= platformLabels[platform] || platform %></option><% }) %></select></label>
+      <label>Campaign<select name="campaign"><option value="">All campaigns</option><% campaigns.forEach((campaign) => { %><option value="<%= campaign._id %>" <%= String(filters.campaign) === String(campaign._id) ? 'selected' : '' %>><%= projectById.get(String(campaign.projectId))?.name %> · <%= campaign.name %></option><% }) %></select></label>
+      <label>Account<select name="account"><option value="">All accounts</option><% accounts.forEach((account) => { %><option value="<%= account._id %>" <%= String(filters.account) === String(account._id) ? 'selected' : '' %>><%= projectById.get(String(account.projectId))?.name %> · <%= platformLabels[account.platform] || account.platform %> · <%= account.accountName %></option><% }) %></select></label>
+      <label>Publishing status<select name="status"><option value="">All statuses</option><% ['draft','awaiting_approval','ready','scheduled','publishing','published','blocked','failed'].forEach((status) => { %><option value="<%= status %>" <%= filters.status === status ? 'selected' : '' %>><%= status.replace(/_/g, ' ') %></option><% }) %></select></label>
+      <label>Approval<select name="approval"><option value="">All approval states</option><% ['draft','ready_for_review','changes_requested','approved','scheduled'].forEach((status) => { %><option value="<%= status %>" <%= filters.approval === status ? 'selected' : '' %>><%= status.replace(/_/g, ' ') %></option><% }) %></select></label>
+      <label>Owner<select name="owner"><option value="">All owners</option><% roleUsers.forEach((person) => { %><option value="<%= person.id %>" <%= String(filters.owner) === String(person.id) ? 'selected' : '' %>><%= person.name %></option><% }) %></select></label>
+      <label>From<input type="date" name="from" value="<%= filters.from %>"></label>
+      <label>To<input type="date" name="to" value="<%= filters.to %>"></label>
+      <label>Group by<select name="group"><% [['date','Date'],['campaign','Campaign'],['project','Client project']].forEach(([value, label]) => { %><option value="<%= value %>" <%= filters.group === value ? 'selected' : '' %>><%= label %></option><% }) %></select></label>
+      <div class="agency-calendar-filter-actions"><button class="button button-primary" type="submit">Apply</button><a class="button" href="/organizations/<%= organization._id %>/calendar">Reset</a></div>
+    </form>
+    <div class="agency-saved-views">
+      <div><strong>Saved views</strong><% savedViews.forEach((view) => { %><span><a href="<%= savedViewUrl(view) %>"><%= view.name %></a><form action="/organizations/<%= organization._id %>/calendar/views/<%= view._id %>/delete" method="post"><button type="submit" aria-label="Delete <%= view.name %>" title="Delete saved view">×</button></form></span><% }) %></div>
+      <form action="/organizations/<%= organization._id %>/calendar/views" method="post"><input type="text" name="name" maxlength="80" placeholder="Save current view as" required><% Object.entries(filters).forEach(([key, value]) => { %><input type="hidden" name="<%= key %>" value="<%= value %>"><% }) %><button class="button button-small" type="submit">Save view</button></form>
+    </div>
+  </section>
+
+  <form action="/organizations/<%= organization._id %>/calendar/bulk-action" method="post" class="agency-calendar-bulk-form">
+    <div class="agency-bulk-results" data-agency-bulk-results hidden aria-live="polite"></div>
+    <div class="agency-calendar-bulk-bar">
+      <label><input type="checkbox" data-agency-select-all> Select visible</label>
+      <% if (canReviewCalendar) { %><button class="button button-small" name="action" value="approve" type="submit">Approve</button><% } %>
+      <% if (canManageCalendar) { %><label>Owner<select name="assignedTo"><option value="">Unassigned</option><% roleUsers.forEach((person) => { %><option value="<%= person.id %>"><%= person.name %></option><% }) %></select></label><button class="button button-small" name="action" value="assign_owner" type="submit">Assign</button><label>Schedule<input type="datetime-local" name="scheduledAt"></label><button class="button button-small" name="action" value="schedule" type="submit">Schedule</button><label>Campaign<select name="campaignId"><option value="">Choose campaign</option><% campaigns.forEach((campaign) => { %><option value="<%= campaign._id %>"><%= projectById.get(String(campaign.projectId))?.name %> · <%= campaign.name %></option><% }) %></select></label><button class="button button-small" name="action" value="move_campaign" type="submit">Move</button><% } %>
+      <% if (canPublishCalendar) { %><button class="button button-primary button-small" name="action" value="publish" type="submit">Publish ready</button><% } %>
+      <button class="button button-small" name="action" value="export" type="submit">Export CSV</button>
+    </div>
+
+    <% if (!groups.length) { %><section class="calendar-empty-state"><p class="eyebrow">No matching work</p><h2>The portfolio calendar is clear</h2><p>Adjust the filters or create content inside a client project.</p></section><% } %>
+    <div class="agency-calendar-groups">
+      <% groups.forEach((group) => { const readyPercent = group.items.length ? Math.round(group.readyCount / group.items.length * 100) : 0; %><section class="agency-calendar-group"><header><div><h2><%= group.label %></h2><% if (filters.group === 'campaign') { %><small><%= Object.entries(group.platformCounts).map(([platform, count]) => `${count} ${platformLabels[platform] || platform}`).join(' · ') %> · <%= readyPercent %>% ready</small><% } %></div><span><%= group.items.length %> post<%= group.items.length === 1 ? '' : 's' %></span></header><div class="agency-calendar-table" role="table">
+        <div class="agency-calendar-row agency-calendar-row-header" role="row"><span></span><span>Client</span><span>Content</span><span>Channel</span><span>Campaign</span><span>Owner</span><span>Approval</span><span>Publishing</span><span>Schedule</span></div>
+        <% group.items.forEach((item) => { const draft = item.draft; const project = item.project; %><article class="agency-calendar-row <%= item.hasAttention ? 'has-attention' : '' %>" role="row">
+          <span><input type="checkbox" name="draftIds" value="<%= draft._id %>" data-agency-select></span>
+          <span class="agency-client-cell"><i style="--client-color: hsl(<%= (parseInt(String(project?._id || '0').slice(-4), 16) || 0) % 360 %> 62% 52%)"></i><% if (project?.brandLogo?.storageKey) { %><img src="/projects/<%= project._id %>/logo" alt=""><% } %><strong><%= project?.name || 'Unknown client' %></strong></span>
+          <span><a href="/projects/<%= project?._id %>/calendar#post-<%= draft._id %>"><strong><%= draft.title || 'Untitled post' %></strong></a><small><%= String(draft.body || '').slice(0, 90) %></small></span>
+          <span><%= platformLabels[draft.channel] || draft.channel %><small><%= item.account?.accountName || 'Auto-select' %></small></span>
+          <span><%= draft.campaignId?.name || 'No campaign' %></span>
+          <span><%= draft.assignedTo?.name || draft.assignedTo?.email || 'Unassigned' %></span>
+          <span><span class="calendar-review-status"><%= item.reviewLabel %></span></span>
+          <span><span class="calendar-ui-status status-tone-<%= item.statusTone %>"><%= item.statusLabel %></span><% if (item.blocker) { %><small><%= item.blocker %></small><% } %></span>
+          <time><%= draft.scheduledFor ? new Date(draft.scheduledFor).toLocaleString() : 'Unscheduled' %></time>
+        </article><% }) %>
+      </div></section><% }) %>
+    </div>
+    <% if (pagination.hasPreviousPage || pagination.hasNextPage) { %><nav class="agency-calendar-pagination" aria-label="Portfolio calendar pages"><% if (pagination.hasPreviousPage) { %><a class="button" href="<%= queryUrl({ page: pagination.page - 1 }) %>">Previous</a><% } %><span>Page <%= pagination.page %></span><% if (pagination.hasNextPage) { %><a class="button" href="<%= queryUrl({ page: pagination.page + 1 }) %>">Next</a><% } %></nav><% } %>
+  </form>
+</main>
+
+<script>
+  document.addEventListener('change', function (event) {
+    if (!event.target.matches('[data-agency-select-all]')) return;
+    document.querySelectorAll('[data-agency-select]').forEach(function (checkbox) { checkbox.checked = event.target.checked; });
+  });
+
+  document.querySelector('.agency-calendar-bulk-form')?.addEventListener('submit', async function (event) {
+    const submitter = event.submitter;
+    const action = submitter?.value || '';
+    if (!action || action === 'export') return;
+    event.preventDefault();
+
+    const form = event.currentTarget;
+    const output = form.querySelector('[data-agency-bulk-results]');
+    const selected = form.querySelectorAll('[data-agency-select]:checked');
+    if (!selected.length) {
+      output.hidden = false;
+      output.className = 'agency-bulk-results is-error';
+      output.textContent = 'Select at least one post.';
+      return;
+    }
+
+    const data = new FormData(form);
+    data.set('action', action);
+    submitter.disabled = true;
+    submitter.setAttribute('aria-busy', 'true');
+    output.hidden = false;
+    output.className = 'agency-bulk-results';
+    output.textContent = 'Applying the bulk action...';
+
+    try {
+      const response = await fetch(form.action, { method: 'POST', body: data, headers: { Accept: 'application/json' } });
+      const payload = await response.json();
+      if (!response.ok && response.status !== 207) throw new Error(payload.message || 'The bulk action could not be completed.');
+      output.className = `agency-bulk-results${payload.ok ? ' is-success' : ' is-warning'}`;
+      output.innerHTML = `<strong>${payload.message}</strong><ul>${payload.results.map(function (result) {
+        const title = String(result.title || 'Post').replace(/[&<>"']/g, function (character) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]; });
+        const project = String(result.project || '').replace(/[&<>"']/g, function (character) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]; });
+        const message = String(result.message || '').replace(/[&<>"']/g, function (character) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]; });
+        return `<li class="${result.ok ? 'is-success' : 'is-error'}"><span>${result.ok ? 'Completed' : 'Skipped'}</span><strong>${title}</strong><small>${project}${project && message ? ' · ' : ''}${message}</small></li>`;
+      }).join('')}</ul>`;
+      if (payload.results.some(function (result) { return result.ok; })) window.setTimeout(function () { window.location.reload(); }, 1800);
+    } catch (error) {
+      output.className = 'agency-bulk-results is-error';
+      output.textContent = error.message || 'The bulk action could not be completed.';
+    } finally {
+      submitter.disabled = false;
+      submitter.removeAttribute('aria-busy');
+    }
+  });
+</script>
+<%- include('../partials/footer') %>

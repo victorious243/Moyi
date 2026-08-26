@@ -25,6 +25,7 @@ const { updateProjectGrowthBaselines } = require('../../services/growthBaselineL
 const DailyGrowthIntelligence = require('../../models/DailyGrowthIntelligence');
 const ContentDraft = require('../../models/ContentDraft');
 const SocialDraft = require('../../models/SocialDraft');
+const { recordDraftCreation } = require('../../services/calendarCollaborationService');
 const Campaign = require('../../models/Campaign');
 const MarketingGoal = require('../../models/MarketingGoal');
 const { evaluateGoalForecast } = require('../../services/goalIntelligenceService');
@@ -210,7 +211,7 @@ function registerMeasurementRoutes(router, context, services = {}) {
     const channel = channelFromOpportunity(opp);
     const campaign = await findOrCreateGrowthOpportunityCampaign(req.project, opp);
 
-    await SocialDraft.create({
+    const socialDraft = await SocialDraft.create({
       projectId: req.project._id,
       campaignId: campaign._id,
       channel,
@@ -224,6 +225,7 @@ function registerMeasurementRoutes(router, context, services = {}) {
         opportunityId: opp.id
       }
     });
+    await recordDraftCreation(socialDraft, { user: req.user, req, summary: 'Created the post from an accepted growth opportunity.' });
 
     res.redirect(`/projects/${req.project._id}/content?success=${encodeURIComponent('Opportunity accepted! Draft post has been prepared in Content Studio for your review.')}`);
   }));

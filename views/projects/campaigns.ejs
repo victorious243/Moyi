@@ -1,19 +1,34 @@
 <%- include('../partials/header') %>
+<link rel="stylesheet" href="/stylesheets/content-calendar.css?v=20260826">
 
 <div class="app-layout">
   <%- include('../partials/project-sidebar', { project, activeSection: 'campaigns' }) %>
 
-  <section class="app-main">
-    <nav class="project-command-nav" aria-label="Content operations">
-      <a href="/projects/<%= project._id %>/content"><strong>Content Studio</strong><span>Create and review</span></a>
-      <a href="/projects/<%= project._id %>/calendar"><strong>Calendar</strong><span>See what goes out</span></a>
-      <a class="is-active" href="/projects/<%= project._id %>/campaigns"><strong>Campaigns</strong><span>Track each objective</span></a>
-    </nav>
+  <section class="app-main project-content-workspace content-calendar-workspace">
+    <%- include('../partials/project-content-nav', { project, activeSection: 'campaigns' }) %>
 
-    <div class="page-heading content-studio-heading">
-      <div><p class="eyebrow"><%= project.name %></p><h1>Campaigns</h1><p>Keep every content plan tied to a clear objective, schedule, and review state.</p></div>
-      <a class="button button-primary" href="/projects/<%= project._id %>/content#planner">New Campaign Plan</a>
-    </div>
+    <header class="content-workspace-page-header calendar-page-header">
+      <div class="calendar-heading-copy">
+        <p class="eyebrow"><%= project.name %></p>
+        <h1>Campaigns</h1>
+        <p class="calendar-subtitle">Track and manage your marketing objectives and campaign plans.</p>
+        <div class="calendar-header-kpis" aria-label="Overview metrics">
+          <span class="cal-kpi-item"><strong><%= campaigns.length %></strong> <%= campaigns.length === 1 ? 'Campaign' : 'Campaigns' %></span>
+          <span class="cal-kpi-dot">·</span>
+          <span class="cal-kpi-item"><strong><%= socialDrafts.length %></strong> Total posts</span>
+        </div>
+      </div>
+      <div class="calendar-header-actions">
+        <a class="button button-secondary button-open-calendar" href="/projects/<%= project._id %>/calendar">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 7h12M5 1v3M11 1v3"/></svg>
+          <span>Open Calendar</span>
+        </a>
+        <a class="button button-create" href="/projects/<%= project._id %>/content#planner">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M7 1V13M1 7H13" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg>
+          <span>New Campaign Plan</span>
+        </a>
+      </div>
+    </header>
 
     <% if (successMessage) { %><div class="image-success-message"><%= successMessage %></div><% } %>
 
@@ -22,36 +37,52 @@
         <p class="eyebrow">No campaigns yet</p>
         <h2>Start with the business objective</h2>
         <p>Choose a single post, weekly plan, or monthly plan. Moyi will create the campaign and schedule its drafts together.</p>
-        <a class="button button-primary" href="/projects/<%= project._id %>/content#planner">Create Campaign Plan</a>
+        <div class="row-actions">
+          <a class="button button-primary" href="/projects/<%= project._id %>/content#planner">Create Campaign Plan</a>
+        </div>
       </section>
+    <% } else { %>
+      <div class="campaign-register">
+        <% campaigns.forEach((campaign) => { %>
+          <%
+            const campaignDrafts = socialDrafts.filter((draft) => draft.campaignId && draft.campaignId.toString() === campaign._id.toString());
+            const approvedCount = campaignDrafts.filter((draft) => ['approved', 'published_manually', 'published'].includes(draft.status)).length;
+            const progress = campaignDrafts.length ? Math.round(approvedCount / campaignDrafts.length * 100) : 0;
+          %>
+          <article class="campaign-register-row">
+            <div class="campaign-register-main">
+              <div class="campaign-meta-row">
+                <span class="campaign-cadence-pill"><%= campaign.cadence || 'custom' %></span>
+                <span class="campaign-channel-pill"><%= campaign.channel %></span>
+                <% if (campaign.status) { %>
+                  <span class="campaign-status-pill status-<%= campaign.status %>"><%= campaign.status.replace(/_/g, ' ') %></span>
+                <% } %>
+              </div>
+              <h2><%= campaign.name %></h2>
+              <p><%= campaign.goal || 'No campaign objective recorded.' %></p>
+            </div>
+            <div class="campaign-register-progress">
+              <div class="progress-label-row">
+                <span class="progress-count"><strong><%= approvedCount %></strong> of <%= campaignDrafts.length %> reviewed</span>
+                <span class="progress-percent"><%= progress %>%</span>
+              </div>
+              <div class="progress-bar-track"><i class="progress-bar-fill" style="width:<%= progress %>%"></i></div>
+              <small class="campaign-dates"><%= campaign.startDate ? new Date(campaign.startDate).toLocaleDateString() : '' %> – <%= campaign.endDate ? new Date(campaign.endDate).toLocaleDateString() : '' %></small>
+            </div>
+            <div class="campaign-register-actions">
+              <a class="button button-small" href="/projects/<%= project._id %>/calendar?campaign=<%= campaign._id %>">Open Calendar</a>
+            </div>
+          </article>
+        <% }) %>
+      </div>
     <% } %>
 
-    <div class="campaign-register">
-      <% campaigns.forEach((campaign) => { %>
-        <%
-          const campaignDrafts = socialDrafts.filter((draft) => draft.campaignId && draft.campaignId.toString() === campaign._id.toString());
-          const approvedCount = campaignDrafts.filter((draft) => ['approved', 'published_manually'].includes(draft.status)).length;
-          const progress = campaignDrafts.length ? Math.round(approvedCount / campaignDrafts.length * 100) : 0;
-        %>
-        <article class="campaign-register-row">
-          <div class="campaign-register-main">
-            <span class="status"><%= campaign.cadence || 'custom' %> · <%= campaign.channel %></span>
-            <h2><%= campaign.name %></h2>
-            <p><%= campaign.goal || 'No campaign objective recorded.' %></p>
-          </div>
-          <div class="campaign-register-progress">
-            <span><%= approvedCount %> of <%= campaignDrafts.length %> reviewed</span>
-            <div><i style="width:<%= progress %>%"></i></div>
-            <small><%= campaign.startDate.toLocaleDateString() %> – <%= campaign.endDate.toLocaleDateString() %></small>
-          </div>
-          <a class="button" href="/projects/<%= project._id %>/calendar">Open Calendar</a>
-        </article>
-      <% }) %>
-    </div>
-
     <section class="campaign-safety-note">
-      <strong>Human-controlled publishing</strong>
-      <span>Moyi prepares and organizes drafts. Review remains required, and nothing is posted automatically.</span>
+      <div class="safety-note-icon">🛡️</div>
+      <div class="safety-note-text">
+        <strong>Human-controlled publishing</strong>
+        <span>Moyi prepares and organizes drafts. Review remains required, and nothing is posted automatically.</span>
+      </div>
     </section>
   </section>
 </div>

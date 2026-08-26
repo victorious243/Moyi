@@ -1,12 +1,39 @@
 <section class="calendar-today-view" aria-label="Today's publishing schedule">
   <% if (todayContext) { %>
-    <div class="calendar-day-context"><span><strong>Tomorrow</strong><%= todayContext.tomorrow %> posts</span><span><strong>This week</strong><%= todayContext.thisWeek %> posts</span><span><strong>Timezone</strong><%= calendarTimezone %></span></div>
+    <div class="calendar-today-summary-bar">
+      <div class="today-context-metric">
+        <span class="metric-label">Tomorrow</span>
+        <strong class="metric-val"><%= todayContext.tomorrow %></strong>
+        <span class="metric-unit">posts</span>
+      </div>
+      <div class="metric-divider" aria-hidden="true"></div>
+      <div class="today-context-metric">
+        <span class="metric-label">This week</span>
+        <strong class="metric-val"><%= todayContext.thisWeek %></strong>
+        <span class="metric-unit">posts</span>
+      </div>
+      <div class="metric-divider" aria-hidden="true"></div>
+      <div class="today-context-metric">
+        <span class="metric-label">Timezone</span>
+        <span class="timezone-badge"><%= calendarTimezone %></span>
+      </div>
+    </div>
   <% } %>
   <% if (!items.length) { %>
-    <section class="calendar-empty-state calendar-filter-empty"><p class="eyebrow">Open schedule</p><h2>No content scheduled today</h2><p>Use the open space for a planned post, or review drafts waiting for a date.</p><div class="row-actions"><a class="button button-primary" href="/projects/<%= project._id %>/content#planner">Create Content</a><a class="button" href="/projects/<%= project._id %>/calendar?view=list&status=draft">View Drafts</a></div></section>
+    <section class="calendar-empty-state calendar-filter-empty">
+      <p class="eyebrow">Open schedule</p>
+      <h2>No content scheduled today</h2>
+      <p>Use the open space for a planned post, or review drafts waiting for a date.</p>
+      <div class="row-actions">
+        <a class="button button-primary" href="/projects/<%= project._id %>/content#planner">Create Content</a>
+        <a class="button" href="/projects/<%= project._id %>/calendar?view=list&status=draft">View Drafts</a>
+      </div>
+    </section>
   <% } else { %>
     <div class="calendar-today-agenda">
-      <% items.forEach((item) => { %><%- include('calendar-event', { item }) %><% }) %>
+      <% items.forEach((item) => { %>
+        <%- include('calendar-event', { item, platformIcons: typeof platformIcons !== 'undefined' ? platformIcons : undefined }) %>
+      <% }) %>
     </div>
   <% } %>
 </section>

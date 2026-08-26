@@ -1,4 +1,5 @@
 <%- include('../partials/header') %>
+<link rel="stylesheet" href="/stylesheets/content-calendar.css?v=20260826">
 
 <%
   const reviewDrafts = drafts.filter((draft) => ['draft', 'awaiting_review', 'needs_revision'].includes(draft.status));
@@ -12,40 +13,49 @@
   <%- include('../partials/project-sidebar', { project, activeSection: 'content' }) %>
 
   <section
-    class="app-main"
+    class="app-main project-content-workspace content-calendar-workspace"
     <% if (currentJob && (currentJob.status === 'queued' || currentJob.status === 'running')) { %>
       data-live-job
       data-live-job-endpoint="/projects/<%= project._id %>/jobs/<%= currentJob._id %>"
       data-initial-job-status="<%= currentJob.status %>"
     <% } %>
   >
-    <nav class="project-command-nav" aria-label="Content operations">
-      <a class="is-active" href="/projects/<%= project._id %>/content"><strong>Content Studio</strong><span>Create and review</span></a>
-      <a href="/projects/<%= project._id %>/calendar"><strong>Calendar</strong><span>See what goes out</span></a>
-      <a href="/projects/<%= project._id %>/campaigns"><strong>Campaigns</strong><span>Track each objective</span></a>
-    </nav>
+    <%- include('../partials/project-content-nav', { project, activeSection: 'content' }) %>
 
-    <div class="page-heading content-studio-heading">
-      <div>
+    <header class="content-workspace-page-header calendar-page-header">
+      <div class="calendar-heading-copy">
         <p class="eyebrow"><%= project.name %></p>
         <h1>Content Studio</h1>
-        <p>Create a post or build an organized campaign plan. Everything generated appears below and in the calendar.</p>
+        <p class="calendar-subtitle">Create a post or build an organized campaign plan. Everything generated appears below and in the calendar.</p>
+        <div class="calendar-header-kpis" aria-label="Overview metrics">
+          <span class="cal-kpi-item"><strong><%= reviewDrafts.length %></strong> Needs review</span>
+          <span class="cal-kpi-dot">·</span>
+          <span class="cal-kpi-item"><strong><%= completedDrafts.length %></strong> Approved assets</span>
+          <span class="cal-kpi-dot">·</span>
+          <span class="cal-kpi-item"><strong><%= scheduledCount %></strong> Scheduled posts</span>
+          <span class="cal-kpi-dot">·</span>
+          <span class="cal-kpi-item"><strong><%= campaigns.length %></strong> Campaigns</span>
+        </div>
       </div>
-      <a class="button button-primary" href="/projects/<%= project._id %>/calendar">Open Calendar</a>
-    </div>
-
-    <section class="studio-summary" aria-label="Content summary">
-      <div><span>Needs review</span><strong><%= reviewDrafts.length %></strong></div>
-      <div><span>Approved assets</span><strong><%= completedDrafts.length %></strong></div>
-      <div><span>Scheduled posts</span><strong><%= scheduledCount %></strong></div>
-      <div><span>Campaigns</span><strong><%= campaigns.length %></strong></div>
-    </section>
+      <div class="calendar-header-actions">
+        <a class="button button-secondary button-open-calendar" href="/projects/<%= project._id %>/calendar">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 7h12M5 1v3M11 1v3"/></svg>
+          <span>Open Calendar</span>
+        </a>
+        <a class="button button-create" href="#planner">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M7 1V13M1 7H13" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg>
+          <span>Create Plan</span>
+        </a>
+      </div>
+    </header>
 
     <% if (currentJob && (currentJob.status === 'queued' || currentJob.status === 'running')) { %>
-      <section class="studio-job-bar">
-        <div><strong>Content pipeline running</strong><span data-job-step><%= currentJob.currentStep || 'Preparing evidence-backed content assets' %></span></div>
-        <span class="status" data-job-status><%= currentJob.status %></span>
+      <section class="calendar-inline-job studio-job-bar" role="status">
+        <span class="calendar-live-dot"></span>
+        <strong>Content pipeline running</strong>
+        <span data-job-step><%= currentJob.currentStep || 'Preparing evidence-backed content assets' %></span>
         <span data-job-progress><%= currentJob.progressPercent || 0 %>%</span>
+        <span class="status" data-job-status hidden><%= currentJob.status %></span>
         <span data-job-error-row hidden><span data-job-error></span></span>
       </section>
     <% } %>
@@ -62,22 +72,22 @@
     <% if (errorMessage) { %><section class="panel notice-panel"><strong>Plan creation failed</strong><p><%= errorMessage %></p></section><% } %>
 
     <!-- Instant 30-Day Omnichannel Growth Pack Card -->
-    <section class="panel growth-pack-panel" style="background: linear-gradient(135deg, rgba(85, 230, 207, 0.08), rgba(62, 134, 198, 0.08)); border: 1px solid rgba(85, 230, 207, 0.25); border-radius: 16px; padding: 24px; margin-bottom: 24px;">
-      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px;">
-        <div style="max-width: 620px;">
-          <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(85, 230, 207, 0.15); color: var(--saas-cyan); padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-bottom: 8px;">
+    <section class="panel growth-pack-panel">
+      <div class="growth-pack-content">
+        <div class="growth-pack-text">
+          <div class="growth-pack-badge">
             ⚡ Instant 1-Click Engine
           </div>
-          <h2 style="font-size: 22px; font-weight: 800; color: #fff; margin: 0 0 6px;">Launch Instant 30-Day Growth Pack</h2>
-          <p style="font-size: 13px; color: var(--saas-text-muted); margin: 0; line-height: 1.5;">
+          <h2>Launch Instant 30-Day Growth Pack</h2>
+          <p>
             Point Moyi at your URL to instantly generate a complete omnichannel pipeline: <strong>1 Comparison Article</strong>, <strong>4 Social Posts</strong>, <strong>2 Paid Ads</strong>, <strong>1 Executive Newsletter</strong>, and <strong>1 Page Improvement Brief</strong>.
           </p>
         </div>
-        <form action="/projects/<%= project._id %>/growth-pack" method="post" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;" data-loading-state="Generating Instant 30-Day Growth Pack...">
+        <form action="/projects/<%= project._id %>/growth-pack" method="post" class="growth-pack-form" data-loading-state="Generating Instant 30-Day Growth Pack...">
           <input type="hidden" name="targetUrl" value="<%= project.websiteUrl %>">
           <input type="hidden" name="keyword" value="<%= project.mainOffer || 'AI Marketing' %>">
-          <button class="button button-primary" type="submit" style="padding: 12px 24px; font-size: 14px; font-weight: 800; box-shadow: 0 0 20px rgba(85, 230, 207, 0.35);">
-            🚀 Generate Instant Growth Pack
+          <button class="button button-primary button-growth-pack" type="submit">
+            <span>🚀 Generate Instant Growth Pack</span>
           </button>
         </form>
       </div>
@@ -124,21 +134,32 @@
 
     <section class="studio-section-heading">
       <div><p class="eyebrow">Generated work</p><h2>Find everything here</h2></div>
-      <a href="/projects/<%= project._id %>/calendar">View scheduled work</a>
+      <a class="studio-view-all-link" href="/projects/<%= project._id %>/calendar">
+        <span>View scheduled work</span>
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3L11 8L6 13"/></svg>
+      </a>
     </section>
 
     <div class="studio-library-grid">
       <section class="studio-library">
-        <div class="studio-library-title"><h2>Content assets</h2><span><%= drafts.length %></span></div>
+        <div class="studio-library-title">
+          <h2>Content assets</h2>
+          <span class="studio-badge"><%= drafts.length %></span>
+        </div>
         <% if (!drafts.length) { %>
-          <p class="empty">No website or article assets yet. Generate them from a growth opportunity.</p>
-          <a class="button" href="/projects/<%= project._id %>/recommendations">Open Growth Opportunities</a>
+          <div class="studio-empty-box">
+            <p class="empty">No website or article assets yet. Generate them from a growth opportunity.</p>
+            <a class="button button-small" href="/projects/<%= project._id %>/recommendations">Open Growth Opportunities</a>
+          </div>
         <% } else { %>
           <div class="studio-work-list">
             <% drafts.slice(0, 12).forEach((draft) => { %>
-              <a href="/content/<%= draft._id %>">
-                <div><strong><%= draft.title || 'Untitled asset' %></strong><span><%= draft.type.replace(/_/g, ' ') %></span></div>
-                <span class="status"><%= draft.status.replace(/_/g, ' ') %></span>
+              <a href="/content/<%= draft._id %>" class="studio-work-item">
+                <div class="studio-item-main">
+                  <strong><%= draft.title || 'Untitled asset' %></strong>
+                  <span><%= draft.type.replace(/_/g, ' ') %></span>
+                </div>
+                <span class="status status-<%= draft.status %>"><%= draft.status.replace(/_/g, ' ') %></span>
               </a>
             <% }) %>
           </div>
@@ -146,15 +167,23 @@
       </section>
 
       <section class="studio-library">
-        <div class="studio-library-title"><h2>Campaign posts</h2><span><%= socialDrafts.length %></span></div>
+        <div class="studio-library-title">
+          <h2>Campaign posts</h2>
+          <span class="studio-badge"><%= socialDrafts.length %></span>
+        </div>
         <% if (!socialDrafts.length) { %>
-          <p class="empty">No campaign posts yet. Use the planner above to create one post, a week, or a month.</p>
+          <div class="studio-empty-box">
+            <p class="empty">No campaign posts yet. Use the planner above to create one post, a week, or a month.</p>
+          </div>
         <% } else { %>
           <div class="studio-work-list">
             <% socialDrafts.forEach((draft) => { %>
-              <a href="/projects/<%= project._id %>/calendar#post-<%= draft._id %>">
-                <div><strong><%= draft.title || 'Untitled post' %></strong><span><%= draft.channel %> · <%= draft.scheduledFor.toLocaleDateString() %></span></div>
-                <span class="status"><%= draft.status.replace(/_/g, ' ') %></span>
+              <a href="/projects/<%= project._id %>/calendar#post-<%= draft._id %>" class="studio-work-item">
+                <div class="studio-item-main">
+                  <strong><%= draft.title || 'Untitled post' %></strong>
+                  <span><%= draft.channel %> · <%= draft.scheduledFor.toLocaleDateString() %></span>
+                </div>
+                <span class="status status-<%= draft.status %>"><%= draft.status.replace(/_/g, ' ') %></span>
               </a>
             <% }) %>
           </div>
@@ -163,11 +192,18 @@
     </div>
 
     <% if (recentPipelineDrafts.length) { %>
-      <section class="panel">
-        <div class="panel-title"><h2>Just generated</h2><span class="status"><%= recentPipelineDrafts.length %> assets</span></div>
+      <section class="panel studio-pipeline-panel">
+        <div class="panel-title">
+          <h2>Just generated</h2>
+          <span class="status"><%= recentPipelineDrafts.length %> assets</span>
+        </div>
         <div class="content-card-grid">
           <% recentPipelineDrafts.forEach((draft) => { %>
-            <a class="content-card" href="/content/<%= draft._id %>"><strong><%= draft.title || 'Untitled draft' %></strong><span><%= draft.type.replace(/_/g, ' ') %></span><p><%= draft.body.slice(0, 180) %></p></a>
+            <a class="content-card" href="/content/<%= draft._id %>">
+              <strong><%= draft.title || 'Untitled draft' %></strong>
+              <span><%= draft.type.replace(/_/g, ' ') %></span>
+              <p><%= draft.body.slice(0, 180) %></p>
+            </a>
           <% }) %>
         </div>
       </section>

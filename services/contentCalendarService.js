@@ -122,6 +122,8 @@ function normalizeCalendarFilters(query = {}) {
     campaign: value('campaign').slice(0, 80),
     account: value('account').slice(0, 80),
     contentType: value('contentType').slice(0, 80),
+    approval: ['draft', 'ready_for_review', 'changes_requested', 'approved', 'scheduled'].includes(value('approval')) ? value('approval') : '',
+    owner: value('owner').slice(0, 80),
     view: ['today', 'week', 'month', 'list', 'attention'].includes(value('view')) ? value('view') : 'list',
     date: value('date').slice(0, 10),
     page: Math.max(1, Number.parseInt(value('page'), 10) || 1)

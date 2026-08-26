@@ -70,7 +70,7 @@ const {
   saveProjectLogo
 } = require('../../services/projectLogoService');
 const { retryFailedJob } = require('../../services/projectTaskService');
-const { canChangeProjectRole, canManageProjectRole, canPublishProjectRole, isUnsafeMethod, projectAccessRole } = require('../../services/projectAccessService');
+const { canChangeProjectRole, canManageProjectRole, canPublishProjectRole, canReviewDraftRole, isUnsafeMethod, projectAccessRole } = require('../../services/projectAccessService');
 
 function buildProjectsContext(overrides = {}) {
   const deps = {
@@ -146,6 +146,7 @@ function buildProjectsContext(overrides = {}) {
     canManageProjectRole,
     canChangeProjectRole,
     canPublishProjectRole,
+    canReviewDraftRole,
     isUnsafeMethod,
     projectAccessRole,
     ...overrides
@@ -196,6 +197,7 @@ function buildProjectsContext(overrides = {}) {
         res.locals.projectAccessRole = role;
         res.locals.canManageProject = deps.canChangeProjectRole(role);
         res.locals.canPublishProject = deps.canPublishProjectRole(role);
+        res.locals.canReviewDraft = deps.canReviewDraftRole(role);
         next();
       })
       .catch(next);
@@ -550,7 +552,7 @@ function buildProjectsContext(overrides = {}) {
     ],
     projectMemberValidation: [
       body('email').isEmail().withMessage('Valid team member email is required.').normalizeEmail(),
-      body('role').isIn(['admin', 'member']).withMessage('Team role is invalid.'),
+      body('role').isIn(['admin', 'publisher', 'reviewer', 'analyst', 'member']).withMessage('Team role is invalid.'),
       deps.handleValidation
     ],
     gscOpportunityDraftValidation: [

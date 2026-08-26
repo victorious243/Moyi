@@ -1,0 +1,18 @@
+<%
+  const activeTab = typeof activeSection !== 'undefined' ? activeSection : (typeof activeNav !== 'undefined' ? activeNav : 'content');
+  const pid = project && project._id ? project._id : '';
+%>
+<nav class="project-command-nav content-workspace-nav" aria-label="Content operations">
+  <a class="<%= activeTab === 'content' ? 'is-active' : '' %>" href="/projects/<%= pid %>/content">
+    <strong>Content Studio</strong>
+    <span>Create and review</span>
+  </a>
+  <a class="<%= activeTab === 'calendar' ? 'is-active' : '' %>" href="/projects/<%= pid %>/calendar">
+    <strong>Calendar</strong>
+    <span>See what goes out</span>
+  </a>
+  <a class="<%= activeTab === 'campaigns' ? 'is-active' : '' %>" href="/projects/<%= pid %>/campaigns">
+    <strong>Campaigns</strong>
+    <span>Track each objective</span>
+  </a>
+</nav>

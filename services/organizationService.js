@@ -11,6 +11,7 @@ const { currentPeriod, socialPostAllowance } = require('./usageService');
 
 const ORGANIZATION_ROLE_RANK = {
   analyst: 1,
+  reviewer: 2,
   publisher: 2,
   admin: 3,
   owner: 4
@@ -42,6 +43,14 @@ const AGENCY_ROLE_CAPABILITIES = [
     billing: false
   },
   {
+    role: 'reviewer',
+    approval: true,
+    publishing: false,
+    accounts: false,
+    reporting: true,
+    billing: false
+  },
+  {
     role: 'analyst',
     approval: false,
     publishing: false,
@@ -52,7 +61,7 @@ const AGENCY_ROLE_CAPABILITIES = [
 ];
 
 function canPublishOrganizationRole(role) {
-  return (ORGANIZATION_ROLE_RANK[role] || 0) >= ORGANIZATION_ROLE_RANK.publisher;
+  return ['owner', 'admin', 'publisher'].includes(role);
 }
 
 function canManageOrganizationRole(role) {
@@ -151,7 +160,7 @@ function summarizeAgencyUsagePool({ owner, usage }) {
   };
 }
 
-function summarizeAgencyClientReports({ projects = [], accounts = [], publishJobs = [], approvedDraftCounts = new Map() }) {
+function summarizeAgencyClientReports({ projects = [], accounts = [], publishJobs = [], approvedDraftCounts = new Map(), workflowCounts = new Map() }) {
   const accountGroups = new Map();
   const jobGroups = new Map();
   accounts.forEach((account) => {
@@ -178,6 +187,7 @@ function summarizeAgencyClientReports({ projects = [], accounts = [], publishJob
       .map((account) => account.lastMetricsSyncAt)
       .filter(Boolean)
       .sort((left, right) => new Date(right) - new Date(left))[0] || null;
+    const workflow = workflowCounts.get(key) || {};
 
     return {
       projectId: project._id,
@@ -188,6 +198,10 @@ function summarizeAgencyClientReports({ projects = [], accounts = [], publishJob
       reconnectRequired: reconnectAccounts.length,
       platforms,
       approvedDrafts: Number(approvedDraftCounts.get(key) || 0),
+      pendingReview: Number(workflow.pendingReview || 0),
+      changesRequested: Number(workflow.changesRequested || 0),
+      scheduledPosts: Number(workflow.scheduledPosts || 0),
+      calendarFailures: Number(workflow.calendarFailures || 0),
       publishedPosts: publishedJobs.length,
       measuredPosts: measuredJobs.length,
       failedJobs: failedJobs.length,
@@ -200,7 +214,9 @@ async function buildAgencyWorkspaceDashboard({ organization, projects }) {
   const projectIds = projects.map((project) => project._id);
   const { periodStart, periodEnd } = currentPeriod();
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const [owner, usage, accounts, publishJobs, approvedDrafts] = await Promise.all([
+  const now = new Date();
+  const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const [owner, usage, accounts, publishJobs, approvedDrafts, workflowRows] = await Promise.all([
     User.findById(organization.ownerId).select('name email plan').lean(),
     Usage.findOne({ userId: organization.ownerId, periodStart, periodEnd }).lean(),
     projectIds.length
@@ -231,6 +247,18 @@ async function buildAgencyWorkspaceDashboard({ organization, projects }) {
         },
         { $group: { _id: '$projectId', count: { $sum: 1 } } }
       ])
+      : [],
+    projectIds.length
+      ? SocialDraft.aggregate([
+        { $match: { projectId: { $in: projectIds } } },
+        { $group: {
+          _id: '$projectId',
+          pendingReview: { $sum: { $cond: [{ $or: [{ $eq: ['$reviewStatus', 'ready_for_review'] }, { $eq: ['$publishStatus', 'pending_approval'] }] }, 1, 0] } },
+          changesRequested: { $sum: { $cond: [{ $eq: ['$reviewStatus', 'changes_requested'] }, 1, 0] } },
+          scheduledPosts: { $sum: { $cond: [{ $and: [{ $or: [{ $in: ['$reviewStatus', ['approved', 'scheduled']] }, { $eq: ['$status', 'approved'] }] }, { $gt: ['$scheduledFor', now] }, { $lte: ['$scheduledFor', nextWeek] }] }, 1, 0] } },
+          calendarFailures: { $sum: { $cond: [{ $eq: ['$publishStatus', 'failed'] }, 1, 0] } }
+        } }
+      ])
       : []
   ]);
   const usageDoc = usage || {
@@ -244,11 +272,13 @@ async function buildAgencyWorkspaceDashboard({ organization, projects }) {
     extraSocialPostCredits: 0
   };
   const approvedDraftCounts = new Map(approvedDrafts.map((row) => [String(row._id), row.count]));
+  const workflowCounts = new Map(workflowRows.map((row) => [String(row._id), row]));
   const clients = summarizeAgencyClientReports({
     projects,
     accounts,
     publishJobs,
-    approvedDraftCounts
+    approvedDraftCounts,
+    workflowCounts
   });
   return {
     usagePool: summarizeAgencyUsagePool({ owner, usage: usageDoc }),
@@ -259,7 +289,12 @@ async function buildAgencyWorkspaceDashboard({ organization, projects }) {
       approvedDrafts: clients.reduce((total, client) => total + client.approvedDrafts, 0),
       publishedPosts: clients.reduce((total, client) => total + client.publishedPosts, 0),
       measuredPosts: clients.reduce((total, client) => total + client.measuredPosts, 0),
-      failedJobs: clients.reduce((total, client) => total + client.failedJobs, 0)
+      failedJobs: clients.reduce((total, client) => total + client.failedJobs, 0),
+      pendingReview: clients.reduce((total, client) => total + client.pendingReview, 0),
+      changesRequested: clients.reduce((total, client) => total + client.changesRequested, 0),
+      scheduledPosts: clients.reduce((total, client) => total + client.scheduledPosts, 0),
+      calendarFailures: clients.reduce((total, client) => total + client.calendarFailures, 0),
+      attentionClients: clients.filter((client) => client.reconnectRequired || client.pendingReview || client.changesRequested || client.calendarFailures || client.failedJobs).length
     },
     roleCapabilities: AGENCY_ROLE_CAPABILITIES
   };

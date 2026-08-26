@@ -103,6 +103,8 @@ test('calendar filters are normalized and invalid states are ignored', () => {
     campaign: 'campaign-1',
     account: 'account-1',
     contentType: 'carousel',
+    approval: 'ready_for_review',
+    owner: 'owner-1',
     view: 'month',
     date: '2026-08-25',
     page: '3'
@@ -113,6 +115,8 @@ test('calendar filters are normalized and invalid states are ignored', () => {
     campaign: 'campaign-1',
     account: 'account-1',
     contentType: 'carousel',
+    approval: 'ready_for_review',
+    owner: 'owner-1',
     view: 'month',
     date: '2026-08-25',
     page: 3

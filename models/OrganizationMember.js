@@ -16,7 +16,7 @@ const organizationMemberSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['owner', 'admin', 'publisher', 'analyst'],
+      enum: ['owner', 'admin', 'publisher', 'reviewer', 'analyst'],
       default: 'analyst',
       index: true
     },

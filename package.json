@@ -24,6 +24,7 @@
     "migrate:strategic-intelligence": "node ./scripts/migrate-strategic-intelligence.js",
     "migrate:dgi-data-quality": "node ./scripts/migrate-dgi-data-quality.js",
     "migrate:social-performance": "node ./scripts/migrate-social-performance.js",
+    "migrate:calendar-collaboration": "node ./scripts/migrate-calendar-collaboration.js",
     "generate:bluesky-key": "node ./scripts/generate-bluesky-key.mjs",
     "pretest": "npm run build:distribution",
     "test": "node --test tests/*.test.js"

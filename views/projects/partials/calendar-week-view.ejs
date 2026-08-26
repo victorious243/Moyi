@@ -1,17 +1,39 @@
 <section class="calendar-week-view" aria-label="Seven-day publishing calendar">
   <% if (!calendarDays.some((day) => day.items.length)) { %>
-    <section class="calendar-empty-state calendar-filter-empty"><p class="eyebrow">Open week</p><h2>No content scheduled this week</h2><p>Create content or review unscheduled drafts to fill this publishing window.</p><div class="row-actions"><a class="button button-primary" href="/projects/<%= project._id %>/content#planner">Create Content</a><a class="button" href="/projects/<%= project._id %>/calendar?view=list&status=draft">View Drafts</a></div></section>
+    <section class="calendar-empty-state calendar-filter-empty">
+      <p class="eyebrow">Open week</p>
+      <h2>No content scheduled this week</h2>
+      <p>Create content or review unscheduled drafts to fill this publishing window.</p>
+      <div class="row-actions">
+        <a class="button button-primary" href="/projects/<%= project._id %>/content#planner">Create Content</a>
+        <a class="button" href="/projects/<%= project._id %>/calendar?view=list&status=draft">View Drafts</a>
+      </div>
+    </section>
   <% } else { %>
     <div class="calendar-week-grid">
       <% calendarDays.forEach((day) => { %>
         <section class="calendar-week-day <%= day.isToday ? 'is-today' : '' %>" aria-label="<%= day.fullLabel %>">
-          <header><span><%= day.weekday %></span><strong><%= day.dayNumber %></strong><small><%= day.items.length %> posts</small></header>
-          <% [['Morning','08:00',0,11],['Midday','12:00',11,15],['Afternoon','16:00',15,19],['Evening','20:00',19,24]].forEach(([label,time,start,end]) => { const slotItems = day.items.filter((item) => { const hour = Number(item.localTime.slice(0,2)); return hour >= start && hour < end; }); %>
-            <div class="calendar-week-slot" data-calendar-dropzone data-drop-date="<%= day.dateKey %>" data-drop-time="<%= time %>">
-              <span><%= label %></span>
-              <% slotItems.forEach((item) => { %><%- include('calendar-event', { item }) %><% }) %>
+          <header class="calendar-week-day-header">
+            <div class="day-label-group">
+              <span class="weekday-name"><%= day.weekday %></span>
+              <strong class="day-number"><%= day.dayNumber %></strong>
             </div>
-          <% }) %>
+            <% if (day.items.length) { %>
+              <span class="day-post-count"><%= day.items.length %> <%= day.items.length === 1 ? 'post' : 'posts' %></span>
+            <% } %>
+          </header>
+          <div class="calendar-week-slots">
+            <% [['Morning','08:00',0,11],['Midday','12:00',11,15],['Afternoon','16:00',15,19],['Evening','20:00',19,24]].forEach(([label,time,start,end]) => { const slotItems = day.items.filter((item) => { const hour = Number(item.localTime.slice(0,2)); return hour >= start && hour < end; }); %>
+              <div class="calendar-week-slot" data-calendar-dropzone data-drop-date="<%= day.dateKey %>" data-drop-time="<%= time %>">
+                <span class="slot-time-label"><%= label %> <small><%= time %></small></span>
+                <div class="slot-items">
+                  <% slotItems.forEach((item) => { %>
+                    <%- include('calendar-event', { item, platformIcons: typeof platformIcons !== 'undefined' ? platformIcons : undefined }) %>
+                  <% }) %>
+                </div>
+              </div>
+            <% }) %>
+          </div>
         </section>
       <% }) %>
     </div>

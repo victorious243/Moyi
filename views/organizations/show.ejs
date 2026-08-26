@@ -18,6 +18,7 @@
   </aside>
 
   <section class="app-main">
+    <div class="row-actions" style="margin-bottom: 18px;"><a class="button button-primary" href="/organizations/<%= organization._id %>/calendar">Open Portfolio Calendar</a></div>
     <div class="page-heading">
       <div><p class="eyebrow"><%= organizationRole %> access</p><h1><%= organization.name %></h1><p>Client workspaces, social destinations, and publishing permissions stay separated inside this portfolio.</p></div>
     </div>
@@ -29,7 +30,12 @@
       <div><span>Clients</span><strong><%= projects.length %></strong></div>
       <div><span>Team</span><strong><%= members.length %></strong></div>
       <div><span>Connected Accounts</span><strong><%= formatNumber(agencyTotals.connectedAccounts) %></strong></div>
-      <div><span>Publishing</span><strong><%= ['owner', 'admin', 'publisher'].includes(organizationRole) ? 'Enabled' : 'Read only' %></strong></div>
+      <div><span>Waiting review</span><strong><%= formatNumber(agencyTotals.pendingReview) %></strong></div>
+      <div><span>Changes requested</span><strong><%= formatNumber(agencyTotals.changesRequested) %></strong></div>
+      <div><span>Scheduled this week</span><strong><%= formatNumber(agencyTotals.scheduledPosts) %></strong></div>
+      <div><span>Blocked posts</span><strong><%= formatNumber(agencyTotals.calendarFailures) %></strong></div>
+      <div><span>Clients needing attention</span><strong><%= formatNumber(agencyTotals.attentionClients) %></strong></div>
+      <div><span>Failed publications (30d)</span><strong><%= formatNumber(agencyTotals.failedJobs) %></strong></div>
     </section>
 
     <section class="panel">
@@ -138,12 +144,13 @@
 
     <% if (canManageOrganization) { %>
       <section class="panel">
-        <div class="panel-title"><div><h2>Add team member</h2><p>Publishers can send approved drafts. Analysts can view clients and analytics without changing them.</p></div></div>
+        <div class="panel-title"><div><h2>Add team member</h2><p>Reviewers approve work, publishers send approved posts, and analysts have read-only access.</p></div></div>
         <form class="form" action="/organizations/<%= organization._id %>/members" method="post">
           <label>Email <input type="email" name="email" autocomplete="email" required></label>
           <label>Role
             <select name="role" required>
               <option value="analyst">Analyst - read only</option>
+              <option value="reviewer">Reviewer - comment and approve</option>
               <option value="publisher">Publisher - publish approved drafts</option>
               <option value="admin">Admin - manage clients and team</option>
             </select>
