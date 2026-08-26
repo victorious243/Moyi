@@ -263,6 +263,7 @@
       });
       if (!response.ok) throw new Error('Calendar results could not be loaded.');
       results.innerHTML = await response.text();
+      document.body.classList.remove('calendar-mobile-filter-open');
       results.classList.remove('is-updating');
       const cleanUrl = new URL(url.href);
       cleanUrl.searchParams.delete('fragment');

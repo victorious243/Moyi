@@ -3570,6 +3570,9 @@
   }
 }
 
+/* Close the legacy cal-reveal block without activating the intervening rules. */
+}
+
 /* ==========================================================================
    PURPOSE-BUILT MOBILE CALENDAR (AGENDA FIRST)
    Desktop rules above remain the source of truth at 768px and wider.
