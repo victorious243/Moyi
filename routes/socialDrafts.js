@@ -1238,7 +1238,7 @@ router.post('/:id/reschedule', [
   param('id').isMongoId(),
   body('scheduledFor').isISO8601().withMessage('Choose a valid schedule date.'),
   handleValidation
-], loadSocialDraft, requireDraftManager, requireDraftNotPublishing, asyncHandler(async (req, res) => {
+], loadSocialDraft, requireDraftEditor, requireDraftNotPublishing, asyncHandler(async (req, res) => {
   const activeJob = await PublishJob.exists({
     projectId: req.project._id,
     draftId: req.socialDraft._id,

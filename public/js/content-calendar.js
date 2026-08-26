@@ -583,18 +583,23 @@
     const time = dropzone.dataset.dropTime || eventNode.dataset.localTime;
     if (!date || !time) return;
     const scheduledFor = utcForLocalSchedule(date, time);
-    const formData = new FormData();
-    formData.set('scheduledFor', scheduledFor.toISOString());
+    const token = csrfToken();
     eventNode.setAttribute('aria-busy', 'true');
     try {
       const response = await fetch(`/social-drafts/${encodeURIComponent(eventNode.dataset.draftId)}/reschedule`, {
         method: 'POST',
         credentials: 'same-origin',
-        headers: { Accept: 'application/json', 'X-CSRF-Token': csrfToken() },
-        body: formData
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': token,
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({ scheduledFor: scheduledFor.toISOString(), _csrf: token })
       });
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok || payload.ok === false) throw new Error(payload.message || 'The post could not be rescheduled.');
+      const message = payload.message || payload.error?.message || payload.error || 'The post could not be rescheduled.';
+      if (!response.ok || payload.ok === false) throw new Error(message);
       showToast(payload.message || 'Post rescheduled.');
       await refreshList();
       if (activeDraftId === eventNode.dataset.draftId) await loadDrawer(activeDraftId, { preserveTab: true });
