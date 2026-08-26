@@ -9582,7 +9582,12 @@ input[type="file"]::file-selector-button {
   }
 
   .app-layout {
+    display: block;
+    grid-template-columns: 1fr;
     gap: 12px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
 
   .app-sidebar {

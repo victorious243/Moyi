@@ -1754,8 +1754,8 @@ table code,
   }
 
   .cmo-chat-trigger-btn {
-    bottom: 20px;
-    right: 84px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+    right: 16px !important;
     padding: 8px 14px;
     font-size: 12px;
   }
