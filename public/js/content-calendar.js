@@ -21,6 +21,7 @@
   let listRequest = null;
   let drawerRequest = null;
   let draggedEvent = null;
+  let mobileSearchTimer = null;
 
   const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.content || document.body.dataset.csrfToken || '';
   const currentUrl = () => new URL(window.location.href);
@@ -105,13 +106,147 @@
 
   const updateSearchAndViewControls = () => {
     const url = currentUrl();
-    const search = document.querySelector('[data-calendar-search]');
-    if (search && document.activeElement !== search) search.value = url.searchParams.get('search') || '';
+    document.querySelectorAll('[data-calendar-search], [data-mobile-calendar-search]').forEach((search) => {
+      if (document.activeElement !== search) search.value = url.searchParams.get('search') || '';
+    });
     document.querySelectorAll('[data-calendar-view]').forEach((button) => {
       const active = button.dataset.calendarView === (url.searchParams.get('view') || 'list');
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-pressed', String(active));
     });
+  };
+
+  const mobileDateKey = (date = new Date()) => {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: projectTimezone,
+      year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(date);
+    const values = Object.fromEntries(parts.filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
+  };
+
+  const dateFromKey = (key) => {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(key || ''));
+    return match ? new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12)) : null;
+  };
+
+  const dateKeyFromUtcDate = (date) => [
+    date.getUTCFullYear(),
+    String(date.getUTCMonth() + 1).padStart(2, '0'),
+    String(date.getUTCDate()).padStart(2, '0')
+  ].join('-');
+
+  const addUtcDays = (date, days) => {
+    const next = new Date(date);
+    next.setUTCDate(next.getUTCDate() + days);
+    return next;
+  };
+
+  const setMobileMode = (mobileRoot, mode) => {
+    const resolved = mode === 'month' ? 'month' : 'agenda';
+    mobileRoot.dataset.mobileMode = resolved;
+    mobileRoot.querySelectorAll('[data-mobile-calendar-mode]').forEach((button) => {
+      const active = button.dataset.mobileCalendarMode === resolved;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+    setMobileMonthExpanded(mobileRoot, resolved === 'month');
+  };
+
+  const setMobileMonthExpanded = (mobileRoot, expanded) => {
+    mobileRoot.classList.toggle('is-month-expanded', expanded);
+    const toggle = mobileRoot.querySelector('[data-mobile-month-toggle]');
+    const navigation = mobileRoot.querySelector('[data-mobile-month-navigation]');
+    if (toggle) toggle.setAttribute('aria-expanded', String(expanded));
+    if (navigation) navigation.hidden = !expanded;
+    renderMobileDateGrid(mobileRoot);
+  };
+
+  const renderMobileDateGrid = (mobileRoot) => {
+    const grid = mobileRoot.querySelector('[data-mobile-calendar-grid]');
+    if (!grid) return;
+    const selectedKey = mobileRoot.dataset.selectedDate || mobileDateKey();
+    const selected = dateFromKey(selectedKey) || dateFromKey(mobileDateKey());
+    const anchor = dateFromKey(mobileRoot.dataset.monthAnchor) || selected;
+    const expanded = mobileRoot.classList.contains('is-month-expanded');
+    const todayKey = mobileDateKey();
+    const postDates = new Set([...mobileRoot.querySelectorAll('[data-mobile-post-date]')].map((node) => node.dataset.mobilePostDate));
+    let start;
+    let length;
+    if (expanded) {
+      const first = new Date(Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth(), 1, 12));
+      const mondayOffset = (first.getUTCDay() + 6) % 7;
+      start = addUtcDays(first, -mondayOffset);
+      const last = new Date(Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth() + 1, 0, 12));
+      const covered = mondayOffset + last.getUTCDate();
+      length = Math.ceil(covered / 7) * 7;
+    } else {
+      const mondayOffset = (selected.getUTCDay() + 6) % 7;
+      start = addUtcDays(selected, -mondayOffset);
+      length = 7;
+    }
+    const fragment = document.createDocumentFragment();
+    for (let index = 0; index < length; index += 1) {
+      const date = addUtcDays(start, index);
+      const key = dateKeyFromUtcDate(date);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.mobileDate = key;
+      button.setAttribute('role', 'gridcell');
+      button.setAttribute('aria-label', new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+      }).format(date));
+      button.setAttribute('aria-selected', String(key === selectedKey));
+      button.classList.toggle('is-selected', key === selectedKey);
+      button.classList.toggle('is-today', key === todayKey);
+      button.classList.toggle('is-outside-month', expanded && date.getUTCMonth() !== anchor.getUTCMonth());
+      const number = document.createElement('span');
+      number.textContent = String(date.getUTCDate());
+      button.append(number);
+      if (postDates.has(key)) {
+        const dot = document.createElement('i');
+        dot.setAttribute('aria-hidden', 'true');
+        button.append(dot);
+      }
+      fragment.append(button);
+    }
+    grid.replaceChildren(fragment);
+    const monthLabel = new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', month: 'long', year: 'numeric' }).format(anchor);
+    const label = mobileRoot.querySelector('[data-mobile-month-label]');
+    const expandedLabel = mobileRoot.querySelector('[data-mobile-expanded-month-label]');
+    if (label) label.textContent = monthLabel;
+    if (expandedLabel) expandedLabel.textContent = monthLabel;
+  };
+
+  const selectMobileDate = (mobileRoot, key, { scroll = true } = {}) => {
+    if (!dateFromKey(key)) return;
+    mobileRoot.dataset.selectedDate = key;
+    mobileRoot.dataset.monthAnchor = `${key.slice(0, 7)}-01`;
+    renderMobileDateGrid(mobileRoot);
+    const group = mobileRoot.querySelector(`[data-mobile-agenda-day="${key}"]`);
+    const empty = mobileRoot.querySelector('[data-mobile-selected-empty]');
+    const agenda = mobileRoot.querySelector('[data-mobile-agenda]');
+    if (group) {
+      if (empty) empty.hidden = true;
+      agenda?.classList.remove('has-selected-empty');
+      if (scroll) window.setTimeout(() => group.scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
+    } else {
+      const title = empty?.querySelector('[data-mobile-empty-title]');
+      const date = dateFromKey(key);
+      if (title && date) title.textContent = `No content scheduled for ${new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short' }).format(date)}`;
+      if (empty) empty.hidden = false;
+      agenda?.classList.add('has-selected-empty');
+    }
+  };
+
+  const initializeMobileCalendar = () => {
+    const mobileRoot = document.querySelector('[data-mobile-calendar]');
+    if (!mobileRoot) return;
+    const selected = mobileRoot.dataset.selectedDate || mobileDateKey();
+    mobileRoot.dataset.selectedDate = selected;
+    mobileRoot.dataset.monthAnchor = `${selected.slice(0, 7)}-01`;
+    mobileRoot.dataset.mobileMode = 'agenda';
+    renderMobileDateGrid(mobileRoot);
   };
 
   const refreshList = async ({ url = currentUrl(), push = false, replace = false } = {}) => {
@@ -134,6 +269,7 @@
       if (push) window.history.pushState({ ...(window.history.state || {}), moyiCalendarBase: true }, '', cleanUrl);
       else if (replace) window.history.replaceState({ ...(window.history.state || {}), moyiCalendarBase: true }, '', cleanUrl);
       updateSearchAndViewControls();
+      initializeMobileCalendar();
       syncBulkSelection();
       scheduleListPolling();
     } catch (error) {
@@ -166,11 +302,12 @@
 
   const openFilterPanel = (force) => {
     const panel = document.querySelector('[data-calendar-filters]');
-    const button = document.querySelector('[data-filter-toggle]');
-    if (!panel || !button) return;
+    const buttons = [...document.querySelectorAll('[data-filter-toggle]')];
+    if (!panel || !buttons.length) return;
     const open = typeof force === 'boolean' ? force : !panel.classList.contains('is-open');
     panel.classList.toggle('is-open', open);
-    button.setAttribute('aria-expanded', String(open));
+    buttons.forEach((button) => button.setAttribute('aria-expanded', String(open)));
+    document.body.classList.toggle('calendar-mobile-filter-open', open);
   };
 
   const loadingDrawer = () => {
@@ -469,6 +606,54 @@
   };
 
   document.addEventListener('click', (event) => {
+    const mobileRoot = event.target.closest('[data-mobile-calendar]') || document.querySelector('[data-mobile-calendar]');
+    const mobileSearchToggle = event.target.closest('[data-mobile-search-toggle]');
+    if (mobileSearchToggle && mobileRoot) {
+      const panel = mobileRoot.querySelector('[data-mobile-search-panel]');
+      const open = panel?.hidden !== false;
+      if (panel) panel.hidden = !open;
+      mobileSearchToggle.setAttribute('aria-expanded', String(open));
+      if (open) window.setTimeout(() => panel?.querySelector('input')?.focus(), 0);
+      return;
+    }
+    if (event.target.closest('[data-mobile-search-close]') && mobileRoot) {
+      const panel = mobileRoot.querySelector('[data-mobile-search-panel]');
+      if (panel) panel.hidden = true;
+      mobileRoot.querySelector('[data-mobile-search-toggle]')?.setAttribute('aria-expanded', 'false');
+      return;
+    }
+    if (event.target.closest('[data-mobile-filter-close]')) {
+      openFilterPanel(false);
+      return;
+    }
+    const mobileMode = event.target.closest('[data-mobile-calendar-mode]');
+    if (mobileMode && mobileRoot) {
+      setMobileMode(mobileRoot, mobileMode.dataset.mobileCalendarMode);
+      return;
+    }
+    if (event.target.closest('[data-mobile-month-toggle]') && mobileRoot) {
+      setMobileMonthExpanded(mobileRoot, !mobileRoot.classList.contains('is-month-expanded'));
+      return;
+    }
+    const monthStep = event.target.closest('[data-mobile-month-step]');
+    if (monthStep && mobileRoot) {
+      const anchor = dateFromKey(mobileRoot.dataset.monthAnchor) || dateFromKey(mobileRoot.dataset.selectedDate) || new Date();
+      anchor.setUTCMonth(anchor.getUTCMonth() + Number(monthStep.dataset.mobileMonthStep || 0), 1);
+      mobileRoot.dataset.monthAnchor = dateKeyFromUtcDate(anchor);
+      renderMobileDateGrid(mobileRoot);
+      return;
+    }
+    const mobileDate = event.target.closest('[data-mobile-date]');
+    if (mobileDate && mobileRoot) {
+      selectMobileDate(mobileRoot, mobileDate.dataset.mobileDate);
+      setMobileMode(mobileRoot, 'agenda');
+      return;
+    }
+    if (event.target.closest('[data-mobile-today]') && mobileRoot) {
+      selectMobileDate(mobileRoot, mobileDateKey());
+      setMobileMode(mobileRoot, 'agenda');
+      return;
+    }
     const open = event.target.closest('[data-open-drawer]');
     if (open) {
       const row = open.closest('[data-calendar-row]');
@@ -612,15 +797,18 @@
   }, { signal });
 
   document.addEventListener('input', (event) => {
-    if (!event.target.matches('[data-calendar-search]')) return;
-    window.clearTimeout(searchTimer);
-    searchTimer = window.setTimeout(() => {
+    if (!event.target.matches('[data-calendar-search], [data-mobile-calendar-search]')) return;
+    const isMobileSearch = event.target.matches('[data-mobile-calendar-search]');
+    window.clearTimeout(isMobileSearch ? mobileSearchTimer : searchTimer);
+    const timer = window.setTimeout(() => {
       const url = currentUrl();
       if (event.target.value.trim()) url.searchParams.set('search', event.target.value.trim());
       else url.searchParams.delete('search');
       url.searchParams.delete('page');
       refreshList({ url, replace: true });
     }, 350);
+    if (isMobileSearch) mobileSearchTimer = timer;
+    else searchTimer = timer;
   }, { signal });
 
   document.addEventListener('keydown', (event) => {
@@ -657,12 +845,14 @@
   const directDraftId = currentUrl().searchParams.get('draft');
   if (directDraftId) openDrawer(directDraftId, { history: false });
   else window.history.replaceState({ ...(window.history.state || {}), moyiCalendarBase: true }, '', window.location.href);
+  initializeMobileCalendar();
   scheduleListPolling();
 
   window.__moyiContentCalendar = {
     destroy() {
       controller.abort();
       window.clearTimeout(searchTimer);
+      window.clearTimeout(mobileSearchTimer);
       window.clearTimeout(detailPollTimer);
       window.clearTimeout(listPollTimer);
       if (listRequest) listRequest.abort();

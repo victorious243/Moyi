@@ -546,6 +546,13 @@ test('calendar renders a compact post row without loading advanced controls', as
   assert.match(html, /data-open-drawer/);
   assert.match(html, /\/social-drafts\/social_1\/calendar-detail/);
   assert.match(html, /Useful post copy\./);
+  assert.match(html, /data-mobile-calendar/);
+  assert.match(html, /data-mobile-month-toggle/);
+  assert.match(html, /data-mobile-calendar-grid/);
+  assert.match(html, /class="mobile-calendar-agenda"/);
+  assert.match(html, /class="mobile-agenda-item platform-linkedin/);
+  assert.match(html, /class="mobile-calendar-create"/);
+  assert.match(html, /class="calendar-list-header"/);
   assert.match(html, /Moyi Insights/);
   assert.match(html, /Why Moyi suggests this/);
   assert.match(html, /8 published posts in the previous 28 days/);
@@ -630,6 +637,9 @@ test('calendar drawer lazy-loads media, publishing, and history controls', async
   assert.match(html, /Save description/);
   assert.match(html, /Publish to/);
   assert.match(html, /data-drawer-panel="history"/);
+  assert.match(html, /class="mobile-drawer-cancel"/);
+  assert.match(html, /class="mobile-drawer-save"/);
+  assert.match(html, /id="calendar-draft-update-social_1"/);
 });
 
 

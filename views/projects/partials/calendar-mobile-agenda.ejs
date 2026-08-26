@@ -1,0 +1,163 @@
+<%
+  const mobileItems = typeof items !== 'undefined' ? items : [];
+  const mobileFilters = typeof currentFilters !== 'undefined' ? currentFilters : { search: '', date: '', view: 'list' };
+  const mobileReadiness = typeof readiness !== 'undefined' ? readiness : { attentionCount: 0 };
+  const mobileTimezone = typeof timezone !== 'undefined' ? timezone : 'UTC';
+  const mobilePlatformLabels = typeof platformLabels !== 'undefined' ? platformLabels : {};
+  const mobileDateParts = (value) => {
+    if (!value) return null;
+    const date = value instanceof Date ? value : new Date(value);
+    if (!Number.isFinite(date.getTime())) return null;
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: mobileTimezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).formatToParts(date);
+    const values = Object.fromEntries(parts.filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
+  };
+  const mobileTodayKey = mobileDateParts(new Date());
+  const mobileTomorrow = new Date();
+  mobileTomorrow.setUTCDate(mobileTomorrow.getUTCDate() + 1);
+  const mobileTomorrowKey = mobileDateParts(mobileTomorrow);
+  const mobileSelectedDate = mobileFilters.date || mobileTodayKey;
+  const mobileGroups = new Map();
+  mobileItems.forEach((item) => {
+    const key = item.localDate || mobileDateParts(item.draft?.scheduledFor) || 'unscheduled';
+    if (!mobileGroups.has(key)) mobileGroups.set(key, []);
+    mobileGroups.get(key).push(item);
+  });
+  const mobileSortedGroups = [...mobileGroups.entries()].sort(([left], [right]) => {
+    if (left === 'unscheduled') return 1;
+    if (right === 'unscheduled') return -1;
+    return left.localeCompare(right);
+  });
+  const mobileDateLabel = (key) => {
+    if (key === 'unscheduled') return { date: 'Unscheduled', relative: 'Drafts' };
+    const date = new Date(`${key}T12:00:00.000Z`);
+    return {
+      date: new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', day: '2-digit', month: 'short' }).format(date),
+      relative: key === mobileTodayKey
+        ? 'Today'
+        : key === mobileTomorrowKey
+          ? 'Tomorrow'
+          : new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', weekday: 'long' }).format(date)
+    };
+  };
+%>
+
+<section class="calendar-mobile-experience" data-mobile-calendar data-selected-date="<%= mobileSelectedDate %>" data-timezone="<%= mobileTimezone %>">
+  <div class="mobile-calendar-sticky">
+    <header class="mobile-calendar-header">
+      <button class="mobile-month-title" type="button" data-mobile-month-toggle aria-expanded="false" aria-controls="mobile-month-grid">
+        <span data-mobile-month-label>Calendar</span>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>
+      </button>
+      <div class="mobile-calendar-header-actions">
+        <button class="mobile-icon-button" type="button" data-mobile-today aria-label="Go to today" title="Today">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="2.5" y="4" width="15" height="13.5" rx="2"/><path d="M6 2.5V6M14 2.5V6M2.5 8h15"/><circle cx="10" cy="12.5" r="1.6" fill="currentColor" stroke="none"/></svg>
+        </button>
+        <button class="mobile-icon-button" type="button" data-mobile-search-toggle aria-expanded="false" aria-controls="mobile-calendar-search" aria-label="Search calendar">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="8.7" cy="8.7" r="5.7"/><path d="m13 13 4 4"/></svg>
+        </button>
+        <button class="mobile-icon-button" type="button" data-filter-toggle aria-expanded="false" aria-label="Filter calendar">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M3 5h14M5.5 10h9M8 15h4"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="mobile-calendar-search" id="mobile-calendar-search" data-mobile-search-panel hidden>
+      <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="8.7" cy="8.7" r="5.7"/><path d="m13 13 4 4"/></svg>
+      <input type="search" value="<%= mobileFilters.search || '' %>" placeholder="Search content…" autocomplete="off" data-mobile-calendar-search aria-label="Search calendar content">
+      <button type="button" data-mobile-search-close aria-label="Close search">Close</button>
+    </div>
+
+    <div class="mobile-calendar-switcher" role="group" aria-label="Mobile calendar view">
+      <button type="button" class="is-active" data-mobile-calendar-mode="agenda" aria-pressed="true">Agenda</button>
+      <button type="button" data-mobile-calendar-mode="month" aria-pressed="false">Month</button>
+    </div>
+
+    <div class="mobile-date-navigator" id="mobile-month-grid">
+      <div class="mobile-month-navigation" data-mobile-month-navigation hidden>
+        <button type="button" data-mobile-month-step="-1" aria-label="Previous month">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m10 3-5 5 5 5"/></svg>
+        </button>
+        <span data-mobile-expanded-month-label></span>
+        <button type="button" data-mobile-month-step="1" aria-label="Next month">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg>
+        </button>
+      </div>
+      <div class="mobile-calendar-weekdays" aria-hidden="true">
+        <% ['M','T','W','T','F','S','S'].forEach((day) => { %><span><%= day %></span><% }) %>
+      </div>
+      <div class="mobile-calendar-grid" role="grid" aria-label="Choose a calendar date" data-mobile-calendar-grid></div>
+    </div>
+  </div>
+
+  <a
+    class="mobile-attention-summary <%= mobileReadiness.attentionCount ? 'has-attention' : 'is-clear' %>"
+    href="<%= calendarQuery({ view: mobileReadiness.attentionCount ? 'attention' : 'list', page: 1 }) %>"
+    data-calendar-filter-link
+  >
+    <span class="mobile-attention-icon" aria-hidden="true"><%= mobileReadiness.attentionCount ? '!' : '✓' %></span>
+    <span><%= mobileReadiness.attentionCount ? `${mobileReadiness.attentionCount} item${mobileReadiness.attentionCount === 1 ? '' : 's'} need attention` : 'Everything ready' %></span>
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg>
+  </a>
+
+  <div class="mobile-selected-empty" data-mobile-selected-empty hidden>
+    <strong data-mobile-empty-title>No content scheduled</strong>
+    <p>This date is open. Create a post or choose another day.</p>
+  </div>
+
+  <div class="mobile-calendar-agenda" data-mobile-agenda>
+    <% if (!mobileSortedGroups.length) { %>
+      <section class="mobile-calendar-empty">
+        <strong><%= chipDefinitions.length ? 'Nothing matches these filters' : 'No content scheduled yet' %></strong>
+        <p><%= chipDefinitions.length ? 'Adjust the filters to see more content.' : 'Create your first post or generate a content plan.' %></p>
+      </section>
+    <% } %>
+
+    <% mobileSortedGroups.forEach(([dateKey, groupItems]) => { const heading = mobileDateLabel(dateKey); %>
+      <section class="mobile-agenda-day" id="mobile-day-<%= dateKey %>" data-mobile-agenda-day="<%= dateKey %>">
+        <header class="mobile-agenda-day-heading">
+          <strong><%= heading.date %></strong>
+          <span><%= heading.relative %></span>
+        </header>
+        <div class="mobile-agenda-day-items">
+          <% groupItems.forEach((item) => { const draft = item.draft; %>
+            <article
+              class="mobile-agenda-item platform-<%= draft.channel %> <%= item.hasAttention ? 'has-attention' : '' %>"
+              data-calendar-row
+              data-draft-id="<%= draft._id %>"
+              data-drawer-endpoint="/social-drafts/<%= draft._id %>/calendar-detail"
+              data-mobile-post-date="<%= dateKey %>"
+            >
+              <time class="mobile-agenda-time" <%= draft.scheduledFor ? `datetime="${draft.scheduledFor.toISOString()}"` : '' %>><%= dateKey === 'unscheduled' ? '—' : item.displayTime %></time>
+              <span class="mobile-agenda-indicator" aria-hidden="true"></span>
+              <button class="mobile-agenda-content" type="button" data-open-drawer aria-label="Open <%= draft.title || 'untitled post' %>">
+                <% if (item.thumbnailUrl) { %><img class="mobile-agenda-thumb" src="<%= item.thumbnailUrl %>" alt="" loading="lazy"><% } %>
+                <span class="mobile-agenda-copy">
+                  <strong><%= draft.title || 'Untitled post' %></strong>
+                  <% if (draft.body) { %><span class="mobile-agenda-caption"><%= String(draft.body).slice(0, 150) %><%= String(draft.body).length > 150 ? '…' : '' %></span><% } %>
+                  <span class="mobile-agenda-meta">
+                    <span><%= mobilePlatformLabels[draft.channel] || draft.channel %></span>
+                    <% if (item.accountName) { %><span>·</span><span><%= item.accountName %></span><% } %>
+                    <% if (draft.campaignId?.name) { %><span>·</span><span><%= draft.campaignId.name %></span><% } %>
+                  </span>
+                  <span class="mobile-agenda-status status-tone-<%= item.statusTone %>"><span class="status-dot"></span><%= item.statusLabel %></span>
+                  <% if (item.blocker) { %><span class="mobile-agenda-blocker"><%= item.blocker %></span><% } %>
+                </span>
+                <svg class="mobile-agenda-chevron" width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg>
+              </button>
+            </article>
+          <% }) %>
+        </div>
+      </section>
+    <% }) %>
+  </div>
+
+  <a class="mobile-calendar-create" href="/projects/<%= project._id %>/content#planner" aria-label="Create content" title="Create content">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M11 4v14M4 11h14"/></svg>
+  </a>
+</section>

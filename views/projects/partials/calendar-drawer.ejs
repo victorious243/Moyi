@@ -42,6 +42,7 @@
 %>
 
 <header class="calendar-drawer-header">
+  <button class="mobile-drawer-cancel" type="button" data-close-drawer>Cancel</button>
   <div>
     <p class="eyebrow"><%= draft.channel %> content</p>
     <h2 id="calendar-drawer-title"><%= draft.title || 'Untitled post' %></h2>
@@ -54,6 +55,7 @@
       <span><%= draft.scheduledFor ? draft.scheduledFor.toLocaleString() : 'Unscheduled' %></span>
     </div>
   </div>
+  <% if (canChange) { %><button class="mobile-drawer-save" type="submit" form="calendar-draft-update-<%= draft._id %>">Save</button><% } %>
   <button class="icon-button" type="button" aria-label="Close post details" title="Close" data-close-drawer>
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4L4 12M4 4l8 8"/></svg>
   </button>
@@ -81,7 +83,7 @@
       <% if (canReview && ['ready_for_review','approved','scheduled'].includes(currentReviewStatus)) { %><form action="/social-drafts/<%= draft._id %>/review/request_changes" method="post" data-async-action data-refresh-drawer><input type="text" name="comment" maxlength="2000" placeholder="Describe the required changes" required><button class="button" type="submit">Request changes</button></form><% } %>
     </div>
     <% if (canChange) { %>
-      <form class="form calendar-drawer-form" action="/social-drafts/<%= draft._id %>/update" method="post" data-async-action data-refresh-drawer>
+      <form id="calendar-draft-update-<%= draft._id %>" class="form calendar-drawer-form" action="/social-drafts/<%= draft._id %>/update" method="post" data-async-action data-refresh-drawer>
         <div class="form-grid">
           <label>Internal title<input name="title" value="<%= draft.title || '' %>" maxlength="180"></label>
           <label>Platform<select name="channel" data-draft-channel><% ['bluesky','linkedin','instagram','facebook','threads','x','tiktok','youtube','email','webhook'].forEach((channel) => { %><option value="<%= channel %>" <%= draft.channel === channel ? 'selected' : '' %>><%= channel %></option><% }) %></select></label>

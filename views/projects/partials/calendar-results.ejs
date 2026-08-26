@@ -182,6 +182,10 @@
 </nav>
 
 <form class="calendar-filter-panel" method="get" action="/projects/<%= project._id %>/calendar" data-calendar-filters>
+  <div class="mobile-filter-sheet-header">
+    <strong>Filters</strong>
+    <button type="button" data-mobile-filter-close aria-label="Close filters">Done</button>
+  </div>
   <div class="calendar-filter-grid">
     <label>Status
       <select name="status">
@@ -241,6 +245,17 @@
   <% }) %>
   <% if (chipDefinitions.length > 1) { %><a class="calendar-clear-all-link" href="<%= clearFiltersUrl %>" data-calendar-clear>Clear all</a><% } %>
 </div>
+
+<%- include('calendar-mobile-agenda', {
+  project,
+  items,
+  currentFilters,
+  readiness,
+  timezone,
+  platformLabels,
+  calendarQuery,
+  chipDefinitions
+}) %>
 
 <% if (currentFilters.view === 'attention') { %>
   <% const itemByDraftId = new Map(items.map((item) => [String(item.draft._id), item])); %>
