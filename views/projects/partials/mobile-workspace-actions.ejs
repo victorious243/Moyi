@@ -16,8 +16,17 @@
 
 <div class="mobile-workspace-actions" data-mobile-workspace-actions>
   <div class="mobile-workspace-menu" id="<%= mobileActionMenuId %>" data-mobile-workspace-menu hidden>
-    <button type="button" class="mobile-workspace-menu-item" data-mobile-open-cmo>
-      <span>Ask CMO</span>
+    <button type="button" class="mobile-workspace-menu-item mobile-workspace-menu-cmo-item" data-mobile-open-cmo>
+      <span class="mobile-workspace-menu-cmo">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          <circle cx="9" cy="10" r="1" fill="currentColor"></circle>
+          <circle cx="12" cy="10" r="1" fill="currentColor"></circle>
+          <circle cx="15" cy="10" r="1" fill="currentColor"></circle>
+        </svg>
+        <span>Ask CMO</span>
+      </span>
+      <span class="mobile-workspace-cmo-pill">AI</span>
     </button>
     <span class="mobile-workspace-menu-divider" aria-hidden="true"></span>
     <% mobileWorkspaceLinks.forEach((link) => { %>

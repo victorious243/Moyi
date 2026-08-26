@@ -167,14 +167,40 @@
     }
   }
 
+  window.MoyiCmoChat = {
+    open() {
+      toggleDrawer(true);
+    },
+    close() {
+      toggleDrawer(false);
+    },
+    toggle() {
+      toggleDrawer();
+    },
+    isOpen() {
+      const drawer = document.getElementById('cmo-chat-drawer');
+      return !!(drawer && drawer.classList.contains('is-open'));
+    }
+  };
+
+  document.addEventListener('moyi:open-cmo-chat', () => {
+    toggleDrawer(true);
+  });
+  document.addEventListener('moyi:close-cmo-chat', () => {
+    toggleDrawer(false);
+  });
+  document.addEventListener('moyi:toggle-cmo-chat', () => {
+    toggleDrawer();
+  });
+
   // Document-level event delegation
   document.addEventListener('click', (e) => {
-    // Trigger button click
-    const trigger = e.target.closest('#cmo-chat-trigger-btn, .cmo-chat-trigger-btn');
-    if (trigger) {
+    // Trigger button or any open-cmo element click
+    const trigger = e.target.closest('#cmo-chat-trigger-btn, .cmo-chat-trigger-btn, [data-mobile-open-cmo], [data-open-cmo], [data-cmo-trigger]');
+    if (trigger && !trigger.closest('[data-mobile-workspace-actions]')) {
       e.preventDefault();
       e.stopPropagation();
-      toggleDrawer();
+      toggleDrawer(true);
       return;
     }
 

@@ -1762,13 +1762,13 @@ table code,
 
   .cmo-chat-drawer {
     position: fixed !important;
-    bottom: 76px !important;
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px)) !important;
     right: 12px !important;
     left: 12px !important;
     width: auto !important;
     max-width: none !important;
-    height: calc(85vh - 84px) !important;
-    max-height: none !important;
+    height: min(85dvh, 640px) !important;
+    max-height: calc(100dvh - 32px) !important;
     z-index: 99999 !important;
   }
 }

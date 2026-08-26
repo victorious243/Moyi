@@ -33,7 +33,18 @@
       event.preventDefault();
       const container = openCmo.closest('[data-mobile-workspace-actions]');
       closeMenu(container);
-      document.getElementById('cmo-chat-trigger-btn')?.click();
+      if (window.MoyiCmoChat && typeof window.MoyiCmoChat.open === 'function') {
+        window.MoyiCmoChat.open();
+      } else {
+        document.dispatchEvent(new CustomEvent('moyi:open-cmo-chat'));
+        const drawer = document.getElementById('cmo-chat-drawer');
+        if (drawer) {
+          drawer.classList.add('is-open');
+          drawer.setAttribute('aria-hidden', 'false');
+          const input = document.getElementById('cmo-chat-input');
+          if (input) setTimeout(() => input.focus(), 150);
+        }
+      }
       return;
     }
 
