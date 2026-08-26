@@ -1,0 +1,54 @@
+<%
+  const mobileActionProject = typeof project !== 'undefined' ? project : null;
+  const mobileActionProjectId = mobileActionProject && mobileActionProject._id ? String(mobileActionProject._id) : '';
+  const mobileActionActive = typeof activeSection !== 'undefined' ? activeSection : '';
+  const mobileActionShowCreate = typeof showCreate !== 'undefined' ? Boolean(showCreate) : true;
+  const mobileActionCreateHref = typeof createHref !== 'undefined' && createHref
+    ? createHref
+    : `/projects/${mobileActionProjectId}/content#planner`;
+  const mobileActionMenuId = `mobile-workspace-menu-${mobileActionProjectId || 'project'}`;
+  const mobileWorkspaceLinks = [
+    { key: 'content', label: 'Content Studio', href: `/projects/${mobileActionProjectId}/content#planner` },
+    { key: 'calendar', label: 'Calendar', href: `/projects/${mobileActionProjectId}/calendar` },
+    { key: 'campaigns', label: 'Campaigns', href: `/projects/${mobileActionProjectId}/campaigns` }
+  ];
+%>
+
+<div class="mobile-workspace-actions" data-mobile-workspace-actions>
+  <div class="mobile-workspace-menu" id="<%= mobileActionMenuId %>" data-mobile-workspace-menu hidden>
+    <button type="button" class="mobile-workspace-menu-item" data-mobile-open-cmo>
+      <span>Ask CMO</span>
+    </button>
+    <span class="mobile-workspace-menu-divider" aria-hidden="true"></span>
+    <% mobileWorkspaceLinks.forEach((link) => { %>
+      <a
+        class="mobile-workspace-menu-item <%= mobileActionActive === link.key ? 'is-active' : '' %>"
+        href="<%= link.href %>"
+        <% if (mobileActionActive === link.key) { %>aria-current="page"<% } %>
+      >
+        <span><%= link.label %></span>
+        <% if (mobileActionActive === link.key) { %><span class="mobile-workspace-current" aria-hidden="true">✓</span><% } %>
+      </a>
+    <% }) %>
+  </div>
+
+  <% if (mobileActionShowCreate) { %>
+    <a class="mobile-calendar-create" href="<%= mobileActionCreateHref %>" aria-label="Create content" title="Create content">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M11 4v14M4 11h14"/></svg>
+    </a>
+  <% } %>
+
+  <button
+    class="mobile-workspace-switcher"
+    type="button"
+    aria-label="Open content workspace menu"
+    aria-expanded="false"
+    aria-controls="<%= mobileActionMenuId %>"
+    data-mobile-workspace-toggle
+  >
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
+      <path d="M11 3.5 18.5 11 11 18.5 3.5 11 11 3.5Z"/>
+      <path d="M11 7.5 14.5 11 11 14.5 7.5 11 11 7.5Z"/>
+    </svg>
+  </button>
+</div>

@@ -553,6 +553,12 @@ test('calendar renders a compact post row without loading advanced controls', as
   assert.match(html, /class="mobile-calendar-agenda"/);
   assert.match(html, /class="mobile-agenda-item platform-linkedin/);
   assert.match(html, /class="mobile-calendar-create"/);
+  assert.match(html, /data-mobile-workspace-actions/);
+  assert.match(html, /data-mobile-workspace-toggle/);
+  assert.match(html, /data-mobile-open-cmo/);
+  assert.match(html, /href="\/projects\/project_1\/calendar"/);
+  assert.match(html, /aria-current="page"/);
+  assert.match(html, /\/js\/content-workspace-actions\.js/);
   assert.match(html, /class="calendar-list-header"/);
   assert.match(html, /Moyi Insights/);
   assert.match(html, /Why Moyi suggests this/);
@@ -560,6 +566,25 @@ test('calendar renders a compact post row without loading advanced controls', as
   assert.match(html, /\/projects\/project_1\/content#planner/);
   assert.doesNotMatch(html, /Generate image/);
   assert.doesNotMatch(html, /Publish to/);
+});
+
+test('mobile workspace actions expose the content workspace routes and active state', async () => {
+  const html = await ejs.renderFile(
+    path.join(__dirname, '../views/projects/partials/mobile-workspace-actions.ejs'),
+    {
+      project: { _id: 'project_1' },
+      activeSection: 'campaigns',
+      showCreate: true,
+      createHref: '/projects/project_1/content#planner'
+    }
+  );
+
+  assert.match(html, /href="\/projects\/project_1\/content#planner"/);
+  assert.match(html, /href="\/projects\/project_1\/calendar"/);
+  assert.match(html, /href="\/projects\/project_1\/campaigns"/);
+  assert.match(html, /Campaigns/);
+  assert.match(html, /aria-current="page"/);
+  assert.match(html, /aria-label="Open content workspace menu"/);
 });
 
 test('month calendar caps crowded days and links to the focused day', async () => {

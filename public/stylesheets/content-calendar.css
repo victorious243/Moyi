@@ -43,6 +43,7 @@
 
 /* Dedicated phone calendar is opt-in at the mobile breakpoint only. */
 .calendar-mobile-experience,
+.mobile-workspace-actions,
 .mobile-filter-sheet-header,
 .mobile-drawer-cancel,
 .mobile-drawer-save {
@@ -3589,7 +3590,7 @@
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
-    padding: 0 0 calc(112px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 0 0 calc(174px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   .content-calendar-workspace > .project-command-nav,
@@ -4170,10 +4171,6 @@
   }
 
   .mobile-calendar-create {
-    position: fixed;
-    right: 16px;
-    bottom: calc(22px + env(safe-area-inset-bottom, 0px));
-    z-index: 46;
     display: grid;
     place-items: center;
     width: 54px;
@@ -4189,17 +4186,105 @@
     transform: scale(0.96);
   }
 
-  .content-calendar-workspace ~ * .cmo-chat-trigger-btn,
-  body:has([data-mobile-calendar]) .cmo-chat-trigger-btn {
-    right: 82px !important;
-    bottom: calc(27px + env(safe-area-inset-bottom, 0px)) !important;
-    min-width: 0 !important;
-    height: 44px !important;
-    padding: 0 12px !important;
+  .mobile-workspace-actions {
+    position: fixed;
+    right: 16px;
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    z-index: 46;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 13px;
+    pointer-events: none;
   }
 
-  body:has([data-mobile-calendar]) .cmo-chat-trigger-btn .cmo-trigger-label {
-    font-size: 11px !important;
+  .mobile-workspace-actions > * {
+    pointer-events: auto;
+  }
+
+  .mobile-workspace-switcher {
+    display: grid;
+    place-items: center;
+    width: 50px;
+    height: 50px;
+    border: 1px solid rgba(86, 230, 210, 0.42);
+    border-radius: 50%;
+    background: rgba(14, 22, 22, 0.94);
+    color: var(--cal-accent);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.44), 0 0 24px rgba(86, 230, 210, 0.14);
+    backdrop-filter: blur(14px) saturate(120%);
+    transition: transform var(--cal-transition), border-color var(--cal-transition), background var(--cal-transition);
+  }
+
+  .mobile-workspace-switcher:active,
+  .mobile-workspace-switcher[aria-expanded="true"] {
+    transform: scale(0.96);
+    border-color: rgba(86, 230, 210, 0.72);
+    background: rgba(18, 31, 30, 0.98);
+  }
+
+  .mobile-workspace-menu {
+    display: grid;
+    gap: 3px;
+    width: min(238px, calc(100vw - 32px));
+    margin-bottom: 2px;
+    padding: 7px;
+    border: 1px solid var(--cal-border-active);
+    border-radius: 10px;
+    background: rgba(16, 20, 23, 0.97);
+    box-shadow: 0 18px 52px rgba(0, 0, 0, 0.58);
+    backdrop-filter: blur(18px) saturate(130%);
+  }
+
+  .mobile-workspace-menu[hidden] {
+    display: none !important;
+  }
+
+  .mobile-workspace-menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 44px;
+    width: 100%;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--cal-text-secondary);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    text-align: left;
+    text-decoration: none;
+  }
+
+  .mobile-workspace-menu-item:active,
+  .mobile-workspace-menu-item:focus-visible {
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    outline: 2px solid rgba(86, 230, 210, 0.55);
+    outline-offset: 2px;
+  }
+
+  .mobile-workspace-menu-item.is-active {
+    background: rgba(86, 230, 210, 0.12);
+    color: #fff;
+  }
+
+  .mobile-workspace-current {
+    color: var(--cal-accent);
+    font-size: 13px;
+  }
+
+  .mobile-workspace-menu-divider {
+    height: 1px;
+    margin: 3px 5px;
+    background: var(--cal-border-subtle);
+  }
+
+  body:has([data-mobile-workspace-actions]) .cmo-chat-trigger-btn {
+    display: none !important;
   }
 
   .calendar-filter-panel {
@@ -4415,8 +4500,10 @@
   }
 
   body.calendar-drawer-open .mobile-calendar-create,
+  body.calendar-drawer-open .mobile-workspace-actions,
   body.calendar-drawer-open .cmo-chat-trigger-btn,
   body.calendar-mobile-filter-open .mobile-calendar-create,
+  body.calendar-mobile-filter-open .mobile-workspace-actions,
   body.calendar-mobile-filter-open .cmo-chat-trigger-btn {
     display: none !important;
   }
@@ -4455,13 +4542,8 @@
     height: 44px;
   }
 
-  body:has([data-mobile-calendar]) .cmo-chat-trigger-btn {
-    width: 44px !important;
-    padding: 0 !important;
-  }
-
-  body:has([data-mobile-calendar]) .cmo-chat-trigger-btn .cmo-trigger-label {
-    display: none !important;
+  .mobile-workspace-actions {
+    right: 12px;
   }
 }
 

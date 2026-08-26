@@ -87,4 +87,11 @@
   </section>
 </div>
 
+<%- include('partials/mobile-workspace-actions', {
+  project,
+  activeSection: 'campaigns',
+  showCreate: true,
+  createHref: `/projects/${project._id}/content#planner`
+}) %>
+
 <%- include('../partials/footer') %>
