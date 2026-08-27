@@ -20,6 +20,7 @@ const experimentSchema = new mongoose.Schema({
   projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', required: true, index: true },
   ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   sourceRecommendationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Recommendation', default: null, index: true },
+  sourceOpportunityId: { type: mongoose.Schema.Types.ObjectId, ref: 'StrategicOpportunity', default: null, index: true },
   name: { type: String, required: true, trim: true },
   hypothesis: { type: String, required: true, trim: true },
   type: {

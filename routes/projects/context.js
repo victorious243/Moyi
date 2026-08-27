@@ -55,6 +55,8 @@ const StrategicOpportunity = require('../../models/StrategicOpportunity');
 const StrategicDecision = require('../../models/StrategicDecision');
 const CompetitorSnapshot = require('../../models/CompetitorSnapshot');
 const StrategicReview = require('../../models/StrategicReview');
+const EvidenceRecord = require('../../models/EvidenceRecord');
+const EvidenceRelationship = require('../../models/EvidenceRelationship');
 const AppError = require('../../utils/appError');
 const handleValidation = require('../../utils/validate');
 const { normalizeUrl } = require('../../utils/url');
@@ -130,6 +132,8 @@ function buildProjectsContext(overrides = {}) {
     StrategicDecision,
     CompetitorSnapshot,
     StrategicReview,
+    EvidenceRecord,
+    EvidenceRelationship,
     AppError,
     handleValidation,
     normalizeUrl,
@@ -416,6 +420,8 @@ function buildProjectsContext(overrides = {}) {
       deps.StrategicDecision.deleteMany({ projectId: project._id }),
       deps.CompetitorSnapshot.deleteMany({ projectId: project._id }),
       deps.StrategicReview.deleteMany({ projectId: project._id }),
+      deps.EvidenceRelationship.deleteMany({ projectId: project._id }),
+      deps.EvidenceRecord.deleteMany({ projectId: project._id }),
       deps.ProjectMember.deleteMany({ projectId: project._id })
     ]);
     await deps.ApiCredential.updateMany({ projectIds: project._id }, { $pull: { projectIds: project._id } });

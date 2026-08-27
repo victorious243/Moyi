@@ -7,10 +7,17 @@ const StrategicReview = require('../../models/StrategicReview');
 const CompetitorSnapshot = require('../../models/CompetitorSnapshot');
 const Competitor = require('../../models/Competitor');
 const GrowthAlert = require('../../models/GrowthAlert');
+const EvidenceRecord = require('../../models/EvidenceRecord');
 const { buildForecast } = require('./forecastingService');
 const { syncStrategicMetricSnapshots } = require('./metricSnapshotService');
 const { buildSearchDemandIntelligence } = require('./searchDemandService');
 const { buildAudienceIntelligence } = require('./audienceIntelligenceService');
+const { diagnoseMetrics } = require('./diagnosticService');
+const { buildCoreEvidenceGraph, persistEvidence } = require('./evidenceService');
+const { evaluateGoalPacing } = require('./goalPacingService');
+const { buildExecutivePriority } = require('./executivePrioritizationService');
+const { metricDefinition } = require('./metricRegistry');
+const { strategicSignificance } = require('./strategicSignificanceService');
 
 const GOAL_METRIC = {
   revenue: 'revenue',
@@ -122,12 +129,15 @@ async function persistStrategicAlert(projectId, input) {
       summary: input.summary,
       businessImpact: input.businessImpact || input.summary,
       evidenceData: input.evidence || {},
+      evidenceIds: input.evidenceIds || [],
       recommendedAction: input.recommendedAction || '',
       ctaUrl: `/projects/${projectId}/strategy-intelligence`,
       ctaLabel: 'Review strategy',
       channels: ['in_app'],
       deliveryPolicy: 'in_app_only',
       deliveryStatus: 'sent',
+      resolutionStatus: 'open',
+      resolvedAt: null,
       dedupeKey
     } },
     { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
@@ -143,6 +153,74 @@ async function persistOpportunity(projectId, opportunity, now = new Date()) {
     },
     { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
+}
+
+function impactForMetric(metric) {
+  if (['revenue', 'qualified_leads', 'conversions', 'cac', 'roas'].includes(metric)) return 'high';
+  if (['leads', 'signups', 'conversion_rate', 'traffic', 'organic_traffic', 'paid_traffic'].includes(metric)) return 'medium';
+  return 'low';
+}
+
+async function persistForecastEvidence(project, forecastDocumentRow) {
+  const forecast = forecastDocumentRow.toObject ? forecastDocumentRow.toObject() : forecastDocumentRow;
+  const available = forecast.forecastValue !== null && forecast.validation && forecast.validation.passed;
+  return persistEvidence({
+    projectId: project._id || project,
+    organizationId: project.organizationId || null,
+    claimKey: `forecast:${forecast.metric}:${forecast.horizon}`,
+    claim: available
+      ? `${metricDefinition(forecast.metric)?.displayName || forecast.metric} has a validated ${forecast.horizon.replace(/_/g, ' ')} forecast.`
+      : `${metricDefinition(forecast.metric)?.displayName || forecast.metric} cannot currently be forecast with acceptable evidence.`,
+    classification: available ? 'modeled' : 'insufficient_evidence',
+    metric: forecast.metric,
+    source: 'strategic_forecast',
+    sourceRecordIds: [forecast._id],
+    periodStart: forecast.periodStart,
+    periodEnd: forecast.periodEnd,
+    observedAt: forecast.generatedAt,
+    value: forecast.forecastValue,
+    sampleSize: forecast.observedDays,
+    confidence: forecast.confidence && forecast.confidence.score,
+    dataQualityScore: forecast.evidence && forecast.evidence.dataQuality && forecast.evidence.dataQuality.score || 0,
+    forecastValidated: available,
+    businessImpact: impactForMetric(forecast.metric),
+    evidence: { forecastId: forecast._id, model: forecast.method, range: [forecast.lowerBound, forecast.upperBound], validation: forecast.validation },
+    unknowns: available ? [] : ['Future value remains unknown because no candidate model passed all evidence gates.'],
+    limitations: [forecast.confidence && forecast.confidence.reason].filter(Boolean),
+    dedupeKey: `forecast:${forecast.metric}:${forecast.horizon}:${forecast.goalId || 'all'}`
+  });
+}
+
+async function persistDiagnosticEvidence(project, diagnostic, now = new Date()) {
+  const observed = diagnostic.status === 'observed';
+  const noMaterialChange = diagnostic.status === 'no_material_change';
+  const label = metricDefinition(diagnostic.metric)?.displayName || diagnostic.metric;
+  return persistEvidence({
+    projectId: project._id,
+    organizationId: project.organizationId || null,
+    claimKey: `movement:${diagnostic.metric}:14d`,
+    claim: observed
+      ? `${label} changed ${diagnostic.changePercent > 0 ? '+' : ''}${diagnostic.changePercent}% across comparable 14-day periods.`
+      : noMaterialChange ? `${label} has no material 14-day movement.` : `${label} movement cannot yet be assessed.`,
+    classification: diagnostic.status === 'insufficient_evidence' ? 'insufficient_evidence' : 'observed',
+    causalLevel: 'OBSERVATIONAL',
+    metric: diagnostic.metric,
+    source: 'strategic_diagnostics',
+    periodStart: diagnostic.quality && diagnostic.quality.firstObservedAt,
+    periodEnd: diagnostic.quality && diagnostic.quality.lastObservedAt,
+    observedAt: now,
+    value: diagnostic.currentValue,
+    previousValue: diagnostic.previousValue,
+    changePercent: diagnostic.changePercent,
+    sampleSize: diagnostic.quality && diagnostic.quality.observations,
+    confidence: diagnostic.confidence || 0,
+    dataQualityScore: diagnostic.quality && diagnostic.quality.score || 0,
+    businessImpact: impactForMetric(diagnostic.metric),
+    evidence: { periodDays: diagnostic.periodDays, significance: diagnostic.significance },
+    unknowns: observed ? ['The observed movement does not establish its cause.'] : [],
+    limitations: diagnostic.quality && diagnostic.quality.issues || [],
+    dedupeKey: `movement:${diagnostic.metric}:14d:${now.toISOString().slice(0, 10)}`
+  });
 }
 
 function searchOpportunity(signal) {
@@ -263,6 +341,12 @@ async function measureDueDecisions(projectId, { searchDemand = [], audience = { 
     decision.outcome.summary = Number.isFinite(changePercent)
       ? `${metric.split(':')[0].replace(/_/g, ' ')} changed ${changePercent >= 0 ? '+' : ''}${decision.outcome.changePercent}% after execution. This is an observed association, not guaranteed causation.`
       : `A comparable post-execution value of ${afterValue} was observed; percentage change is unavailable because the baseline was zero.`;
+    decision.outcomeClassification = Number.isFinite(changePercent)
+      ? Math.abs(changePercent) < 3 ? 'neutral' : changePercent > 0 ? 'success' : 'failure'
+      : 'insufficient_evidence';
+    decision.lessonLearned = Number.isFinite(changePercent)
+      ? `A ${decision.outcomeClassification} outcome was observed after this decision. Reuse this evidence only for comparable contexts; it does not establish causation.`
+      : 'The decision did not produce enough comparable evidence for a measured lesson.';
     decision.measuredAt = now;
     await decision.save();
     measured += 1;
@@ -270,7 +354,9 @@ async function measureDueDecisions(projectId, { searchDemand = [], audience = { 
   return measured;
 }
 
-async function buildAndPersistForecasts(projectId, now = new Date()) {
+async function buildAndPersistForecasts(projectOrId, now = new Date()) {
+  const project = projectOrId && projectOrId._id ? projectOrId : { _id: projectOrId, organizationId: null };
+  const projectId = project._id;
   const [snapshots, goals] = await Promise.all([
     StrategicMetricSnapshot.find({ projectId }).sort({ date: 1 }).lean(),
     MarketingGoal.find({ projectId, status: { $ne: 'paused' } })
@@ -284,7 +370,9 @@ async function buildAndPersistForecasts(projectId, now = new Date()) {
       { name: 'end_of_month', start: startOfMonth(now), end: endOfMonth(now) }
     ]) {
       const forecast = buildForecast({ metric, points, periodStart: horizon.start, periodEnd: horizon.end, now });
-      forecasts.push(await upsertForecast(forecastDocument({ projectId, metric, horizon: horizon.name, periodStart: horizon.start, periodEnd: horizon.end, forecast })));
+      const document = await upsertForecast(forecastDocument({ projectId, metric, horizon: horizon.name, periodStart: horizon.start, periodEnd: horizon.end, forecast }));
+      forecasts.push(document);
+      await persistForecastEvidence(project, document);
     }
   }
   for (const goal of goals) {
@@ -293,6 +381,7 @@ async function buildAndPersistForecasts(projectId, now = new Date()) {
     const forecast = buildForecast({ metric, points: pointsForMetric(snapshots, metric), periodStart: goal.periodStart, periodEnd: goal.periodEnd, targetValue: Number(goal.targetValue), direction: goal.direction, now });
     const document = await upsertForecast(forecastDocument({ projectId, goal, metric, horizon: 'goal_period', periodStart: goal.periodStart, periodEnd: goal.periodEnd, forecast }));
     forecasts.push(document);
+    const forecastEvidence = await persistForecastEvidence(project, document);
     goal.forecastValue = forecast.forecastValue;
     goal.forecastLowerBound = forecast.lowerBound;
     goal.forecastUpperBound = forecast.upperBound;
@@ -309,6 +398,7 @@ async function buildAndPersistForecasts(projectId, now = new Date()) {
       title: `${goal.name}: ${type.replace(/_/g, ' ')}`,
       summary: `Moyi forecasts ${forecast.forecastValue} (${forecast.lowerBound}–${forecast.upperBound}) against a target of ${goal.targetValue}. Goal achievement probability is ${forecast.goalAchievementProbability}%.`,
       evidence: { goalId: goal._id, forecastId: document._id, ...forecast },
+      evidenceIds: [forecastEvidence._id],
       recommendedAction: type.includes('risk') || type.includes('below') ? 'Review the largest controllable gap and approve a corrective action.' : 'Validate the winning drivers before increasing investment.'
     });
   }
@@ -317,8 +407,8 @@ async function buildAndPersistForecasts(projectId, now = new Date()) {
 
 async function refreshStrategicIntelligence(project, { now = new Date(), persist = true } = {}) {
   const sync = await syncStrategicMetricSnapshots(project._id, 90, now);
-  const forecasts = await buildAndPersistForecasts(project._id, now);
-  const [searchDemand, audience, competitors, latestSnapshots] = await Promise.all([
+  const forecasts = await buildAndPersistForecasts(project, now);
+  const [searchDemand, audience, competitors, latestSnapshots, snapshots] = await Promise.all([
     buildSearchDemandIntelligence(project, now),
     buildAudienceIntelligence(project._id, now),
     Competitor.find({ projectId: project._id }).lean(),
@@ -326,19 +416,88 @@ async function refreshStrategicIntelligence(project, { now = new Date(), persist
       { $match: { projectId: project._id } },
       { $sort: { capturedAt: -1 } },
       { $group: { _id: '$competitorId', snapshot: { $first: '$$ROOT' } } }
-    ])
+    ]),
+    StrategicMetricSnapshot.find({ projectId: project._id }).sort({ date: 1 }).lean()
   ]);
+  const diagnostics = diagnoseMetrics(snapshots, { now, windowDays: 14 });
+  const diagnosticEvidence = persist
+    ? await Promise.all(diagnostics.map((item) => persistDiagnosticEvidence(project, item, now)))
+    : [];
+  if (persist) {
+    const activeGoals = await MarketingGoal.find({ projectId: project._id, status: { $ne: 'paused' } }).lean();
+    await buildCoreEvidenceGraph({ project, goals: activeGoals, forecasts });
+  }
   const competitorMap = new Map(competitors.map((item) => [String(item._id), item]));
   const candidates = [
     ...searchDemand.map(searchOpportunity),
     ...audience.signals.map(audienceOpportunity),
     ...latestSnapshots.map(({ snapshot }) => competitorOpportunity(snapshot, competitorMap.get(String(snapshot.competitorId))))
   ].filter(Boolean);
+  const enrichedCandidates = await Promise.all(candidates.map(async (item) => {
+    const significance = strategicSignificance({
+      businessImpact: item.potentialImpact === 'transformational' ? 'critical' : item.potentialImpact,
+      confidence: item.confidence,
+      urgency: item.timeSensitivity === 'immediate' ? 100 : item.timeSensitivity === 'high' ? 80 : 50,
+      goalRelevance: 60,
+      persistence: 50,
+      magnitude: Math.min(100, Number(item.evidence && (item.evidence.changePercent || item.evidence.changePoints) || 25) * 2),
+      effort: item.difficulty,
+      risk: 'medium'
+    });
+    if (!significance.shouldSurface) return null;
+    const evidenceRecord = persist ? await persistEvidence({
+      projectId: project._id,
+      organizationId: project.organizationId || null,
+      claimKey: `opportunity:${item.dedupeKey}`,
+      claim: item.evidenceSummary,
+      classification: 'derived',
+      causalLevel: 'OBSERVATIONAL',
+      metric: item.evidence && item.evidence.metric || '',
+      source: item.type === 'search' ? 'search_console' : item.type === 'competitor_weakness' ? 'public_competitor_pages' : 'first_party_tracking',
+      observedAt: now,
+      sampleSize: Number(item.evidence && (item.evidence.sampleSize || item.evidence.current && item.evidence.current.impressions) || 0),
+      confidence: item.confidence,
+      dataQualityScore: item.confidence,
+      businessImpact: item.potentialImpact === 'transformational' ? 'critical' : item.potentialImpact,
+      evidence: item.evidence,
+      unknowns: ['This opportunity is evidence-backed but its incremental outcome is not yet known.'],
+      dedupeKey: `opportunity:${item.dedupeKey}`
+    }) : null;
+    return { ...item, evidenceIds: evidenceRecord ? [evidenceRecord._id] : [], evidenceClassification: 'derived', strategicPriority: significance.score, urgencyScore: item.timeSensitivity === 'high' ? 80 : 50, risk: 'medium' };
+  }));
   const opportunities = persist
-    ? await Promise.all(candidates.map((item) => persistOpportunity(project._id, item, now)))
-    : candidates;
+    ? await Promise.all(enrichedCandidates.filter(Boolean).map((item) => persistOpportunity(project._id, item, now)))
+    : enrichedCandidates.filter(Boolean);
 
   if (persist) {
+    const activeDiagnosticRiskKeys = [];
+    for (let index = 0; index < diagnostics.length; index += 1) {
+      const diagnostic = diagnostics[index];
+      const definition = metricDefinition(diagnostic.metric);
+      const change = Number(diagnostic.changePercent);
+      const deterioration = diagnostic.status === 'observed' && (
+        (definition && definition.directionality === 'higher' && change < 0)
+        || (definition && definition.directionality === 'lower' && change > 0)
+      );
+      if (!deterioration || !diagnostic.significance || !diagnostic.significance.shouldSurface) continue;
+      const dedupeKey = `diagnostic:${diagnostic.metric}:deterioration`;
+      activeDiagnosticRiskKeys.push(dedupeKey);
+      await persistStrategicAlert(project._id, {
+        type: 'strategic_metric_deterioration', dedupeKey, confidence: diagnostic.confidence,
+        severity: diagnostic.significance.priority === 'immediate' ? 'critical' : 'warning',
+        urgency: diagnostic.significance.priority === 'immediate' ? 'immediate' : 'high',
+        title: `${metricDefinition(diagnostic.metric).displayName} deteriorated`,
+        summary: `${metricDefinition(diagnostic.metric).displayName} changed ${change > 0 ? '+' : ''}${change}% across comparable ${diagnostic.periodDays}-day periods.`,
+        businessImpact: `${impactForMetric(diagnostic.metric)} potential impact`,
+        evidence: diagnostic,
+        evidenceIds: diagnosticEvidence[index] ? [diagnosticEvidence[index]._id] : [],
+        recommendedAction: 'Review related funnel and channel evidence before approving a corrective action.'
+      });
+    }
+    await GrowthAlert.updateMany(
+      { projectId: project._id, category: 'strategic_intelligence', dedupeKey: { $regex: '^diagnostic:', $nin: activeDiagnosticRiskKeys }, resolutionStatus: 'open' },
+      { $set: { resolutionStatus: 'resolved', resolvedAt: now } }
+    );
     for (const opportunity of opportunities) {
       await persistStrategicAlert(project._id, {
         type: opportunity.type === 'market' ? 'market_opportunity' : 'growth_opportunity',
@@ -348,6 +507,7 @@ async function refreshStrategicIntelligence(project, { now = new Date(), persist
         title: opportunity.title,
         summary: opportunity.evidenceSummary,
         evidence: { opportunityId: opportunity._id, ...opportunity.evidence },
+        evidenceIds: opportunity.evidenceIds || [],
         recommendedAction: opportunity.recommendedAction
       });
     }
@@ -384,21 +544,54 @@ async function refreshStrategicIntelligence(project, { now = new Date(), persist
     }
   }
   const measuredDecisions = await measureDueDecisions(project._id, { searchDemand, audience, now });
-  return { sync, forecasts, searchDemand, audience, competitorSnapshots: latestSnapshots.map((item) => item.snapshot), opportunities, measuredDecisions };
+  return { sync, forecasts, diagnostics, diagnosticEvidence, searchDemand, audience, competitorSnapshots: latestSnapshots.map((item) => item.snapshot), opportunities, measuredDecisions };
 }
 
 async function strategyDashboard(project, options = {}) {
   if (options.refresh) await refreshStrategicIntelligence(project, options);
-  const [forecasts, goals, opportunities, decisions, competitorSnapshots, alerts, reviews] = await Promise.all([
+  const [forecasts, goals, opportunities, decisions, competitorSnapshots, alerts, reviews, evidenceRecords, metricSnapshots] = await Promise.all([
     StrategicForecast.find({ projectId: project._id }).sort({ generatedAt: -1 }).lean(),
     MarketingGoal.find({ projectId: project._id }).sort({ periodEnd: 1 }).lean(),
     StrategicOpportunity.find({ projectId: project._id }).sort({ status: 1, confidence: -1, lastDetectedAt: -1 }).lean(),
     StrategicDecision.find({ projectId: project._id }).sort({ createdAt: -1 }).populate('ownerId', 'name email').lean(),
     CompetitorSnapshot.find({ projectId: project._id }).sort({ capturedAt: -1 }).limit(30).lean(),
     GrowthAlert.find({ projectId: project._id, category: 'strategic_intelligence', resolutionStatus: 'open' }).sort({ createdAt: -1 }).limit(30).lean(),
-    StrategicReview.find({ projectId: project._id }).sort({ periodEnd: -1 }).limit(12).lean()
+    StrategicReview.find({ projectId: project._id }).sort({ periodEnd: -1 }).limit(12).lean(),
+    EvidenceRecord.find({ projectId: project._id }).sort({ observedAt: -1, createdAt: -1 }).limit(150).lean(),
+    StrategicMetricSnapshot.find({ projectId: project._id }).sort({ date: -1 }).limit(1000).lean()
   ]);
-  return { forecasts, goals, opportunities, decisions, competitorSnapshots, alerts, reviews };
+  const metricReadiness = [...new Set(metricSnapshots.map((item) => item.metric))].map((metric) => {
+    const relevant = metricSnapshots.filter((item) => item.metric === metric);
+    const latestForecast = forecasts.find((item) => item.metric === metric && item.horizon === 'end_of_month');
+    const maturity = latestForecast && latestForecast.evidence && latestForecast.evidence.maturity;
+    return {
+      metric,
+      observations: new Set(relevant.map((item) => new Date(item.date).toISOString().slice(0, 10))).size,
+      maturity: maturity || null,
+      forecastStatus: latestForecast && latestForecast.validation && latestForecast.validation.passed ? 'validated' : latestForecast ? 'abstained' : 'not_evaluated',
+      reason: latestForecast && latestForecast.confidence && latestForecast.confidence.reason || ''
+    };
+  });
+  const validatedForecasts = forecasts.filter((item) => item.validation && item.validation.passed && item.forecastValue !== null);
+  const maximumMetricObservations = metricReadiness.reduce((maximum, item) => Math.max(maximum, item.observations), 0);
+  const dataQualityScores = evidenceRecords.map((item) => Number(item.dataQualityScore)).filter(Number.isFinite);
+  const readiness = {
+    stage: validatedForecasts.length ? 'forecast_ready' : maximumMetricObservations >= 14 ? 'directional' : maximumMetricObservations > 0 ? 'observing' : 'no_evidence',
+    dataQualityScore: dataQualityScores.length ? Math.round(dataQualityScores.reduce((sum, value) => sum + value, 0) / dataQualityScores.length) : 0,
+    evidenceCount: evidenceRecords.length,
+    validatedForecastCount: validatedForecasts.length,
+    abstainedForecastCount: forecasts.filter((item) => item.method === 'insufficient_data' || item.method === 'failed_backtest').length,
+    metricReadiness,
+    missingContext: [
+      !project.businessModel && 'Business model',
+      !project.targetAudience && 'Target audience',
+      !project.strategicContext?.monthlyMarketingBudget && 'Marketing budget',
+      !project.strategicContext?.riskTolerance && 'Risk tolerance'
+    ].filter(Boolean)
+  };
+  const goalsWithPacing = goals.map((goal) => ({ ...goal, pacing: evaluateGoalPacing(goal) }));
+  const executivePriority = buildExecutivePriority({ opportunities, alerts, goals: goalsWithPacing, readiness });
+  return { forecasts, goals: goalsWithPacing, opportunities, decisions, competitorSnapshots, alerts, reviews, evidenceRecords, metricSnapshots, readiness, executivePriority };
 }
 
 function reviewSections({ dashboard, periodStart, periodEnd }) {
@@ -457,7 +650,7 @@ async function acceptOpportunity({ projectId, opportunityId, userId }) {
   const outcome = measurementForOpportunity(opportunity);
   return StrategicDecision.findOneAndUpdate(
     { projectId, opportunityId: opportunity._id },
-    { $set: { projectId, opportunityId: opportunity._id, ownerId: userId, title: opportunity.title, recommendation: opportunity.recommendedAction, evidenceAtDecision: opportunity.evidence, confidenceAtDecision: opportunity.confidence, decision: 'accepted', decidedAt: new Date(), outcome } },
+    { $set: { projectId, opportunityId: opportunity._id, ownerId: userId, title: opportunity.title, recommendation: opportunity.recommendedAction, evidenceAtDecision: opportunity.evidence, evidenceIds: opportunity.evidenceIds || [], confidenceAtDecision: opportunity.confidence, decision: 'accepted', decidedAt: new Date(), expectedOutcome: opportunity.opportunity, expectedTimeframeDays: opportunity.timeSensitivity === 'immediate' ? 14 : 30, risks: [`${opportunity.risk || 'medium'} implementation risk`, 'Observed evidence does not guarantee incremental impact.'], affectedEntities: opportunity.sourceRefs || {}, outcome } },
     { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
 }

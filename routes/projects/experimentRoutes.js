@@ -3,9 +3,10 @@ const { body, param } = require('express-validator');
 const Experiment = require('../../models/Experiment');
 const ExperimentObservation = require('../../models/ExperimentObservation');
 const Recommendation = require('../../models/Recommendation');
+const StrategicOpportunity = require('../../models/StrategicOpportunity');
 const GrowthAlert = require('../../models/GrowthAlert');
 const { evaluateProjectCro } = require('../../services/experiments/croIntelligenceService');
-const { createFromRecommendation, dashboard, evaluateExperiment, slugKey } = require('../../services/experiments/experimentService');
+const { createFromRecommendation, createFromStrategicOpportunity, dashboard, evaluateExperiment, slugKey } = require('../../services/experiments/experimentService');
 
 const TYPES = ['social_caption', 'cta', 'hook', 'creative', 'posting_time', 'email_subject', 'landing_page', 'campaign_audience', 'paid_creative', 'offer', 'messaging_angle', 'custom'];
 const SOURCES = ['tracking', 'social', 'paid'];
@@ -149,6 +150,18 @@ function registerExperimentRoutes(router, context) {
     if (!recommendation) return res.redirect(`/projects/${req.project._id}/recommendations?error=${encodeURIComponent('Recommendation not found.')}`);
     const experiment = await createFromRecommendation({ recommendation, ownerId: req.user._id });
     res.redirect(`/projects/${req.project._id}/experiments/${experiment._id}?success=${encodeURIComponent('Recommendation converted into an experiment draft. Configure its real measurement source before starting.')}`);
+  }));
+
+  router.post('/:id/experiments/from-opportunity/:opportunityId', [
+    param('id').isMongoId(),
+    param('opportunityId').isMongoId(),
+    context.handleValidation
+  ], context.loadProject, asyncHandler(async (req, res) => {
+    const opportunity = await StrategicOpportunity.findOne({ _id: req.params.opportunityId, projectId: req.project._id, status: { $in: ['open', 'accepted'] } });
+    if (!opportunity) return res.redirect(`/projects/${req.project._id}/strategy-intelligence?error=${encodeURIComponent('Strategic opportunity not found.')}`);
+    const experiment = await createFromStrategicOpportunity({ opportunity, ownerId: req.user._id });
+    if (context.recordAuditEvent) await context.recordAuditEvent({ user: req.user, projectId: req.project._id, eventType: 'strategic_experiment_draft_created', metadata: { opportunityId: String(opportunity._id), experimentId: String(experiment._id) }, req });
+    res.redirect(`/projects/${req.project._id}/experiments/${experiment._id}?success=${encodeURIComponent('Strategic opportunity converted into an experiment draft. Bind real measurement sources before starting.')}`);
   }));
 
   router.post('/:id/experiments/:experimentId/status', [

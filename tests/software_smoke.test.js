@@ -587,6 +587,39 @@ test('mobile workspace actions expose the content workspace routes and active st
   assert.match(html, /aria-label="Open content workspace menu"/);
 });
 
+test('strategy intelligence explains missing evidence instead of showing only unavailable forecasts', async () => {
+  const html = await ejs.renderFile(
+    path.join(__dirname, '../views/projects/strategy-intelligence.ejs'),
+    {
+      appName: 'Moyi',
+      title: 'Strategy Intelligence',
+      currentUser: { name: 'Founder', email: 'founder@example.com' },
+      csrfToken: 'csrf',
+      project: { _id: 'project_1', name: 'VicPods' },
+      dashboard: {
+        forecasts: [],
+        goals: [],
+        opportunities: [],
+        decisions: [],
+        competitorSnapshots: [],
+        alerts: [],
+        reviews: []
+      },
+      selectedReview: null,
+      jobs: [],
+      successMessage: '',
+      errorMessage: ''
+    }
+  );
+
+  assert.match(html, /Moyi is collecting evidence before making strategic claims/);
+  assert.match(html, /Evidence readiness/);
+  assert.match(html, /Make this page intelligent/);
+  assert.match(html, /Set accountable goals/);
+  assert.match(html, /Build forecast-quality history/);
+  assert.match(html, /No connected history for this metric/);
+});
+
 test('month calendar caps crowded days and links to the focused day', async () => {
   const items = Array.from({ length: 5 }, (_, index) => ({
     draft: {

@@ -73,6 +73,7 @@ const growthAlertSchema = new mongoose.Schema(
         'positioning_drift',
         'search_demand_shift',
         'competitor_strategy_change',
+        'strategic_metric_deterioration',
         'growth_opportunity'
       ],
       required: true,
@@ -120,6 +121,7 @@ const growthAlertSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: {}
     },
+    evidenceIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'EvidenceRecord' }],
     recommendedAction: {
       type: String,
       trim: true,

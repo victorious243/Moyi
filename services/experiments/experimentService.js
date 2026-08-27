@@ -45,6 +45,36 @@ function recommendationExperimentPayload({ recommendation, ownerId }) {
   };
 }
 
+function opportunityExperimentPayload({ opportunity, ownerId }) {
+  const type = opportunity.type === 'paid_media' ? 'campaign_audience'
+    : ['search', 'cro'].includes(opportunity.type) ? 'landing_page'
+      : opportunity.type === 'content' ? 'messaging_angle' : 'custom';
+  const defaults = metricDefaults(type);
+  return {
+    projectId: opportunity.projectId,
+    ownerId,
+    sourceOpportunityId: opportunity._id,
+    name: `Test: ${opportunity.title}`.slice(0, 160),
+    hypothesis: `${opportunity.opportunity} The proposed action should improve ${defaults.primaryMetric}.`,
+    type,
+    ...defaults,
+    variants: [
+      { key: 'control', name: 'Current approach', description: 'Continue the existing approved approach.', isControl: true, allocationPercent: 50 },
+      { key: slugKey(opportunity.title, 'variant_b'), name: 'Proposed strategy', description: opportunity.recommendedAction, isControl: false, allocationPercent: 50 }
+    ],
+    secondaryMetrics: [],
+    audience: '',
+    channel: opportunity.channel || 'multi',
+    measurementConfig: { sourceOpportunityId: String(opportunity._id), evidenceIds: (opportunity.evidenceIds || []).map(String) }
+  };
+}
+
+async function createFromStrategicOpportunity({ opportunity, ownerId }) {
+  const existing = await Experiment.findOne({ projectId: opportunity.projectId, sourceOpportunityId: opportunity._id, status: { $in: ['draft', 'running', 'paused'] } });
+  if (existing) return existing;
+  return Experiment.create(opportunityExperimentPayload({ opportunity, ownerId }));
+}
+
 async function evaluateExperiment(experimentId, now = new Date()) {
   const experiment = await Experiment.findById(experimentId);
   if (!experiment) {
@@ -93,10 +123,12 @@ async function evaluateRunningExperiments({ limit = 100, now = new Date() } = {}
 
 module.exports = {
   createFromRecommendation,
+  createFromStrategicOpportunity,
   dashboard,
   evaluateExperiment,
   evaluateRunningExperiments,
   metricDefaults,
   recommendationExperimentPayload,
+  opportunityExperimentPayload,
   slugKey
 };

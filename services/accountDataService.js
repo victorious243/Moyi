@@ -57,6 +57,8 @@ const StrategicOpportunity = require('../models/StrategicOpportunity');
 const StrategicDecision = require('../models/StrategicDecision');
 const CompetitorSnapshot = require('../models/CompetitorSnapshot');
 const StrategicReview = require('../models/StrategicReview');
+const EvidenceRecord = require('../models/EvidenceRecord');
+const EvidenceRelationship = require('../models/EvidenceRelationship');
 const { deleteContentImagesForProject } = require('./contentImageService');
 const { deleteMediaAssetsForProject } = require('./mediaAssetCleanupService');
 
@@ -130,6 +132,8 @@ function createAccountDataService(deps = {}) {
     StrategicDecision,
     CompetitorSnapshot,
     StrategicReview,
+    EvidenceRecord,
+    EvidenceRelationship,
     deleteContentImagesForProject,
     deleteMediaAssetsForProject,
     ...deps
@@ -196,7 +200,9 @@ function createAccountDataService(deps = {}) {
       strategicOpportunities,
       strategicDecisions,
       competitorSnapshots,
-      strategicReviews
+      strategicReviews,
+      evidenceRecords,
+      evidenceRelationships
     ] = await Promise.all([
       models.Scan.find({ projectId: { $in: projectIds } }).lean(),
       models.Page.find({ projectId: { $in: projectIds } }).lean(),
@@ -261,7 +267,9 @@ function createAccountDataService(deps = {}) {
       models.StrategicOpportunity.find({ projectId: { $in: projectIds } }).lean(),
       models.StrategicDecision.find({ projectId: { $in: projectIds } }).lean(),
       models.CompetitorSnapshot.find({ projectId: { $in: projectIds } }).lean(),
-      models.StrategicReview.find({ projectId: { $in: projectIds } }).lean()
+      models.StrategicReview.find({ projectId: { $in: projectIds } }).lean(),
+      models.EvidenceRecord.find({ projectId: { $in: projectIds } }).limit(10000).lean(),
+      models.EvidenceRelationship.find({ projectId: { $in: projectIds } }).limit(10000).lean()
     ]);
 
     return {
@@ -331,7 +339,9 @@ function createAccountDataService(deps = {}) {
         opportunities: strategicOpportunities,
         decisions: strategicDecisions,
         competitorSnapshots,
-        monthlyReviews: strategicReviews
+        monthlyReviews: strategicReviews,
+        evidenceRecords,
+        evidenceRelationships
       },
       auditLogs
     };
@@ -415,6 +425,8 @@ function createAccountDataService(deps = {}) {
       models.StrategicDecision.deleteMany({ projectId }),
       models.CompetitorSnapshot.deleteMany({ projectId }),
       models.StrategicReview.deleteMany({ projectId }),
+      models.EvidenceRelationship.deleteMany({ projectId }),
+      models.EvidenceRecord.deleteMany({ projectId }),
       models.ProjectMember.deleteMany({ projectId })
     ]);
     await models.ApiCredential.updateMany({ projectIds: projectId }, { $pull: { projectIds: projectId } });

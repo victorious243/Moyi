@@ -5,6 +5,38 @@
   const value = (item) => item && item.forecastValue !== null && item.forecastValue !== undefined ? Number(item.forecastValue).toLocaleString(undefined, { maximumFractionDigits: 2 }) : 'Unavailable';
   const range = (item) => item && item.lowerBound !== null && item.upperBound !== null ? `${Number(item.lowerBound).toLocaleString()}–${Number(item.upperBound).toLocaleString()}` : 'Needs more history';
   const monthForecasts = dashboard.forecasts.filter((item) => item.horizon === 'end_of_month');
+  const metricOrder = ['revenue', 'leads', 'qualified_leads', 'traffic', 'cac', 'roas'];
+  const availableMonthForecasts = metricOrder
+    .map((metric) => monthForecasts.find((forecast) => forecast.metric === metric))
+    .filter((item) => item && item.forecastValue !== null && item.forecastValue !== undefined);
+  const insufficientMonthForecasts = metricOrder
+    .map((metric) => ({ metric, item: monthForecasts.find((forecast) => forecast.metric === metric) }))
+    .filter(({ item }) => !item || item.forecastValue === null || item.forecastValue === undefined);
+  const evidenceCounts = {
+    forecasts: dashboard.forecasts.length,
+    goals: dashboard.goals.length,
+    opportunities: dashboard.opportunities.length,
+    decisions: dashboard.decisions.length,
+    competitors: dashboard.competitorSnapshots.length,
+    alerts: dashboard.alerts.length,
+    reviews: dashboard.reviews.length,
+    evidence: dashboard.evidenceRecords ? dashboard.evidenceRecords.length : 0
+  };
+  const observedDaysFor = (item) => item && (item.observedDays || item.historyDays || (item.evidence && item.evidence.sourcePointCount)) || 0;
+  const strongestForecast = availableMonthForecasts
+    .slice()
+    .sort((a, b) => Number(b.confidence && b.confidence.score || 0) - Number(a.confidence && a.confidence.score || 0))[0];
+  const readiness = dashboard.readiness || {};
+  const dataReadinessScore = Number(readiness.dataQualityScore || 0);
+  const readinessLabel = readiness.stage === 'forecast_ready' ? 'Validated forecasts available'
+    : readiness.stage === 'directional' ? 'Directional evidence only'
+      : readiness.stage === 'observing' ? 'Learning from early observations'
+        : 'No usable evidence yet';
+  const readinessActions = [];
+  if (!evidenceCounts.goals) readinessActions.push({ label: 'Set accountable goals', detail: 'Add targets for leads, revenue, traffic, CAC, or ROAS so Moyi can compare actual pace against plan.', href: `/projects/${project._id}/goals` });
+  if (!Number(readiness.validatedForecastCount || 0)) readinessActions.push({ label: 'Build forecast-quality history', detail: 'Most metrics need at least 28 dense daily observations and must pass a holdout backtest. Early movement can appear sooner.', href: `/projects/${project._id}/daily-growth-intelligence` });
+  if (!evidenceCounts.competitors) readinessActions.push({ label: 'Track competitors', detail: 'Add or confirm competitors so Moyi can detect public messaging, offer, and positioning movement.', href: `/projects/${project._id}/competitors` });
+  if (!evidenceCounts.opportunities) readinessActions.push({ label: 'Refresh opportunities', detail: 'Run strategy refresh after Search Console, tracking, social metrics, or competitors have evidence.', href: `/projects/${project._id}/strategy-intelligence` });
   const openOpportunities = dashboard.opportunities.filter((item) => item.status === 'open');
   const strategicRisks = dashboard.alerts.filter((item) => ['warning', 'critical'].includes(item.severity));
   const shifts = dashboard.alerts.filter((item) => ['channel_shift', 'audience_shift', 'search_demand_shift', 'competitor_strategy_change', 'share_of_voice_shift', 'positioning_drift'].includes(item.type));
@@ -31,21 +63,100 @@
     <% if (successMessage) { %><div class="image-success-message"><%= successMessage %></div><% } %>
     <% if (errorMessage) { %><div class="form-error"><%= errorMessage %></div><% } %>
 
+    <section class="panel strategy-intelligence-brief">
+      <div class="strategy-brief-copy">
+        <p class="eyebrow">Executive readout</p>
+        <h2>
+          <% if (strongestForecast) { %>
+            Moyi has enough evidence to forecast <%= label(strongestForecast.metric) %>.
+          <% } else { %>
+            Moyi is collecting evidence before making strategic claims.
+          <% } %>
+        </h2>
+        <p>
+          <% if (strongestForecast) { %>
+            The strongest current forecast uses <%= observedDaysFor(strongestForecast) %> observed days and <%= label(strongestForecast.confidence && strongestForecast.confidence.band) %> confidence. Keep reviewing risks, opportunities, and goal pace before shifting resources.
+          <% } else { %>
+            Strategic Intelligence will not guess revenue, leads, traffic, CAC, or ROAS. It needs connected goals plus enough daily observations from tracking, search, publishing, paid acquisition, or CRM/revenue events before it names winners or risks.
+          <% } %>
+        </p>
+      </div>
+      <div class="strategy-readiness-card" aria-label="Strategic evidence readiness">
+        <span>Evidence readiness</span>
+        <strong><%= dataReadinessScore %>%</strong>
+        <small><%= readinessLabel %></small>
+      </div>
+    </section>
+
+    <section class="strategy-evidence-grid" aria-label="Connected strategic evidence">
+      <article><span>Forecast records</span><strong><%= evidenceCounts.forecasts %></strong><small><%= availableMonthForecasts.length %> usable month forecasts</small></article>
+      <article><span>Evidence records</span><strong><%= evidenceCounts.evidence %></strong><small><%= Number(readiness.abstainedForecastCount || 0) %> forecast abstentions</small></article>
+      <article><span>Goals</span><strong><%= evidenceCounts.goals %></strong><small><%= evidenceCounts.goals ? 'Targets available' : 'Needed for plan comparison' %></small></article>
+      <article><span>Opportunities</span><strong><%= evidenceCounts.opportunities %></strong><small><%= openOpportunities.length %> open</small></article>
+      <article><span>Competitor evidence</span><strong><%= evidenceCounts.competitors %></strong><small>Public snapshots only</small></article>
+    </section>
+
+    <% if (readinessActions.length) { %>
+      <section class="panel strategy-next-actions">
+        <div class="panel-title"><div><h2>Make this page intelligent</h2><p>Moyi needs real evidence before it can forecast, prioritize, or recommend investment changes.</p></div></div>
+        <div class="strategy-action-list">
+          <% readinessActions.slice(0, 4).forEach((action) => { %>
+            <a href="<%= action.href %>">
+              <strong><%= action.label %></strong>
+              <span><%= action.detail %></span>
+            </a>
+          <% }) %>
+        </div>
+      </section>
+    <% } %>
+
+    <% if (dashboard.executivePriority) { const priority = dashboard.executivePriority; %>
+      <section class="panel strategy-executive-priority <%= priority.findingType === 'risk' ? 'is-risk' : '' %>">
+        <div class="panel-title"><div><p class="eyebrow">Most important right now</p><h2><%= priority.headline %></h2></div><span class="status"><%= label(priority.findingType) %></span></div>
+        <p><%= priority.whatChanged %></p>
+        <dl>
+          <div><dt>Why it matters</dt><dd><%= priority.whyItMatters %></dd></div>
+          <div><dt>Evidence</dt><dd><%= priority.evidenceSummary %></dd></div>
+          <div><dt>Confidence</dt><dd><%= priority.confidence %>%</dd></div>
+          <div><dt>Recommended action</dt><dd><%= priority.recommendedAction %></dd></div>
+        </dl>
+        <details class="strategy-evidence-drawer"><summary>Review evidence and uncertainty</summary><div>
+          <p><strong>Evidence records:</strong> <%= priority.evidenceIds && priority.evidenceIds.length ? priority.evidenceIds.length : 'No directly linked records' %></p>
+          <p><strong>Unknowns:</strong> <%= priority.unknowns && priority.unknowns.length ? priority.unknowns.join(' ') : 'No additional unknowns recorded.' %></p>
+          <p><strong>Risks:</strong> <%= priority.risks && priority.risks.length ? priority.risks.join(' ') : 'No specific execution risk recorded.' %></p>
+        </div></details>
+      </section>
+    <% } %>
+
     <section class="strategy-kpi-grid" aria-label="End-of-month forecast">
-      <% ['revenue', 'leads', 'qualified_leads', 'traffic', 'cac', 'roas'].forEach((metric) => { const item = monthForecasts.find((forecast) => forecast.metric === metric); %>
-        <article>
+      <% metricOrder.forEach((metric) => { const item = monthForecasts.find((forecast) => forecast.metric === metric); const isUnavailable = !item || item.forecastValue === null || item.forecastValue === undefined; %>
+        <article class="<%= isUnavailable ? 'is-unavailable' : '' %>">
           <span><%= label(metric) %></span>
           <strong><%= value(item) %></strong>
-          <small><%= item ? `${range(item)} · ${label(item.confidence.band)} confidence` : 'No connected history' %></small>
+          <small>
+            <% if (item) { %>
+              <%= range(item) %> · <%= label(item.confidence && item.confidence.band) %> confidence
+              <% if (isUnavailable) { %> · <%= observedDaysFor(item) %> observed days<% } %>
+            <% } else { %>
+              No connected history for this metric
+            <% } %>
+          </small>
         </article>
       <% }) %>
     </section>
 
+    <% if (insufficientMonthForecasts.length) { %>
+      <section class="measurement-trust-note strategy-trust-note">
+        <strong>Why some forecasts are unavailable:</strong>
+        Forecasts require metric-specific history (usually at least 28 dense daily observations), acceptable freshness and data quality, plus a candidate model that passes a holdout backtest. Having enough rows alone does not unlock a forecast.
+      </section>
+    <% } %>
+
     <section class="panel">
       <div class="panel-title"><div><h2>Goals and forecast</h2><p>Probability and ranges are shown only when Moyi has enough observed daily values.</p></div></div>
       <% if (!dashboard.goals.length) { %><p class="empty">No accountable marketing goals are configured.</p><% } else { %>
-        <div class="table-wrap"><table class="app-table strategy-table"><thead><tr><th>Goal</th><th>Current</th><th>Target</th><th>Forecast</th><th>Probability</th><th>Confidence</th></tr></thead><tbody>
-          <% dashboard.goals.forEach((goal) => { %><tr><td><strong><%= goal.name %></strong><small><%= label(goal.metric) %></small></td><td><%= Number(goal.currentValue || 0).toLocaleString() %></td><td><%= Number(goal.targetValue || 0).toLocaleString() %></td><td><%= goal.forecastValue == null ? 'Unavailable' : `${Number(goal.forecastValue).toLocaleString()} (${goal.forecastLowerBound ?? 'n/a'}–${goal.forecastUpperBound ?? 'n/a'})` %></td><td><%= goal.goalAchievementProbability == null ? 'Unavailable' : `${goal.goalAchievementProbability}%` %></td><td><%= goal.forecastConfidence == null ? 'Insufficient history' : `${goal.forecastConfidence}/100` %></td></tr><% }) %>
+        <div class="table-wrap"><table class="app-table strategy-table"><thead><tr><th>Goal</th><th>Current</th><th>Expected today</th><th>Target</th><th>Forecast</th><th>Evidence</th></tr></thead><tbody>
+          <% dashboard.goals.forEach((goal) => { %><tr><td><strong><%= goal.name %></strong><small><%= label(goal.metric) %> · <%= label(goal.pacing && goal.pacing.status) %></small></td><td><%= Number(goal.currentValue || 0).toLocaleString() %></td><td><%= goal.pacing && goal.pacing.expectedProgress !== null ? Number(goal.pacing.expectedProgress).toLocaleString(undefined, { maximumFractionDigits: 1 }) : 'Context dependent' %></td><td><%= Number(goal.targetValue || 0).toLocaleString() %></td><td><%= goal.forecastValue == null ? 'Unavailable' : `${Number(goal.forecastValue).toLocaleString()} (${goal.forecastLowerBound ?? 'n/a'}–${goal.forecastUpperBound ?? 'n/a'})` %></td><td><%= goal.forecastConfidence == null || goal.forecastConfidence === 0 ? 'Forecast abstained' : `${goal.forecastConfidence}/100 · ${goal.goalAchievementProbability}% goal probability` %></td></tr><% }) %>
         </tbody></table></div>
       <% } %>
     </section>
@@ -57,15 +168,16 @@
         <div class="strategy-list"><% openOpportunities.forEach((item) => { %><article>
           <div class="strategy-item-heading"><span><%= label(item.type) %></span><strong><%= item.confidence %>% confidence</strong></div>
           <h3><%= item.title %></h3><p><%= item.opportunity %></p>
-          <dl><div><dt>Evidence</dt><dd><%= item.evidenceSummary %></dd></div><div><dt>Impact / difficulty</dt><dd><%= label(item.potentialImpact) %> / <%= label(item.difficulty) %></dd></div><div><dt>Action</dt><dd><%= item.recommendedAction %></dd></div></dl>
-          <div class="strategy-inline-actions"><form method="post" action="/projects/<%= project._id %>/strategy-intelligence/opportunities/<%= item._id %>"><input type="hidden" name="action" value="accept"><button class="button button-primary" type="submit">Accept</button></form><form method="post" action="/projects/<%= project._id %>/strategy-intelligence/opportunities/<%= item._id %>"><input type="hidden" name="action" value="dismiss"><button class="button" type="submit">Dismiss</button></form></div>
+          <dl><div><dt>Evidence</dt><dd><%= item.evidenceSummary %></dd></div><div><dt>Priority / confidence</dt><dd><%= Number(item.strategicPriority || 0) %>/100 · <%= item.confidence %>%</dd></div><div><dt>Impact / difficulty / risk</dt><dd><%= label(item.potentialImpact) %> / <%= label(item.difficulty) %> / <%= label(item.risk) %></dd></div><div><dt>Action</dt><dd><%= item.recommendedAction %></dd></div></dl>
+          <details class="strategy-evidence-drawer"><summary>Review evidence</summary><div><p><strong>Classification:</strong> <%= label(item.evidenceClassification) %></p><p><strong>Source references:</strong> <%= Object.keys(item.sourceRefs || {}).length ? JSON.stringify(item.sourceRefs) : 'Stored evidence record' %></p><p><strong>Unknown:</strong> The incremental result of this action has not been proven. Accepting it creates a decision to measure, not a guaranteed outcome.</p></div></details>
+          <div class="strategy-inline-actions"><form method="post" action="/projects/<%= project._id %>/strategy-intelligence/opportunities/<%= item._id %>"><input type="hidden" name="action" value="accept"><button class="button button-primary" type="submit">Accept</button></form><form method="post" action="/projects/<%= project._id %>/experiments/from-opportunity/<%= item._id %>"><button class="button" type="submit">Create experiment</button></form><form method="post" action="/projects/<%= project._id %>/strategy-intelligence/opportunities/<%= item._id %>"><input type="hidden" name="action" value="dismiss"><button class="button" type="submit">Dismiss</button></form></div>
         </article><% }) %></div>
       </section>
 
       <section class="panel">
         <div class="panel-title"><div><h2>Strategic risks</h2><p>Signals that may require an executive decision.</p></div><span class="status"><%= strategicRisks.length %> open</span></div>
         <% if (!strategicRisks.length) { %><p class="empty">No supported strategic risk is currently open.</p><% } %>
-        <div class="strategy-list"><% strategicRisks.forEach((item) => { %><article class="is-risk"><div class="strategy-item-heading"><span><%= label(item.type) %></span><strong><%= item.confidence %>% confidence</strong></div><h3><%= item.title %></h3><p><%= item.summary %></p><small><%= item.recommendedAction %></small></article><% }) %></div>
+        <div class="strategy-list"><% strategicRisks.forEach((item) => { %><article class="is-risk"><div class="strategy-item-heading"><span><%= label(item.type) %></span><strong><%= item.confidence %>% confidence</strong></div><h3><%= item.title %></h3><p><%= item.summary %></p><small><%= item.recommendedAction %></small><details class="strategy-evidence-drawer"><summary>Review evidence</summary><div><p><strong>Evidence records:</strong> <%= item.evidenceIds && item.evidenceIds.length ? item.evidenceIds.length : 'No directly linked record' %></p><p><strong>Observed data:</strong> <%= Object.keys(item.evidenceData || {}).length ? JSON.stringify(item.evidenceData) : 'No additional evidence payload.' %></p><p><strong>Causality:</strong> This risk is observational unless a controlled experiment establishes an incremental effect.</p></div></details></article><% }) %></div>
       </section>
     </div>
 

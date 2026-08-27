@@ -63,6 +63,27 @@ const projectSchema = new mongoose.Schema(
       trim: true,
       default: ''
     },
+    strategicContext: {
+      companyStage: { type: String, enum: ['', 'pre_launch', 'early', 'growth', 'scale', 'mature'], default: '' },
+      primaryMarket: { type: String, trim: true, default: '' },
+      products: { type: [String], default: [] },
+      pricingSummary: { type: String, trim: true, default: '' },
+      grossMarginPercent: { type: Number, min: 0, max: 100, default: null },
+      averageOrderValue: { type: Number, min: 0, default: null },
+      revenueTarget: { type: Number, min: 0, default: null },
+      acquisitionTarget: { type: Number, min: 0, default: null },
+      cacTarget: { type: Number, min: 0, default: null },
+      roasTarget: { type: Number, min: 0, default: null },
+      conversionTarget: { type: Number, min: 0, default: null },
+      salesCycleDays: { type: Number, min: 0, default: null },
+      monthlyMarketingBudget: { type: Number, min: 0, default: null },
+      availableChannels: { type: [String], default: [] },
+      strategicPriorities: { type: [String], default: [] },
+      constraints: { type: [String], default: [] },
+      seasonalityNotes: { type: String, trim: true, default: '' },
+      riskTolerance: { type: String, enum: ['', 'low', 'medium', 'high'], default: '' },
+      updatedAt: { type: Date, default: null }
+    },
     brandTone: {
       type: String,
       trim: true,

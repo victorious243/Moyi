@@ -32,11 +32,13 @@ function registerStrategyIntelligenceRoutes(router, context, services = {}) {
 
   router.post('/:id/strategy-intelligence/refresh', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
     const job = await queueStrategicIntelligenceRefresh({ projectId: req.project._id, userId: req.user._id });
+    if (context.recordAuditEvent) await context.recordAuditEvent({ user: req.user, projectId: req.project._id, eventType: 'strategic_intelligence_refresh_queued', metadata: { jobId: String(job._id) }, req });
     res.redirect(`/projects/${req.project._id}/strategy-intelligence?job=${job._id}&success=${encodeURIComponent('Strategic intelligence refresh queued. Forecasts will remain unavailable where history is insufficient.')}`);
   }));
 
   router.post('/:id/strategy-intelligence/monthly-review', [param('id').isMongoId(), context.handleValidation], context.loadProject, asyncHandler(async (req, res) => {
     const job = await queueMonthlyStrategyReview({ projectId: req.project._id, userId: req.user._id });
+    if (context.recordAuditEvent) await context.recordAuditEvent({ user: req.user, projectId: req.project._id, eventType: 'monthly_strategy_review_queued', metadata: { jobId: String(job._id) }, req });
     res.redirect(`/projects/${req.project._id}/strategy-intelligence?job=${job._id}&success=${encodeURIComponent('Monthly strategy review queued.')}`);
   }));
 
@@ -48,6 +50,7 @@ function registerStrategyIntelligenceRoutes(router, context, services = {}) {
   ], context.loadProject, asyncHandler(async (req, res) => {
     if (req.body.action === 'accept') {
       const decision = await acceptOpportunity({ projectId: req.project._id, opportunityId: req.params.opportunityId, userId: req.user._id });
+      if (decision && context.recordAuditEvent) await context.recordAuditEvent({ user: req.user, projectId: req.project._id, eventType: 'strategic_opportunity_accepted', metadata: { opportunityId: req.params.opportunityId, decisionId: String(decision._id) }, req });
       const message = decision ? 'Opportunity accepted and added to strategic decision history.' : 'Opportunity not found.';
       return res.redirect(`/projects/${req.project._id}/strategy-intelligence?success=${encodeURIComponent(message)}`);
     }
@@ -55,6 +58,7 @@ function registerStrategyIntelligenceRoutes(router, context, services = {}) {
       { _id: req.params.opportunityId, projectId: req.project._id, status: { $in: ['open', 'accepted'] } },
       { $set: { status: 'dismissed' } }
     );
+    if (context.recordAuditEvent) await context.recordAuditEvent({ user: req.user, projectId: req.project._id, eventType: 'strategic_opportunity_dismissed', metadata: { opportunityId: req.params.opportunityId }, req });
     res.redirect(`/projects/${req.project._id}/strategy-intelligence?success=${encodeURIComponent('Opportunity dismissed. It remains in history for accountability.')}`);
   }));
 
@@ -69,6 +73,7 @@ function registerStrategyIntelligenceRoutes(router, context, services = {}) {
     if (!decision) return res.redirect(`/projects/${req.project._id}/strategy-intelligence?error=${encodeURIComponent('Strategic decision not found.')}`);
     applyDecisionAction(decision, req.body.action, req.body.reason, new Date());
     await decision.save();
+    if (context.recordAuditEvent) await context.recordAuditEvent({ user: req.user, projectId: req.project._id, eventType: 'strategic_decision_updated', metadata: { decisionId: String(decision._id), action: req.body.action }, req });
     res.redirect(`/projects/${req.project._id}/strategy-intelligence?success=${encodeURIComponent('Strategic decision updated. Moyi will retain it for outcome measurement.')}`);
   }));
 }
