@@ -31,19 +31,44 @@
     return div.innerHTML;
   }
 
+  function getNotificationLists() {
+    return Array.from(document.querySelectorAll('.notification-list'));
+  }
+
+  function renderNotificationLists(html) {
+    getNotificationLists().forEach((list) => {
+      list.innerHTML = html;
+    });
+  }
+
+  function renderLoadError(message) {
+    renderNotificationLists(`
+      <div class="notification-empty notification-load-error" role="status">
+        <strong>Notifications could not be loaded</strong>
+        <p>${escapeHtml(message || 'Check your connection and try again.')}</p>
+        <button type="button" class="notification-retry-btn">Try again</button>
+      </div>
+    `);
+  }
+
   async function fetchNotifications() {
     if (isFetching) return;
-    const wrap = document.getElementById('notification-center-wrap');
-    if (!wrap) return;
+    if (!getNotificationLists().length) return;
 
     isFetching = true;
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 12000);
     try {
-      const res = await fetch('/api/notifications');
-      if (!res.ok) return;
+      const res = await fetch('/api/notifications', {
+        headers: { Accept: 'application/json' },
+        signal: controller.signal
+      });
+      if (!res.ok) {
+        throw new Error(res.status === 401 ? 'Your session has expired. Sign in again.' : `Request failed (${res.status}).`);
+      }
       const data = await res.json();
 
       const badges = document.querySelectorAll('.notification-badge, #notification-badge');
-      const list = document.getElementById('notification-list');
 
       badges.forEach((badge) => {
         if (data.unreadCount > 0) {
@@ -57,19 +82,19 @@
         }
       });
 
-      if (list) {
-        if (!data.notifications || !data.notifications.length) {
-          list.innerHTML = `
-            <div class="notification-empty">
-              <span class="empty-icon">✨</span>
-              <strong>No notifications yet</strong>
-              <p>Weekly executive briefings and growth alerts will appear here.</p>
-            </div>
-          `;
-          return;
-        }
+      if (!data.notifications || !data.notifications.length) {
+        renderNotificationLists(`
+          <div class="notification-empty">
+            <span class="empty-icon">✨</span>
+            <strong>No notifications yet</strong>
+            <p>Weekly executive briefings and growth alerts will appear here.</p>
+          </div>
+        `);
+        return;
+      }
 
-        list.innerHTML = data.notifications
+      renderNotificationLists(
+        data.notifications
           .map(
             (n) => `
           <div class="notification-item ${n.isUnread ? 'is-unread' : ''}" data-id="${n._id}">
@@ -86,17 +111,34 @@
           </div>
         `
           )
-          .join('');
-      }
+          .join('')
+      );
     } catch (err) {
       console.warn('Could not load notifications:', err);
+      renderLoadError(err && err.name === 'AbortError' ? 'The request timed out. Try again.' : err.message);
     } finally {
+      window.clearTimeout(timeoutId);
       isFetching = false;
     }
   }
 
   // Document-level event delegation for instant click response
   document.addEventListener('click', async (e) => {
+    const mobileSummary = e.target.closest('.mobile-notif-summary');
+    if (mobileSummary) {
+      window.setTimeout(fetchNotifications, 0);
+    }
+
+    const retryBtn = e.target.closest('.notification-retry-btn');
+    if (retryBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      retryBtn.disabled = true;
+      retryBtn.textContent = 'Loading...';
+      fetchNotifications();
+      return;
+    }
+
     // Bell button toggle
     const bellBtn = e.target.closest('#notification-bell-btn, .notification-bell-btn');
     if (bellBtn) {
