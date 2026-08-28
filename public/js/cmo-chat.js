@@ -155,15 +155,18 @@
 
     const shouldOpen = forceOpen !== undefined ? forceOpen : !drawer.classList.contains('is-open');
     if (shouldOpen) {
+      document.dispatchEvent(new CustomEvent('moyi:close-workspace-navigation'));
       drawer.classList.add('is-open');
       drawer.setAttribute('aria-hidden', 'false');
       if (trigger) trigger.setAttribute('aria-expanded', 'true');
+      document.body.classList.add('cmo-chat-open');
       const input = document.getElementById('cmo-chat-input');
       if (input) setTimeout(() => input.focus(), 150);
     } else {
       drawer.classList.remove('is-open');
       drawer.setAttribute('aria-hidden', 'true');
       if (trigger) trigger.setAttribute('aria-expanded', 'false');
+      document.body.classList.remove('cmo-chat-open');
     }
   }
 

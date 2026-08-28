@@ -17,7 +17,8 @@
       toggleBtn = document.createElement('button');
       toggleBtn.type = 'button';
       toggleBtn.className = 'mobile-workspace-fab';
-      toggleBtn.setAttribute('aria-label', 'Open Workspace Navigation Menu');
+      toggleBtn.setAttribute('aria-label', 'Open workspace options');
+      toggleBtn.setAttribute('title', 'Workspace options');
       toggleBtn.setAttribute('aria-expanded', 'false');
       toggleBtn.setAttribute('data-sidebar-toggle', 'true');
       toggleBtn.innerHTML = `
@@ -33,6 +34,8 @@
     } else if (toggleBtn.parentElement !== document.body) {
       document.body.appendChild(toggleBtn);
     }
+    toggleBtn.setAttribute('aria-label', 'Open workspace options');
+    toggleBtn.setAttribute('title', 'Workspace options');
 
     // Ensure close button exists inside sidebar
     let closeBtn = sidebar.querySelector('.mobile-sidebar-close-button, [data-sidebar-close]');
@@ -75,6 +78,8 @@
     const backdrop = getBackdrop();
     const toggleBtn = getToggleBtn();
     if (!sidebar) return;
+
+    document.dispatchEvent(new CustomEvent('moyi:close-cmo-chat'));
 
     sidebar.classList.add('drawer-open');
     if (backdrop) backdrop.classList.add('active');
@@ -158,6 +163,7 @@
     closeDrawer();
     ensureDrawerElements();
   });
+  document.addEventListener('moyi:close-workspace-navigation', closeDrawer);
 
   if (document.readyState !== 'loading') {
     ensureDrawerElements();

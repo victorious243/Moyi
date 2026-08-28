@@ -910,14 +910,14 @@ table code,
   .mobile-workspace-fab,
   .mobile-sidebar-toggle-button {
     position: fixed !important;
-    bottom: 24px !important;
-    right: 20px !important;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+    right: 16px !important;
     z-index: 99999 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    width: 52px !important;
-    height: 52px !important;
+    width: 48px !important;
+    height: 48px !important;
     padding: 0 !important;
     border-radius: 50% !important;
     border: 1.5px solid rgba(85, 230, 207, 0.5) !important;
@@ -1754,10 +1754,33 @@ table code,
   }
 
   .cmo-chat-trigger-btn {
-    bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
     right: 16px !important;
-    padding: 8px 14px;
+    width: 48px !important;
+    height: 48px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+    gap: 0 !important;
+    border-radius: 50% !important;
     font-size: 12px;
+  }
+
+  .cmo-chat-trigger-btn .cmo-trigger-label {
+    display: none !important;
+  }
+
+  .cmo-chat-trigger-btn .cmo-trigger-icon {
+    width: 21px !important;
+    height: 21px !important;
+  }
+
+  body.sidebar-drawer-active .cmo-chat-trigger-btn,
+  body.cmo-chat-open .cmo-chat-trigger-btn,
+  body.cmo-chat-open .mobile-workspace-fab,
+  body.cmo-chat-open .mobile-sidebar-toggle-button {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
   }
 
   .cmo-chat-drawer {
@@ -1770,6 +1793,20 @@ table code,
     height: min(85dvh, 640px) !important;
     max-height: calc(100dvh - 32px) !important;
     z-index: 99999 !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .mobile-workspace-fab,
+  .mobile-sidebar-toggle-button,
+  .cmo-chat-trigger-btn {
+    right: 12px !important;
+    width: 46px !important;
+    height: 46px !important;
+  }
+
+  .cmo-chat-trigger-btn {
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
 
