@@ -13217,6 +13217,12 @@ textarea:focus {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  max-height: calc(100vh - 120px);
+  max-height: calc(100dvh - 120px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 16px;
   border-radius: 14px;
   background: rgba(18, 18, 22, 0.7);

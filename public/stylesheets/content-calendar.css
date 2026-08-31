@@ -2842,6 +2842,12 @@
     transform: translateX(-105%) !important;
     visibility: hidden !important;
     pointer-events: none !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain !important;
+    touch-action: pan-y !important;
+    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   .app-sidebar.drawer-open,
@@ -2849,6 +2855,7 @@
     transform: translateX(0) !important;
     visibility: visible !important;
     pointer-events: auto !important;
+    overflow-y: auto !important;
   }
 
   .content-calendar-workspace,

@@ -781,8 +781,11 @@ table code,
     flex-direction: column !important;
     gap: 4px !important;
     overflow-y: auto !important;
+    overflow-x: hidden !important;
     -webkit-overflow-scrolling: touch !important;
-    padding: 24px 16px 36px !important;
+    overscroll-behavior: contain !important;
+    touch-action: pan-y !important;
+    padding: calc(24px + env(safe-area-inset-top, 0px)) 16px calc(56px + env(safe-area-inset-bottom, 0px)) !important;
     margin: 0 !important;
     border-radius: 0 18px 18px 0 !important;
     border: 1px solid var(--saas-line) !important;
@@ -801,6 +804,7 @@ table code,
     transform: translateX(0) !important;
     visibility: visible !important;
     pointer-events: auto !important;
+    overflow-y: auto !important;
   }
 
   /* Full labels & sections inside the drawer */
