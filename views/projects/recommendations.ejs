@@ -47,6 +47,8 @@
       </section>
     <% } %>
 
+    <%- include('./partials/project-connected-workflow', { project, activeWorkflowStep: 'decision' }) %>
+
     <nav class="recommendation-filters" aria-label="Recommendation views">
       <% ['active', 'rejected', 'done', 'all'].forEach((view) => { %>
         <a class="<%= selectedView === view ? 'is-active' : '' %>" href="/projects/<%= project._id %>/recommendations?view=<%= view %>">

@@ -116,6 +116,8 @@
       </section>
     <% } %>
 
+    <%- include('./partials/project-connected-workflow', { project, activeWorkflowStep: 'execution' }) %>
+
     <div id="calendar-results" data-calendar-results>
       <%- include('partials/calendar-results', {
         project,

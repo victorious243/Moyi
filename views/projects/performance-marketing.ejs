@@ -46,6 +46,8 @@
       <div class="measurement-trust-note">Moyi found multiple account currencies. Channel and campaign rows remain accurate, but the executive total is withheld because currencies are not converted automatically.</div>
     <% } %>
 
+    <%- include('./partials/project-connected-workflow', { project, activeWorkflowStep: 'learning' }) %>
+
     <section class="paid-executive-grid" aria-label="Paid acquisition executive summary">
       <article><span>Spend</span><strong><%= hasData ? metric(dashboard.totals.spend, { money: true, currency: totalCurrency }) : 'Awaiting data' %></strong></article>
       <article><span>Leads</span><strong><%= hasData ? metric(dashboard.totals.leads) : 'Awaiting data' %></strong></article>

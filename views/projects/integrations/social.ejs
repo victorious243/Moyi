@@ -59,20 +59,7 @@
 %>
 
 <div class="app-layout">
-  <aside class="app-sidebar">
-    <strong>Workspace</strong>
-    <a href="/dashboard">Dashboard</a>
-    <a href="/projects">Projects</a>
-    <a href="/projects/<%= project._id %>">Project Overview</a>
-    <a href="/projects/<%= project._id %>/integrations/wordpress">WordPress</a>
-    <a href="/projects/<%= project._id %>/integrations/webflow">Webflow</a>
-    <a href="/projects/<%= project._id %>/integrations/shopify">Shopify</a>
-    <a href="/projects/<%= project._id %>/integrations/social" class="active">Social Accounts</a>
-    <a href="/projects/<%= project._id %>/integrations/webhook">Webhook</a>
-    <a href="/projects/<%= project._id %>/content">Approval Queue</a>
-    <a href="/projects/<%= project._id %>/calendar">Calendar</a>
-    <a href="/projects/<%= project._id %>/social-performance">Social Performance</a>
-  </aside>
+  <%- include('../../partials/project-sidebar', { project, activeSection: 'social' }) %>
 
   <section class="app-main">
     <div class="page-heading">
@@ -88,6 +75,8 @@
 
     <% if (errorMessage) { %><div class="form-error"><%= errorMessage %></div><% } %>
     <% if (successMessage) { %><div class="image-success-message"><%= successMessage %></div><% } %>
+
+    <%- include('../partials/project-connected-workflow', { project, activeWorkflowStep: 'execution' }) %>
 
     <section class="studio-summary" aria-label="Social publishing summary">
       <div><span>Connected</span><strong><%= accounts.filter((account) => account.status === 'connected').length %></strong></div>

@@ -46,6 +46,8 @@
       </section>
     <% } %>
 
+    <%- include('../partials/project-connected-workflow', { project, activeWorkflowStep: 'evidence' }) %>
+
     <% if (queuedMessage && syncJob && (syncJob.status === 'queued' || syncJob.status === 'running')) { %>
       <section class="panel">
         <h2>Search Console sync in progress</h2>

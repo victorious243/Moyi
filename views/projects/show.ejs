@@ -69,6 +69,8 @@
       </div>
     </section>
 
+    <%- include('./partials/project-connected-workflow', { project, activeWorkflowStep: 'evidence' }) %>
+
     <% if (aiError) { %>
       <section class="panel notice-panel">
         <h2>AI CMO plan unavailable</h2>

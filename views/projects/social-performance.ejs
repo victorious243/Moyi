@@ -30,6 +30,8 @@
     <% if (successMessage) { %><div class="image-success-message"><%= successMessage %></div><% } %>
     <% if (errorMessage) { %><div class="form-error"><%= errorMessage %></div><% } %>
 
+    <%- include('./partials/project-connected-workflow', { project, activeWorkflowStep: 'learning' }) %>
+
     <section class="studio-summary" aria-label="Social performance summary" data-social-live-summary>
       <div><span>Published</span><strong data-social-total="posts"><%= formatNumber(dashboard.totals.posts) %></strong></div>
       <div><span>Measured</span><strong data-social-total="measuredPosts"><%= formatNumber(dashboard.totals.measuredPosts) %></strong></div>

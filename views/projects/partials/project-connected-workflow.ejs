@@ -1,0 +1,77 @@
+<%
+  const workflowProject = typeof project !== 'undefined' ? project : null;
+  const workflowProjectId = workflowProject && workflowProject._id ? workflowProject._id : '';
+  const workflowCurrent = typeof activeWorkflowStep !== 'undefined' ? activeWorkflowStep : '';
+  const workflowSteps = [
+    {
+      key: 'evidence',
+      label: 'Evidence',
+      title: 'Collect real signals',
+      body: 'Website scans, Search Console, tracker events, social metrics, paid data, and competitors.',
+      href: `/projects/${workflowProjectId}/search-console/performance`
+    },
+    {
+      key: 'intelligence',
+      label: 'Intelligence',
+      title: 'Understand what changed',
+      body: 'Growth, social, paid, and strategic intelligence turn evidence into diagnosis.',
+      href: `/projects/${workflowProjectId}/growth-intelligence`
+    },
+    {
+      key: 'decision',
+      label: 'Decision',
+      title: 'Choose the next move',
+      body: 'Recommendations, priorities, goals, and experiments keep action tied to proof.',
+      href: `/projects/${workflowProjectId}/recommendations`
+    },
+    {
+      key: 'execution',
+      label: 'Execution',
+      title: 'Create and publish',
+      body: 'Content Studio, campaigns, calendar, and social accounts move approved work live.',
+      href: `/projects/${workflowProjectId}/content`
+    },
+    {
+      key: 'learning',
+      label: 'Learning',
+      title: 'Measure and feed back',
+      body: 'Social Performance, attribution, experiments, and reports update future recommendations.',
+      href: `/projects/${workflowProjectId}/social-performance`
+    }
+  ];
+  const workflowIndex = Math.max(0, workflowSteps.findIndex((step) => step.key === workflowCurrent));
+  const previousWorkflowStep = workflowSteps[workflowIndex - 1];
+  const nextWorkflowStep = workflowSteps[workflowIndex + 1];
+%>
+
+<section class="connected-workflow-panel" aria-label="How this feature connects to the Moyi workflow">
+  <div class="connected-workflow-head">
+    <div>
+      <p class="eyebrow">Connected workflow</p>
+      <h2>Evidence to learning</h2>
+    </div>
+    <div class="connected-workflow-links" aria-label="Related actions">
+      <% if (previousWorkflowStep) { %>
+        <a href="<%= previousWorkflowStep.href %>">Back to <%= previousWorkflowStep.label %></a>
+      <% } %>
+      <% if (nextWorkflowStep) { %>
+        <a href="<%= nextWorkflowStep.href %>">Next: <%= nextWorkflowStep.label %></a>
+      <% } %>
+    </div>
+  </div>
+  <ol class="connected-workflow-steps">
+    <% workflowSteps.forEach((step, index) => { %>
+      <li class="<%= step.key === workflowCurrent ? 'is-active' : '' %>">
+        <a href="<%= step.href %>" aria-current="<%= step.key === workflowCurrent ? 'step' : 'false' %>">
+          <span><%= index + 1 %></span>
+          <strong><%= step.label %></strong>
+          <small><%= step.title %></small>
+        </a>
+      </li>
+    <% }) %>
+  </ol>
+  <p class="connected-workflow-note">
+    <strong><%= workflowSteps[workflowIndex] ? workflowSteps[workflowIndex].title : 'Use Moyi in sequence' %>:</strong>
+    <%= workflowSteps[workflowIndex] ? workflowSteps[workflowIndex].body : 'Move from evidence to intelligence, decision, execution, and measured learning.' %>
+  </p>
+</section>

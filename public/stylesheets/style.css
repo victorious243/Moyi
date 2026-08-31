@@ -3875,6 +3875,211 @@ blockquote {
 .paid-provider-heading span { display: block; color: #9ca5a4; font-size: 12px; text-transform: uppercase; font-weight: 800; }
 .paid-executive-grid strong { display: block; margin-top: 8px; font-size: clamp(20px, 2vw, 30px); overflow-wrap: anywhere; }
 .measurement-trust-note { margin-bottom: 18px; padding: 14px 16px; border-left: 3px solid #f6c453; background: rgba(246, 196, 83, .08); color: #e7d9ad; }
+
+.connected-workflow-panel {
+  margin: 0 0 20px;
+  padding: 16px;
+  border: 1px solid rgba(85, 230, 207, 0.18);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(85, 230, 207, 0.07), rgba(91, 77, 255, 0.06)),
+    rgba(8, 12, 16, 0.74);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.22);
+}
+
+.connected-workflow-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.connected-workflow-head h2 {
+  margin: 2px 0 0;
+  color: var(--saas-text, #ffffff);
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.connected-workflow-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.connected-workflow-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: var(--saas-text, #ffffff);
+  background: rgba(255, 255, 255, 0.045);
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.connected-workflow-steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.connected-workflow-steps li {
+  min-width: 0;
+}
+
+.connected-workflow-steps a {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 9px;
+  row-gap: 2px;
+  height: 100%;
+  min-height: 78px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: var(--saas-text, #ffffff);
+  background: rgba(255, 255, 255, 0.035);
+  text-decoration: none;
+}
+
+.connected-workflow-steps a:hover,
+.connected-workflow-steps a:focus-visible,
+.connected-workflow-links a:hover,
+.connected-workflow-links a:focus-visible {
+  border-color: rgba(85, 230, 207, 0.42);
+  background: rgba(85, 230, 207, 0.08);
+  outline: none;
+}
+
+.connected-workflow-steps span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  grid-row: 1 / span 2;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--saas-text-muted, #9ca3af);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.connected-workflow-steps strong,
+.connected-workflow-steps small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.connected-workflow-steps strong {
+  align-self: end;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.connected-workflow-steps small {
+  display: -webkit-box;
+  color: var(--saas-text-muted, #9ca3af);
+  font-size: 11px;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.connected-workflow-steps .is-active a {
+  border-color: rgba(85, 230, 207, 0.55);
+  background: rgba(85, 230, 207, 0.11);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.connected-workflow-steps .is-active span {
+  background: var(--saas-cyan, #55e6cf);
+  color: #03120f;
+}
+
+.connected-workflow-note {
+  margin: 12px 0 0;
+  color: var(--saas-text-muted, #9ca3af);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.connected-workflow-note strong {
+  color: var(--saas-text, #ffffff);
+}
+
+@media (max-width: 900px) {
+  .connected-workflow-panel {
+    margin-bottom: 16px;
+    padding: 12px;
+    border-radius: 10px;
+  }
+
+  .connected-workflow-head {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .connected-workflow-links {
+    justify-content: flex-start;
+  }
+
+  .connected-workflow-links a {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .connected-workflow-steps {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .connected-workflow-steps li {
+    flex: 0 0 168px;
+    scroll-snap-align: start;
+  }
+
+  .connected-workflow-steps a {
+    min-height: 72px;
+    padding: 10px;
+  }
+}
+
+@media (max-width: 420px) {
+  .connected-workflow-head h2 {
+    font-size: 16px;
+  }
+
+  .connected-workflow-links a {
+    min-height: 32px;
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+
+  .connected-workflow-steps li {
+    flex-basis: 150px;
+  }
+
+  .connected-workflow-note {
+    font-size: 12px;
+  }
+}
 .paid-provider-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .paid-provider-card { border: 1px solid #303638; background: #101415; padding: 18px; }
 .paid-provider-heading,

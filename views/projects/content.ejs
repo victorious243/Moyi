@@ -71,6 +71,8 @@
     <% if (successMessage) { %><div class="image-success-message"><%= successMessage %></div><% } %>
     <% if (errorMessage) { %><section class="panel notice-panel"><strong>Plan creation failed</strong><p><%= errorMessage %></p></section><% } %>
 
+    <%- include('./partials/project-connected-workflow', { project, activeWorkflowStep: 'execution' }) %>
+
     <!-- Instant 30-Day Omnichannel Growth Pack Card -->
     <section class="panel growth-pack-panel">
       <div class="growth-pack-content">

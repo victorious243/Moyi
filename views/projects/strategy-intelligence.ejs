@@ -63,6 +63,8 @@
     <% if (successMessage) { %><div class="image-success-message"><%= successMessage %></div><% } %>
     <% if (errorMessage) { %><div class="form-error"><%= errorMessage %></div><% } %>
 
+    <%- include('./partials/project-connected-workflow', { project, activeWorkflowStep: 'intelligence' }) %>
+
     <section class="panel strategy-intelligence-brief">
       <div class="strategy-brief-copy">
         <p class="eyebrow">Executive readout</p>
