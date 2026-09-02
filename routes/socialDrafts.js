@@ -1274,7 +1274,7 @@ router.post('/:id/reschedule', [
   });
 }));
 
-router.post('/:id/update', [
+const updateSocialDraftValidation = [
   param('id').isMongoId(),
   body('title').trim().isLength({ max: 180 }).withMessage('Post title is too long.'),
   body('body').trim().notEmpty().withMessage('Post copy is required.').isLength({ max: 4000 }).withMessage('Post copy is too long.'),
@@ -1282,7 +1282,9 @@ router.post('/:id/update', [
   body('scheduledFor').isISO8601().withMessage('Choose a valid schedule date.'),
   body('socialAccountId').optional({ checkFalsy: true }).isMongoId().withMessage('Choose a valid social account.'),
   handleValidation
-], loadSocialDraft, requireDraftEditor, requireDraftNotPublishing, asyncHandler(async (req, res) => {
+];
+
+const updateSocialDraftHandler = asyncHandler(async (req, res) => {
   if (req.body.channel === 'x') {
     try {
       assertStandardXPost(req.body.body);
@@ -1310,7 +1312,11 @@ router.post('/:id/update', [
     req
   });
   res.redirect(`/projects/${req.project._id}/calendar?success=${encodeURIComponent('Post updated.')}#post-${req.socialDraft._id}`);
-}));
+});
+
+router.post('/:id/update', updateSocialDraftValidation, loadSocialDraft, requireDraftEditor, requireDraftNotPublishing, updateSocialDraftHandler);
+router.post('/:id/save', updateSocialDraftValidation, loadSocialDraft, requireDraftEditor, requireDraftNotPublishing, updateSocialDraftHandler);
+router.post('/:id', updateSocialDraftValidation, loadSocialDraft, requireDraftEditor, requireDraftNotPublishing, updateSocialDraftHandler);
 
 router.post('/:id/delete', [param('id').isMongoId(), handleValidation], loadSocialDraft, requireDraftManager, requireDraftNotPublishing, asyncHandler(async (req, res) => {
   await recordDraftActivity({ draft: req.socialDraft, user: req.user, eventType: 'deleted', summary: 'Removed the post from the calendar.', req });

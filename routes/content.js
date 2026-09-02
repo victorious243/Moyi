@@ -303,53 +303,54 @@ router.post(
   })
 );
 
-router.post(
-  '/:id/update',
-  [
-    param('id').isMongoId(),
-    body('keyword').optional({ checkFalsy: true }).trim().isLength({ max: 120 }).withMessage('Keyword is too long.'),
-    body('title').optional({ checkFalsy: true }).trim().isLength({ max: 240 }).withMessage('Title is too long.'),
-    body('businessGoal').optional({ checkFalsy: true }).trim().isLength({ max: 300 }).withMessage('Business goal is too long.'),
-    body('targetPersona').optional({ checkFalsy: true }).trim().isLength({ max: 240 }).withMessage('Target persona is too long.'),
-    body('searchIntent').optional({ checkFalsy: true }).trim().isLength({ max: 240 }).withMessage('Search intent is too long.'),
-    body('primaryCta').optional({ checkFalsy: true }).trim().isLength({ max: 180 }).withMessage('CTA is too long.'),
-    body('proofPoints').optional().isString(),
-    body('body').optional().isString(),
-    body('jsonBody').optional({ checkFalsy: true }).isString(),
-    handleValidation
-  ],
-  loadDraft,
-  asyncHandler(async (req, res, next) => {
-    req.draft.keyword = req.body.keyword || '';
-    req.draft.title = req.body.title || '';
-    req.draft.body = req.body.body || '';
-    req.draft.executionContext = {
-      ...(req.draft.executionContext || {}),
-      businessGoal: req.body.businessGoal || '',
-      targetPersona: req.body.targetPersona || '',
-      searchIntent: req.body.searchIntent || '',
-      primaryCta: req.body.primaryCta || '',
-      proofPoints: String(req.body.proofPoints || '')
-        .split('\n')
-        .map((item) => item.trim())
-        .filter(Boolean)
-        .slice(0, 8)
-    };
+const updateDraftValidation = [
+  param('id').isMongoId(),
+  body('keyword').optional({ checkFalsy: true }).trim().isLength({ max: 120 }).withMessage('Keyword is too long.'),
+  body('title').optional({ checkFalsy: true }).trim().isLength({ max: 240 }).withMessage('Title is too long.'),
+  body('businessGoal').optional({ checkFalsy: true }).trim().isLength({ max: 300 }).withMessage('Business goal is too long.'),
+  body('targetPersona').optional({ checkFalsy: true }).trim().isLength({ max: 240 }).withMessage('Target persona is too long.'),
+  body('searchIntent').optional({ checkFalsy: true }).trim().isLength({ max: 240 }).withMessage('Search intent is too long.'),
+  body('primaryCta').optional({ checkFalsy: true }).trim().isLength({ max: 180 }).withMessage('CTA is too long.'),
+  body('proofPoints').optional().isString(),
+  body('body').optional().isString(),
+  body('jsonBody').optional({ checkFalsy: true }).isString(),
+  handleValidation
+];
 
-    if (req.body.jsonBody) {
-      try {
-        req.draft.jsonBody = JSON.parse(req.body.jsonBody);
-      } catch (error) {
-        return next(new AppError('JSON body must be valid JSON.', 422));
-      }
-    } else {
-      req.draft.jsonBody = null;
+const updateDraftHandler = asyncHandler(async (req, res, next) => {
+  req.draft.keyword = req.body.keyword || '';
+  req.draft.title = req.body.title || '';
+  req.draft.body = req.body.body || '';
+  req.draft.executionContext = {
+    ...(req.draft.executionContext || {}),
+    businessGoal: req.body.businessGoal || '',
+    targetPersona: req.body.targetPersona || '',
+    searchIntent: req.body.searchIntent || '',
+    primaryCta: req.body.primaryCta || '',
+    proofPoints: String(req.body.proofPoints || '')
+      .split('\n')
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 8)
+  };
+
+  if (req.body.jsonBody) {
+    try {
+      req.draft.jsonBody = JSON.parse(req.body.jsonBody);
+    } catch (error) {
+      return next(new AppError('JSON body must be valid JSON.', 422));
     }
+  } else {
+    req.draft.jsonBody = null;
+  }
 
-    await req.draft.save();
-    res.redirect(contentUrl(req.draft._id, 'write', { saved: '1' }));
-  })
-);
+  await req.draft.save();
+  res.redirect(contentUrl(req.draft._id, 'write', { saved: '1' }));
+});
+
+router.post('/:id/update', updateDraftValidation, loadDraft, updateDraftHandler);
+router.post('/:id/save', updateDraftValidation, loadDraft, updateDraftHandler);
+router.post('/:id', updateDraftValidation, loadDraft, updateDraftHandler);
 
 router.post('/:id/submit-for-review', [
   param('id').isMongoId(),

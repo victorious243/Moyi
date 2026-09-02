@@ -768,6 +768,8 @@ test('social draft routes support calendar editing and removal', () => {
     .map((layer) => ({ path: layer.route.path, methods: Object.keys(layer.route.methods) }));
 
   assert.ok(routes.some((route) => route.path === '/:id/update' && route.methods.includes('post')));
+  assert.ok(routes.some((route) => route.path === '/:id/save' && route.methods.includes('post')));
+  assert.ok(routes.some((route) => route.path === '/:id' && route.methods.includes('post')));
   assert.ok(routes.some((route) => route.path === '/:id/calendar-detail' && route.methods.includes('get')));
   assert.ok(routes.some((route) => route.path === '/:id/reschedule' && route.methods.includes('post')));
   const rescheduleRoute = socialRouter.stack.find((layer) => layer.route && layer.route.path === '/:id/reschedule');
@@ -785,6 +787,18 @@ test('social draft routes support calendar editing and removal', () => {
   assert.ok(routes.some((route) => route.path === '/batch-action' && route.methods.includes('post')));
   assert.ok(routes.some((route) => route.path === '/publish-all-connected' && route.methods.includes('post')));
   assert.ok(routes.some((route) => route.path === '/:id/publish-jobs/:jobId/retry' && route.methods.includes('post')));
+});
+
+test('content draft routes support canonical and fallback save endpoints', () => {
+  const contentRouter = require('../routes/content');
+  const routes = contentRouter.stack
+    .filter((layer) => layer.route)
+    .map((layer) => ({ path: layer.route.path, methods: Object.keys(layer.route.methods) }));
+
+  assert.ok(routes.some((route) => route.path === '/:id' && route.methods.includes('get')));
+  assert.ok(routes.some((route) => route.path === '/:id/update' && route.methods.includes('post')));
+  assert.ok(routes.some((route) => route.path === '/:id/save' && route.methods.includes('post')));
+  assert.ok(routes.some((route) => route.path === '/:id' && route.methods.includes('post')));
 });
 
 test('calendar drag reschedule posts a JSON payload that Express can parse', () => {
