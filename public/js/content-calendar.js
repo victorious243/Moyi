@@ -48,6 +48,12 @@
 
   const showToast = (message, tone = 'success') => {
     if (!toastRegion || !message) return;
+    const existing = [...toastRegion.querySelectorAll('.calendar-toast')]
+      .find((toast) => toast.textContent === message && toast.classList.contains(`is-${tone}`));
+    if (existing) {
+      existing.classList.add('is-visible');
+      return;
+    }
     const toast = document.createElement('div');
     toast.className = `calendar-toast is-${tone}`;
     toast.setAttribute('role', tone === 'error' ? 'alert' : 'status');
@@ -553,7 +559,7 @@
       const response = await fetch(action, {
         method,
         credentials: 'same-origin',
-        headers: { Accept: 'application/json', 'X-CSRF-Token': csrfToken() },
+        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': csrfToken() },
         body: data
       });
       const payload = await response.json().catch(() => ({}));

@@ -812,6 +812,8 @@ test('calendar async forms only use submitter override URLs when explicitly prov
   assert.match(source, /submitter\?\.hasAttribute\('formaction'\) \? submitter\.formAction : ''/);
   assert.match(source, /submitter\?\.hasAttribute\('formmethod'\) \? submitter\.formMethod : ''/);
   assert.match(source, /const action = submitterAction \|\| form\.action/);
+  assert.match(source, /'X-Requested-With': 'XMLHttpRequest'/);
+  assert.match(source, /toastRegion\.querySelectorAll\('\.calendar-toast'\)/);
 });
 
 test('platform admin middleware hides operator routes from non-admin users', () => {
