@@ -807,6 +807,13 @@ test('calendar drag reschedule posts a JSON payload that Express can parse', () 
   assert.match(source, /body: JSON\.stringify\(\{ scheduledFor: scheduledFor\.toISOString\(\), _csrf: token \}\)/);
 });
 
+test('calendar async forms only use submitter override URLs when explicitly provided', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../public/js/content-calendar.js'), 'utf8');
+  assert.match(source, /submitter\?\.hasAttribute\('formaction'\) \? submitter\.formAction : ''/);
+  assert.match(source, /submitter\?\.hasAttribute\('formmethod'\) \? submitter\.formMethod : ''/);
+  assert.match(source, /const action = submitterAction \|\| form\.action/);
+});
+
 test('platform admin middleware hides operator routes from non-admin users', () => {
   const { requirePlatformAdmin } = require('../middleware/platformAdmin');
   const req = { user: { role: 'owner' } };

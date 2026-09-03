@@ -542,8 +542,10 @@
   };
 
   const submitAsync = async (form, submitter) => {
-    const action = submitter?.formAction || form.action;
-    const method = (submitter?.formMethod || form.method || 'post').toUpperCase();
+    const submitterAction = submitter?.hasAttribute('formaction') ? submitter.formAction : '';
+    const submitterMethod = submitter?.hasAttribute('formmethod') ? submitter.formMethod : '';
+    const action = submitterAction || form.action;
+    const method = (submitterMethod || form.method || 'post').toUpperCase();
     const data = new FormData(form);
     if (submitter?.name) data.append(submitter.name, submitter.value);
     setBusy(form, true);
