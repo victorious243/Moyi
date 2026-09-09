@@ -330,11 +330,22 @@
     const hasProcessingMedia = [...drawerContent.querySelectorAll('.calendar-media-item .calendar-ui-status')].some((node) => (
       ['queued', 'processing'].includes(node.textContent.trim().toLowerCase())
     ));
-    if (!hasActive && !hasProcessingMedia) return;
+    const hasGeneratingImage = Boolean(drawerContent.querySelector('[data-image-generation-active]'));
+    if (!hasActive && !hasProcessingMedia && !hasGeneratingImage) return;
+    const pollInterval = hasGeneratingImage ? 2500 : (hasActive ? 4000 : 6000);
     detailPollTimer = window.setTimeout(async () => {
+      const wasGeneratingImage = Boolean(drawerContent.querySelector('[data-image-generation-active]'));
       await loadDrawer(activeDraftId, { preserveTab: true, quiet: true });
       await refreshList();
-    }, hasActive ? 4000 : 6000);
+      const stillGeneratingImage = Boolean(drawerContent.querySelector('[data-image-generation-active]'));
+      if (wasGeneratingImage && !stillGeneratingImage) {
+        if (drawerContent.querySelector('.calendar-image-failed-banner')) {
+          showToast('Visual generation failed. Check details in Media tab.', 'error');
+        } else {
+          showToast('Visual candidate generated successfully!');
+        }
+      }
+    }, pollInterval);
   };
 
   const initializeDrawerControls = () => {
@@ -585,9 +596,12 @@
         window.history.replaceState({ moyiCalendarBase: true }, '', url);
       }
       await refreshList();
-      if (activeDraftId && !deleted) await loadDrawer(activeDraftId, { preserveTab: true });
-      if (form.hasAttribute('data-image-generation')) {
-        window.setTimeout(() => activeDraftId && loadDrawer(activeDraftId, { preserveTab: true, quiet: true }), 8000);
+      if (activeDraftId && !deleted) {
+        const isImageGen = form.hasAttribute('data-image-generation');
+        await loadDrawer(activeDraftId, { preserveTab: true });
+        if (isImageGen) {
+          activateTab('media');
+        }
       }
     } catch (error) {
       showToast(error.message, 'error');

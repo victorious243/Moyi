@@ -14,6 +14,7 @@ const Campaign = require('../models/Campaign');
 const SocialDraft = require('../models/SocialDraft');
 const ContentImage = require('../models/ContentImage');
 const MediaAsset = require('../models/MediaAsset');
+const ProjectJob = require('../models/ProjectJob');
 const PublishJob = require('../models/PublishJob');
 const PublishJobEvent = require('../models/PublishJobEvent');
 const SocialAccount = require('../models/SocialAccount');
@@ -187,7 +188,7 @@ router.get(
     const destinationProjectIds = canPublish
       ? await publishableProjectIds(req.user._id, { sourceProject: req.project })
       : [req.project._id];
-    const [socialAccounts, destinationProjects, socialImages, mediaAssets, allJobs, campaign, comments, activities, directMembers, organizationMembers, owner] = await Promise.all([
+    const [socialAccounts, destinationProjects, socialImages, mediaAssets, allJobs, campaign, comments, activities, directMembers, organizationMembers, owner, latestImageJob] = await Promise.all([
       SocialAccount.find({
         projectId: { $in: destinationProjectIds },
         ...socialAccountAccessFilter(req.user._id)
@@ -203,8 +204,17 @@ router.get(
       req.project.organizationId
         ? OrganizationMember.find({ organizationId: req.project.organizationId }).select('userId role').populate('userId', 'name email').lean()
         : [],
-      User.findById(req.project.owner).select('name email').lean()
+      User.findById(req.project.owner).select('name email').lean(),
+      ProjectJob.findOne({
+        projectId: req.project._id,
+        type: 'content_image_generation',
+        'payload.draftId': String(req.socialDraft._id)
+      }).sort({ createdAt: -1 }).lean()
     ]);
+    const isImageJobActive = latestImageJob && ['queued', 'running'].includes(latestImageJob.status);
+    const isImageJobFailed = latestImageJob && latestImageJob.status === 'failed' && (Date.now() - new Date(latestImageJob.updatedAt || latestImageJob.createdAt).getTime()) < 300000;
+    const activeImageJob = isImageJobActive ? latestImageJob : null;
+    const failedImageJob = isImageJobFailed ? latestImageJob : null;
     const publishAccounts = socialAccounts.filter((account) => NATIVE_SOCIAL_PLATFORMS.includes(account.platform) && account.status === 'connected');
     const latestJobs = latestJobsByDraft(allJobs)[String(req.socialDraft._id)] || [];
     const publishReadiness = buildPublishReadiness({
@@ -247,6 +257,8 @@ router.get(
       accountProjectNames: Object.fromEntries(destinationProjects.map((item) => [String(item._id), item.name])),
       socialImages,
       mediaAssets,
+      activeImageJob,
+      failedImageJob,
       publishJobs: allJobs,
       eventsByJobId,
       publishReadiness: draftReadiness,
@@ -383,10 +395,17 @@ router.get(
   [param('id').isMongoId(), handleValidation],
   loadSocialDraft,
   asyncHandler(async (req, res) => {
-    const assets = await MediaAsset.find({
-      draftId: req.socialDraft._id,
-      projectId: req.project._id
-    }).select('kind status processingError updatedAt');
+    const [assets, latestImageJob] = await Promise.all([
+      MediaAsset.find({
+        draftId: req.socialDraft._id,
+        projectId: req.project._id
+      }).select('kind status processingError updatedAt'),
+      ProjectJob.findOne({
+        projectId: req.project._id,
+        type: 'content_image_generation',
+        'payload.draftId': String(req.socialDraft._id)
+      }).sort({ createdAt: -1 }).select('status currentStep progressPercent errorMessage createdAt updatedAt').lean()
+    ]);
     res.json({
       assets: assets.map((asset) => ({
         id: String(asset._id),
@@ -394,7 +413,17 @@ router.get(
         status: asset.status,
         error: asset.status === 'failed' ? asset.processingError : '',
         updatedAt: asset.updatedAt
-      }))
+      })),
+      imageGeneration: latestImageJob ? {
+        id: String(latestImageJob._id),
+        status: latestImageJob.status,
+        currentStep: latestImageJob.currentStep || (latestImageJob.status === 'queued' ? 'Queued in background…' : 'Generating visual candidate…'),
+        progressPercent: latestImageJob.progressPercent || (latestImageJob.status === 'queued' ? 10 : 35),
+        error: latestImageJob.status === 'failed' ? latestImageJob.errorMessage : '',
+        isActive: ['queued', 'running'].includes(latestImageJob.status),
+        createdAt: latestImageJob.createdAt,
+        updatedAt: latestImageJob.updatedAt
+      } : null
     });
   })
 );

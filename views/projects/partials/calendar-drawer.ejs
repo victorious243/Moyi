@@ -4,6 +4,8 @@
   const projectNames = typeof accountProjectNames !== 'undefined' ? accountProjectNames : {};
   const images = typeof socialImages !== 'undefined' ? socialImages : [];
   const assets = typeof mediaAssets !== 'undefined' ? mediaAssets : [];
+  const activeGeneratingJob = typeof activeImageJob !== 'undefined' ? activeImageJob : null;
+  const recentFailedJob = typeof failedImageJob !== 'undefined' ? failedImageJob : null;
   const jobs = typeof publishJobs !== 'undefined' ? publishJobs : [];
   const events = typeof eventsByJobId !== 'undefined' ? eventsByJobId : {};
   const canManage = typeof canManageProject !== 'undefined' ? canManageProject : false;
@@ -63,7 +65,7 @@
 
 <div class="calendar-drawer-tabs" role="tablist" aria-label="Post details">
   <% (isClientReview ? [['content','Review'],['collaboration','Discussion']] : [['content','Content'],['media','Media'],['publishing','Publishing'],['collaboration','Collaboration'],['history','History']]).forEach(([key, label], index) => { %>
-    <button type="button" role="tab" id="drawer-tab-<%= key %>" aria-controls="drawer-panel-<%= key %>" aria-selected="<%= index === 0 %>" tabindex="<%= index === 0 ? '0' : '-1' %>" data-drawer-tab="<%= key %>"><%= label %><% if (key === 'history' && jobs.length) { %><span><%= jobs.length %></span><% } %></button>
+    <button type="button" role="tab" id="drawer-tab-<%= key %>" aria-controls="drawer-panel-<%= key %>" aria-selected="<%= index === 0 %>" tabindex="<%= index === 0 ? '0' : '-1' %>" data-drawer-tab="<%= key %>"><%= label %><% if (key === 'media' && activeGeneratingJob) { %><span class="tab-pulse-dot" title="Generating visual candidate"></span><% } %><% if (key === 'history' && jobs.length) { %><span><%= jobs.length %></span><% } %></button>
   <% }) %>
 </div>
 
@@ -123,6 +125,44 @@
 
     <% if (canManage) { %>
       <div class="calendar-drawer-section-heading"><div><p class="eyebrow">Creative workspace</p><h3>Generated and uploaded visuals</h3></div><span><%= images.filter((image) => image.status !== 'rejected').length %> candidates</span></div>
+
+      <% if (activeGeneratingJob) { %>
+        <div class="calendar-image-generating-card" data-image-generation-active data-job-id="<%= activeGeneratingJob._id %>">
+          <div class="generating-card-glow"></div>
+          <div class="generating-card-header">
+            <div class="generating-pulse-indicator">
+              <span class="generating-ping"></span>
+              <span class="generating-dot"></span>
+            </div>
+            <div class="generating-meta">
+              <div class="generating-title-row">
+                <strong><%= activeGeneratingJob.status === 'queued' ? 'Image generation queued' : 'Generating visual candidate...' %></strong>
+                <span class="calendar-ui-status status-tone-warning"><%= activeGeneratingJob.status %></span>
+              </div>
+              <p class="generating-step-text"><%= activeGeneratingJob.currentStep || (activeGeneratingJob.status === 'queued' ? 'Waiting in background worker queue…' : 'Designing scene & composition with AI…') %></p>
+            </div>
+          </div>
+          <div class="generating-progress-container">
+            <div class="generating-progress-bar" style="width: <%= Math.max(10, activeGeneratingJob.progressPercent || (activeGeneratingJob.status === 'queued' ? 15 : 45)) %>%"></div>
+          </div>
+          <% if (activeGeneratingJob.payload && (activeGeneratingJob.payload.guidance || activeGeneratingJob.payload.visualFormat)) { %>
+            <div class="generating-prompt-preview">
+              <% if (activeGeneratingJob.payload.visualFormat) { %><span class="generating-tag"><%= activeGeneratingJob.payload.visualFormat.replace(/-/g, ' ') %></span><% } %>
+              <% if (activeGeneratingJob.payload.aestheticTheme) { %><span class="generating-tag"><%= activeGeneratingJob.payload.aestheticTheme.replace(/-/g, ' ') %></span><% } %>
+              <% if (activeGeneratingJob.payload.guidance) { %><p class="generating-guidance">“<%= activeGeneratingJob.payload.guidance %>”</p><% } %>
+            </div>
+          <% } %>
+        </div>
+      <% } else if (recentFailedJob) { %>
+        <div class="calendar-image-failed-banner" role="alert">
+          <div class="failed-banner-header">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="7"/><line x1="8" y1="5" x2="8" y2="8"/><line x1="8" y1="11" x2="8.01" y2="11"/></svg>
+            <strong>Image generation failed</strong>
+          </div>
+          <p><%= recentFailedJob.errorMessage || 'Unable to generate visual with the current prompt. Please try adjusting your guidance or format.' %></p>
+        </div>
+      <% } %>
+
       <div class="calendar-image-actions">
         <form class="form" action="/social-drafts/<%= draft._id %>/images/generate" method="post" data-async-action data-refresh-drawer data-image-generation>
           <label>Visual format<select name="visualFormat"><option value="minimal-product-visual">Minimal no-text visual</option><option value="fashion-editorial">Fashion / beauty editorial</option><option value="ecommerce-product-scene">Ecommerce product scene</option><option value="ugc-lifestyle">UGC / lifestyle moment</option><option value="art-direction-campaign">Art-direction campaign</option><option value="human-editorial-poster">Human editorial poster</option><option value="corporate-flyer">Corporate marketing flyer</option><option value="b2b-carousel-slide">Multi-slide B2B carousel</option><option value="3d-device-mockup">SaaS product mockup</option><option value="data-infographic">Data infographic</option><option value="performance-ad-creative">Performance ad creative</option></select></label>
