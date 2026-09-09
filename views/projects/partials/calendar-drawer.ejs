@@ -52,7 +52,7 @@
         <span><%= status.statusLabel %></span>
       </span>
       <span class="calendar-review-status"><%= currentReviewLabel %></span>
-      <span><%= draft.scheduledFor ? draft.scheduledFor.toLocaleString() : 'Unscheduled' %></span>
+      <span><%= draft.scheduledFor && !isNaN(new Date(draft.scheduledFor).getTime()) ? new Date(draft.scheduledFor).toLocaleString() : 'Unscheduled' %></span>
     </div>
   </div>
   <% if (canChange) { %><button class="mobile-drawer-save" type="submit" form="calendar-draft-update-<%= draft._id %>">Save</button><% } %>
@@ -88,7 +88,7 @@
           <label>Internal title<input name="title" value="<%= draft.title || '' %>" maxlength="180"></label>
           <label>Platform<select name="channel" data-draft-channel><% ['bluesky','linkedin','instagram','facebook','threads','x','tiktok','youtube','email','webhook'].forEach((channel) => { %><option value="<%= channel %>" <%= draft.channel === channel ? 'selected' : '' %>><%= channel %></option><% }) %></select></label>
           <label>Account<select name="socialAccountId"><option value="">Auto-select connected account</option><% connectedAccounts.forEach((account) => { %><option value="<%= account._id %>" <%= String(draft.socialAccountId || '') === String(account._id) ? 'selected' : '' %>><%= account.platform %> · <%= account.accountName %> · <%= projectNames[String(account.projectId)] || project.name %></option><% }) %></select></label>
-          <label>Scheduled date<input type="datetime-local" name="scheduledFor" value="<%= draft.scheduledFor ? new Date(draft.scheduledFor.getTime() - draft.scheduledFor.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '' %>" required></label>
+          <label>Scheduled date<input type="datetime-local" name="scheduledFor" value="<%= (draft.scheduledFor && !isNaN(new Date(draft.scheduledFor).getTime())) ? new Date(new Date(draft.scheduledFor).getTime() - new Date(draft.scheduledFor).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '' %>" required></label>
         </div>
         <label>Caption<textarea name="body" rows="10" maxlength="4000" required data-draft-copy><%= draft.body %></textarea><small data-draft-copy-limit></small></label>
         <div class="calendar-drawer-actions"><button class="button button-primary" type="submit">Save changes</button><button class="button" type="submit" formaction="/social-drafts/<%= draft._id %>/delete" data-delete-draft>Remove post</button></div>

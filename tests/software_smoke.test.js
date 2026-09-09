@@ -816,6 +816,33 @@ test('calendar async forms only use submitter override URLs when explicitly prov
   assert.match(source, /toastRegion\.querySelectorAll\('\.calendar-toast'\)/);
 });
 
+test('calendar async forms serialize non-multipart forms as urlencoded with URLSearchParams', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../public/js/content-calendar.js'), 'utf8');
+  assert.match(source, /const isMultipart = form\.enctype === 'multipart\/form-data' \|\| Boolean\(form\.querySelector\('input\[type="file"\]'\)\);/);
+  assert.match(source, /const body = isMultipart \? data : new URLSearchParams\(data\);/);
+  assert.match(source, /headers\['Content-Type'\] = 'application\/x-www-form-urlencoded; charset=UTF-8';/);
+
+  const calendarView = fs.readFileSync(path.join(__dirname, '../views/projects/calendar.ejs'), 'utf8');
+  assert.match(calendarView, /\/js\/content-calendar\.js\?v=20260910/);
+});
+
+test('social draft update validation supports both multipart and urlencoded payloads and accepts datetime-local format', async () => {
+  const socialRouter = require('../routes/socialDrafts');
+  const updateRoute = socialRouter.stack.find((layer) => layer.route && layer.route.path === '/:id/update');
+  assert.ok(updateRoute, 'POST /:id/update route should exist.');
+
+  const validator = require('validator');
+  const validLocal = '2026-09-10T14:30';
+  const validIso = '2026-09-10T14:30:00.000Z';
+  const invalidDate = 'not-a-date';
+
+  const check = (val) => Boolean(val && (validator.isISO8601(val) || !isNaN(new Date(val).getTime())));
+  assert.equal(check(validLocal), true);
+  assert.equal(check(validIso), true);
+  assert.equal(check(invalidDate), false);
+  assert.equal(check(''), false);
+});
+
 test('platform admin middleware hides operator routes from non-admin users', () => {
   const { requirePlatformAdmin } = require('../middleware/platformAdmin');
   const req = { user: { role: 'owner' } };

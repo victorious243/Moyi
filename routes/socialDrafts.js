@@ -3,6 +3,7 @@ const asyncHandler = require('express-async-handler');
 const crypto = require('crypto');
 const fs = require('fs');
 const { body, param, query } = require('express-validator');
+const validator = require('validator');
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
@@ -116,6 +117,21 @@ function uploadSingleMedia(req, res, next) {
 }
 
 router.use(requireAuth);
+
+const formFieldParser = multer().none();
+
+function parseSocialDraftBody(req, res, next) {
+  const contentType = req.headers['content-type'] || '';
+  if (contentType.includes('multipart/form-data')) {
+    if (req.path.endsWith('/media/upload') || req.path.endsWith('/images/upload')) {
+      return next();
+    }
+    return formFieldParser(req, res, next);
+  }
+  return next();
+}
+
+router.use(parseSocialDraftBody);
 
 function wantsCalendarJson(req) {
   return req.method !== 'GET'
@@ -1275,11 +1291,15 @@ router.post('/:id/reschedule', [
 }));
 
 const updateSocialDraftValidation = [
+  parseSocialDraftBody,
   param('id').isMongoId(),
-  body('title').trim().isLength({ max: 180 }).withMessage('Post title is too long.'),
+  body('title').optional({ checkFalsy: true }).trim().isLength({ max: 180 }).withMessage('Post title is too long.'),
   body('body').trim().notEmpty().withMessage('Post copy is required.').isLength({ max: 4000 }).withMessage('Post copy is too long.'),
   body('channel').isIn(['bluesky', 'linkedin', 'facebook', 'x', 'instagram', 'threads', 'youtube', 'tiktok', 'email', 'webhook']).withMessage('Channel is invalid.'),
-  body('scheduledFor').isISO8601().withMessage('Choose a valid schedule date.'),
+  body('scheduledFor')
+    .trim()
+    .notEmpty().withMessage('Choose a valid schedule date.')
+    .custom((value) => validator.isISO8601(value) || !isNaN(new Date(value).getTime())).withMessage('Choose a valid schedule date.'),
   body('socialAccountId').optional({ checkFalsy: true }).isMongoId().withMessage('Choose a valid social account.'),
   handleValidation
 ];
@@ -1295,7 +1315,7 @@ const updateSocialDraftHandler = asyncHandler(async (req, res) => {
       return res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { error: error.message }));
     }
   }
-  req.socialDraft.title = req.body.title;
+  req.socialDraft.title = req.body.title || '';
   req.socialDraft.body = req.body.body;
   req.socialDraft.channel = req.body.channel;
   req.socialDraft.socialAccountId = req.body.socialAccountId || null;

@@ -556,11 +556,21 @@
     if (submitter?.name) data.append(submitter.name, submitter.value);
     setBusy(form, true);
     try {
+      const isMultipart = form.enctype === 'multipart/form-data' || Boolean(form.querySelector('input[type="file"]'));
+      const body = isMultipart ? data : new URLSearchParams(data);
+      const headers = {
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-Token': csrfToken()
+      };
+      if (!isMultipart) {
+        headers['Content-Type'] = 'application/x-www-form-urlencoded; charset=UTF-8';
+      }
       const response = await fetch(action, {
         method,
         credentials: 'same-origin',
-        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': csrfToken() },
-        body: data
+        headers,
+        body
       });
       const payload = await response.json().catch(() => ({}));
       const message = payload.message || payload.error?.message || (response.ok ? 'Calendar updated.' : 'The action could not be completed.');
