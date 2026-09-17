@@ -56,7 +56,7 @@
         <span>1</span><strong>Write</strong><small><%= draft.body ? 'Draft ready' : 'Needs content' %></small>
       </button>
       <button type="button" data-workflow-tab="visual" aria-controls="workflow-visual">
-        <span>2</span><strong>Visual</strong><small><%= selectedImage ? 'Image selected' : `${activeImages.length} candidates` %></small>
+        <span>2</span><strong>Visual</strong><small><%= selectedImage ? 'Image selected' : `${activeImages.length} candidates` %></small><% if (currentImageJob && ['queued', 'running'].includes(currentImageJob.status)) { %><span class="tab-pulse-dot" title="Generating visual candidate"></span><% } %>
       </button>
       <button type="button" data-workflow-tab="review" aria-controls="workflow-review">
         <span>3</span><strong>Review</strong><small><%= ['approved', 'published_manually'].includes(draft.status) ? 'Approved' : draftStatusLabel %></small>
@@ -256,16 +256,40 @@
           </section>
         <% } %>
 
+        <% if (currentImageJob && ['queued', 'running'].includes(currentImageJob.status)) { %>
+          <div class="calendar-image-generating-card" style="margin-bottom: 24px;">
+            <div class="generating-card-glow"></div>
+            <div class="generating-card-header">
+              <div class="generating-pulse-indicator">
+                <span class="generating-ping"></span>
+                <span class="generating-dot"></span>
+              </div>
+              <div class="generating-meta">
+                <div class="generating-title-row">
+                  <strong><%= currentImageJob.status === 'queued' ? 'Image generation queued' : 'Generating visual candidate...' %></strong>
+                  <span class="status"><%= currentImageJob.status %></span>
+                </div>
+                <p class="generating-step-text" data-job-step><%= currentImageJob.currentStep || (currentImageJob.status === 'queued' ? 'Waiting in background worker queue…' : 'Designing scene & composition with AI…') %></p>
+              </div>
+            </div>
+            <div class="generating-progress-container">
+              <div class="generating-progress-bar" style="width: <%= Math.max(10, currentImageJob.progressPercent || 15) %>%"></div>
+            </div>
+            <% if (currentImageJob.payload && (currentImageJob.payload.guidance || currentImageJob.payload.visualFormat)) { %>
+              <div class="generating-prompt-preview">
+                <% if (currentImageJob.payload.visualFormat) { %><span class="generating-tag"><%= currentImageJob.payload.visualFormat.replace(/-/g, ' ') %></span><% } %>
+                <% if (currentImageJob.payload.aestheticTheme) { %><span class="generating-tag"><%= currentImageJob.payload.aestheticTheme.replace(/-/g, ' ') %></span><% } %>
+                <% if (currentImageJob.payload.guidance) { %><p class="generating-guidance">“<%= currentImageJob.payload.guidance %>”</p><% } %>
+              </div>
+            <% } %>
+          </div>
+        <% } %>
+
         <div class="image-control-grid">
           <form
             class="image-control"
             action="/content/<%= draft._id %>/images/generate<%= typeof csrfToken !== 'undefined' && csrfToken ? `?_csrf=${csrfToken}` : '' %>"
             method="post"
-            data-loading-state="Generating a content-matched image"
-            data-loading-mode="calm"
-            data-loading-domain="<%= draft.title || 'this content asset' %>"
-            data-loading-copy="Moyi is creating the image and saving the file. This may take a little longer for logo-based poster designs."
-            data-loading-stages="Brief,Reference,Render,Save"
           >
             <div>
               <strong>Generate with Moyi</strong>

@@ -365,6 +365,13 @@
   const loadDrawer = async (draftId, { preserveTab = false, quiet = false } = {}) => {
     if (!draftId) return;
     const activeTab = preserveTab ? drawerContent.querySelector('[role="tab"][aria-selected="true"]')?.dataset.drawerTab : '';
+    const activeEl = document.activeElement;
+    const isEditingField = quiet && activeEl && drawerContent.contains(activeEl) && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
+    const fieldName = isEditingField ? activeEl.name : null;
+    const fieldValue = isEditingField ? activeEl.value : null;
+    const fieldStart = isEditingField ? activeEl.selectionStart : null;
+    const fieldEnd = isEditingField ? activeEl.selectionEnd : null;
+
     if (drawerRequest) drawerRequest.abort();
     drawerRequest = new AbortController();
     if (!quiet) loadingDrawer();
@@ -377,6 +384,16 @@
       if (!response.ok) throw new Error('Post details could not be loaded.');
       drawerContent.innerHTML = await response.text();
       if (activeTab) drawerContent.querySelector(`[data-drawer-tab="${activeTab}"]`)?.click();
+      if (fieldName) {
+        const restored = drawerContent.querySelector(`[name="${fieldName}"]`);
+        if (restored) {
+          restored.value = fieldValue;
+          restored.focus();
+          if (fieldStart !== null && typeof restored.setSelectionRange === 'function') {
+            try { restored.setSelectionRange(fieldStart, fieldEnd); } catch (_) {}
+          }
+        }
+      }
       initializeDrawerControls();
     } catch (error) {
       if (error.name === 'AbortError') return;
@@ -558,13 +575,116 @@
     }
   };
 
+  let activeGeneratingDraftId = null;
+  let activeGeneratingPollTimer = null;
+
+  const showOptimisticImageGenerating = (form) => {
+    const mediaPanel = drawerContent.querySelector('#drawer-panel-media');
+    if (!mediaPanel) return;
+    const existingCard = mediaPanel.querySelector('.calendar-image-generating-card');
+    if (existingCard) return;
+    const actions = mediaPanel.querySelector('.calendar-image-actions');
+    const formatSelect = form.querySelector('select[name="visualFormat"]');
+    const themeSelect = form.querySelector('select[name="aestheticTheme"]');
+    const guidanceArea = form.querySelector('textarea[name="guidance"]');
+    const visualFormat = formatSelect ? (formatSelect.options[formatSelect.selectedIndex]?.text || formatSelect.value) : '';
+    const aestheticTheme = themeSelect ? (themeSelect.options[themeSelect.selectedIndex]?.text || themeSelect.value) : '';
+    const guidance = guidanceArea?.value ? guidanceArea.value.trim() : '';
+
+    const card = document.createElement('div');
+    card.className = 'calendar-image-generating-card';
+    card.setAttribute('data-image-generation-active', 'true');
+    card.innerHTML = `
+      <div class="generating-card-glow"></div>
+      <div class="generating-card-header">
+        <div class="generating-pulse-indicator">
+          <span class="generating-ping"></span>
+          <span class="generating-dot"></span>
+        </div>
+        <div class="generating-meta">
+          <div class="generating-title-row">
+            <strong>Generating visual candidate...</strong>
+            <span class="calendar-ui-status status-tone-warning">queued</span>
+          </div>
+          <p class="generating-step-text">Sending request to background AI worker…</p>
+        </div>
+      </div>
+      <div class="generating-progress-container">
+        <div class="generating-progress-bar" style="width: 15%"></div>
+      </div>
+      ${visualFormat || guidance ? `
+        <div class="generating-prompt-preview">
+          ${visualFormat ? `<span class="generating-tag">${visualFormat}</span>` : ''}
+          ${aestheticTheme ? `<span class="generating-tag">${aestheticTheme}</span>` : ''}
+          ${guidance ? `<p class="generating-guidance">“${guidance.replace(/"/g, '&quot;')}”</p>` : ''}
+        </div>
+      ` : ''}
+    `;
+    if (actions) {
+      mediaPanel.insertBefore(card, actions);
+    } else {
+      mediaPanel.appendChild(card);
+    }
+    const mediaTab = drawerContent.querySelector('#drawer-tab-media');
+    if (mediaTab && !mediaTab.querySelector('.tab-pulse-dot')) {
+      const dot = document.createElement('span');
+      dot.className = 'tab-pulse-dot';
+      dot.title = 'Generating visual candidate';
+      mediaTab.appendChild(dot);
+    }
+    scheduleDetailPolling();
+  };
+
+  const pollBackgroundGeneration = () => {
+    window.clearTimeout(activeGeneratingPollTimer);
+    if (!activeGeneratingDraftId) return;
+    activeGeneratingPollTimer = window.setTimeout(async () => {
+      if (!activeGeneratingDraftId) return;
+      try {
+        const response = await fetch(`/social-drafts/${encodeURIComponent(activeGeneratingDraftId)}/media-status`, {
+          credentials: 'same-origin',
+          headers: { Accept: 'application/json' }
+        });
+        if (!response.ok) throw new Error();
+        const data = await response.json();
+        const isGenerating = data.imageGeneration?.isActive;
+        if (!isGenerating) {
+          const finishedDraftId = activeGeneratingDraftId;
+          activeGeneratingDraftId = null;
+          await refreshList();
+          if (activeDraftId && activeDraftId === finishedDraftId) {
+            await loadDrawer(activeDraftId, { preserveTab: true, quiet: true });
+          }
+          if (data.imageGeneration?.status === 'completed') {
+            showToast('Visual candidate generated successfully!');
+          } else if (data.imageGeneration?.status === 'failed') {
+            showToast('Visual generation could not complete. Check details in Media tab.', 'error');
+          }
+          return;
+        }
+      } catch (_) {}
+      if (activeGeneratingDraftId) {
+        pollBackgroundGeneration();
+      }
+    }, 2800);
+  };
+
   const submitAsync = async (form, submitter) => {
     const submitterAction = submitter?.hasAttribute('formaction') ? submitter.formAction : '';
     const submitterMethod = submitter?.hasAttribute('formmethod') ? submitter.formMethod : '';
     const action = submitterAction || form.action;
     const method = (submitterMethod || form.method || 'post').toUpperCase();
+    const isImageGen = form.hasAttribute('data-image-generation');
     const data = new FormData(form);
     if (submitter?.name) data.append(submitter.name, submitter.value);
+
+    if (isImageGen) {
+      activateTab('media');
+      showOptimisticImageGenerating(form);
+      activeGeneratingDraftId = activeDraftId;
+      pollBackgroundGeneration();
+    }
+
     setBusy(form, true);
     try {
       const isMultipart = form.enctype === 'multipart/form-data' || Boolean(form.querySelector('input[type="file"]'));
@@ -597,8 +717,7 @@
       }
       await refreshList();
       if (activeDraftId && !deleted) {
-        const isImageGen = form.hasAttribute('data-image-generation');
-        await loadDrawer(activeDraftId, { preserveTab: true });
+        await loadDrawer(activeDraftId, { preserveTab: true, quiet: isImageGen });
         if (isImageGen) {
           activateTab('media');
         }
