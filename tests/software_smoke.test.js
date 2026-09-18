@@ -823,7 +823,18 @@ test('calendar async forms serialize non-multipart forms as urlencoded with URLS
   assert.match(source, /headers\['Content-Type'\] = 'application\/x-www-form-urlencoded; charset=UTF-8';/);
 
   const calendarView = fs.readFileSync(path.join(__dirname, '../views/projects/calendar.ejs'), 'utf8');
-  assert.match(calendarView, /\/js\/content-calendar\.js\?v=20260910/);
+  assert.match(calendarView, /\/js\/content-calendar\.js\?v=20260918/);
+});
+
+test('calendar image generation tells users the job runs in the background', () => {
+  const drawer = fs.readFileSync(path.join(__dirname, '../views/projects/partials/calendar-drawer.ejs'), 'utf8');
+  const script = fs.readFileSync(path.join(__dirname, '../public/js/content-calendar.js'), 'utf8');
+  const styles = fs.readFileSync(path.join(__dirname, '../public/stylesheets/content-calendar.css'), 'utf8');
+
+  assert.match(drawer, /data-image-generation-status/);
+  assert.match(drawer, /Image generation runs in the background/);
+  assert.match(script, /Image generation is queued in the background/);
+  assert.match(styles, /\.calendar-background-help/);
 });
 
 test('social draft update validation supports both multipart and urlencoded payloads and accepts datetime-local format', async () => {

@@ -136,10 +136,10 @@
             </div>
             <div class="generating-meta">
               <div class="generating-title-row">
-                <strong><%= activeGeneratingJob.status === 'queued' ? 'Image generation queued' : 'Generating visual candidate...' %></strong>
+                <strong><%= activeGeneratingJob.status === 'queued' ? 'Image generation queued in background' : 'Generating visual candidate in background...' %></strong>
                 <span class="calendar-ui-status status-tone-warning"><%= activeGeneratingJob.status %></span>
               </div>
-              <p class="generating-step-text"><%= activeGeneratingJob.currentStep || (activeGeneratingJob.status === 'queued' ? 'Waiting in background worker queue…' : 'Designing scene & composition with AI…') %></p>
+              <p class="generating-step-text"><%= activeGeneratingJob.currentStep || (activeGeneratingJob.status === 'queued' ? 'Waiting in the background worker queue. You can keep editing this post.' : 'Designing scene and composition in the background. You can leave this panel open or continue working.') %></p>
             </div>
           </div>
           <div class="generating-progress-container">
@@ -170,6 +170,9 @@
           <label>Image direction<textarea name="guidance" rows="4" maxlength="1500" placeholder="Describe the scene, product, styling, camera feel and what to avoid."></textarea></label>
           <% if (images.some((image) => image.status !== 'rejected')) { %><label>Reference image<select name="referenceImageId"><option value="">No reference</option><% images.filter((image) => image.status !== 'rejected').forEach((image) => { %><option value="<%= image._id %>"><%= image.source %> image <%= image.status === 'selected' ? '(selected)' : '' %></option><% }) %></select></label><% } %>
           <button class="button button-primary" type="submit">Generate image</button>
+          <p class="calendar-background-help" data-image-generation-status aria-live="polite">
+            Image generation runs in the background. Moyi will keep checking this post and show the visual here when it is ready.
+          </p>
         </form>
         <form class="form" action="/social-drafts/<%= draft._id %>/images/upload" method="post" enctype="multipart/form-data" data-async-action data-refresh-drawer><label>Upload image<input type="file" name="image" accept="image/jpeg,image/png,image/webp" required></label><label>Alt text<input name="altText" maxlength="240"></label><label>Caption<input name="caption" maxlength="500"></label><button class="button" type="submit">Upload image</button></form>
       </div>

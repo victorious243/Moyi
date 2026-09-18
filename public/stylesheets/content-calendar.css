@@ -4606,6 +4606,23 @@
   }
 }
 
+.calendar-background-help {
+  margin: -2px 0 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(85, 230, 207, 0.22);
+  border-radius: 8px;
+  background: rgba(85, 230, 207, 0.06);
+  color: var(--cal-text-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.calendar-background-help.is-running {
+  border-color: rgba(85, 230, 207, 0.42);
+  background: linear-gradient(135deg, rgba(85, 230, 207, 0.1), rgba(138, 124, 255, 0.06));
+  color: var(--cal-text);
+}
+
 .calendar-image-generating-card {
   position: relative;
   margin-bottom: 20px;

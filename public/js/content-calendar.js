@@ -603,10 +603,10 @@
         </div>
         <div class="generating-meta">
           <div class="generating-title-row">
-            <strong>Generating visual candidate...</strong>
+            <strong>Image generation queued in background</strong>
             <span class="calendar-ui-status status-tone-warning">queued</span>
           </div>
-          <p class="generating-step-text">Sending request to background AI worker…</p>
+          <p class="generating-step-text">Sending this request to the background AI worker. You can keep editing while Moyi checks for the finished visual.</p>
         </div>
       </div>
       <div class="generating-progress-container">
@@ -633,6 +633,13 @@
       mediaTab.appendChild(dot);
     }
     scheduleDetailPolling();
+  };
+
+  const updateImageGenerationStatus = (form) => {
+    const status = form.querySelector('[data-image-generation-status]');
+    if (!status) return;
+    status.textContent = 'Image generation is queued in the background. Moyi will refresh this post automatically when the visual is ready.';
+    status.classList.add('is-running');
   };
 
   const pollBackgroundGeneration = () => {
@@ -680,6 +687,7 @@
 
     if (isImageGen) {
       activateTab('media');
+      updateImageGenerationStatus(form);
       showOptimisticImageGenerating(form);
       activeGeneratingDraftId = activeDraftId;
       pollBackgroundGeneration();
