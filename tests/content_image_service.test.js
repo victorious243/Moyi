@@ -14,6 +14,7 @@ const {
   uploadBuffer
 } = require('../services/contentImageStorageService');
 const {
+  deleteContentImage,
   detectVisualFormat,
   detectImageMimeType,
   extractPosterText,
@@ -283,6 +284,52 @@ test('content image records require durable file and draft ownership metadata', 
 
   image.storageKey = '';
   assert.ok(image.validateSync().errors.storageKey);
+});
+
+test('rejecting a content image can hard-delete the record, file, and selected draft reference', async () => {
+  const originalStoragePath = env.contentImageStoragePath;
+  const originalStorageProvider = env.contentImageStorageProvider;
+  const originalDeleteOne = ContentImage.deleteOne;
+  const temporaryRoot = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'moyi-content-image-delete-'));
+  const imageId = new mongoose.Types.ObjectId();
+  const storageKey = '123e4567-e89b-12d3-a456-426614174000.jpg';
+  const storedPath = path.join(temporaryRoot, storageKey);
+  let deletedQuery = null;
+  let draftSaved = false;
+
+  env.contentImageStorageProvider = 'machine';
+  env.contentImageStoragePath = temporaryRoot;
+  await fs.promises.writeFile(storedPath, Buffer.from([0xff, 0xd8, 0xff]));
+  ContentImage.deleteOne = async (query) => {
+    deletedQuery = query;
+    return { deletedCount: 1 };
+  };
+
+  try {
+    const draft = {
+      contentImageId: imageId,
+      selectedImageId: imageId,
+      save: async () => {
+        draftSaved = true;
+      }
+    };
+
+    await deleteContentImage({
+      draft,
+      image: { _id: imageId, storageKey }
+    });
+
+    assert.equal(draft.contentImageId, null);
+    assert.equal(draft.selectedImageId, null);
+    assert.equal(draftSaved, true);
+    assert.equal(String(deletedQuery._id), String(imageId));
+    await assert.rejects(fs.promises.stat(storedPath), { code: 'ENOENT' });
+  } finally {
+    ContentImage.deleteOne = originalDeleteOne;
+    env.contentImageStorageProvider = originalStorageProvider;
+    env.contentImageStoragePath = originalStoragePath;
+    await fs.promises.rm(temporaryRoot, { recursive: true, force: true });
+  }
 });
 
 test('content image binaries are written to private machine storage, not MongoDB', async () => {

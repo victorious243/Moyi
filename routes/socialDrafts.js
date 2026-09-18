@@ -27,7 +27,7 @@ const AppError = require('../utils/appError');
 const handleValidation = require('../utils/validate');
 const { requireAuth } = require('../middleware/auth');
 const {
-  rejectContentImage,
+  deleteContentImage,
   restoreContentImage,
   saveUploadedImage,
   selectContentImage
@@ -681,9 +681,9 @@ router.post(
       projectId: req.project._id
     });
     if (!image) return next(new AppError('Social post image not found.', 404));
-    await rejectContentImage({ draft: req.socialDraft, image });
-    await recordDraftActivity({ draft: req.socialDraft, user: req.user, eventType: 'image_rejected', summary: 'Rejected an image option.', metadata: { imageId: image._id }, req });
-    res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { success: 'Image rejected for this post.' }));
+    await deleteContentImage({ draft: req.socialDraft, image });
+    await recordDraftActivity({ draft: req.socialDraft, user: req.user, eventType: 'image_rejected', summary: 'Rejected and deleted an image option.', metadata: { imageId: image._id }, req });
+    res.redirect(calendarUrl(req.project._id, req.socialDraft._id, { success: 'Image rejected and deleted for this post.' }));
   })
 );
 

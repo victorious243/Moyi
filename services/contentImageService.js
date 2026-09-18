@@ -560,6 +560,32 @@ async function restoreContentImage(image) {
   return image;
 }
 
+async function deleteContentImage({ draft, image }) {
+  if (!image) return null;
+
+  const imageId = image._id;
+  const storageKey = image.storageKey;
+
+  if (draft) {
+    let draftChanged = false;
+    if (draft.contentImageId && String(draft.contentImageId) === String(imageId)) {
+      draft.contentImageId = null;
+      draftChanged = true;
+    }
+    if (draft.selectedImageId && String(draft.selectedImageId) === String(imageId)) {
+      draft.selectedImageId = null;
+      draftChanged = true;
+    }
+    if (draftChanged) {
+      await draft.save();
+    }
+  }
+
+  await ContentImage.deleteOne({ _id: imageId });
+  await deleteFile(storageKey).catch(() => null);
+  return image;
+}
+
 async function deleteContentImagesForProject(projectId) {
   const images = await ContentImage.find({ projectId }).select('storageKey').lean();
   await Promise.all(images.map((image) => deleteFile(image.storageKey).catch(() => null)));
@@ -570,6 +596,7 @@ async function deleteContentImagesForProject(projectId) {
 module.exports = {
   ALLOWED_MIME_TYPES,
   MAX_UPLOAD_BYTES,
+  deleteContentImage,
   deleteContentImagesForProject,
   detectVisualFormat,
   detectImageMimeType,

@@ -21,7 +21,7 @@ const { createShopifyDraftArticle } = require('../services/shopifyService');
 const { sendContentApprovedWebhook } = require('../services/webhookService');
 const { createSocialDraftsFromContent } = require('../services/socialDraftService');
 const {
-  rejectContentImage,
+  deleteContentImage,
   restoreContentImage,
   saveUploadedImage,
   selectContentImage
@@ -276,14 +276,14 @@ router.post(
     const image = await ContentImage.findOne({ _id: req.params.imageId, draftId: req.draft._id });
     if (!image) return next(new AppError('Content image not found.', 404));
     const wasSelected = image.status === 'selected';
-    await rejectContentImage({ draft: req.draft, image });
+    await deleteContentImage({ draft: req.draft, image });
     if (wasSelected) {
       await SocialDraft.updateMany(
         { sourceContentDraftId: req.draft._id },
         { $set: { contentImageId: null } }
       );
     }
-    res.redirect(contentUrl(req.draft._id, 'visual', { imageSuccess: 'Image rejected and removed from the candidate set.' }));
+    res.redirect(contentUrl(req.draft._id, 'visual', { imageSuccess: 'Image rejected and deleted.' }));
   })
 );
 

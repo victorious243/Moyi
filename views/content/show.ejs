@@ -6,7 +6,6 @@
   const evidenceHighlights = Array.isArray(execution.evidenceHighlights) ? execution.evidenceHighlights : [];
   const draftImages = typeof contentImages !== 'undefined' && Array.isArray(contentImages) ? contentImages : [];
   const activeImages = draftImages.filter((image) => image.status !== 'rejected');
-  const rejectedImages = draftImages.filter((image) => image.status === 'rejected');
   const selectedImage = activeImages.find((image) => image.status === 'selected') || null;
   const previewImage = selectedImage || activeImages[0] || null;
   const currentImageJob = typeof imageJob !== 'undefined' ? imageJob : null;
@@ -412,18 +411,6 @@
           </div>
         <% } %>
 
-        <% if (rejectedImages.length) { %>
-          <details class="rejected-image-list">
-            <summary><%= rejectedImages.length %> rejected image<%= rejectedImages.length === 1 ? '' : 's' %></summary>
-            <div class="status-actions">
-              <% rejectedImages.forEach((image) => { %>
-                <form action="/content/<%= draft._id %>/images/<%= image._id %>/restore" method="post">
-                  <button class="button" type="submit">Restore <%= image.filename %></button>
-                </form>
-              <% }) %>
-            </div>
-          </details>
-        <% } %>
       </section>
       <div class="workflow-step-actions">
         <button class="button" type="button" data-workflow-next="write">Back: Write</button>
