@@ -4,6 +4,7 @@
   const scanResult = typeof quickScanResult !== 'undefined' ? quickScanResult : null;
   const scanError = typeof quickScanError !== 'undefined' ? quickScanError : '';
   const scanUrl = typeof quickScanUrl !== 'undefined' ? quickScanUrl : '';
+  const tutorialVideo = typeof landingTutorialVideo !== 'undefined' ? landingTutorialVideo : null;
 %>
 
 <section class="hero landing-hero reveal" id="quick-scan">
@@ -13,7 +14,7 @@
     <h1>Moyi-CMO turns website and Search Console evidence into marketing action</h1>
     <p class="lead">Moyi-CMO helps business owners and marketing teams audit their websites, connect Google Search Console with read-only access, understand search performance, and turn real findings into SEO recommendations, content drafts, campaign plans, and weekly reports.</p>
     <div class="actions">
-      <a class="button" href="#product-preview">View Demo</a>
+      <a class="button" href="<%= tutorialVideo ? '#product-tour' : '#product-preview' %>">View Demo</a>
       <a class="button button-primary" href="/register">Create Free Account</a>
     </div>
   </div>
@@ -217,6 +218,43 @@
     <p>Manage client projects, evidence, recommendations, publishing, roles, and reports in separated workspaces.</p>
   </article>
 </section>
+
+<% if (tutorialVideo) { %>
+  <section class="landing-tutorial reveal" id="product-tour" aria-labelledby="product-tour-title">
+    <div class="landing-tutorial-heading">
+      <div>
+        <p class="eyebrow">Moyi-CMO product tour</p>
+        <h2 id="product-tour-title">See how Moyi turns evidence into marketing action.</h2>
+      </div>
+      <p>Follow the complete workflow, from creating a project and connecting data to reviewing recommendations, producing content, approving work, publishing, and measuring results.</p>
+    </div>
+
+    <div class="landing-tutorial-player">
+      <% if (tutorialVideo.type === 'embed') { %>
+        <iframe
+          src="<%= tutorialVideo.src %>"
+          title="How to use Moyi-CMO"
+          loading="lazy"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          referrerpolicy="strict-origin-when-cross-origin"
+          allowfullscreen></iframe>
+      <% } else { %>
+        <video controls playsinline preload="metadata"<% if (tutorialVideo.poster) { %> poster="<%= tutorialVideo.poster %>"<% } %>>
+          <source src="<%= tutorialVideo.src %>">
+          Your browser does not support embedded video. <a href="<%= tutorialVideo.src %>">Open the Moyi-CMO tutorial</a>.
+        </video>
+      <% } %>
+    </div>
+
+    <div class="landing-tutorial-footer">
+      <span>Project setup</span>
+      <span>Evidence and strategy</span>
+      <span>Content and approval</span>
+      <span>Publishing and measurement</span>
+      <a href="/docs">Read the documentation <b aria-hidden="true">&rarr;</b></a>
+    </div>
+  </section>
+<% } %>
 
 <section class="section-intro reveal" id="product-preview">
   <p class="eyebrow">Product preview</p>

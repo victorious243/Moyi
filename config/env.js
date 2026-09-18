@@ -220,6 +220,8 @@ const env = {
   appUrl,
   appUrlObject,
   appName: process.env.APP_NAME || 'Moyi AI CMO',
+  landingTutorialVideoUrl: process.env.LANDING_TUTORIAL_VIDEO_URL || '',
+  landingTutorialPosterUrl: process.env.LANDING_TUTORIAL_POSTER_URL || '',
   crawlTimeoutMs: numberFromEnv(process.env.CRAWL_TIMEOUT_MS, 12000),
   crawlDelayMs: numberFromEnv(process.env.CRAWL_DELAY_MS, 150),
   maxPagesPerScan: numberFromEnv(process.env.MAX_PAGES_PER_SCAN, 50),

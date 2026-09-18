@@ -10,6 +10,7 @@ const { PLANS } = require('./config/plans');
 const { attachUser } = require('./middleware/auth');
 const csrfProtection = require('./middleware/csrf');
 const { recordAppLog, requestIdMiddleware } = require('./services/appLogger');
+const { buildLandingTutorialVideo } = require('./services/landingTutorialVideoService');
 
 const healthRouter = require('./routes/health');
 const socialOAuthPublicRouter = require('./routes/socialOAuthPublic');
@@ -37,6 +38,10 @@ app.set('view engine', 'ejs');
 
 app.locals.appName = env.appName;
 app.locals.publicPlans = PLANS;
+app.locals.landingTutorialVideo = buildLandingTutorialVideo({
+  url: env.landingTutorialVideoUrl,
+  posterUrl: env.landingTutorialPosterUrl
+});
 app.use(requestIdMiddleware);
 
 app.use(helmet({
@@ -61,6 +66,7 @@ app.use(helmet({
       imgSrc: [
         "'self'",
         'data:',
+        'https:',
         'https://consent.cookiebot.com',
         'https://consentcdn.cookiebot.com',
         'https://imgs.cookiebot.com',
@@ -74,9 +80,12 @@ app.use(helmet({
       ],
       frameSrc: [
         "'self'",
+        'https://www.youtube-nocookie.com',
+        'https://player.vimeo.com',
         'https://consent.cookiebot.com',
         'https://consentcdn.cookiebot.com'
       ],
+      mediaSrc: ["'self'", 'https:', 'blob:'],
       upgradeInsecureRequests: [],
     }
   }
