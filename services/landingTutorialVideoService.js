@@ -52,7 +52,9 @@ function buildLandingTutorialVideo({ url, posterUrl } = {}) {
     return {
       type: 'embed',
       provider: 'YouTube',
-      src: `https://www.youtube-nocookie.com/embed/${youtubeId}?rel=0&modestbranding=1`
+      videoId: youtubeId,
+      poster: `https://i.ytimg.com/vi/${youtubeId}/maxresdefault.jpg`,
+      src: `https://www.youtube-nocookie.com/embed/${youtubeId}?rel=0&modestbranding=1&playsinline=1`
     };
   }
 

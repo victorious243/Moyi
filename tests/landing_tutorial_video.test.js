@@ -19,7 +19,9 @@ test('landing tutorial converts supported YouTube and Vimeo links to privacy-awa
   assert.deepEqual(buildLandingTutorialVideo({ url: 'https://youtu.be/dQw4w9WgXcQ' }), {
     type: 'embed',
     provider: 'YouTube',
-    src: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1'
+    videoId: 'dQw4w9WgXcQ',
+    poster: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg',
+    src: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1&playsinline=1'
   });
   assert.deepEqual(buildLandingTutorialVideo({ url: 'https://vimeo.com/123456789' }), {
     type: 'embed',
@@ -53,6 +55,8 @@ test('landing page renders the configured tutorial player and links the demo act
 
   assert.match(html, /href="#product-tour">View Demo/);
   assert.match(html, /id="product-tour"/);
-  assert.match(html, /youtube-nocookie\.com\/embed\/dQw4w9WgXcQ/);
+  assert.match(html, /data-youtube-facade/);
+  assert.match(html, /i\.ytimg\.com\/vi\/dQw4w9WgXcQ\/maxresdefault\.jpg/);
+  assert.match(html, /data-video-src="https:\/\/www\.youtube-nocookie\.com\/embed\/dQw4w9WgXcQ/);
   assert.match(html, /See how Moyi turns evidence into marketing action/);
 });

@@ -230,14 +230,24 @@
     </div>
 
     <div class="landing-tutorial-player">
-      <% if (tutorialVideo.type === 'embed') { %>
-        <iframe
-          src="<%= tutorialVideo.src %>"
-          title="How to use Moyi-CMO"
-          loading="lazy"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          referrerpolicy="strict-origin-when-cross-origin"
-          allowfullscreen></iframe>
+      <% if (tutorialVideo.type === 'embed' && tutorialVideo.provider === 'YouTube') { %>
+        <button
+          class="landing-tutorial-facade"
+          type="button"
+          data-youtube-facade
+          data-video-src="<%= tutorialVideo.src %>"
+          aria-label="Play the Moyi-CMO product tutorial">
+          <img src="<%= tutorialVideo.poster %>" alt="Moyi-CMO product tutorial preview" loading="lazy">
+          <span class="landing-tutorial-shade" aria-hidden="true"></span>
+          <span class="landing-tutorial-brand"><img src="/images/brand/moyi-mark-64.png" alt=""> MOYI-CMO</span>
+          <span class="landing-tutorial-play" aria-hidden="true"><i></i></span>
+          <span class="landing-tutorial-caption">
+            <small>Video tutorial</small>
+            <strong>How Moyi-CMO works</strong>
+          </span>
+        </button>
+      <% } else if (tutorialVideo.type === 'embed') { %>
+        <iframe src="<%= tutorialVideo.src %>" title="How to use Moyi-CMO" loading="lazy" allow="autoplay; fullscreen; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
       <% } else { %>
         <video controls playsinline preload="metadata"<% if (tutorialVideo.poster) { %> poster="<%= tutorialVideo.poster %>"<% } %>>
           <source src="<%= tutorialVideo.src %>">
